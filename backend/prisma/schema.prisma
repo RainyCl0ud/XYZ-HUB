@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChatterStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum IncidentStatus {
+  OPEN
+  RESOLVED
+  VOIDED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Chatter {
+  id        String        @id @default(cuid())
+  name      String
+  status    ChatterStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  incidents Incident[]
+
+  @@index([status])
+}
+
+model Rule {
+  id         String    @id @default(cuid())
+  isActive   Boolean   @default(true)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  versions RuleVersion[]
+
+  @@index([isActive])
+}
+
+model RuleVersion {
+  id            String @id @default(cuid())
+  ruleId        String
+  versionNumber Int
+
+  title      String
+  definition String
+  severity   Severity?
+  weight     Int?
+
+  createdAt DateTime @default(now())
+
+  rule      Rule       @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  incidents Incident[]
+
+  @@unique([ruleId, versionNumber])
+  @@index([ruleId])
+}
+
+model Incident {
+  id            String @id @default(cuid())
+  chatterId     String
+  ruleVersionId String
+
+  // Historical snapshot of the rule at the time of the incident
+  ruleTitleSnapshot      String
+  ruleDefinitionSnapshot String
+  severitySnapshot       Severity?
+  weightSnapshot         Int?
+
+  occurredAt  DateTime @default(now())
+  details     String
+  evidenceUrl String?
+
+  status          IncidentStatus @default(OPEN)
+  resolutionNotes String?
+  resolvedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chatter     Chatter     @relation(fields: [chatterId], references: [id], onDelete: Restrict)
+  ruleVersion RuleVersion @relation(fields: [ruleVersionId], references: [id], onDelete: Restrict)
+
+  @@index([chatterId])
+  @@index([ruleVersionId])
+  @@index([status])
+  @@index([occurredAt])
+}
