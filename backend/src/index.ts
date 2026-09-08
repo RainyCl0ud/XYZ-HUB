@@ -1,3 +1,4 @@
+import { prisma } from "./lib/prisma.js";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -16,6 +17,25 @@ app.get("/health", (_req, res) => {
     status: "ok",
     message: "XYZ Hub API is running"
   });
+});
+
+app.get("/health/db", async (_req, res) => {
+  try {
+    const chatterCount = await prisma.chatter.count();
+
+    res.status(200).json({
+      status: "ok",
+      message: "Database connection is working",
+      chatterCount,
+    });
+  } catch (error) {
+    console.error("Database health check failed:", error);
+
+    res.status(500).json({
+      status: "error",
+      message: "Database connection failed",
+    });
+  }
 });
 
 app.listen(PORT, () => {
