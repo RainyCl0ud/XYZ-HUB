@@ -18,13 +18,6 @@ enum IncidentStatus {
   VOIDED
 }
 
-enum Severity {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
 model Chatter {
   id        String        @id @default(cuid())
   name      String
@@ -49,6 +42,39 @@ model Rule {
   @@index([isActive])
 }
 
+model SeverityOption {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  ruleVersions RuleVersion[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model WeightOption {
+  id          String    @id @default(cuid())
+  name        String
+  value       Int?
+  description String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  ruleVersions RuleVersion[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
 model RuleVersion {
   id            String @id @default(cuid())
   ruleId        String
@@ -56,16 +82,27 @@ model RuleVersion {
 
   title      String
   definition String
-  severity   Severity?
-  weight     Int?
+
+  severityOptionId String?
+  weightOptionId   String?
+
+  // Historical snapshot of the selected configuration
+  severityNameSnapshot String?
+  weightNameSnapshot   String?
+  weightValueSnapshot  Int?
 
   createdAt DateTime @default(now())
 
-  rule      Rule       @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  rule           Rule            @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  severityOption SeverityOption? @relation(fields: [severityOptionId], references: [id], onDelete: Restrict)
+  weightOption   WeightOption?   @relation(fields: [weightOptionId], references: [id], onDelete: Restrict)
+
   incidents Incident[]
 
   @@unique([ruleId, versionNumber])
   @@index([ruleId])
+  @@index([severityOptionId])
+  @@index([weightOptionId])
 }
 
 model Incident {
@@ -73,11 +110,12 @@ model Incident {
   chatterId     String
   ruleVersionId String
 
-  // Historical snapshot of the rule at the time of the incident
+  // Historical snapshot of the rule at the time the incident was logged
   ruleTitleSnapshot      String
   ruleDefinitionSnapshot String
-  severitySnapshot       Severity?
-  weightSnapshot         Int?
+  severityNameSnapshot   String?
+  weightNameSnapshot     String?
+  weightValueSnapshot    Int?
 
   occurredAt  DateTime @default(now())
   details     String
