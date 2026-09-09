@@ -121,12 +121,13 @@ model Incident {
   details     String
   evidenceUrl String?
 
-  status          IncidentStatus @default(OPEN)
+  status IncidentStatus @default(OPEN)
+
   resolutionNotes String?
   resolvedAt      DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  voidReason String?
+  voidedAt   DateTime?
 
   chatter     Chatter     @relation(fields: [chatterId], references: [id], onDelete: Restrict)
   ruleVersion RuleVersion @relation(fields: [ruleVersionId], references: [id], onDelete: Restrict)

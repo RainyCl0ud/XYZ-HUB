@@ -31,6 +31,23 @@ const createIncidentSchema = z.object({
     .optional(),
 });
 
+const resolveIncidentSchema = z.object({
+  resolutionNotes: z
+    .string()
+    .trim()
+    .max(2000, "Resolution notes must be 2000 characters or fewer")
+    .nullable()
+    .optional(),
+});
+
+const voidIncidentSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1, "A reason is required when voiding an incident")
+    .max(2000, "Void reason must be 2000 characters or fewer"),
+});
+
 // GET /api/incidents
 router.get("/", async (req, res) => {
   try {
@@ -264,6 +281,166 @@ router.post("/", async (req, res) => {
 
     res.status(500).json({
       message: "Failed to log incident",
+    });
+  }
+});
+
+// PATCH /api/incidents/:id/resolve
+router.patch("/:id/resolve", async (req, res) => {
+  try {
+    const result = resolveIncidentSchema.safeParse(req.body);
+
+    if (!result.success) {
+      res.status(400).json({
+        message: "Invalid resolution data",
+        errors: result.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const existing = await prisma.incident.findUnique({
+      where: {
+        id: req.params.id,
+      },
+    });
+
+    if (!existing) {
+      res.status(404).json({
+        message: "Incident not found",
+      });
+      return;
+    }
+
+    if (existing.status === "VOIDED") {
+      res.status(409).json({
+        message: "A voided incident cannot be resolved",
+      });
+      return;
+    }
+
+    if (existing.status === "RESOLVED") {
+      res.status(409).json({
+        message: "Incident is already resolved",
+      });
+      return;
+    }
+
+    const incident = await prisma.incident.update({
+      where: {
+        id: req.params.id,
+      },
+
+      data: {
+        status: "RESOLVED",
+        resolutionNotes:
+          result.data.resolutionNotes || null,
+        resolvedAt: new Date(),
+      },
+
+      include: {
+        chatter: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+
+        ruleVersion: {
+          select: {
+            id: true,
+            ruleId: true,
+            versionNumber: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: "Incident resolved successfully",
+      data: incident,
+    });
+  } catch (error) {
+    console.error("Failed to resolve incident:", error);
+
+    res.status(500).json({
+      message: "Failed to resolve incident",
+    });
+  }
+});
+
+// PATCH /api/incidents/:id/void
+router.patch("/:id/void", async (req, res) => {
+  try {
+    const result = voidIncidentSchema.safeParse(req.body);
+
+    if (!result.success) {
+      res.status(400).json({
+        message: "Invalid void data",
+        errors: result.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const existing = await prisma.incident.findUnique({
+      where: {
+        id: req.params.id,
+      },
+    });
+
+    if (!existing) {
+      res.status(404).json({
+        message: "Incident not found",
+      });
+      return;
+    }
+
+    if (existing.status === "VOIDED") {
+      res.status(409).json({
+        message: "Incident is already voided",
+      });
+      return;
+    }
+
+    const incident = await prisma.incident.update({
+      where: {
+        id: req.params.id,
+      },
+
+      data: {
+        status: "VOIDED",
+        voidReason: result.data.reason,
+        voidedAt: new Date(),
+      },
+
+      include: {
+        chatter: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+
+        ruleVersion: {
+          select: {
+            id: true,
+            ruleId: true,
+            versionNumber: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: "Incident voided successfully",
+      data: incident,
+    });
+  } catch (error) {
+    console.error("Failed to void incident:", error);
+
+    res.status(500).json({
+      message: "Failed to void incident",
     });
   }
 });
