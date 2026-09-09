@@ -3,6 +3,9 @@ import chatterRoutes from "./routes/chatters.js";
 import severityOptionRoutes from "./routes/severity-options.js";
 import weightOptionRoutes from "./routes/weight-options.js";
 import ruleRoutes from "./routes/rules.js";
+import incidentRoutes from "./routes/incidents.js";
+
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -21,6 +24,7 @@ app.use("/api/chatters", chatterRoutes);
 app.use("/api/severity-options", severityOptionRoutes);
 app.use("/api/weight-options", weightOptionRoutes);
 app.use("/api/rules", ruleRoutes);
+app.use("/api/incidents", incidentRoutes);
 
 
 app.get("/health", (_req, res) => {
