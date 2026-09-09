@@ -1,4 +1,5 @@
 import { prisma } from "./lib/prisma.js";
+import chatterRoutes from "./routes/chatters.js";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -11,6 +12,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+app.use("/api/chatters", chatterRoutes);
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
