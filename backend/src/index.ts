@@ -1,5 +1,7 @@
 import { prisma } from "./lib/prisma.js";
 import chatterRoutes from "./routes/chatters.js";
+import severityOptionRoutes from "./routes/severity-options.js";
+import weightOptionRoutes from "./routes/weight-options.js";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -14,6 +16,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/chatters", chatterRoutes);
+app.use("/api/severity-options", severityOptionRoutes);
+app.use("/api/weight-options", weightOptionRoutes);
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
