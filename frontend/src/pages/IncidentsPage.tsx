@@ -92,8 +92,12 @@ function toDateTimeLocalValue(date: Date) {
 
 function IncidentsPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [chatters, setChatters] = useState<Chatter[]>([]);
-  const [rules, setRules] = useState<Rule[]>([]);
+
+  const [activeChatters, setActiveChatters] = useState<Chatter[]>([]);
+  const [allChatters, setAllChatters] = useState<Chatter[]>([]);
+
+  const [activeRules, setActiveRules] = useState<Rule[]>([]);
+  const [allRules, setAllRules] = useState<Rule[]>([]);
 
   const [statusFilter, setStatusFilter] =
     useState<IncidentFilter>("ALL");
@@ -114,9 +118,11 @@ function IncidentsPage() {
 
   const [chatterId, setChatterId] = useState("");
   const [ruleId, setRuleId] = useState("");
+
   const [occurredAt, setOccurredAt] = useState(
     toDateTimeLocalValue(new Date())
   );
+
   const [details, setDetails] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
 
@@ -140,28 +146,45 @@ function IncidentsPage() {
       setDependenciesLoading(true);
       setPageError("");
 
-      const [chatterResponse, ruleResponse] =
-        await Promise.all([
-          apiRequest<ChatterListResponse>(
-            "/api/chatters?status=ACTIVE"
-          ),
-          apiRequest<RuleListResponse>(
-            "/api/rules?active=true"
-          ),
-        ]);
+      /*
+       * Load the complete lists once.
+       *
+       * We derive the active lists locally:
+       *
+       * activeChatters / activeRules:
+       *   Used only when logging a NEW incident.
+       *
+       * allChatters / allRules:
+       *   Used for historical filtering so inactive/archived
+       *   records remain searchable.
+       */
+      const [chatterResponse, ruleResponse] = await Promise.all([
+        apiRequest<ChatterListResponse>("/api/chatters"),
+        apiRequest<RuleListResponse>("/api/rules"),
+      ]);
 
-      setChatters(chatterResponse.data);
+      const completeChatters = chatterResponse.data;
+      const completeRules = ruleResponse.data.filter(
+        (rule) => rule.currentVersion !== null
+      );
 
-      setRules(
-        ruleResponse.data.filter(
-          (rule) => rule.currentVersion !== null
+      setAllChatters(completeChatters);
+      setAllRules(completeRules);
+
+      setActiveChatters(
+        completeChatters.filter(
+          (chatter) => chatter.status === "ACTIVE"
         )
+      );
+
+      setActiveRules(
+        completeRules.filter((rule) => rule.isActive)
       );
     } catch (error) {
       setPageError(
         error instanceof Error
           ? error.message
-          : "Failed to load incident form data"
+          : "Failed to load incident dependencies"
       );
     } finally {
       setDependenciesLoading(false);
@@ -215,8 +238,10 @@ function IncidentsPage() {
   }, [loadIncidents]);
 
   const selectedRule = useMemo(
-    () => rules.find((rule) => rule.id === ruleId) ?? null,
-    [rules, ruleId]
+    () =>
+      activeRules.find((rule) => rule.id === ruleId) ??
+      null,
+    [activeRules, ruleId]
   );
 
   const visibleIncidents = useMemo(() => {
@@ -282,23 +307,32 @@ function IncidentsPage() {
       return;
     }
 
+    if (!occurredAt) {
+      setFormError(
+        "Please provide the incident date and time."
+      );
+      return;
+    }
+
     if (!details.trim()) {
       setFormError("Incident details are required.");
       return;
     }
 
-    let occurredAtIso: string;
+    const occurredDate = new Date(occurredAt);
 
-    try {
-      occurredAtIso = new Date(occurredAt).toISOString();
-    } catch {
-      setFormError("Please provide a valid incident date and time.");
+    if (Number.isNaN(occurredDate.getTime())) {
+      setFormError(
+        "Please provide a valid incident date and time."
+      );
       return;
     }
 
+    const trimmedEvidenceUrl = evidenceUrl.trim();
+
     if (
-      evidenceUrl.trim() &&
-      !/^https?:\/\//i.test(evidenceUrl.trim())
+      trimmedEvidenceUrl &&
+      !/^https?:\/\//i.test(trimmedEvidenceUrl)
     ) {
       setFormError(
         "Evidence URL must begin with http:// or https://."
@@ -312,19 +346,23 @@ function IncidentsPage() {
 
       await apiRequest("/api/incidents", {
         method: "POST",
+
         body: JSON.stringify({
           chatterId,
           ruleId,
-          occurredAt: occurredAtIso,
+          occurredAt: occurredDate.toISOString(),
           details: details.trim(),
-          evidenceUrl: evidenceUrl.trim() || null,
+          evidenceUrl: trimmedEvidenceUrl || null,
         }),
       });
 
       setShowLogModal(false);
       resetLogForm();
 
-      await loadIncidents();
+      await Promise.all([
+        loadIncidents(),
+        loadDependencies(),
+      ]);
     } catch (error) {
       setFormError(
         error instanceof Error
@@ -336,7 +374,9 @@ function IncidentsPage() {
     }
   }
 
-  async function openIncidentDetails(incident: Incident) {
+  async function openIncidentDetails(
+    incident: Incident
+  ) {
     try {
       setDetailLoading(true);
       setPageError("");
@@ -388,10 +428,9 @@ function IncidentsPage() {
       return;
     }
 
-    if (
-      actionType === "void" &&
-      !actionNotes.trim()
-    ) {
+    const trimmedNotes = actionNotes.trim();
+
+    if (actionType === "void" && !trimmedNotes) {
       setActionError(
         "A reason is required when voiding an incident."
       );
@@ -407,9 +446,9 @@ function IncidentsPage() {
           `/api/incidents/${actionIncident.id}/resolve`,
           {
             method: "PATCH",
+
             body: JSON.stringify({
-              resolutionNotes:
-                actionNotes.trim() || null,
+              resolutionNotes: trimmedNotes || null,
             }),
           }
         );
@@ -418,8 +457,9 @@ function IncidentsPage() {
           `/api/incidents/${actionIncident.id}/void`,
           {
             method: "PATCH",
+
             body: JSON.stringify({
-              reason: actionNotes.trim(),
+              reason: trimmedNotes,
             }),
           }
         );
@@ -459,17 +499,32 @@ function IncidentsPage() {
     return "incident-status voided";
   }
 
+  function formatStatus(status: IncidentStatus) {
+    if (status === "OPEN") {
+      return "Open";
+    }
+
+    if (status === "RESOLVED") {
+      return "Resolved";
+    }
+
+    return "Voided";
+  }
+
   return (
     <div className="page">
       <header className="page-header">
         <div>
-          <p className="page-eyebrow">QA Records</p>
+          <p className="page-eyebrow">
+            QA Records
+          </p>
 
           <h2>Incidents</h2>
 
           <p className="page-description">
-            Log, review, resolve, and void chatter incidents while
-            preserving the exact rule version that applied.
+            Log, review, resolve, and void chatter incidents
+            while preserving the exact rule version that
+            applied.
           </p>
         </div>
 
@@ -479,8 +534,8 @@ function IncidentsPage() {
           onClick={openLogIncident}
           disabled={
             dependenciesLoading ||
-            chatters.length === 0 ||
-            rules.length === 0
+            activeChatters.length === 0 ||
+            activeRules.length === 0
           }
         >
           Log Incident
@@ -494,17 +549,18 @@ function IncidentsPage() {
       )}
 
       {!dependenciesLoading &&
-        (chatters.length === 0 || rules.length === 0) && (
+        (activeChatters.length === 0 ||
+          activeRules.length === 0) && (
           <div className="dependency-warning">
             <strong>
               Incident logging is not available yet.
             </strong>
 
             <span>
-              {chatters.length === 0 &&
+              {activeChatters.length === 0 &&
                 " Add at least one active chatter."}
 
-              {rules.length === 0 &&
+              {activeRules.length === 0 &&
                 " Add at least one active rule."}
             </span>
           </div>
@@ -516,8 +572,8 @@ function IncidentsPage() {
             <h3>Incident Records</h3>
 
             <p>
-              Historical rule wording, severity, and weight are
-              preserved with every record.
+              Historical rule wording, severity, and weight
+              are preserved with every record.
             </p>
           </div>
 
@@ -539,14 +595,19 @@ function IncidentsPage() {
                 setChatterFilter(event.target.value)
               }
             >
-              <option value="">All Chatters</option>
+              <option value="">
+                All Chatters
+              </option>
 
-              {chatters.map((chatter) => (
+              {allChatters.map((chatter) => (
                 <option
                   key={chatter.id}
                   value={chatter.id}
                 >
                   {chatter.name}
+                  {chatter.status === "INACTIVE"
+                    ? " (Inactive)"
+                    : ""}
                 </option>
               ))}
             </select>
@@ -558,15 +619,20 @@ function IncidentsPage() {
                 setRuleFilter(event.target.value)
               }
             >
-              <option value="">All Rules</option>
+              <option value="">
+                All Rules
+              </option>
 
-              {rules.map((rule) => (
+              {allRules.map((rule) => (
                 <option
                   key={rule.id}
                   value={rule.id}
                 >
                   {rule.currentVersion?.title ??
                     "Untitled Rule"}
+                  {!rule.isActive
+                    ? " (Archived)"
+                    : ""}
                 </option>
               ))}
             </select>
@@ -601,15 +667,19 @@ function IncidentsPage() {
 
         {isLoading ? (
           <div className="empty-state">
-            <strong>Loading incidents...</strong>
+            <strong>
+              Loading incidents...
+            </strong>
           </div>
         ) : visibleIncidents.length === 0 ? (
           <div className="empty-state">
-            <strong>No matching incidents</strong>
+            <strong>
+              No matching incidents
+            </strong>
 
             <span>
-              Incident records will appear here after they are
-              logged.
+              Incident records will appear here after they
+              are logged.
             </span>
           </div>
         ) : (
@@ -623,6 +693,7 @@ function IncidentsPage() {
                   <th>Weight</th>
                   <th>Occurred</th>
                   <th>Status</th>
+
                   <th className="actions-column">
                     Actions
                   </th>
@@ -655,14 +726,17 @@ function IncidentsPage() {
                     </td>
 
                     <td>
-                      {incident.severityNameSnapshot ?? "—"}
+                      {incident.severityNameSnapshot ??
+                        "—"}
                     </td>
 
                     <td>
                       {incident.weightNameSnapshot ? (
                         <div className="weight-display">
                           <span>
-                            {incident.weightNameSnapshot}
+                            {
+                              incident.weightNameSnapshot
+                            }
                           </span>
 
                           {incident.weightValueSnapshot !==
@@ -691,11 +765,9 @@ function IncidentsPage() {
                           incident.status
                         )}
                       >
-                        {incident.status === "OPEN"
-                          ? "Open"
-                          : incident.status === "RESOLVED"
-                            ? "Resolved"
-                            : "Voided"}
+                        {formatStatus(
+                          incident.status
+                        )}
                       </span>
                     </td>
 
@@ -728,7 +800,8 @@ function IncidentsPage() {
                           </button>
                         )}
 
-                        {incident.status !== "VOIDED" && (
+                        {incident.status !==
+                          "VOIDED" && (
                           <button
                             type="button"
                             className="text-button danger"
@@ -765,12 +838,14 @@ function IncidentsPage() {
           >
             <div className="modal-header">
               <div>
-                <h3>Log Incident</h3>
+                <h3>
+                  Log Incident
+                </h3>
 
                 <p>
-                  Select a chatter and rule. Severity, weight, and
-                  the exact rule version are captured
-                  automatically.
+                  Select a chatter and rule. Severity,
+                  weight, and the exact rule version are
+                  captured automatically.
                 </p>
               </div>
 
@@ -791,7 +866,9 @@ function IncidentsPage() {
               <div className="form-stack">
                 <div className="form-grid">
                   <label className="form-field">
-                    <span>Chatter</span>
+                    <span>
+                      Chatter
+                    </span>
 
                     <select
                       value={chatterId}
@@ -805,31 +882,37 @@ function IncidentsPage() {
                         Select chatter
                       </option>
 
-                      {chatters.map((chatter) => (
-                        <option
-                          key={chatter.id}
-                          value={chatter.id}
-                        >
-                          {chatter.name}
-                        </option>
-                      ))}
+                      {activeChatters.map(
+                        (chatter) => (
+                          <option
+                            key={chatter.id}
+                            value={chatter.id}
+                          >
+                            {chatter.name}
+                          </option>
+                        )
+                      )}
                     </select>
                   </label>
 
                   <label className="form-field">
-                    <span>Rule / Strike Reason</span>
+                    <span>
+                      Rule / Strike Reason
+                    </span>
 
                     <select
                       value={ruleId}
                       onChange={(event) =>
-                        setRuleId(event.target.value)
+                        setRuleId(
+                          event.target.value
+                        )
                       }
                     >
                       <option value="">
                         Select rule
                       </option>
 
-                      {rules.map((rule) => (
+                      {activeRules.map((rule) => (
                         <option
                           key={rule.id}
                           value={rule.id}
@@ -852,8 +935,8 @@ function IncidentsPage() {
 
                         <strong>
                           {
-                            selectedRule.currentVersion
-                              .title
+                            selectedRule
+                              .currentVersion.title
                           }
                         </strong>
                       </div>
@@ -861,7 +944,8 @@ function IncidentsPage() {
                       <span className="version-badge">
                         v
                         {
-                          selectedRule.currentVersion
+                          selectedRule
+                            .currentVersion
                             .versionNumber
                         }
                       </span>
@@ -877,8 +961,10 @@ function IncidentsPage() {
                     <div className="rule-preview-meta">
                       <span>
                         Severity:{" "}
+
                         <strong>
-                          {selectedRule.currentVersion
+                          {selectedRule
+                            .currentVersion
                             .severityNameSnapshot ??
                             "None"}
                         </strong>
@@ -886,8 +972,10 @@ function IncidentsPage() {
 
                       <span>
                         Weight:{" "}
+
                         <strong>
-                          {selectedRule.currentVersion
+                          {selectedRule
+                            .currentVersion
                             .weightNameSnapshot ??
                             "None"}
                         </strong>
@@ -902,7 +990,9 @@ function IncidentsPage() {
                 )}
 
                 <label className="form-field">
-                  <span>Incident Date & Time</span>
+                  <span>
+                    Incident Date & Time
+                  </span>
 
                   <input
                     type="datetime-local"
@@ -912,26 +1002,37 @@ function IncidentsPage() {
                         event.target.value
                       )
                     }
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Incident Details</span>
-
-                  <textarea
-                    value={details}
-                    onChange={(event) =>
-                      setDetails(event.target.value)
-                    }
-                    placeholder="Describe what happened..."
-                    maxLength={5000}
-                    rows={7}
+                    required
                   />
                 </label>
 
                 <label className="form-field">
                   <span>
+                    Incident Details
+                  </span>
+
+                  <textarea
+                    value={details}
+                    onChange={(event) =>
+                      setDetails(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Describe what happened..."
+                    maxLength={5000}
+                    rows={7}
+                    required
+                  />
+
+                  <small className="form-helper">
+                    {details.length}/5000 characters
+                  </small>
+                </label>
+
+                <label className="form-field">
+                  <span>
                     Evidence URL{" "}
+
                     <em className="optional-label">
                       Optional
                     </em>
@@ -985,10 +1086,11 @@ function IncidentsPage() {
       {(selectedIncident || detailLoading) && (
         <div
           className="modal-backdrop"
-          onMouseDown={() =>
-            !detailLoading &&
-            setSelectedIncident(null)
-          }
+          onMouseDown={() => {
+            if (!detailLoading) {
+              setSelectedIncident(null);
+            }
+          }}
         >
           <div
             className="modal modal-history"
@@ -998,11 +1100,14 @@ function IncidentsPage() {
           >
             <div className="modal-header">
               <div>
-                <h3>Incident Details</h3>
+                <h3>
+                  Incident Details
+                </h3>
 
                 <p>
-                  Historical values shown here are snapshots from
-                  the moment this incident was logged.
+                  Historical values shown here are
+                  snapshots from the moment this incident
+                  was logged.
                 </p>
               </div>
 
@@ -1047,7 +1152,9 @@ function IncidentsPage() {
                         selectedIncident.status
                       )}
                     >
-                      {selectedIncident.status}
+                      {formatStatus(
+                        selectedIncident.status
+                      )}
                     </span>
                   </div>
 
@@ -1058,19 +1165,24 @@ function IncidentsPage() {
 
                     <h4>
                       {
-                        selectedIncident.ruleTitleSnapshot
+                        selectedIncident
+                          .ruleTitleSnapshot
                       }
                     </h4>
 
                     <p>
                       {
-                        selectedIncident.ruleDefinitionSnapshot
+                        selectedIncident
+                          .ruleDefinitionSnapshot
                       }
                     </p>
 
                     <div className="detail-meta-grid">
                       <div>
-                        <span>Rule Version</span>
+                        <span>
+                          Rule Version
+                        </span>
+
                         <strong>
                           v
                           {
@@ -1082,7 +1194,10 @@ function IncidentsPage() {
                       </div>
 
                       <div>
-                        <span>Severity</span>
+                        <span>
+                          Severity
+                        </span>
+
                         <strong>
                           {selectedIncident
                             .severityNameSnapshot ??
@@ -1091,7 +1206,10 @@ function IncidentsPage() {
                       </div>
 
                       <div>
-                        <span>Weight</span>
+                        <span>
+                          Weight
+                        </span>
+
                         <strong>
                           {selectedIncident
                             .weightNameSnapshot ??
@@ -1105,7 +1223,10 @@ function IncidentsPage() {
                       </div>
 
                       <div>
-                        <span>Occurred</span>
+                        <span>
+                          Occurred
+                        </span>
+
                         <strong>
                           {new Date(
                             selectedIncident.occurredAt
@@ -1152,7 +1273,8 @@ function IncidentsPage() {
                       </span>
 
                       <p>
-                        {selectedIncident.resolutionNotes ||
+                        {selectedIncident
+                          .resolutionNotes ||
                           "No resolution notes provided."}
                       </p>
 
@@ -1175,7 +1297,8 @@ function IncidentsPage() {
                       </span>
 
                       <p>
-                        {selectedIncident.voidReason}
+                        {selectedIncident.voidReason ||
+                          "No void reason recorded."}
                       </p>
 
                       {selectedIncident.voidedAt && (
@@ -1196,10 +1319,14 @@ function IncidentsPage() {
                         type="button"
                         className="secondary-button"
                         onClick={() => {
+                          const incident =
+                            selectedIncident;
+
                           setSelectedIncident(null);
+
                           openAction(
                             "resolve",
-                            selectedIncident
+                            incident
                           );
                         }}
                       >
@@ -1213,10 +1340,14 @@ function IncidentsPage() {
                         type="button"
                         className="danger-button"
                         onClick={() => {
+                          const incident =
+                            selectedIncident;
+
                           setSelectedIncident(null);
+
                           openAction(
                             "void",
-                            selectedIncident
+                            incident
                           );
                         }}
                       >
@@ -1261,6 +1392,7 @@ function IncidentsPage() {
                 type="button"
                 className="modal-close"
                 onClick={closeAction}
+                disabled={actionSaving}
                 aria-label="Close"
               >
                 ×
@@ -1277,7 +1409,10 @@ function IncidentsPage() {
                 </span>
 
                 <strong>
-                  {actionIncident.ruleTitleSnapshot}
+                  {
+                    actionIncident
+                      .ruleTitleSnapshot
+                  }
                 </strong>
               </div>
 
@@ -1303,13 +1438,14 @@ function IncidentsPage() {
                   maxLength={2000}
                   rows={5}
                   autoFocus
+                  required={actionType === "void"}
                 />
 
-                {actionType === "resolve" && (
-                  <small className="form-helper">
-                    Resolution notes are optional.
-                  </small>
-                )}
+                <small className="form-helper">
+                  {actionType === "resolve"
+                    ? `Optional · ${actionNotes.length}/2000 characters`
+                    : `${actionNotes.length}/2000 characters`}
+                </small>
               </label>
 
               {actionError && (
