@@ -23,12 +23,25 @@ const createIncidentSchema = z.object({
     .min(1, "Incident details are required")
     .max(5000, "Incident details must be 5000 characters or fewer"),
 
-  evidenceUrl: z
-    .string()
-    .trim()
-    .max(2000, "Evidence URL must be 2000 characters or fewer")
-    .nullable()
-    .optional(),
+evidenceUrl: z
+  .string()
+  .trim()
+  .max(
+    2000,
+    "Evidence URL must be 2000 characters or fewer"
+  )
+  .url("Evidence URL must be a valid URL")
+  .refine(
+    (value) =>
+      value.startsWith("http://") ||
+      value.startsWith("https://"),
+    {
+      message:
+        "Evidence URL must begin with http:// or https://",
+    }
+  )
+  .nullable()
+  .optional(),
 });
 
 const resolveIncidentSchema = z.object({
