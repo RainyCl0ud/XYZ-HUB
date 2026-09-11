@@ -7,9 +7,12 @@ function AppLayout() {
         <div className="sidebar-header">
           <div className="brand-mark">X</div>
 
-          <div>
+          <div className="brand-copy">
             <h1 className="brand-name">XYZ Hub</h1>
-            <p className="brand-subtitle">QA & Incident Tracking</p>
+
+            <p className="brand-subtitle">
+              Agency Operation Management
+            </p>
           </div>
         </div>
 
@@ -63,7 +66,7 @@ function AppLayout() {
 
         <div className="sidebar-footer">
           <span className="environment-dot" />
-          Development
+          <span>Development</span>
         </div>
       </aside>
 
