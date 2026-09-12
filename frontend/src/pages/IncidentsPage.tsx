@@ -1,13 +1,30 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
-import { apiRequest } from "../lib/api";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-type IncidentStatus = "OPEN" | "RESOLVED" | "VOIDED";
+import type {
+  FormEvent,
+} from "react";
+
+import { apiRequest } from "../lib/api";
+import {
+  useToast,
+} from "../components/ToastProvider";
+
+type IncidentStatus =
+  | "OPEN"
+  | "RESOLVED"
+  | "VOIDED";
 
 type Chatter = {
   id: string;
   name: string;
-  status: "ACTIVE" | "INACTIVE";
+  status:
+    | "ACTIVE"
+    | "INACTIVE";
 };
 
 type RuleVersion = {
@@ -17,39 +34,73 @@ type RuleVersion = {
   title: string;
   definition: string;
 
-  severityNameSnapshot: string | null;
-  weightNameSnapshot: string | null;
-  weightValueSnapshot: number | null;
+  severityNameSnapshot:
+    | string
+    | null;
+
+  weightNameSnapshot:
+    | string
+    | null;
+
+  weightValueSnapshot:
+    | number
+    | null;
 };
 
 type Rule = {
   id: string;
   isActive: boolean;
-  currentVersion: RuleVersion | null;
+  currentVersion:
+    | RuleVersion
+    | null;
 };
 
 type Incident = {
   id: string;
+
   chatterId: string;
   ruleVersionId: string;
 
   ruleTitleSnapshot: string;
   ruleDefinitionSnapshot: string;
-  severityNameSnapshot: string | null;
-  weightNameSnapshot: string | null;
-  weightValueSnapshot: number | null;
+
+  severityNameSnapshot:
+    | string
+    | null;
+
+  weightNameSnapshot:
+    | string
+    | null;
+
+  weightValueSnapshot:
+    | number
+    | null;
 
   occurredAt: string;
+
   details: string;
-  evidenceUrl: string | null;
+
+  evidenceUrl:
+    | string
+    | null;
 
   status: IncidentStatus;
 
-  resolutionNotes: string | null;
-  resolvedAt: string | null;
+  resolutionNotes:
+    | string
+    | null;
 
-  voidReason: string | null;
-  voidedAt: string | null;
+  resolvedAt:
+    | string
+    | null;
+
+  voidReason:
+    | string
+    | null;
+
+  voidedAt:
+    | string
+    | null;
 
   chatter: Chatter;
 
@@ -79,155 +130,381 @@ type RuleListResponse = {
   data: Rule[];
 };
 
-type IncidentFilter = "ALL" | IncidentStatus;
+type IncidentMutationResponse = {
+  message: string;
+  data: Incident;
+};
 
-type ActionType = "resolve" | "void";
+type IncidentFilter =
+  | "ALL"
+  | IncidentStatus;
 
-function toDateTimeLocalValue(date: Date) {
-  const offset = date.getTimezoneOffset();
-  const localDate = new Date(date.getTime() - offset * 60_000);
+type ActionType =
+  | "resolve"
+  | "void";
 
-  return localDate.toISOString().slice(0, 16);
-}
+type LogIncidentPayload = {
+  chatterId: string;
+  ruleId: string;
+  details: string;
+
+  evidenceUrl:
+    | string
+    | null;
+};
+
+type PendingConfirmation =
+  | {
+      type: "log";
+      payload: LogIncidentPayload;
+    }
+  | {
+      type: "action";
+      action:
+        | "resolve"
+        | "void";
+      incident: Incident;
+      notes: string;
+    };
 
 function IncidentsPage() {
-  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const toast = useToast();
 
-  const [activeChatters, setActiveChatters] = useState<Chatter[]>([]);
-  const [allChatters, setAllChatters] = useState<Chatter[]>([]);
+  const [
+    incidents,
+    setIncidents,
+  ] = useState<Incident[]>([]);
 
-  const [activeRules, setActiveRules] = useState<Rule[]>([]);
-  const [allRules, setAllRules] = useState<Rule[]>([]);
+  const [
+    activeChatters,
+    setActiveChatters,
+  ] = useState<Chatter[]>([]);
 
-  const [statusFilter, setStatusFilter] =
-    useState<IncidentFilter>("ALL");
+  const [
+    allChatters,
+    setAllChatters,
+  ] = useState<Chatter[]>([]);
 
-  const [chatterFilter, setChatterFilter] = useState("");
-  const [ruleFilter, setRuleFilter] = useState("");
-  const [search, setSearch] = useState("");
+  const [
+    activeRules,
+    setActiveRules,
+  ] = useState<Rule[]>([]);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [dependenciesLoading, setDependenciesLoading] =
-    useState(true);
+  const [
+    allRules,
+    setAllRules,
+  ] = useState<Rule[]>([]);
 
-  const [pageError, setPageError] = useState("");
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] =
+    useState<IncidentFilter>(
+      "ALL"
+    );
 
-  const [showLogModal, setShowLogModal] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState("");
+  const [
+    chatterFilter,
+    setChatterFilter,
+  ] = useState("");
 
-  const [chatterId, setChatterId] = useState("");
-  const [ruleId, setRuleId] = useState("");
+  const [
+    ruleFilter,
+    setRuleFilter,
+  ] = useState("");
 
-  const [occurredAt, setOccurredAt] = useState(
-    toDateTimeLocalValue(new Date())
-  );
+  const [
+    search,
+    setSearch,
+  ] = useState("");
 
-  const [details, setDetails] = useState("");
-  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
 
-  const [selectedIncident, setSelectedIncident] =
-    useState<Incident | null>(null);
+  const [
+    dependenciesLoading,
+    setDependenciesLoading,
+  ] = useState(true);
 
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [
+    pageError,
+    setPageError,
+  ] = useState("");
 
-  const [actionType, setActionType] =
-    useState<ActionType | null>(null);
+  /*
+   * =========================================================
+   * LOG INCIDENT
+   * =========================================================
+   */
 
-  const [actionIncident, setActionIncident] =
-    useState<Incident | null>(null);
+  const [
+    showLogModal,
+    setShowLogModal,
+  ] = useState(false);
 
-  const [actionNotes, setActionNotes] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [actionSaving, setActionSaving] = useState(false);
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
 
-  const loadDependencies = useCallback(async () => {
-    try {
-      setDependenciesLoading(true);
-      setPageError("");
+  const [
+    formError,
+    setFormError,
+  ] = useState("");
 
-      /*
-       * Load the complete lists once.
-       *
-       * We derive the active lists locally:
-       *
-       * activeChatters / activeRules:
-       *   Used only when logging a NEW incident.
-       *
-       * allChatters / allRules:
-       *   Used for historical filtering so inactive/archived
-       *   records remain searchable.
-       */
-      const [chatterResponse, ruleResponse] = await Promise.all([
-        apiRequest<ChatterListResponse>("/api/chatters"),
-        apiRequest<RuleListResponse>("/api/rules"),
-      ]);
+  const [
+    chatterId,
+    setChatterId,
+  ] = useState("");
 
-      const completeChatters = chatterResponse.data;
-      const completeRules = ruleResponse.data.filter(
-        (rule) => rule.currentVersion !== null
-      );
+  const [
+    ruleId,
+    setRuleId,
+  ] = useState("");
 
-      setAllChatters(completeChatters);
-      setAllRules(completeRules);
+  const [
+    details,
+    setDetails,
+  ] = useState("");
 
-      setActiveChatters(
-        completeChatters.filter(
-          (chatter) => chatter.status === "ACTIVE"
-        )
-      );
+  const [
+    evidenceUrl,
+    setEvidenceUrl,
+  ] = useState("");
 
-      setActiveRules(
-        completeRules.filter((rule) => rule.isActive)
-      );
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load incident dependencies"
-      );
-    } finally {
-      setDependenciesLoading(false);
-    }
-  }, []);
+  /*
+   * =========================================================
+   * INCIDENT DETAILS
+   * =========================================================
+   */
 
-  const loadIncidents = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setPageError("");
+  const [
+    selectedIncident,
+    setSelectedIncident,
+  ] =
+    useState<Incident | null>(
+      null
+    );
 
-      const params = new URLSearchParams();
+  const [
+    detailLoading,
+    setDetailLoading,
+  ] = useState(false);
 
-      if (statusFilter !== "ALL") {
-        params.set("status", statusFilter);
-      }
+  /*
+   * =========================================================
+   * RESOLVE / VOID
+   * =========================================================
+   */
 
-      if (chatterFilter) {
-        params.set("chatterId", chatterFilter);
-      }
+  const [
+    actionType,
+    setActionType,
+  ] =
+    useState<ActionType | null>(
+      null
+    );
 
-      if (ruleFilter) {
-        params.set("ruleId", ruleFilter);
-      }
+  const [
+    actionIncident,
+    setActionIncident,
+  ] =
+    useState<Incident | null>(
+      null
+    );
 
-      const query = params.toString();
+  const [
+    actionNotes,
+    setActionNotes,
+  ] = useState("");
 
-      const response =
-        await apiRequest<IncidentListResponse>(
-          `/api/incidents${query ? `?${query}` : ""}`
+  const [
+    actionError,
+    setActionError,
+  ] = useState("");
+
+  const [
+    actionSaving,
+    setActionSaving,
+  ] = useState(false);
+
+  /*
+   * =========================================================
+   * CONFIRMATION
+   * =========================================================
+   */
+
+  const [
+    pendingConfirmation,
+    setPendingConfirmation,
+  ] =
+    useState<PendingConfirmation | null>(
+      null
+    );
+
+  /*
+   * =========================================================
+   * LOAD DEPENDENCIES
+   * =========================================================
+   */
+
+  const loadDependencies =
+    useCallback(async () => {
+      try {
+        setDependenciesLoading(
+          true
         );
 
-      setIncidents(response.data);
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load incidents"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [statusFilter, chatterFilter, ruleFilter]);
+        setPageError("");
+
+        /*
+         * Complete lists are loaded for
+         * historical filtering.
+         *
+         * Active subsets are then derived
+         * specifically for NEW incidents.
+         */
+        const [
+          chatterResponse,
+          ruleResponse,
+        ] = await Promise.all([
+          apiRequest<ChatterListResponse>(
+            "/api/chatters"
+          ),
+
+          apiRequest<RuleListResponse>(
+            "/api/rules"
+          ),
+        ]);
+
+        const completeChatters =
+          chatterResponse.data;
+
+        const completeRules =
+          ruleResponse.data.filter(
+            (rule) =>
+              rule.currentVersion !==
+              null
+          );
+
+        setAllChatters(
+          completeChatters
+        );
+
+        setAllRules(
+          completeRules
+        );
+
+        setActiveChatters(
+          completeChatters.filter(
+            (chatter) =>
+              chatter.status ===
+              "ACTIVE"
+          )
+        );
+
+        setActiveRules(
+          completeRules.filter(
+            (rule) =>
+              rule.isActive
+          )
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to load incident dependencies";
+
+        setPageError(message);
+
+        toast.error(
+          message,
+          "Unable to load incident data"
+        );
+      } finally {
+        setDependenciesLoading(
+          false
+        );
+      }
+    }, [toast]);
+
+  /*
+   * =========================================================
+   * LOAD INCIDENTS
+   * =========================================================
+   */
+
+  const loadIncidents =
+    useCallback(async () => {
+      try {
+        setIsLoading(true);
+
+        setPageError("");
+
+        const params =
+          new URLSearchParams();
+
+        if (
+          statusFilter !== "ALL"
+        ) {
+          params.set(
+            "status",
+            statusFilter
+          );
+        }
+
+        if (chatterFilter) {
+          params.set(
+            "chatterId",
+            chatterFilter
+          );
+        }
+
+        if (ruleFilter) {
+          params.set(
+            "ruleId",
+            ruleFilter
+          );
+        }
+
+        const query =
+          params.toString();
+
+        const response =
+          await apiRequest<IncidentListResponse>(
+            `/api/incidents${
+              query
+                ? `?${query}`
+                : ""
+            }`
+          );
+
+        setIncidents(
+          response.data
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to load incidents";
+
+        setPageError(message);
+
+        toast.error(
+          message,
+          "Unable to load incidents"
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }, [
+      statusFilter,
+      chatterFilter,
+      ruleFilter,
+      toast,
+    ]);
 
   useEffect(() => {
     void loadDependencies();
@@ -237,49 +514,116 @@ function IncidentsPage() {
     void loadIncidents();
   }, [loadIncidents]);
 
-  const selectedRule = useMemo(
-    () =>
-      activeRules.find((rule) => rule.id === ruleId) ??
-      null,
-    [activeRules, ruleId]
-  );
+  /*
+   * =========================================================
+   * SELECTED RULE
+   * =========================================================
+   */
 
-  const visibleIncidents = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    if (!query) {
-      return incidents;
-    }
-
-    return incidents.filter((incident) => {
-      const searchable = [
-        incident.chatter.name,
-        incident.ruleTitleSnapshot,
-        incident.ruleDefinitionSnapshot,
-        incident.details,
-        incident.severityNameSnapshot,
-        incident.weightNameSnapshot,
-        incident.status,
+  const selectedRule =
+    useMemo(
+      () =>
+        activeRules.find(
+          (rule) =>
+            rule.id === ruleId
+        ) ?? null,
+      [
+        activeRules,
+        ruleId,
       ]
-        .filter(Boolean)
-        .join(" ")
+    );
+
+  const selectedChatter =
+    useMemo(
+      () =>
+        activeChatters.find(
+          (chatter) =>
+            chatter.id ===
+            chatterId
+        ) ?? null,
+      [
+        activeChatters,
+        chatterId,
+      ]
+    );
+
+  /*
+   * =========================================================
+   * LOCAL SEARCH
+   * =========================================================
+   */
+
+  const visibleIncidents =
+    useMemo(() => {
+      const query = search
+        .trim()
         .toLowerCase();
 
-      return searchable.includes(query);
-    });
-  }, [incidents, search]);
+      if (!query) {
+        return incidents;
+      }
+
+      return incidents.filter(
+        (incident) => {
+          const searchable = [
+            incident.chatter.name,
+
+            incident
+              .ruleTitleSnapshot,
+
+            incident
+              .ruleDefinitionSnapshot,
+
+            incident.details,
+
+            incident
+              .severityNameSnapshot,
+
+            incident
+              .weightNameSnapshot,
+
+            incident.status,
+
+            incident
+              .resolutionNotes,
+
+            incident.voidReason,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return searchable.includes(
+            query
+          );
+        }
+      );
+    }, [
+      incidents,
+      search,
+    ]);
+
+  /*
+   * =========================================================
+   * LOG INCIDENT FORM
+   * =========================================================
+   */
 
   function resetLogForm() {
     setChatterId("");
     setRuleId("");
-    setOccurredAt(toDateTimeLocalValue(new Date()));
+
     setDetails("");
     setEvidenceUrl("");
+
     setFormError("");
   }
 
   function openLogIncident() {
     resetLogForm();
+
+    setPageError("");
+
     setShowLogModal(true);
   }
 
@@ -288,97 +632,198 @@ function IncidentsPage() {
       return;
     }
 
+    setPendingConfirmation(
+      null
+    );
+
     setShowLogModal(false);
+
     resetLogForm();
   }
 
-  async function handleLogIncident(
-    event: FormEvent<HTMLFormElement>
+  function showLogError(
+    message: string
+  ) {
+    setFormError(message);
+
+    toast.error(
+      message,
+      "Check incident details"
+    );
+  }
+
+  /*
+   * The form now validates and prepares
+   * the incident only.
+   *
+   * No timestamp is supplied by the
+   * browser.
+   *
+   * The backend records occurredAt when
+   * the incident is actually created.
+   */
+  function handleLogIncident(
+    event:
+      FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
     if (!chatterId) {
-      setFormError("Please select a chatter.");
+      showLogError(
+        "Please select a chatter."
+      );
+
       return;
     }
 
     if (!ruleId) {
-      setFormError("Please select a rule.");
-      return;
-    }
-
-    if (!occurredAt) {
-      setFormError(
-        "Please provide the incident date and time."
+      showLogError(
+        "Please select a rule."
       );
+
       return;
     }
 
-    if (!details.trim()) {
-      setFormError("Incident details are required.");
-      return;
-    }
+    const trimmedDetails =
+      details.trim();
 
-    const occurredDate = new Date(occurredAt);
-
-    if (Number.isNaN(occurredDate.getTime())) {
-      setFormError(
-        "Please provide a valid incident date and time."
+    if (!trimmedDetails) {
+      showLogError(
+        "Incident details are required."
       );
+
       return;
     }
 
-    const trimmedEvidenceUrl = evidenceUrl.trim();
+    const trimmedEvidenceUrl =
+      evidenceUrl.trim();
 
-    if (
-      trimmedEvidenceUrl &&
-      !/^https?:\/\//i.test(trimmedEvidenceUrl)
-    ) {
-      setFormError(
-        "Evidence URL must begin with http:// or https://."
-      );
-      return;
+    if (trimmedEvidenceUrl) {
+      let parsedUrl: URL;
+
+      try {
+        parsedUrl =
+          new URL(
+            trimmedEvidenceUrl
+          );
+      } catch {
+        showLogError(
+          "Evidence URL must be a valid URL."
+        );
+
+        return;
+      }
+
+      if (
+        parsedUrl.protocol !==
+          "http:" &&
+        parsedUrl.protocol !==
+          "https:"
+      ) {
+        showLogError(
+          "Evidence URL must begin with http:// or https://."
+        );
+
+        return;
+      }
     }
 
+    setFormError("");
+
+    setPendingConfirmation({
+      type: "log",
+
+      payload: {
+        chatterId,
+        ruleId,
+
+        details:
+          trimmedDetails,
+
+        evidenceUrl:
+          trimmedEvidenceUrl ||
+          null,
+      },
+    });
+  }
+
+  async function confirmLogIncident(
+    confirmation: Extract<
+      PendingConfirmation,
+      {
+        type: "log";
+      }
+    >
+  ) {
     try {
       setIsSaving(true);
+
       setFormError("");
+      setPageError("");
 
-      await apiRequest("/api/incidents", {
-        method: "POST",
+      const response =
+        await apiRequest<IncidentMutationResponse>(
+          "/api/incidents",
+          {
+            method: "POST",
 
-        body: JSON.stringify({
-          chatterId,
-          ruleId,
-          occurredAt: occurredDate.toISOString(),
-          details: details.trim(),
-          evidenceUrl: trimmedEvidenceUrl || null,
-        }),
-      });
+            body:
+              JSON.stringify(
+                confirmation.payload
+              ),
+          }
+        );
+
+      setPendingConfirmation(
+        null
+      );
 
       setShowLogModal(false);
+
       resetLogForm();
+
+      toast.success(
+        response.message,
+        "Incident logged"
+      );
 
       await Promise.all([
         loadIncidents(),
         loadDependencies(),
       ]);
     } catch (error) {
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to log incident"
+          : "Failed to log incident";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setFormError(message);
+
+      toast.error(
+        message,
+        "Incident not logged"
       );
     } finally {
       setIsSaving(false);
     }
   }
 
+  /*
+   * =========================================================
+   * INCIDENT DETAILS
+   * =========================================================
+   */
+
   async function openIncidentDetails(
     incident: Incident
   ) {
     try {
       setDetailLoading(true);
+
       setPageError("");
 
       const response =
@@ -386,26 +831,57 @@ function IncidentsPage() {
           `/api/incidents/${incident.id}`
         );
 
-      setSelectedIncident(response.data);
+      setSelectedIncident(
+        response.data
+      );
     } catch (error) {
-      setPageError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to load incident"
+          : "Failed to load incident";
+
+      setPageError(message);
+
+      toast.error(
+        message,
+        "Unable to load incident"
       );
     } finally {
       setDetailLoading(false);
     }
   }
 
+  function closeIncidentDetails() {
+    if (detailLoading) {
+      return;
+    }
+
+    setSelectedIncident(null);
+  }
+
+  /*
+   * =========================================================
+   * RESOLVE / VOID FORM
+   * =========================================================
+   */
+
   function openAction(
     type: ActionType,
     incident: Incident
   ) {
     setActionType(type);
-    setActionIncident(incident);
+
+    setActionIncident(
+      incident
+    );
+
     setActionNotes("");
+
     setActionError("");
+
+    setPendingConfirmation(
+      null
+    );
   }
 
   function closeAction() {
@@ -413,103 +889,367 @@ function IncidentsPage() {
       return;
     }
 
+    setPendingConfirmation(
+      null
+    );
+
     setActionType(null);
+
     setActionIncident(null);
+
     setActionNotes("");
+
     setActionError("");
   }
 
-  async function handleAction(
-    event: FormEvent<HTMLFormElement>
+  function showActionError(
+    message: string
+  ) {
+    setActionError(message);
+
+    toast.error(
+      message,
+      "Check incident action"
+    );
+  }
+
+  /*
+   * Submitting Resolve / Void does not
+   * immediately change the incident.
+   *
+   * It opens the final confirmation first.
+   */
+  function handleAction(
+    event:
+      FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    if (!actionIncident || !actionType) {
+    if (
+      !actionIncident ||
+      !actionType
+    ) {
       return;
     }
 
-    const trimmedNotes = actionNotes.trim();
+    const trimmedNotes =
+      actionNotes.trim();
 
-    if (actionType === "void" && !trimmedNotes) {
-      setActionError(
+    if (
+      actionType === "void" &&
+      !trimmedNotes
+    ) {
+      showActionError(
         "A reason is required when voiding an incident."
       );
+
       return;
     }
+
+    setActionError("");
+
+    setPendingConfirmation({
+      type: "action",
+
+      action:
+        actionType,
+
+      incident:
+        actionIncident,
+
+      notes:
+        trimmedNotes,
+    });
+  }
+
+  async function confirmIncidentAction(
+    confirmation: Extract<
+      PendingConfirmation,
+      {
+        type: "action";
+      }
+    >
+  ) {
+    const {
+      incident,
+      action,
+      notes,
+    } = confirmation;
 
     try {
       setActionSaving(true);
+
       setActionError("");
+      setPageError("");
 
-      if (actionType === "resolve") {
-        await apiRequest(
-          `/api/incidents/${actionIncident.id}/resolve`,
-          {
-            method: "PATCH",
-
-            body: JSON.stringify({
-              resolutionNotes: trimmedNotes || null,
-            }),
-          }
-        );
-      } else {
-        await apiRequest(
-          `/api/incidents/${actionIncident.id}/void`,
-          {
-            method: "PATCH",
-
-            body: JSON.stringify({
-              reason: trimmedNotes,
-            }),
-          }
-        );
-      }
-
-      setActionType(null);
-      setActionIncident(null);
-      setActionNotes("");
+      let response:
+        IncidentMutationResponse;
 
       if (
-        selectedIncident?.id === actionIncident.id
+        action === "resolve"
       ) {
-        setSelectedIncident(null);
+        response =
+          await apiRequest<IncidentMutationResponse>(
+            `/api/incidents/${incident.id}/resolve`,
+            {
+              method: "PATCH",
+
+              body:
+                JSON.stringify({
+                  resolutionNotes:
+                    notes || null,
+                }),
+            }
+          );
+      } else {
+        response =
+          await apiRequest<IncidentMutationResponse>(
+            `/api/incidents/${incident.id}/void`,
+            {
+              method: "PATCH",
+
+              body:
+                JSON.stringify({
+                  reason: notes,
+                }),
+            }
+          );
       }
+
+      setPendingConfirmation(
+        null
+      );
+
+      setActionType(null);
+
+      setActionIncident(null);
+
+      setActionNotes("");
+      setActionError("");
+
+      if (
+        selectedIncident?.id ===
+        incident.id
+      ) {
+        setSelectedIncident(
+          null
+        );
+      }
+
+      toast.success(
+        response.message,
+        action === "resolve"
+          ? "Incident resolved"
+          : "Incident voided"
+      );
 
       await loadIncidents();
     } catch (error) {
-      setActionError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to update incident"
+          : "Failed to update incident";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setActionError(message);
+
+      toast.error(
+        message,
+        "Incident not updated"
       );
     } finally {
       setActionSaving(false);
     }
   }
 
-  function getStatusClass(status: IncidentStatus) {
-    if (status === "OPEN") {
+  /*
+   * =========================================================
+   * CONFIRMATION
+   * =========================================================
+   */
+
+  async function confirmPendingAction() {
+    if (
+      !pendingConfirmation
+    ) {
+      return;
+    }
+
+    if (
+      pendingConfirmation.type ===
+      "log"
+    ) {
+      await confirmLogIncident(
+        pendingConfirmation
+      );
+
+      return;
+    }
+
+    await confirmIncidentAction(
+      pendingConfirmation
+    );
+  }
+
+  function cancelConfirmation() {
+    if (
+      isSaving ||
+      actionSaving
+    ) {
+      return;
+    }
+
+    setPendingConfirmation(
+      null
+    );
+  }
+
+  const confirmationContent =
+    useMemo(() => {
+      if (
+        !pendingConfirmation
+      ) {
+        return null;
+      }
+
+      if (
+        pendingConfirmation.type ===
+        "log"
+      ) {
+        const chatter =
+          activeChatters.find(
+            (item) =>
+              item.id ===
+              pendingConfirmation
+                .payload
+                .chatterId
+          );
+
+        const rule =
+          activeRules.find(
+            (item) =>
+              item.id ===
+              pendingConfirmation
+                .payload.ruleId
+          );
+
+        return {
+          title:
+            "Log Incident?",
+
+          message:
+            `Log this incident for "${
+              chatter?.name ??
+              "the selected chatter"
+            }" under "${
+              rule
+                ?.currentVersion
+                ?.title ??
+              "the selected rule"
+            }"?`,
+
+          confirmLabel:
+            "Log Incident",
+
+          danger: false,
+        };
+      }
+
+      if (
+        pendingConfirmation.action ===
+        "resolve"
+      ) {
+        return {
+          title:
+            "Resolve Incident?",
+
+          message:
+            `Mark the "${pendingConfirmation.incident.ruleTitleSnapshot}" incident for "${pendingConfirmation.incident.chatter.name}" as resolved?`,
+
+          confirmLabel:
+            "Resolve Incident",
+
+          danger: false,
+        };
+      }
+
+      return {
+        title:
+          "Void Incident?",
+
+        message:
+          `Void the "${pendingConfirmation.incident.ruleTitleSnapshot}" incident for "${pendingConfirmation.incident.chatter.name}"? The record will remain in the historical log as voided.`,
+
+        confirmLabel:
+          "Void Incident",
+
+        danger: true,
+      };
+    }, [
+      pendingConfirmation,
+      activeChatters,
+      activeRules,
+    ]);
+
+  const confirmationBusy =
+    pendingConfirmation?.type ===
+    "log"
+      ? isSaving
+      : pendingConfirmation?.type ===
+          "action"
+        ? actionSaving
+        : false;
+
+  /*
+   * =========================================================
+   * DISPLAY HELPERS
+   * =========================================================
+   */
+
+  function getStatusClass(
+    status: IncidentStatus
+  ) {
+    if (
+      status === "OPEN"
+    ) {
       return "incident-status open";
     }
 
-    if (status === "RESOLVED") {
+    if (
+      status === "RESOLVED"
+    ) {
       return "incident-status resolved";
     }
 
     return "incident-status voided";
   }
 
-  function formatStatus(status: IncidentStatus) {
-    if (status === "OPEN") {
+  function formatStatus(
+    status: IncidentStatus
+  ) {
+    if (
+      status === "OPEN"
+    ) {
       return "Open";
     }
 
-    if (status === "RESOLVED") {
+    if (
+      status === "RESOLVED"
+    ) {
       return "Resolved";
     }
 
     return "Voided";
   }
+
+  /*
+   * =========================================================
+   * PAGE
+   * =========================================================
+   */
 
   return (
     <div className="page">
@@ -519,11 +1259,16 @@ function IncidentsPage() {
             QA Records
           </p>
 
-          <h2>Incidents</h2>
+          <h2>
+            Incidents
+          </h2>
 
           <p className="page-description">
-            Log, review, resolve, and void chatter incidents
-            while preserving the exact rule version that
+            Log, review, resolve,
+            and void chatter
+            incidents while
+            preserving the exact
+            rule version that
             applied.
           </p>
         </div>
@@ -531,11 +1276,15 @@ function IncidentsPage() {
         <button
           className="primary-button"
           type="button"
-          onClick={openLogIncident}
+          onClick={
+            openLogIncident
+          }
           disabled={
             dependenciesLoading ||
-            activeChatters.length === 0 ||
-            activeRules.length === 0
+            activeChatters.length ===
+              0 ||
+            activeRules.length ===
+              0
           }
         >
           Log Incident
@@ -549,18 +1298,23 @@ function IncidentsPage() {
       )}
 
       {!dependenciesLoading &&
-        (activeChatters.length === 0 ||
-          activeRules.length === 0) && (
+        (activeChatters.length ===
+          0 ||
+          activeRules.length ===
+            0) && (
           <div className="dependency-warning">
             <strong>
-              Incident logging is not available yet.
+              Incident logging is
+              not available yet.
             </strong>
 
             <span>
-              {activeChatters.length === 0 &&
+              {activeChatters.length ===
+                0 &&
                 " Add at least one active chatter."}
 
-              {activeRules.length === 0 &&
+              {activeRules.length ===
+                0 &&
                 " Add at least one active rule."}
             </span>
           </div>
@@ -569,11 +1323,16 @@ function IncidentsPage() {
       <section className="content-card">
         <div className="card-header incident-toolbar">
           <div>
-            <h3>Incident Records</h3>
+            <h3>
+              Incident Records
+            </h3>
 
             <p>
-              Historical rule wording, severity, and weight
-              are preserved with every record.
+              Historical rule
+              wording, severity,
+              and weight are
+              preserved with every
+              record.
             </p>
           </div>
 
@@ -583,84 +1342,138 @@ function IncidentsPage() {
               type="search"
               value={search}
               onChange={(event) =>
-                setSearch(event.target.value)
+                setSearch(
+                  event.target.value
+                )
               }
               placeholder="Search incidents..."
+              aria-label="Search incidents"
             />
 
             <select
               className="toolbar-select"
-              value={chatterFilter}
-              onChange={(event) =>
-                setChatterFilter(event.target.value)
+              value={
+                chatterFilter
               }
+              onChange={(event) =>
+                setChatterFilter(
+                  event.target.value
+                )
+              }
+              aria-label="Filter by chatter"
             >
               <option value="">
                 All Chatters
               </option>
 
-              {allChatters.map((chatter) => (
-                <option
-                  key={chatter.id}
-                  value={chatter.id}
-                >
-                  {chatter.name}
-                  {chatter.status === "INACTIVE"
-                    ? " (Inactive)"
-                    : ""}
-                </option>
-              ))}
+              {allChatters.map(
+                (chatter) => (
+                  <option
+                    key={
+                      chatter.id
+                    }
+                    value={
+                      chatter.id
+                    }
+                  >
+                    {
+                      chatter.name
+                    }
+
+                    {chatter.status ===
+                    "INACTIVE"
+                      ? " (Inactive)"
+                      : ""}
+                  </option>
+                )
+              )}
             </select>
 
             <select
               className="toolbar-select"
-              value={ruleFilter}
-              onChange={(event) =>
-                setRuleFilter(event.target.value)
+              value={
+                ruleFilter
               }
+              onChange={(event) =>
+                setRuleFilter(
+                  event.target.value
+                )
+              }
+              aria-label="Filter by rule"
             >
               <option value="">
                 All Rules
               </option>
 
-              {allRules.map((rule) => (
-                <option
-                  key={rule.id}
-                  value={rule.id}
-                >
-                  {rule.currentVersion?.title ??
-                    "Untitled Rule"}
-                  {!rule.isActive
-                    ? " (Archived)"
-                    : ""}
-                </option>
-              ))}
+              {allRules.map(
+                (rule) => (
+                  <option
+                    key={
+                      rule.id
+                    }
+                    value={
+                      rule.id
+                    }
+                  >
+                    {rule
+                      .currentVersion
+                      ?.title ??
+                      "Untitled Rule"}
+
+                    {!rule.isActive
+                      ? " (Archived)"
+                      : ""}
+                  </option>
+                )
+              )}
             </select>
 
             <div className="filter-group">
               {(
                 [
-                  ["ALL", "All"],
-                  ["OPEN", "Open"],
-                  ["RESOLVED", "Resolved"],
-                  ["VOIDED", "Voided"],
+                  [
+                    "ALL",
+                    "All",
+                  ],
+                  [
+                    "OPEN",
+                    "Open",
+                  ],
+                  [
+                    "RESOLVED",
+                    "Resolved",
+                  ],
+                  [
+                    "VOIDED",
+                    "Voided",
+                  ],
                 ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={
-                    statusFilter === value
-                      ? "filter-button active"
-                      : "filter-button"
-                  }
-                  onClick={() =>
-                    setStatusFilter(value)
-                  }
-                >
-                  {label}
-                </button>
-              ))}
+              ).map(
+                ([
+                  value,
+                  label,
+                ]) => (
+                  <button
+                    key={
+                      value
+                    }
+                    type="button"
+                    className={
+                      statusFilter ===
+                      value
+                        ? "filter-button active"
+                        : "filter-button"
+                    }
+                    onClick={() =>
+                      setStatusFilter(
+                        value
+                      )
+                    }
+                  >
+                    {label}
+                  </button>
+                )
+              )}
             </div>
           </div>
         </div>
@@ -671,168 +1484,157 @@ function IncidentsPage() {
               Loading incidents...
             </strong>
           </div>
-        ) : visibleIncidents.length === 0 ? (
+        ) : visibleIncidents.length ===
+          0 ? (
           <div className="empty-state">
             <strong>
               No matching incidents
             </strong>
 
             <span>
-              Incident records will appear here after they
-              are logged.
+              {search.trim() ||
+              chatterFilter ||
+              ruleFilter ||
+              statusFilter !== "ALL"
+                ? "No incident records match the current search or filters."
+                : "Incident records will appear here after they are logged."}
             </span>
           </div>
         ) : (
           <div className="table-wrapper">
             <table className="data-table incidents-table">
-              <thead>
-                <tr>
-                  <th>Chatter</th>
-                  <th>Rule</th>
-                  <th>Severity</th>
-                  <th>Weight</th>
-                  <th>Occurred</th>
-                  <th>Status</th>
+  <thead>
+    <tr>
+      <th>Chatter</th>
+      <th>Rule</th>
+      <th>Severity</th>
+      <th>Weight</th>
+      <th>Occurred</th>
+      <th>Status</th>
+    </tr>
+  </thead>
 
-                  <th className="actions-column">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+  <tbody>
+    {visibleIncidents.map(
+      (incident) => (
+        <tr
+          key={incident.id}
+          className="incident-clickable-row"
+          tabIndex={0}
+          role="button"
+          aria-label={`View ${incident.ruleTitleSnapshot} incident for ${incident.chatter.name}`}
+          onClick={() =>
+            void openIncidentDetails(
+              incident
+            )
+          }
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter" ||
+              event.key === " "
+            ) {
+              event.preventDefault();
 
-              <tbody>
-                {visibleIncidents.map((incident) => (
-                  <tr key={incident.id}>
-                    <td>
-                      <div className="primary-cell">
-                        {incident.chatter.name}
-                      </div>
-                    </td>
+              void openIncidentDetails(
+                incident
+              );
+            }
+          }}
+        >
+          <td>
+            <div className="primary-cell">
+              {incident.chatter.name}
+            </div>
+          </td>
 
-                    <td>
-                      <div className="incident-rule-cell">
-                        <strong>
-                          {incident.ruleTitleSnapshot}
-                        </strong>
+          <td>
+            <div className="incident-rule-cell">
+              <strong>
+                {
+                  incident.ruleTitleSnapshot
+                }
+              </strong>
 
-                        <span>
-                          v
-                          {
-                            incident.ruleVersion
-                              .versionNumber
-                          }
-                        </span>
-                      </div>
-                    </td>
+              <span>
+                v
+                {
+                  incident.ruleVersion
+                    .versionNumber
+                }
+              </span>
+            </div>
+          </td>
 
-                    <td>
-                      {incident.severityNameSnapshot ??
-                        "—"}
-                    </td>
+          <td>
+            {incident.severityNameSnapshot ??
+              "—"}
+          </td>
 
-                    <td>
-                      {incident.weightNameSnapshot ? (
-                        <div className="weight-display">
-                          <span>
-                            {
-                              incident.weightNameSnapshot
-                            }
-                          </span>
+          <td>
+            {incident.weightNameSnapshot ? (
+              <div className="weight-display">
+                <span>
+                  {
+                    incident.weightNameSnapshot
+                  }
+                </span>
 
-                          {incident.weightValueSnapshot !==
-                            null && (
-                            <span className="weight-value">
-                              {
-                                incident.weightValueSnapshot
-                              }
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
+                {incident.weightValueSnapshot !==
+                  null && (
+                  <span className="weight-value">
+                    {
+                      incident.weightValueSnapshot
+                    }
+                  </span>
+                )}
+              </div>
+            ) : (
+              "—"
+            )}
+          </td>
 
-                    <td>
-                      {new Date(
-                        incident.occurredAt
-                      ).toLocaleString()}
-                    </td>
+          <td>
+            {new Date(
+              incident.occurredAt
+            ).toLocaleString()}
+          </td>
 
-                    <td>
-                      <span
-                        className={getStatusClass(
-                          incident.status
-                        )}
-                      >
-                        {formatStatus(
-                          incident.status
-                        )}
-                      </span>
-                    </td>
-
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          type="button"
-                          className="text-button"
-                          onClick={() =>
-                            void openIncidentDetails(
-                              incident
-                            )
-                          }
-                        >
-                          View
-                        </button>
-
-                        {incident.status === "OPEN" && (
-                          <button
-                            type="button"
-                            className="text-button success"
-                            onClick={() =>
-                              openAction(
-                                "resolve",
-                                incident
-                              )
-                            }
-                          >
-                            Resolve
-                          </button>
-                        )}
-
-                        {incident.status !==
-                          "VOIDED" && (
-                          <button
-                            type="button"
-                            className="text-button danger"
-                            onClick={() =>
-                              openAction(
-                                "void",
-                                incident
-                              )
-                            }
-                          >
-                            Void
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <td>
+            <span
+              className={getStatusClass(
+                incident.status
+              )}
+            >
+              {formatStatus(
+                incident.status
+              )}
+            </span>
+          </td>
+        </tr>
+      )
+    )}
+  </tbody>
+</table>
           </div>
         )}
       </section>
 
+      {/* =====================================================
+          LOG INCIDENT MODAL
+          ===================================================== */}
+
       {showLogModal && (
         <div
           className="modal-backdrop"
-          onMouseDown={closeLogIncident}
+          onMouseDown={
+            closeLogIncident
+          }
         >
           <div
             className="modal modal-wide"
-            onMouseDown={(event) =>
+            onMouseDown={(
+              event
+            ) =>
               event.stopPropagation()
             }
           >
@@ -843,17 +1645,26 @@ function IncidentsPage() {
                 </h3>
 
                 <p>
-                  Select a chatter and rule. Severity,
-                  weight, and the exact rule version are
-                  captured automatically.
+                  Select a chatter
+                  and rule.
+                  Severity, weight,
+                  and the exact rule
+                  version are
+                  captured
+                  automatically.
                 </p>
               </div>
 
               <button
                 type="button"
                 className="modal-close"
-                onClick={closeLogIncident}
+                onClick={
+                  closeLogIncident
+                }
                 aria-label="Close"
+                disabled={
+                  isSaving
+                }
               >
                 ×
               </button>
@@ -861,7 +1672,10 @@ function IncidentsPage() {
 
             <form
               className="modal-form"
-              onSubmit={handleLogIncident}
+              onSubmit={
+                handleLogIncident
+              }
+              noValidate
             >
               <div className="form-stack">
                 <div className="form-grid">
@@ -871,11 +1685,27 @@ function IncidentsPage() {
                     </span>
 
                     <select
-                      value={chatterId}
-                      onChange={(event) =>
+                      value={
+                        chatterId
+                      }
+                      onChange={(
+                        event
+                      ) => {
                         setChatterId(
-                          event.target.value
-                        )
+                          event.target
+                            .value
+                        );
+
+                        if (
+                          formError
+                        ) {
+                          setFormError(
+                            ""
+                          );
+                        }
+                      }}
+                      disabled={
+                        isSaving
                       }
                     >
                       <option value="">
@@ -883,12 +1713,20 @@ function IncidentsPage() {
                       </option>
 
                       {activeChatters.map(
-                        (chatter) => (
+                        (
+                          chatter
+                        ) => (
                           <option
-                            key={chatter.id}
-                            value={chatter.id}
+                            key={
+                              chatter.id
+                            }
+                            value={
+                              chatter.id
+                            }
                           >
-                            {chatter.name}
+                            {
+                              chatter.name
+                            }
                           </option>
                         )
                       )}
@@ -897,30 +1735,55 @@ function IncidentsPage() {
 
                   <label className="form-field">
                     <span>
-                      Rule / Strike Reason
+                      Rule / Strike
+                      Reason
                     </span>
 
                     <select
-                      value={ruleId}
-                      onChange={(event) =>
+                      value={
+                        ruleId
+                      }
+                      onChange={(
+                        event
+                      ) => {
                         setRuleId(
-                          event.target.value
-                        )
+                          event.target
+                            .value
+                        );
+
+                        if (
+                          formError
+                        ) {
+                          setFormError(
+                            ""
+                          );
+                        }
+                      }}
+                      disabled={
+                        isSaving
                       }
                     >
                       <option value="">
                         Select rule
                       </option>
 
-                      {activeRules.map((rule) => (
-                        <option
-                          key={rule.id}
-                          value={rule.id}
-                        >
-                          {rule.currentVersion?.title ??
-                            "Untitled Rule"}
-                        </option>
-                      ))}
+                      {activeRules.map(
+                        (rule) => (
+                          <option
+                            key={
+                              rule.id
+                            }
+                            value={
+                              rule.id
+                            }
+                          >
+                            {rule
+                              .currentVersion
+                              ?.title ??
+                              "Untitled Rule"}
+                          </option>
+                        )
+                      )}
                     </select>
                   </label>
                 </div>
@@ -930,13 +1793,15 @@ function IncidentsPage() {
                     <div className="rule-preview-header">
                       <div>
                         <span className="preview-label">
-                          Selected Rule
+                          Selected
+                          Rule
                         </span>
 
                         <strong>
                           {
                             selectedRule
-                              .currentVersion.title
+                              .currentVersion
+                              .title
                           }
                         </strong>
                       </div>
@@ -953,7 +1818,8 @@ function IncidentsPage() {
 
                     <p>
                       {
-                        selectedRule.currentVersion
+                        selectedRule
+                          .currentVersion
                           .definition
                       }
                     </p>
@@ -961,7 +1827,6 @@ function IncidentsPage() {
                     <div className="rule-preview-meta">
                       <span>
                         Severity:{" "}
-
                         <strong>
                           {selectedRule
                             .currentVersion
@@ -972,7 +1837,6 @@ function IncidentsPage() {
 
                       <span>
                         Weight:{" "}
-
                         <strong>
                           {selectedRule
                             .currentVersion
@@ -980,7 +1844,8 @@ function IncidentsPage() {
                             "None"}
                         </strong>
 
-                        {selectedRule.currentVersion
+                        {selectedRule
+                          .currentVersion
                           .weightValueSnapshot !==
                           null &&
                           ` (${selectedRule.currentVersion.weightValueSnapshot})`}
@@ -991,41 +1856,43 @@ function IncidentsPage() {
 
                 <label className="form-field">
                   <span>
-                    Incident Date & Time
-                  </span>
-
-                  <input
-                    type="datetime-local"
-                    value={occurredAt}
-                    onChange={(event) =>
-                      setOccurredAt(
-                        event.target.value
-                      )
-                    }
-                    required
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>
                     Incident Details
                   </span>
 
                   <textarea
                     value={details}
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) => {
                       setDetails(
-                        event.target.value
-                      )
-                    }
+                        event.target
+                          .value
+                      );
+
+                      if (
+                        formError
+                      ) {
+                        setFormError(
+                          ""
+                        );
+                      }
+                    }}
                     placeholder="Describe what happened..."
-                    maxLength={5000}
+                    maxLength={
+                      5000
+                    }
                     rows={7}
-                    required
+                    disabled={
+                      isSaving
+                    }
                   />
 
                   <small className="form-helper">
-                    {details.length}/5000 characters
+                    {
+                      details.length
+                    }
+                    /5000
+                    characters
                   </small>
                 </label>
 
@@ -1040,14 +1907,32 @@ function IncidentsPage() {
 
                   <input
                     type="url"
-                    value={evidenceUrl}
-                    onChange={(event) =>
-                      setEvidenceUrl(
-                        event.target.value
-                      )
+                    value={
+                      evidenceUrl
                     }
+                    onChange={(
+                      event
+                    ) => {
+                      setEvidenceUrl(
+                        event.target
+                          .value
+                      );
+
+                      if (
+                        formError
+                      ) {
+                        setFormError(
+                          ""
+                        );
+                      }
+                    }}
                     placeholder="https://..."
-                    maxLength={2000}
+                    maxLength={
+                      2000
+                    }
+                    disabled={
+                      isSaving
+                    }
                   />
                 </label>
               </div>
@@ -1062,8 +1947,12 @@ function IncidentsPage() {
                 <button
                   className="secondary-button"
                   type="button"
-                  onClick={closeLogIncident}
-                  disabled={isSaving}
+                  onClick={
+                    closeLogIncident
+                  }
+                  disabled={
+                    isSaving
+                  }
                 >
                   Cancel
                 </button>
@@ -1071,7 +1960,9 @@ function IncidentsPage() {
                 <button
                   className="primary-button"
                   type="submit"
-                  disabled={isSaving}
+                  disabled={
+                    isSaving
+                  }
                 >
                   {isSaving
                     ? "Logging..."
@@ -1083,41 +1974,50 @@ function IncidentsPage() {
         </div>
       )}
 
-      {(selectedIncident || detailLoading) && (
+      {/* =====================================================
+          INCIDENT DETAIL MODAL
+          ===================================================== */}
+
+      {(selectedIncident ||
+        detailLoading) && (
         <div
           className="modal-backdrop"
-          onMouseDown={() => {
-            if (!detailLoading) {
-              setSelectedIncident(null);
-            }
-          }}
+          onMouseDown={
+            closeIncidentDetails
+          }
         >
           <div
             className="modal modal-history"
-            onMouseDown={(event) =>
+            onMouseDown={(
+              event
+            ) =>
               event.stopPropagation()
             }
           >
             <div className="modal-header">
               <div>
-                <h3>
-                  Incident Details
-                </h3>
+             <h3>
+  {selectedIncident?.ruleTitleSnapshot ??
+    "Incident Details"}
+</h3>
 
-                <p>
-                  Historical values shown here are
-                  snapshots from the moment this incident
-                  was logged.
-                </p>
+               <p>
+  Incident record for{" "}
+  <strong>
+    {selectedIncident?.chatter.name}
+  </strong>
+</p>
               </div>
 
               <button
                 type="button"
                 className="modal-close"
-                onClick={() =>
-                  setSelectedIncident(null)
+                onClick={
+                  closeIncidentDetails
                 }
-                disabled={detailLoading}
+                disabled={
+                  detailLoading
+                }
                 aria-label="Close"
               >
                 ×
@@ -1141,7 +2041,8 @@ function IncidentsPage() {
 
                       <strong>
                         {
-                          selectedIncident.chatter
+                          selectedIncident
+                            .chatter
                             .name
                         }
                       </strong>
@@ -1242,28 +2143,53 @@ function IncidentsPage() {
                     </span>
 
                     <p className="detail-body">
-                      {selectedIncident.details}
+                      {
+                        selectedIncident.details
+                      }
                     </p>
                   </div>
 
-                  {selectedIncident.evidenceUrl && (
-                    <div className="detail-section">
-                      <span className="detail-label">
-                        Evidence
-                      </span>
+                 {selectedIncident.evidenceUrl && (
+  <div className="detail-section">
+    <span className="detail-label">
+      Evidence
+    </span>
 
-                      <a
-                        className="evidence-link"
-                        href={
-                          selectedIncident.evidenceUrl
-                        }
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Open evidence
-                      </a>
-                    </div>
-                  )}
+    <a
+      className="incident-evidence-link"
+      href={selectedIncident.evidenceUrl}
+      target="_blank"
+      rel="noreferrer"
+      title={selectedIncident.evidenceUrl}
+    >
+      <span className="incident-evidence-url">
+        {selectedIncident.evidenceUrl}
+      </span>
+
+      <svg
+        className="incident-evidence-icon"
+        viewBox="0 0 20 20"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M8 4H5.5A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5V12"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+
+        <path
+          d="M11 4h5v5M16 4l-7 7"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </a>
+  </div>
+)}
 
                   {selectedIncident.status ===
                     "RESOLVED" && (
@@ -1297,7 +2223,8 @@ function IncidentsPage() {
                       </span>
 
                       <p>
-                        {selectedIncident.voidReason ||
+                        {selectedIncident
+                          .voidReason ||
                           "No void reason recorded."}
                       </p>
 
@@ -1322,7 +2249,9 @@ function IncidentsPage() {
                           const incident =
                             selectedIncident;
 
-                          setSelectedIncident(null);
+                          setSelectedIncident(
+                            null
+                          );
 
                           openAction(
                             "resolve",
@@ -1343,7 +2272,9 @@ function IncidentsPage() {
                           const incident =
                             selectedIncident;
 
-                          setSelectedIncident(null);
+                          setSelectedIncident(
+                            null
+                          );
 
                           openAction(
                             "void",
@@ -1362,128 +2293,344 @@ function IncidentsPage() {
         </div>
       )}
 
-      {actionType && actionIncident && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={closeAction}
-        >
+      {/* =====================================================
+          RESOLVE / VOID MODAL
+          ===================================================== */}
+
+      {actionType &&
+        actionIncident && (
           <div
-            className="modal"
-            onMouseDown={(event) =>
-              event.stopPropagation()
+            className="modal-backdrop"
+            onMouseDown={
+              closeAction
             }
           >
-            <div className="modal-header">
-              <div>
-                <h3>
-                  {actionType === "resolve"
-                    ? "Resolve Incident"
-                    : "Void Incident"}
-                </h3>
-
-                <p>
-                  {actionType === "resolve"
-                    ? "Mark this incident as resolved and optionally record the outcome."
-                    : "Void this incident while preserving it in the historical record."}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeAction}
-                disabled={actionSaving}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-
-            <form
-              className="modal-form"
-              onSubmit={handleAction}
+            <div
+              className="modal"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
             >
-              <div className="action-context">
-                <span>
-                  {actionIncident.chatter.name}
-                </span>
+              <div className="modal-header">
+                <div>
+                  <h3>
+                    {actionType ===
+                    "resolve"
+                      ? "Resolve Incident"
+                      : "Void Incident"}
+                  </h3>
 
-                <strong>
-                  {
-                    actionIncident
-                      .ruleTitleSnapshot
+                  <p>
+                    {actionType ===
+                    "resolve"
+                      ? "Mark this incident as resolved and optionally record the outcome."
+                      : "Void this incident while preserving it in the historical record."}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={
+                    closeAction
                   }
-                </strong>
+                  disabled={
+                    actionSaving
+                  }
+                  aria-label="Close"
+                >
+                  ×
+                </button>
               </div>
 
-              <label className="form-field">
-                <span>
-                  {actionType === "resolve"
-                    ? "Resolution Notes"
-                    : "Reason for Voiding"}
-                </span>
+              <form
+                className="modal-form"
+                onSubmit={
+                  handleAction
+                }
+                noValidate
+              >
+                <div className="action-context">
+                  <span>
+                    {
+                      actionIncident
+                        .chatter
+                        .name
+                    }
+                  </span>
 
-                <textarea
-                  value={actionNotes}
-                  onChange={(event) =>
-                    setActionNotes(
-                      event.target.value
-                    )
-                  }
-                  placeholder={
-                    actionType === "resolve"
-                      ? "Describe the resolution or action taken..."
-                      : "Explain why this incident should be voided..."
-                  }
-                  maxLength={2000}
-                  rows={5}
-                  autoFocus
-                  required={actionType === "void"}
-                />
-
-                <small className="form-helper">
-                  {actionType === "resolve"
-                    ? `Optional · ${actionNotes.length}/2000 characters`
-                    : `${actionNotes.length}/2000 characters`}
-                </small>
-              </label>
-
-              {actionError && (
-                <div className="alert alert-error">
-                  {actionError}
+                  <strong>
+                    {
+                      actionIncident
+                        .ruleTitleSnapshot
+                    }
+                  </strong>
                 </div>
-              )}
+
+                <label className="form-field">
+                  <span>
+                    {actionType ===
+                    "resolve"
+                      ? "Resolution Notes"
+                      : "Reason for Voiding"}
+                  </span>
+
+                  <textarea
+                    value={
+                      actionNotes
+                    }
+                    onChange={(
+                      event
+                    ) => {
+                      setActionNotes(
+                        event.target
+                          .value
+                      );
+
+                      if (
+                        actionError
+                      ) {
+                        setActionError(
+                          ""
+                        );
+                      }
+                    }}
+                    placeholder={
+                      actionType ===
+                      "resolve"
+                        ? "Describe the resolution or action taken..."
+                        : "Explain why this incident should be voided..."
+                    }
+                    maxLength={
+                      2000
+                    }
+                    rows={5}
+                    autoFocus
+                    disabled={
+                      actionSaving
+                    }
+                  />
+
+                  <small className="form-helper">
+                    {actionType ===
+                    "resolve"
+                      ? `Optional · ${actionNotes.length}/2000 characters`
+                      : `${actionNotes.length}/2000 characters`}
+                  </small>
+                </label>
+
+                {actionError && (
+                  <div className="alert alert-error">
+                    {
+                      actionError
+                    }
+                  </div>
+                )}
+
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={
+                      closeAction
+                    }
+                    disabled={
+                      actionSaving
+                    }
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className={
+                      actionType ===
+                      "void"
+                        ? "danger-button"
+                        : "primary-button"
+                    }
+                    disabled={
+                      actionSaving
+                    }
+                  >
+                    {actionSaving
+                      ? "Saving..."
+                      : actionType ===
+                          "resolve"
+                        ? "Resolve Incident"
+                        : "Void Incident"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+      {/* =====================================================
+          FINAL CONFIRMATION MODAL
+          ===================================================== */}
+
+      {pendingConfirmation &&
+        confirmationContent && (
+          <div
+            className="modal-backdrop confirmation-backdrop"
+            onMouseDown={
+              cancelConfirmation
+            }
+          >
+            <div
+              className="modal confirmation-modal"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="incident-confirmation-title"
+            >
+              <div className="modal-header">
+                <div>
+                  <h3 id="incident-confirmation-title">
+                    {
+                      confirmationContent.title
+                    }
+                  </h3>
+
+                  <p>
+                    Please confirm
+                    before continuing.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={
+                    cancelConfirmation
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                  aria-label="Close confirmation"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="confirmation-body">
+                <p>
+                  {
+                    confirmationContent.message
+                  }
+                </p>
+
+                {pendingConfirmation.type ===
+                  "log" && (
+                  <div className="confirmation-summary">
+                    <div>
+                      <span>
+                        Chatter
+                      </span>
+
+                      <strong>
+                        {selectedChatter
+                          ?.name ??
+                          "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Rule
+                      </span>
+
+                      <strong>
+                        {selectedRule
+                          ?.currentVersion
+                          ?.title ??
+                          "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Severity
+                      </span>
+
+                      <strong>
+                        {selectedRule
+                          ?.currentVersion
+                          ?.severityNameSnapshot ??
+                          "None"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Weight
+                      </span>
+
+                      <strong>
+                        {selectedRule
+                          ?.currentVersion
+                          ?.weightNameSnapshot ??
+                          "None"}
+
+                        {selectedRule
+                          ?.currentVersion
+                          ?.weightValueSnapshot !==
+                          null &&
+                        selectedRule
+                          ?.currentVersion
+                          ?.weightValueSnapshot !==
+                          undefined
+                          ? ` (${selectedRule.currentVersion.weightValueSnapshot})`
+                          : ""}
+                      </strong>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="modal-actions">
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={closeAction}
-                  disabled={actionSaving}
+                  onClick={
+                    cancelConfirmation
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
                 >
                   Cancel
                 </button>
 
                 <button
-                  type="submit"
+                  type="button"
                   className={
-                    actionType === "void"
+                    confirmationContent.danger
                       ? "danger-button"
                       : "primary-button"
                   }
-                  disabled={actionSaving}
+                  onClick={() =>
+                    void confirmPendingAction()
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
                 >
-                  {actionSaving
-                    ? "Saving..."
-                    : actionType === "resolve"
-                      ? "Resolve Incident"
-                      : "Void Incident"}
+                  {confirmationBusy
+                    ? "Processing..."
+                    : confirmationContent.confirmLabel}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }

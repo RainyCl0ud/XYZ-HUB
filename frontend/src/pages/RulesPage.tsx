@@ -1,6 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import type {
+  FormEvent,
+} from "react";
+
 import { apiRequest } from "../lib/api";
+import {
+  useToast,
+} from "../components/ToastProvider";
 
 type RuleVersion = {
   id: string;
@@ -61,90 +73,233 @@ type OptionListResponse<T> = {
   data: T[];
 };
 
-type RuleFilter = "ALL" | "ACTIVE" | "ARCHIVED";
+type MutationResponse = {
+  message: string;
+  data?: unknown;
+};
+
+type RuleFilter =
+  | "ALL"
+  | "ACTIVE"
+  | "ARCHIVED";
+
+type RulePayload = {
+  title: string;
+  definition: string;
+  severityOptionId: string | null;
+  weightOptionId: string | null;
+};
+
+type PendingConfirmation =
+  | {
+      type: "save";
+      mode: "create" | "version";
+      payload: RulePayload;
+    }
+  | {
+      type: "status";
+      action:
+        | "archive"
+        | "reactivate";
+      rule: Rule;
+    };
 
 function RulesPage() {
-  const [rules, setRules] = useState<Rule[]>([]);
-  const [severityOptions, setSeverityOptions] =
-    useState<SeverityOption[]>([]);
-  const [weightOptions, setWeightOptions] =
-    useState<WeightOption[]>([]);
+  const toast = useToast();
 
-  const [filter, setFilter] = useState<RuleFilter>("ALL");
-  const [search, setSearch] = useState("");
+  const [
+    rules,
+    setRules,
+  ] = useState<Rule[]>([]);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [pageError, setPageError] = useState("");
+  const [
+    severityOptions,
+    setSeverityOptions,
+  ] = useState<SeverityOption[]>([]);
 
-  const [showRuleModal, setShowRuleModal] = useState(false);
-  const [editingRule, setEditingRule] = useState<Rule | null>(null);
+  const [
+    weightOptions,
+    setWeightOptions,
+  ] = useState<WeightOption[]>([]);
 
-  const [title, setTitle] = useState("");
-  const [definition, setDefinition] = useState("");
-  const [severityOptionId, setSeverityOptionId] = useState("");
-  const [weightOptionId, setWeightOptionId] = useState("");
+  const [
+    filter,
+    setFilter,
+  ] = useState<RuleFilter>("ALL");
 
-  const [formError, setFormError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [
+    search,
+    setSearch,
+  ] = useState("");
 
-  const [historyRule, setHistoryRule] =
-    useState<RuleDetail | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
 
-  const [actionId, setActionId] = useState<string | null>(null);
+  const [
+    pageError,
+    setPageError,
+  ] = useState("");
 
-  const loadRules = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setPageError("");
+  const [
+    showRuleModal,
+    setShowRuleModal,
+  ] = useState(false);
 
-      let endpoint = "/api/rules";
+  const [
+    editingRule,
+    setEditingRule,
+  ] = useState<Rule | null>(null);
 
-      if (filter === "ACTIVE") {
-        endpoint += "?active=true";
+  const [
+    title,
+    setTitle,
+  ] = useState("");
+
+  const [
+    definition,
+    setDefinition,
+  ] = useState("");
+
+  const [
+    severityOptionId,
+    setSeverityOptionId,
+  ] = useState("");
+
+  const [
+    weightOptionId,
+    setWeightOptionId,
+  ] = useState("");
+
+  const [
+    formError,
+    setFormError,
+  ] = useState("");
+
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
+
+  const [
+    historyRule,
+    setHistoryRule,
+  ] = useState<RuleDetail | null>(
+    null
+  );
+
+  const [
+    historyLoading,
+    setHistoryLoading,
+  ] = useState(false);
+
+  const [
+    actionId,
+    setActionId,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    pendingConfirmation,
+    setPendingConfirmation,
+  ] =
+    useState<PendingConfirmation | null>(
+      null
+    );
+
+  /*
+   * =========================================================
+   * DATA LOADING
+   * =========================================================
+   */
+
+  const loadRules =
+    useCallback(async () => {
+      try {
+        setIsLoading(true);
+        setPageError("");
+
+        let endpoint =
+          "/api/rules";
+
+        if (filter === "ACTIVE") {
+          endpoint +=
+            "?active=true";
+        }
+
+        if (
+          filter === "ARCHIVED"
+        ) {
+          endpoint +=
+            "?active=false";
+        }
+
+        const response =
+          await apiRequest<RuleListResponse>(
+            endpoint
+          );
+
+        setRules(response.data);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to load rules";
+
+        setPageError(message);
+
+        toast.error(
+          message,
+          "Unable to load rules"
+        );
+      } finally {
+        setIsLoading(false);
       }
+    }, [filter, toast]);
 
-      if (filter === "ARCHIVED") {
-        endpoint += "?active=false";
-      }
-
-      const response =
-        await apiRequest<RuleListResponse>(endpoint);
-
-      setRules(response.data);
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load rules"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filter]);
-
-  const loadConfiguration = useCallback(async () => {
-    try {
-      const [severityResponse, weightResponse] =
-        await Promise.all([
-          apiRequest<OptionListResponse<SeverityOption>>(
+  const loadConfiguration =
+    useCallback(async () => {
+      try {
+        const [
+          severityResponse,
+          weightResponse,
+        ] = await Promise.all([
+          apiRequest<
+            OptionListResponse<SeverityOption>
+          >(
             "/api/severity-options?active=true"
           ),
-          apiRequest<OptionListResponse<WeightOption>>(
+
+          apiRequest<
+            OptionListResponse<WeightOption>
+          >(
             "/api/weight-options?active=true"
           ),
         ]);
 
-      setSeverityOptions(severityResponse.data);
-      setWeightOptions(weightResponse.data);
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load rule configuration"
-      );
-    }
-  }, []);
+        setSeverityOptions(
+          severityResponse.data
+        );
+
+        setWeightOptions(
+          weightResponse.data
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to load rule configuration";
+
+        setPageError(message);
+
+        toast.error(
+          message,
+          "Unable to load configuration"
+        );
+      }
+    }, [toast]);
 
   useEffect(() => {
     void loadRules();
@@ -154,34 +309,59 @@ function RulesPage() {
     void loadConfiguration();
   }, [loadConfiguration]);
 
-  const visibleRules = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  /*
+   * =========================================================
+   * SEARCH
+   * =========================================================
+   */
 
-    if (!query) {
-      return rules;
-    }
+  const visibleRules =
+    useMemo(() => {
+      const query = search
+        .trim()
+        .toLowerCase();
 
-    return rules.filter((rule) => {
-      const version = rule.currentVersion;
+      if (!query) {
+        return rules;
+      }
 
-      return (
-        version?.title.toLowerCase().includes(query) ||
-        version?.definition.toLowerCase().includes(query) ||
-        version?.severityNameSnapshot
-          ?.toLowerCase()
-          .includes(query) ||
-        version?.weightNameSnapshot
-          ?.toLowerCase()
-          .includes(query)
+      return rules.filter(
+        (rule) => {
+          const version =
+            rule.currentVersion;
+
+          return (
+            version?.title
+              .toLowerCase()
+              .includes(query) ||
+            version?.definition
+              .toLowerCase()
+              .includes(query) ||
+            version
+              ?.severityNameSnapshot
+              ?.toLowerCase()
+              .includes(query) ||
+            version
+              ?.weightNameSnapshot
+              ?.toLowerCase()
+              .includes(query)
+          );
+        }
       );
-    });
-  }, [rules, search]);
+    }, [rules, search]);
+
+  /*
+   * =========================================================
+   * RULE FORM
+   * =========================================================
+   */
 
   function resetForm() {
     setEditingRule(null);
 
     setTitle("");
     setDefinition("");
+
     setSeverityOptionId("");
     setWeightOptionId("");
 
@@ -190,53 +370,101 @@ function RulesPage() {
 
   function openAddRule() {
     resetForm();
+
+    setPageError("");
+
     setShowRuleModal(true);
   }
 
- async function openEditRule(rule: Rule) {
-  if (!rule.currentVersion) {
-    return;
-  }
+  async function openEditRule(
+    rule: Rule
+  ) {
+    if (!rule.currentVersion) {
+      const message =
+        "This rule does not have a valid version.";
 
-  try {
-    setPageError("");
+      setPageError(message);
 
-    const [severityResponse, weightResponse] =
-      await Promise.all([
-        apiRequest<OptionListResponse<SeverityOption>>(
+      toast.error(
+        message,
+        "Unable to edit rule"
+      );
+
+      return;
+    }
+
+    try {
+      setPageError("");
+
+      /*
+       * Load all configuration records here
+       * rather than active-only configuration
+       * so historical/current references can
+       * still be represented in the editor.
+       */
+      const [
+        severityResponse,
+        weightResponse,
+      ] = await Promise.all([
+        apiRequest<
+          OptionListResponse<SeverityOption>
+        >(
           "/api/severity-options"
         ),
-        apiRequest<OptionListResponse<WeightOption>>(
+
+        apiRequest<
+          OptionListResponse<WeightOption>
+        >(
           "/api/weight-options"
         ),
       ]);
 
-    setSeverityOptions(severityResponse.data);
-    setWeightOptions(weightResponse.data);
+      setSeverityOptions(
+        severityResponse.data
+      );
 
-    setEditingRule(rule);
+      setWeightOptions(
+        weightResponse.data
+      );
 
-    setTitle(rule.currentVersion.title);
-    setDefinition(rule.currentVersion.definition);
+      setEditingRule(rule);
 
-    setSeverityOptionId(
-      rule.currentVersion.severityOptionId ?? ""
-    );
+      setTitle(
+        rule.currentVersion.title
+      );
 
-    setWeightOptionId(
-      rule.currentVersion.weightOptionId ?? ""
-    );
+      setDefinition(
+        rule.currentVersion
+          .definition
+      );
 
-    setFormError("");
-    setShowRuleModal(true);
-  } catch (error) {
-    setPageError(
-      error instanceof Error
-        ? error.message
-        : "Failed to prepare rule editor"
-    );
+      setSeverityOptionId(
+        rule.currentVersion
+          .severityOptionId ?? ""
+      );
+
+      setWeightOptionId(
+        rule.currentVersion
+          .weightOptionId ?? ""
+      );
+
+      setFormError("");
+
+      setShowRuleModal(true);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to prepare rule editor";
+
+      setPageError(message);
+
+      toast.error(
+        message,
+        "Unable to edit rule"
+      );
+    }
   }
-}
 
   function closeRuleModal() {
     if (isSaving) {
@@ -244,107 +472,420 @@ function RulesPage() {
     }
 
     setShowRuleModal(false);
+
+    setPendingConfirmation(
+      null
+    );
+
     resetForm();
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function showFormError(
+    message: string
+  ) {
+    setFormError(message);
+
+    toast.error(
+      message,
+      "Check rule details"
+    );
+  }
+
+  /*
+   * Submitting the form does NOT immediately
+   * write to the database.
+   *
+   * It validates the form and opens a
+   * confirmation modal first.
+   */
+  function handleSubmit(
+    event:
+      FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
-    const trimmedTitle = title.trim();
-    const trimmedDefinition = definition.trim();
+    const trimmedTitle =
+      title.trim();
+
+    const trimmedDefinition =
+      definition.trim();
 
     if (!trimmedTitle) {
-      setFormError("Rule title is required.");
+      showFormError(
+        "Rule title is required."
+      );
+
       return;
     }
 
     if (!trimmedDefinition) {
-      setFormError("Rule definition is required.");
+      showFormError(
+        "Rule definition is required."
+      );
+
       return;
     }
 
+    const payload: RulePayload =
+      {
+        title: trimmedTitle,
+
+        definition:
+          trimmedDefinition,
+
+        severityOptionId:
+          severityOptionId ||
+          null,
+
+        weightOptionId:
+          weightOptionId ||
+          null,
+      };
+
+    setFormError("");
+
+    setPendingConfirmation({
+      type: "save",
+
+      mode: editingRule
+        ? "version"
+        : "create",
+
+      payload,
+    });
+  }
+
+  async function saveRule(
+    confirmation: Extract<
+      PendingConfirmation,
+      {
+        type: "save";
+      }
+    >
+  ) {
     try {
       setIsSaving(true);
       setFormError("");
+      setPageError("");
 
-      const payload = {
-        title: trimmedTitle,
-        definition: trimmedDefinition,
-        severityOptionId: severityOptionId || null,
-        weightOptionId: weightOptionId || null,
-      };
+      let response:
+        MutationResponse;
 
-      if (editingRule) {
-        await apiRequest(
-          `/api/rules/${editingRule.id}`,
-          {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-          }
-        );
+      if (
+        confirmation.mode ===
+          "version" &&
+        editingRule
+      ) {
+        response =
+          await apiRequest<MutationResponse>(
+            `/api/rules/${editingRule.id}`,
+            {
+              method: "PATCH",
+
+              body:
+                JSON.stringify(
+                  confirmation.payload
+                ),
+            }
+          );
       } else {
-        await apiRequest("/api/rules", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
+        response =
+          await apiRequest<MutationResponse>(
+            "/api/rules",
+            {
+              method: "POST",
+
+              body:
+                JSON.stringify(
+                  confirmation.payload
+                ),
+            }
+          );
+      }
+
+      setPendingConfirmation(
+        null
+      );
+
+      /*
+       * The backend intentionally returns
+       * this message when an edit contained
+       * no meaningful changes.
+       */
+      if (
+        response.message ===
+        "No rule changes were detected"
+      ) {
+        toast.info(
+          response.message,
+          "No changes"
+        );
+
+        return;
       }
 
       setShowRuleModal(false);
+
       resetForm();
 
+      toast.success(
+        response.message,
+        confirmation.mode ===
+        "version"
+          ? "Rule version created"
+          : "Rule created"
+      );
+
       await loadRules();
+
+      /*
+       * Restore the standard active-only
+       * configuration list after editing.
+       */
+      await loadConfiguration();
     } catch (error) {
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to save rule"
+          : "Failed to save rule";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setFormError(message);
+
+      toast.error(
+        message,
+        "Rule not saved"
       );
     } finally {
       setIsSaving(false);
     }
   }
 
-  async function changeRuleStatus(rule: Rule) {
-    const action = rule.isActive
-      ? "archive"
-      : "reactivate";
+  /*
+   * =========================================================
+   * ARCHIVE / REACTIVATE
+   * =========================================================
+   */
 
-    const confirmed = window.confirm(
-      rule.isActive
-        ? `Archive "${rule.currentVersion?.title ?? "this rule"}"?`
-        : `Reactivate "${rule.currentVersion?.title ?? "this rule"}"?`
-    );
+  function requestRuleStatusChange(
+    rule: Rule
+  ) {
+    setPendingConfirmation({
+      type: "status",
 
-    if (!confirmed) {
-      return;
-    }
+      action: rule.isActive
+        ? "archive"
+        : "reactivate",
+
+      rule,
+    });
+  }
+
+  async function changeRuleStatus(
+    confirmation: Extract<
+      PendingConfirmation,
+      {
+        type: "status";
+      }
+    >
+  ) {
+    const {
+      rule,
+      action,
+    } = confirmation;
 
     try {
       setActionId(rule.id);
+
       setPageError("");
 
-      await apiRequest(
-        `/api/rules/${rule.id}/${action}`,
-        {
-          method: "PATCH",
-        }
+      const response =
+        await apiRequest<MutationResponse>(
+          `/api/rules/${rule.id}/${action}`,
+          {
+            method: "PATCH",
+          }
+        );
+
+      setPendingConfirmation(
+        null
+      );
+
+      toast.success(
+        response.message,
+        action === "archive"
+          ? "Rule archived"
+          : "Rule reactivated"
       );
 
       await loadRules();
     } catch (error) {
-      setPageError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to update rule"
+          : "Failed to update rule";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setPageError(message);
+
+      toast.error(
+        message,
+        "Rule not updated"
       );
     } finally {
       setActionId(null);
     }
   }
 
-  async function openHistory(rule: Rule) {
+  /*
+   * =========================================================
+   * CONFIRMATION
+   * =========================================================
+   */
+
+  async function confirmPendingAction() {
+    if (
+      !pendingConfirmation
+    ) {
+      return;
+    }
+
+    if (
+      pendingConfirmation.type ===
+      "save"
+    ) {
+      await saveRule(
+        pendingConfirmation
+      );
+
+      return;
+    }
+
+    await changeRuleStatus(
+      pendingConfirmation
+    );
+  }
+
+  function cancelConfirmation() {
+    if (
+      isSaving ||
+      actionId !== null
+    ) {
+      return;
+    }
+
+    setPendingConfirmation(
+      null
+    );
+  }
+
+  const confirmationContent =
+    useMemo(() => {
+      if (
+        !pendingConfirmation
+      ) {
+        return null;
+      }
+
+      if (
+        pendingConfirmation.type ===
+        "save"
+      ) {
+        if (
+          pendingConfirmation.mode ===
+          "create"
+        ) {
+          return {
+            title: "Create Rule?",
+
+            message: `Create "${pendingConfirmation.payload.title}" as a new rule?`,
+
+            confirmLabel:
+              "Create Rule",
+
+            danger: false,
+          };
+        }
+
+        return {
+          title:
+            "Create New Rule Version?",
+
+          message:
+            `Save these changes as a new immutable version of "${pendingConfirmation.payload.title}"? Previous versions will remain preserved.`,
+
+          confirmLabel:
+            "Create New Version",
+
+          danger: false,
+        };
+      }
+
+      const ruleTitle =
+        pendingConfirmation.rule
+          .currentVersion?.title ??
+        "this rule";
+
+      if (
+        pendingConfirmation.action ===
+        "archive"
+      ) {
+        return {
+          title:
+            "Archive Rule?",
+
+          message:
+            `Archive "${ruleTitle}"? It will no longer be available for new incidents, but its history and existing incident records will remain preserved.`,
+
+          confirmLabel:
+            "Archive Rule",
+
+          danger: true,
+        };
+      }
+
+      return {
+        title:
+          "Reactivate Rule?",
+
+        message:
+          `Reactivate "${ruleTitle}"? It will become available for new incidents again.`,
+
+        confirmLabel:
+          "Reactivate Rule",
+
+        danger: false,
+      };
+    }, [pendingConfirmation]);
+
+  const confirmationBusy =
+    pendingConfirmation?.type ===
+    "save"
+      ? isSaving
+      : pendingConfirmation?.type ===
+          "status"
+        ? actionId ===
+          pendingConfirmation.rule.id
+        : false;
+
+  /*
+   * =========================================================
+   * HISTORY
+   * =========================================================
+   */
+
+  async function openHistory(
+    rule: Rule
+  ) {
     try {
       setHistoryLoading(true);
+
       setPageError("");
 
       const response =
@@ -352,29 +893,57 @@ function RulesPage() {
           `/api/rules/${rule.id}`
         );
 
-      setHistoryRule(response.data);
+      setHistoryRule(
+        response.data
+      );
     } catch (error) {
-      setPageError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to load rule history"
+          : "Failed to load rule history";
+
+      setPageError(message);
+
+      toast.error(
+        message,
+        "Unable to load history"
       );
     } finally {
       setHistoryLoading(false);
     }
   }
 
+  function closeHistory() {
+    if (historyLoading) {
+      return;
+    }
+
+    setHistoryRule(null);
+  }
+
+  /*
+   * =========================================================
+   * PAGE
+   * =========================================================
+   */
+
   return (
     <div className="page">
       <header className="page-header">
         <div>
-          <p className="page-eyebrow">Policy Management</p>
+          <p className="page-eyebrow">
+            Policy Management
+          </p>
 
-          <h2>Rules & Strike Reasons</h2>
+          <h2>
+            Rules & Strike Reasons
+          </h2>
 
           <p className="page-description">
-            Manage strike reasons while preserving the exact rule
-            version used by historical incidents.
+            Manage strike reasons
+            while preserving the
+            exact rule version used
+            by historical incidents.
           </p>
         </div>
 
@@ -396,10 +965,15 @@ function RulesPage() {
       <section className="content-card">
         <div className="card-header rules-toolbar">
           <div>
-            <h3>Rule Records</h3>
+            <h3>
+              Rule Records
+            </h3>
+
             <p>
-              Editing a rule creates a new version instead of
-              overwriting its previous wording.
+              Editing a rule creates
+              a new version instead
+              of overwriting its
+              previous wording.
             </p>
           </div>
 
@@ -409,9 +983,12 @@ function RulesPage() {
               type="search"
               value={search}
               onChange={(event) =>
-                setSearch(event.target.value)
+                setSearch(
+                  event.target.value
+                )
               }
               placeholder="Search rules..."
+              aria-label="Search rules"
             />
 
             <div className="filter-group">
@@ -422,7 +999,9 @@ function RulesPage() {
                     ? "filter-button active"
                     : "filter-button"
                 }
-                onClick={() => setFilter("ALL")}
+                onClick={() =>
+                  setFilter("ALL")
+                }
               >
                 All
               </button>
@@ -434,7 +1013,11 @@ function RulesPage() {
                     ? "filter-button active"
                     : "filter-button"
                 }
-                onClick={() => setFilter("ACTIVE")}
+                onClick={() =>
+                  setFilter(
+                    "ACTIVE"
+                  )
+                }
               >
                 Active
               </button>
@@ -442,11 +1025,16 @@ function RulesPage() {
               <button
                 type="button"
                 className={
-                  filter === "ARCHIVED"
+                  filter ===
+                  "ARCHIVED"
                     ? "filter-button active"
                     : "filter-button"
                 }
-                onClick={() => setFilter("ARCHIVED")}
+                onClick={() =>
+                  setFilter(
+                    "ARCHIVED"
+                  )
+                }
               >
                 Archived
               </button>
@@ -456,14 +1044,21 @@ function RulesPage() {
 
         {isLoading ? (
           <div className="empty-state">
-            <strong>Loading rules...</strong>
+            <strong>
+              Loading rules...
+            </strong>
           </div>
-        ) : visibleRules.length === 0 ? (
+        ) : visibleRules.length ===
+          0 ? (
           <div className="empty-state">
-            <strong>No matching rules</strong>
+            <strong>
+              No matching rules
+            </strong>
 
             <span>
-              Add a rule or adjust the current filter.
+              {search.trim()
+                ? "No rules match your search and current filter."
+                : "Add a rule or adjust the current filter."}
             </span>
           </div>
         ) : (
@@ -471,11 +1066,26 @@ function RulesPage() {
             <table className="data-table rules-table">
               <thead>
                 <tr>
-                  <th>Rule</th>
-                  <th>Severity</th>
-                  <th>Weight</th>
-                  <th>Version</th>
-                  <th>Status</th>
+                  <th>
+                    Rule
+                  </th>
+
+                  <th>
+                    Severity
+                  </th>
+
+                  <th>
+                    Weight
+                  </th>
+
+                  <th>
+                    Version
+                  </th>
+
+                  <th>
+                    Status
+                  </th>
+
                   <th className="actions-column">
                     Actions
                   </th>
@@ -483,134 +1093,168 @@ function RulesPage() {
               </thead>
 
               <tbody>
-                {visibleRules.map((rule) => {
-                  const version = rule.currentVersion;
+                {visibleRules.map(
+                  (rule) => {
+                    const version =
+                      rule.currentVersion;
 
-                  return (
-                    <tr key={rule.id}>
-                      <td>
-                        <div className="rule-title-cell">
-                          <strong>
-                            {version?.title ??
-                              "Untitled Rule"}
-                          </strong>
+                    return (
+                      <tr
+                        key={
+                          rule.id
+                        }
+                      >
+                        <td>
+                          <div className="rule-title-cell">
+                            <strong>
+                              {version
+                                ?.title ??
+                                "Untitled Rule"}
+                            </strong>
 
-                          <span>
-                            {version?.definition ??
-                              "No definition available."}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td>
-                        {version?.severityNameSnapshot ??
-                          "—"}
-                      </td>
-
-                      <td>
-                        {version?.weightNameSnapshot ? (
-                          <div className="weight-display">
                             <span>
-                              {version.weightNameSnapshot}
+                              {version
+                                ?.definition ??
+                                "No definition available."}
                             </span>
+                          </div>
+                        </td>
 
-                            {version.weightValueSnapshot !==
-                              null && (
-                              <span className="weight-value">
+                        <td>
+                          {version
+                            ?.severityNameSnapshot ??
+                            "—"}
+                        </td>
+
+                        <td>
+                          {version?.weightNameSnapshot ? (
+                            <div className="weight-display">
+                              <span>
                                 {
-                                  version.weightValueSnapshot
+                                  version.weightNameSnapshot
                                 }
                               </span>
-                            )}
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
 
-                      <td>
-                        <span className="version-badge">
-                          v{version?.versionNumber ?? 0}
-                        </span>
-                      </td>
+                              {version.weightValueSnapshot !==
+                                null && (
+                                <span className="weight-value">
+                                  {
+                                    version.weightValueSnapshot
+                                  }
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
 
-                      <td>
-                        <span
-                          className={
-                            rule.isActive
-                              ? "status-badge active"
-                              : "status-badge inactive"
-                          }
-                        >
-                          {rule.isActive
-                            ? "Active"
-                            : "Archived"}
-                        </span>
-                      </td>
+                        <td>
+                          <span className="version-badge">
+                            v
+                            {version
+                              ?.versionNumber ??
+                              0}
+                          </span>
+                        </td>
 
-                      <td>
-                        <div className="table-actions">
-                          <button
-                            type="button"
-                            className="text-button"
-                            onClick={() =>
-                              void openHistory(rule)
+                        <td>
+                          <span
+                            className={
+                              rule.isActive
+                                ? "status-badge active"
+                                : "status-badge inactive"
                             }
                           >
-                            History
-                          </button>
+                            {rule.isActive
+                              ? "Active"
+                              : "Archived"}
+                          </span>
+                        </td>
 
-                          {rule.isActive && (
+                        <td>
+                          <div className="table-actions">
                             <button
                               type="button"
                               className="text-button"
                               onClick={() =>
-                                openEditRule(rule)
+                                void openHistory(
+                                  rule
+                                )
+                              }
+                              disabled={
+                                historyLoading
                               }
                             >
-                              Edit
+                              History
                             </button>
-                          )}
 
-                          <button
-                            type="button"
-                            disabled={
-                              actionId === rule.id
-                            }
-                            className={
-                              rule.isActive
-                                ? "text-button danger"
-                                : "text-button success"
-                            }
-                            onClick={() =>
-                              void changeRuleStatus(rule)
-                            }
-                          >
-                            {actionId === rule.id
-                              ? "Updating..."
-                              : rule.isActive
-                                ? "Archive"
-                                : "Reactivate"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                            {rule.isActive && (
+                              <button
+                                type="button"
+                                className="text-button"
+                                onClick={() =>
+                                  void openEditRule(
+                                    rule
+                                  )
+                                }
+                              >
+                                Edit
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              disabled={
+                                actionId ===
+                                rule.id
+                              }
+                              className={
+                                rule.isActive
+                                  ? "text-button danger"
+                                  : "text-button success"
+                              }
+                              onClick={() =>
+                                requestRuleStatusChange(
+                                  rule
+                                )
+                              }
+                            >
+                              {actionId ===
+                              rule.id
+                                ? "Updating..."
+                                : rule.isActive
+                                  ? "Archive"
+                                  : "Reactivate"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                )}
               </tbody>
             </table>
           </div>
         )}
       </section>
 
+      {/* =====================================================
+          ADD / EDIT RULE MODAL
+          ===================================================== */}
+
       {showRuleModal && (
         <div
           className="modal-backdrop"
-          onMouseDown={closeRuleModal}
+          onMouseDown={
+            closeRuleModal
+          }
         >
           <div
             className="modal modal-wide"
-            onMouseDown={(event) =>
+            onMouseDown={(
+              event
+            ) =>
               event.stopPropagation()
             }
           >
@@ -632,8 +1276,13 @@ function RulesPage() {
               <button
                 type="button"
                 className="modal-close"
-                onClick={closeRuleModal}
+                onClick={
+                  closeRuleModal
+                }
                 aria-label="Close"
+                disabled={
+                  isSaving
+                }
               >
                 ×
               </button>
@@ -641,91 +1290,206 @@ function RulesPage() {
 
             <form
               className="modal-form"
-              onSubmit={handleSubmit}
+              onSubmit={
+                handleSubmit
+              }
             >
               <div className="form-stack">
                 <label className="form-field">
-                  <span>Rule Title</span>
+                  <span>
+                    Rule Title
+                  </span>
 
                   <input
                     type="text"
                     value={title}
-                    onChange={(event) =>
-                      setTitle(event.target.value)
-                    }
+                    onChange={(
+                      event
+                    ) => {
+                      setTitle(
+                        event.target
+                          .value
+                      );
+
+                      if (
+                        formError
+                      ) {
+                        setFormError(
+                          ""
+                        );
+                      }
+                    }}
                     placeholder="Example: Left Hanging"
-                    maxLength={150}
+                    maxLength={
+                      150
+                    }
                     autoFocus
+                    disabled={
+                      isSaving
+                    }
                   />
                 </label>
 
                 <label className="form-field">
-                  <span>Definition</span>
+                  <span>
+                    Definition
+                  </span>
 
                   <textarea
-                    value={definition}
-                    onChange={(event) =>
-                      setDefinition(event.target.value)
+                    value={
+                      definition
                     }
+                    onChange={(
+                      event
+                    ) => {
+                      setDefinition(
+                        event.target
+                          .value
+                      );
+
+                      if (
+                        formError
+                      ) {
+                        setFormError(
+                          ""
+                        );
+                      }
+                    }}
                     placeholder="Describe exactly what constitutes this incident..."
-                    maxLength={2000}
+                    maxLength={
+                      2000
+                    }
                     rows={6}
+                    disabled={
+                      isSaving
+                    }
                   />
                 </label>
 
                 <div className="form-grid">
                   <label className="form-field">
-                    <span>Severity</span>
+                    <span>
+                      Severity
+                    </span>
 
                     <select
-                      value={severityOptionId}
-                      onChange={(event) =>
+                      value={
+                        severityOptionId
+                      }
+                      onChange={(
+                        event
+                      ) => {
                         setSeverityOptionId(
-                          event.target.value
-                        )
+                          event.target
+                            .value
+                        );
+
+                        if (
+                          formError
+                        ) {
+                          setFormError(
+                            ""
+                          );
+                        }
+                      }}
+                      disabled={
+                        isSaving
                       }
                     >
                       <option value="">
                         No severity
                       </option>
 
-                      {severityOptions.map((option) => (
-                        <option
-                          key={option.id}
-                          value={option.id}
-                        >
-                          {option.name}
-                        </option>
-                      ))}
+                      {severityOptions.map(
+                        (
+                          option
+                        ) => (
+                          <option
+                            key={
+                              option.id
+                            }
+                            value={
+                              option.id
+                            }
+                            disabled={
+                              !option.isActive
+                            }
+                          >
+                            {
+                              option.name
+                            }
+                            {!option.isActive
+                              ? " (Archived)"
+                              : ""}
+                          </option>
+                        )
+                      )}
                     </select>
                   </label>
 
                   <label className="form-field">
-                    <span>Strike Weight</span>
+                    <span>
+                      Strike Weight
+                    </span>
 
                     <select
-                      value={weightOptionId}
-                      onChange={(event) =>
+                      value={
+                        weightOptionId
+                      }
+                      onChange={(
+                        event
+                      ) => {
                         setWeightOptionId(
-                          event.target.value
-                        )
+                          event.target
+                            .value
+                        );
+
+                        if (
+                          formError
+                        ) {
+                          setFormError(
+                            ""
+                          );
+                        }
+                      }}
+                      disabled={
+                        isSaving
                       }
                     >
                       <option value="">
                         No weight
                       </option>
 
-                      {weightOptions.map((option) => (
-                        <option
-                          key={option.id}
-                          value={option.id}
-                        >
-                          {option.name}
-                          {option.value !== null
-                            ? ` (${option.value})`
-                            : ""}
-                        </option>
-                      ))}
+                      {weightOptions.map(
+                        (
+                          option
+                        ) => (
+                          <option
+                            key={
+                              option.id
+                            }
+                            value={
+                              option.id
+                            }
+                            disabled={
+                              !option.isActive
+                            }
+                          >
+                            {
+                              option.name
+                            }
+
+                            {option.value !==
+                            null
+                              ? ` (${option.value})`
+                              : ""}
+
+                            {!option.isActive
+                              ? " — Archived"
+                              : ""}
+                          </option>
+                        )
+                      )}
                     </select>
                   </label>
                 </div>
@@ -741,8 +1505,12 @@ function RulesPage() {
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={closeRuleModal}
-                  disabled={isSaving}
+                  onClick={
+                    closeRuleModal
+                  }
+                  disabled={
+                    isSaving
+                  }
                 >
                   Cancel
                 </button>
@@ -750,7 +1518,9 @@ function RulesPage() {
                 <button
                   type="submit"
                   className="primary-button"
-                  disabled={isSaving}
+                  disabled={
+                    isSaving
+                  }
                 >
                   {isSaving
                     ? "Saving..."
@@ -764,35 +1534,50 @@ function RulesPage() {
         </div>
       )}
 
-      {(historyRule || historyLoading) && (
+      {/* =====================================================
+          RULE HISTORY
+          ===================================================== */}
+
+      {(historyRule ||
+        historyLoading) && (
         <div
           className="modal-backdrop"
-          onMouseDown={() =>
-            !historyLoading && setHistoryRule(null)
+          onMouseDown={
+            closeHistory
           }
         >
           <div
             className="modal modal-history"
-            onMouseDown={(event) =>
+            onMouseDown={(
+              event
+            ) =>
               event.stopPropagation()
             }
           >
             <div className="modal-header">
               <div>
-                <h3>Rule Version History</h3>
+                <h3>
+                  Rule Version
+                  History
+                </h3>
 
                 <p>
-                  Previous versions remain preserved for audit
-                  history.
+                  Previous versions
+                  remain preserved
+                  for audit history.
                 </p>
               </div>
 
               <button
                 type="button"
                 className="modal-close"
-                onClick={() => setHistoryRule(null)}
+                onClick={
+                  closeHistory
+                }
                 aria-label="Close"
-                disabled={historyLoading}
+                disabled={
+                  historyLoading
+                }
               >
                 ×
               </button>
@@ -800,63 +1585,175 @@ function RulesPage() {
 
             {historyLoading ? (
               <div className="empty-state">
-                <strong>Loading history...</strong>
+                <strong>
+                  Loading history...
+                </strong>
               </div>
             ) : (
               <div className="history-list">
-                {historyRule?.versions.map((version) => (
-                  <article
-                    className="history-item"
-                    key={version.id}
-                  >
-                    <div className="history-item-header">
-                      <div>
-                        <span className="version-badge">
-                          Version {version.versionNumber}
-                        </span>
+                {historyRule?.versions.map(
+                  (version) => (
+                    <article
+                      className="history-item"
+                      key={
+                        version.id
+                      }
+                    >
+                      <div className="history-item-header">
+                        <div>
+                          <span className="version-badge">
+                            Version{" "}
+                            {
+                              version.versionNumber
+                            }
+                          </span>
 
-                        <h4>{version.title}</h4>
+                          <h4>
+                            {
+                              version.title
+                            }
+                          </h4>
+                        </div>
+
+                        <time>
+                          {new Date(
+                            version.createdAt
+                          ).toLocaleString()}
+                        </time>
                       </div>
 
-                      <time>
-                        {new Date(
-                          version.createdAt
-                        ).toLocaleString()}
-                      </time>
-                    </div>
+                      <p className="history-definition">
+                        {
+                          version.definition
+                        }
+                      </p>
 
-                    <p className="history-definition">
-                      {version.definition}
-                    </p>
+                      <div className="history-meta">
+                        <span>
+                          Severity:{" "}
+                          <strong>
+                            {version.severityNameSnapshot ??
+                              "None"}
+                          </strong>
+                        </span>
 
-                    <div className="history-meta">
-                      <span>
-                        Severity:{" "}
-                        <strong>
-                          {version.severityNameSnapshot ??
-                            "None"}
-                        </strong>
-                      </span>
+                        <span>
+                          Weight:{" "}
+                          <strong>
+                            {version.weightNameSnapshot ??
+                              "None"}
+                          </strong>
 
-                      <span>
-                        Weight:{" "}
-                        <strong>
-                          {version.weightNameSnapshot ??
-                            "None"}
-                        </strong>
-
-                        {version.weightValueSnapshot !==
-                          null &&
-                          ` (${version.weightValueSnapshot})`}
-                      </span>
-                    </div>
-                  </article>
-                ))}
+                          {version.weightValueSnapshot !==
+                            null &&
+                            ` (${version.weightValueSnapshot})`}
+                        </span>
+                      </div>
+                    </article>
+                  )
+                )}
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* =====================================================
+          CONFIRMATION MODAL
+          ===================================================== */}
+
+      {pendingConfirmation &&
+        confirmationContent && (
+          <div
+            className="modal-backdrop confirmation-backdrop"
+            onMouseDown={
+              cancelConfirmation
+            }
+          >
+            <div
+              className="modal confirmation-modal"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="rule-confirmation-title"
+            >
+              <div className="modal-header">
+                <div>
+                  <h3 id="rule-confirmation-title">
+                    {
+                      confirmationContent.title
+                    }
+                  </h3>
+
+                  <p>
+                    Please confirm
+                    before continuing.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={
+                    cancelConfirmation
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                  aria-label="Close confirmation"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="confirmation-body">
+                <p>
+                  {
+                    confirmationContent.message
+                  }
+                </p>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={
+                    cancelConfirmation
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    confirmationContent.danger
+                      ? "danger-button"
+                      : "primary-button"
+                  }
+                  onClick={() =>
+                    void confirmPendingAction()
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                >
+                  {confirmationBusy
+                    ? "Processing..."
+                    : confirmationContent.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

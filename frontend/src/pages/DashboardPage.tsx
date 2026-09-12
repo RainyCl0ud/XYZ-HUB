@@ -199,89 +199,60 @@ function DashboardPage() {
         </div>
       </section>
 
-      <section className="dashboard-secondary-grid">
-        <div className="content-card">
-          <div className="card-header">
-            <div>
-              <h3>Incident Status</h3>
+  <section className="dashboard-secondary-grid dashboard-secondary-grid-single">
+  <div className="content-card">
+    <div className="card-header">
+      <div>
+        <h3>Incident Status</h3>
 
-              <p>
-                Current breakdown of all incident records.
-              </p>
-            </div>
-          </div>
+        <p>
+          Current breakdown of all incident records.
+        </p>
+      </div>
+    </div>
 
-          <div className="status-summary">
-            <div className="status-summary-item">
-              <div>
-                <span className="status-dot open" />
-                <span>Open</span>
-              </div>
-
-              <strong>
-                {isLoading
-                  ? "—"
-                  : dashboard?.counts.openIncidents ?? 0}
-              </strong>
-            </div>
-
-            <div className="status-summary-item">
-              <div>
-                <span className="status-dot resolved" />
-                <span>Resolved</span>
-              </div>
-
-              <strong>
-                {isLoading
-                  ? "—"
-                  : dashboard?.counts.resolvedIncidents ?? 0}
-              </strong>
-            </div>
-
-            <div className="status-summary-item">
-              <div>
-                <span className="status-dot voided" />
-                <span>Voided</span>
-              </div>
-
-              <strong>
-                {isLoading
-                  ? "—"
-                  : dashboard?.counts.voidedIncidents ?? 0}
-              </strong>
-            </div>
-          </div>
+    <div className="status-summary">
+      <div className="status-summary-item">
+        <div>
+          <span className="status-dot open" />
+          <span>Open</span>
         </div>
 
-        <div className="content-card dashboard-summary-card">
-          <div className="card-header">
-            <div>
-              <h3>Record Integrity</h3>
+        <strong>
+          {isLoading
+            ? "—"
+            : dashboard?.counts.openIncidents ?? 0}
+        </strong>
+      </div>
 
-              <p>
-                Historical protection currently enabled.
-              </p>
-            </div>
-          </div>
-
-          <div className="integrity-summary">
-            <div>
-              <span>Rule version snapshots</span>
-              <strong>Enabled</strong>
-            </div>
-
-            <div>
-              <span>Archived records preserved</span>
-              <strong>Enabled</strong>
-            </div>
-
-            <div>
-              <span>Hard deletion workflow</span>
-              <strong>Disabled</strong>
-            </div>
-          </div>
+      <div className="status-summary-item">
+        <div>
+          <span className="status-dot resolved" />
+          <span>Resolved</span>
         </div>
-      </section>
+
+        <strong>
+          {isLoading
+            ? "—"
+            : dashboard?.counts.resolvedIncidents ?? 0}
+        </strong>
+      </div>
+
+      <div className="status-summary-item">
+        <div>
+          <span className="status-dot voided" />
+          <span>Voided</span>
+        </div>
+
+        <strong>
+          {isLoading
+            ? "—"
+            : dashboard?.counts.voidedIncidents ?? 0}
+        </strong>
+      </div>
+    </div>
+  </div>
+</section>
 
       <section className="content-card dashboard-recent-card">
         <div className="card-header">

@@ -1,8 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import { apiRequest } from "../lib/api";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-type ChatterStatus = "ACTIVE" | "INACTIVE";
+import type {
+  FormEvent,
+  KeyboardEvent,
+} from "react";
+
+import { apiRequest } from "../lib/api";
+import {
+  useToast,
+} from "../components/ToastProvider";
+
+import "./ChattersPage.css";
+
+type ChatterStatus =
+  | "ACTIVE"
+  | "INACTIVE";
+
+type IncidentStatus =
+  | "OPEN"
+  | "RESOLVED"
+  | "VOIDED";
 
 type Chatter = {
   id: string;
@@ -12,8 +34,70 @@ type Chatter = {
   updatedAt: string;
 };
 
+type ChatterIncident = {
+  id: string;
+
+  chatterId: string;
+  ruleVersionId: string;
+
+  ruleTitleSnapshot: string;
+  ruleDefinitionSnapshot: string;
+
+  severityNameSnapshot:
+    | string
+    | null;
+
+  weightNameSnapshot:
+    | string
+    | null;
+
+  weightValueSnapshot:
+    | number
+    | null;
+
+  occurredAt: string;
+
+  details: string;
+
+  evidenceUrl:
+    | string
+    | null;
+
+  status: IncidentStatus;
+
+  resolutionNotes:
+    | string
+    | null;
+
+  resolvedAt:
+    | string
+    | null;
+
+  voidReason:
+    | string
+    | null;
+
+  voidedAt:
+    | string
+    | null;
+
+  ruleVersion: {
+    id: string;
+    ruleId: string;
+    versionNumber: number;
+  };
+};
+
 type ChatterListResponse = {
   data: Chatter[];
+};
+
+type ChatterDetailResponse = {
+  data: Chatter;
+};
+
+type IncidentListResponse = {
+  data: ChatterIncident[];
 };
 
 type ChatterMutationResponse = {
@@ -21,68 +105,475 @@ type ChatterMutationResponse = {
   data: Chatter;
 };
 
-type StatusFilter = "ALL" | ChatterStatus;
+type StatusFilter =
+  | "ALL"
+  | ChatterStatus;
+
+type IncidentFilter =
+  | "ALL"
+  | IncidentStatus;
+
+type ChatterPayload = {
+  name: string;
+};
+
+type PendingConfirmation =
+  | {
+      type: "save";
+      mode:
+        | "create"
+        | "edit";
+      payload: ChatterPayload;
+    }
+  | {
+      type: "status";
+      action:
+        | "deactivate"
+        | "reactivate";
+      chatter: Chatter;
+    };
 
 function ChattersPage() {
-  const [chatters, setChatters] = useState<Chatter[]>([]);
-  const [statusFilter, setStatusFilter] =
+  const toast = useToast();
+
+  const [
+    chatters,
+    setChatters,
+  ] = useState<Chatter[]>([]);
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] =
     useState<StatusFilter>("ALL");
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [pageError, setPageError] = useState("");
+  const [
+    search,
+    setSearch,
+  ] = useState("");
 
-  const [showForm, setShowForm] = useState(false);
-  const [editingChatter, setEditingChatter] =
+  const [
+    debouncedSearch,
+    setDebouncedSearch,
+  ] = useState("");
+
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
+
+  const [
+    pageError,
+    setPageError,
+  ] = useState("");
+
+  /*
+   * Add / Edit
+   */
+
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
+
+  const [
+    editingChatter,
+    setEditingChatter,
+  ] =
     useState<Chatter | null>(null);
 
-  const [name, setName] = useState("");
-  const [formError, setFormError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [
+    name,
+    setName,
+  ] = useState("");
 
-  const [actionId, setActionId] = useState<string | null>(null);
+  const [
+    formError,
+    setFormError,
+  ] = useState("");
 
-  const loadChatters = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setPageError("");
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
 
-      const query =
-        statusFilter === "ALL"
-          ? ""
-          : `?status=${statusFilter}`;
+  /*
+   * Chatter profile
+   */
 
-      const response = await apiRequest<ChatterListResponse>(
-        `/api/chatters${query}`
-      );
+  const [
+    selectedChatter,
+    setSelectedChatter,
+  ] =
+    useState<Chatter | null>(null);
 
-      setChatters(response.data);
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load chatters"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [statusFilter]);
+  const [
+    chatterIncidents,
+    setChatterIncidents,
+  ] = useState<
+    ChatterIncident[]
+  >([]);
+
+  const [
+    detailsLoading,
+    setDetailsLoading,
+  ] = useState(false);
+
+  const [
+    detailsError,
+    setDetailsError,
+  ] = useState("");
+
+  const [
+    incidentFilter,
+    setIncidentFilter,
+  ] =
+    useState<IncidentFilter>(
+      "ALL"
+    );
+
+  const [
+    expandedIncidentId,
+    setExpandedIncidentId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  /*
+   * Actions / confirmation
+   */
+
+  const [
+    actionId,
+    setActionId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    pendingConfirmation,
+    setPendingConfirmation,
+  ] =
+    useState<PendingConfirmation | null>(
+      null
+    );
+
+  /*
+   * Search debounce
+   */
+
+  useEffect(() => {
+    const timer =
+      window.setTimeout(() => {
+        setDebouncedSearch(
+          search.trim()
+        );
+      }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [search]);
+
+  /*
+   * Load chatter list
+   */
+
+  const loadChatters =
+    useCallback(async () => {
+      try {
+        setIsLoading(true);
+        setPageError("");
+
+        const params =
+          new URLSearchParams();
+
+        if (
+          statusFilter !== "ALL"
+        ) {
+          params.set(
+            "status",
+            statusFilter
+          );
+        }
+
+        if (debouncedSearch) {
+          params.set(
+            "search",
+            debouncedSearch
+          );
+        }
+
+        const query =
+          params.toString();
+
+        const endpoint = query
+          ? `/api/chatters?${query}`
+          : "/api/chatters";
+
+        const response =
+          await apiRequest<ChatterListResponse>(
+            endpoint
+          );
+
+        setChatters(
+          response.data
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to load chatters";
+
+        setPageError(message);
+
+        toast.error(
+          message,
+          "Unable to load chatters"
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }, [
+      statusFilter,
+      debouncedSearch,
+      toast,
+    ]);
 
   useEffect(() => {
     void loadChatters();
   }, [loadChatters]);
 
-  function openAddForm() {
+  /*
+   * Chatter profile
+   */
+
+  function resetChatterProfile() {
+    setSelectedChatter(
+      null
+    );
+
+    setChatterIncidents([]);
+
+    setDetailsError("");
+
+    setIncidentFilter(
+      "ALL"
+    );
+
+    setExpandedIncidentId(
+      null
+    );
+  }
+
+  async function openChatterDetails(
+    chatter: Chatter
+  ) {
+    setSelectedChatter(
+      chatter
+    );
+
+    setChatterIncidents([]);
+
+    setIncidentFilter(
+      "ALL"
+    );
+
+    setExpandedIncidentId(
+      null
+    );
+
+    setDetailsError("");
+
+    try {
+      setDetailsLoading(true);
+
+      const [
+        chatterResponse,
+        incidentResponse,
+      ] = await Promise.all([
+        apiRequest<ChatterDetailResponse>(
+          `/api/chatters/${chatter.id}`
+        ),
+
+        apiRequest<IncidentListResponse>(
+          `/api/incidents?chatterId=${encodeURIComponent(
+            chatter.id
+          )}`
+        ),
+      ]);
+
+      setSelectedChatter(
+        chatterResponse.data
+      );
+
+      setChatterIncidents(
+        incidentResponse.data
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to load chatter details";
+
+      setDetailsError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Unable to load chatter profile"
+      );
+    } finally {
+      setDetailsLoading(false);
+    }
+  }
+
+  function closeChatterDetails() {
+    if (
+      actionId !== null ||
+      showForm
+    ) {
+      return;
+    }
+
+    resetChatterProfile();
+  }
+
+  function handleRowKeyDown(
+    event:
+      KeyboardEvent<HTMLTableRowElement>,
+    chatter: Chatter
+  ) {
+    if (
+      event.key === "Enter" ||
+      event.key === " "
+    ) {
+      event.preventDefault();
+
+      void openChatterDetails(
+        chatter
+      );
+    }
+  }
+
+  /*
+   * Incident statistics
+   */
+
+  const incidentStats =
+    useMemo(() => {
+      const stats = {
+        total:
+          chatterIncidents.length,
+
+        open: 0,
+        resolved: 0,
+        voided: 0,
+      };
+
+      for (
+        const incident of
+        chatterIncidents
+      ) {
+        if (
+          incident.status ===
+          "OPEN"
+        ) {
+          stats.open += 1;
+        }
+
+        if (
+          incident.status ===
+          "RESOLVED"
+        ) {
+          stats.resolved += 1;
+        }
+
+        if (
+          incident.status ===
+          "VOIDED"
+        ) {
+          stats.voided += 1;
+        }
+      }
+
+      return stats;
+    }, [chatterIncidents]);
+
+  const visibleIncidents =
+    useMemo(() => {
+      if (
+        incidentFilter === "ALL"
+      ) {
+        return chatterIncidents;
+      }
+
+      return chatterIncidents.filter(
+        (incident) =>
+          incident.status ===
+          incidentFilter
+      );
+    }, [
+      chatterIncidents,
+      incidentFilter,
+    ]);
+
+  /*
+   * Form
+   */
+
+  function resetForm() {
     setEditingChatter(null);
+
     setName("");
+
     setFormError("");
+  }
+
+  function openAddForm() {
+    resetForm();
+
+    setPageError("");
+
     setShowForm(true);
   }
 
-  function openEditForm(chatter: Chatter) {
-    setEditingChatter(chatter);
-    setName(chatter.name);
+  function openEditForm(
+    chatter: Chatter
+  ) {
+    setEditingChatter(
+      chatter
+    );
+
+    setName(
+      chatter.name
+    );
+
     setFormError("");
+
+    setPageError("");
+
     setShowForm(true);
+  }
+
+  /*
+   * IMPORTANT:
+   * We no longer close the profile.
+   *
+   * The edit dialog opens ABOVE the chatter
+   * profile. Cancel returns to the profile.
+   */
+  function editSelectedChatter() {
+    if (!selectedChatter) {
+      return;
+    }
+
+    openEditForm(
+      selectedChatter
+    );
   }
 
   function closeForm() {
@@ -91,285 +582,1252 @@ function ChattersPage() {
     }
 
     setShowForm(false);
-    setEditingChatter(null);
-    setName("");
-    setFormError("");
+
+    setPendingConfirmation(
+      null
+    );
+
+    resetForm();
+
+    /*
+     * If a profile is already open,
+     * it remains open underneath.
+     */
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function showFormError(
+    message: string
+  ) {
+    setFormError(message);
+
+    toast.error(
+      message,
+      "Check chatter details"
+    );
+  }
+
+  function handleSubmit(
+    event:
+      FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
-    const trimmedName = name.trim();
+    const trimmedName =
+      name.trim();
 
     if (!trimmedName) {
-      setFormError("Chatter name is required.");
+      showFormError(
+        "Chatter name is required."
+      );
+
       return;
     }
 
-    try {
-      setIsSaving(true);
+    if (
+      editingChatter &&
+      editingChatter.name.trim() ===
+        trimmedName
+    ) {
       setFormError("");
 
-      if (editingChatter) {
-        await apiRequest<ChatterMutationResponse>(
-          `/api/chatters/${editingChatter.id}`,
-          {
-            method: "PATCH",
-            body: JSON.stringify({
-              name: trimmedName,
-            }),
-          }
-        );
+      toast.info(
+        "No chatter changes were detected.",
+        "No changes"
+      );
+
+      return;
+    }
+
+    setFormError("");
+
+    setPendingConfirmation({
+      type: "save",
+
+      mode:
+        editingChatter
+          ? "edit"
+          : "create",
+
+      payload: {
+        name: trimmedName,
+      },
+    });
+  }
+
+  async function saveChatter(
+    confirmation: Extract<
+      PendingConfirmation,
+      {
+        type: "save";
+      }
+    >
+  ) {
+    try {
+      setIsSaving(true);
+
+      setFormError("");
+      setPageError("");
+
+      let response:
+        ChatterMutationResponse;
+
+      if (
+        confirmation.mode ===
+          "edit" &&
+        editingChatter
+      ) {
+        response =
+          await apiRequest<ChatterMutationResponse>(
+            `/api/chatters/${editingChatter.id}`,
+            {
+              method: "PATCH",
+
+              body:
+                JSON.stringify(
+                  confirmation.payload
+                ),
+            }
+          );
       } else {
-        await apiRequest<ChatterMutationResponse>(
-          "/api/chatters",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              name: trimmedName,
-            }),
-          }
+        response =
+          await apiRequest<ChatterMutationResponse>(
+            "/api/chatters",
+            {
+              method: "POST",
+
+              body:
+                JSON.stringify(
+                  confirmation.payload
+                ),
+            }
+          );
+      }
+
+      setPendingConfirmation(
+        null
+      );
+
+      /*
+       * Update the chatter profile if we
+       * edited the chatter from inside it.
+       */
+      if (
+        confirmation.mode ===
+          "edit"
+      ) {
+        setSelectedChatter(
+          (current) =>
+            current?.id ===
+            response.data.id
+              ? response.data
+              : current
         );
       }
 
-      setShowForm(false);
-setEditingChatter(null);
-setName("");
-setFormError("");
+      if (
+        response.message ===
+        "No chatter changes were detected"
+      ) {
+        toast.info(
+          response.message,
+          "No changes"
+        );
 
-await loadChatters();
+        setShowForm(false);
+
+        resetForm();
+
+        return;
+      }
+
+      toast.success(
+        response.message,
+
+        confirmation.mode ===
+        "edit"
+          ? "Chatter updated"
+          : "Chatter added"
+      );
+
+      setShowForm(false);
+
+      resetForm();
+
+      await loadChatters();
     } catch (error) {
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to save chatter"
+          : "Failed to save chatter";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setFormError(message);
+
+      toast.error(
+        message,
+        "Chatter not saved"
       );
     } finally {
       setIsSaving(false);
     }
   }
 
-  async function changeStatus(
+  /*
+   * Deactivate / reactivate
+   */
+
+  function requestStatusChange(
     chatter: Chatter,
-    action: "deactivate" | "reactivate"
+    action:
+      | "deactivate"
+      | "reactivate"
   ) {
+    setPendingConfirmation({
+      type: "status",
+      action,
+      chatter,
+    });
+  }
+
+  async function changeStatus(
+    confirmation: Extract<
+      PendingConfirmation,
+      {
+        type: "status";
+      }
+    >
+  ) {
+    const {
+      chatter,
+      action,
+    } = confirmation;
+
     try {
-      setActionId(chatter.id);
+      setActionId(
+        chatter.id
+      );
+
       setPageError("");
 
-      await apiRequest<ChatterMutationResponse>(
-        `/api/chatters/${chatter.id}/${action}`,
-        {
-          method: "PATCH",
-        }
+      const response =
+        await apiRequest<ChatterMutationResponse>(
+          `/api/chatters/${chatter.id}/${action}`,
+          {
+            method: "PATCH",
+          }
+        );
+
+      setPendingConfirmation(
+        null
       );
+
+      toast.success(
+        response.message,
+
+        action ===
+        "deactivate"
+          ? "Chatter deactivated"
+          : "Chatter reactivated"
+      );
+
+      /*
+       * IMPORTANT:
+       *
+       * After a status mutation initiated
+       * from the chatter profile, return
+       * directly to the table.
+       */
+      resetChatterProfile();
 
       await loadChatters();
     } catch (error) {
-      setPageError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to update chatter status"
+          : "Failed to update chatter status";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setPageError(message);
+
+      toast.error(
+        message,
+        "Chatter not updated"
       );
     } finally {
       setActionId(null);
     }
   }
 
+  /*
+   * Confirmation
+   */
+
+  async function confirmPendingAction() {
+    if (
+      !pendingConfirmation
+    ) {
+      return;
+    }
+
+    if (
+      pendingConfirmation.type ===
+      "save"
+    ) {
+      await saveChatter(
+        pendingConfirmation
+      );
+
+      return;
+    }
+
+    await changeStatus(
+      pendingConfirmation
+    );
+  }
+
+  function cancelConfirmation() {
+    if (
+      isSaving ||
+      actionId !== null
+    ) {
+      return;
+    }
+
+    setPendingConfirmation(
+      null
+    );
+  }
+
+  const confirmationContent =
+    useMemo(() => {
+      if (
+        !pendingConfirmation
+      ) {
+        return null;
+      }
+
+      if (
+        pendingConfirmation.type ===
+        "save"
+      ) {
+        if (
+          pendingConfirmation.mode ===
+          "create"
+        ) {
+          return {
+            title:
+              "Add Chatter?",
+
+            message:
+              `Add "${pendingConfirmation.payload.name}" as a new chatter?`,
+
+            confirmLabel:
+              "Add Chatter",
+
+            danger: false,
+          };
+        }
+
+        return {
+          title:
+            "Save Chatter Changes?",
+
+          message:
+            `Update this chatter's name to "${pendingConfirmation.payload.name}"?`,
+
+          confirmLabel:
+            "Save Changes",
+
+          danger: false,
+        };
+      }
+
+      if (
+        pendingConfirmation.action ===
+        "deactivate"
+      ) {
+        return {
+          title:
+            "Deactivate Chatter?",
+
+          message:
+            `Deactivate "${pendingConfirmation.chatter.name}"? They will no longer be available when logging new incidents, but all existing incident history will remain preserved.`,
+
+          confirmLabel:
+            "Deactivate",
+
+          danger: true,
+        };
+      }
+
+      return {
+        title:
+          "Reactivate Chatter?",
+
+        message:
+          `Reactivate "${pendingConfirmation.chatter.name}"? They will become available for new incident logging again.`,
+
+        confirmLabel:
+          "Reactivate",
+
+        danger: false,
+      };
+    }, [pendingConfirmation]);
+
+  const confirmationBusy =
+    pendingConfirmation?.type ===
+    "save"
+      ? isSaving
+      : pendingConfirmation?.type ===
+          "status"
+        ? actionId ===
+          pendingConfirmation
+            .chatter.id
+        : false;
+
+  /*
+   * Display helpers
+   */
+
+  function formatIncidentStatus(
+    status: IncidentStatus
+  ) {
+    if (
+      status === "OPEN"
+    ) {
+      return "Open";
+    }
+
+    if (
+      status === "RESOLVED"
+    ) {
+      return "Resolved";
+    }
+
+    return "Voided";
+  }
+
+  function getIncidentStatusClass(
+    status: IncidentStatus
+  ) {
+    if (
+      status === "OPEN"
+    ) {
+      return "incident-status open";
+    }
+
+    if (
+      status === "RESOLVED"
+    ) {
+      return "incident-status resolved";
+    }
+
+    return "incident-status voided";
+  }
+
+  function toggleIncident(
+    incidentId: string
+  ) {
+    setExpandedIncidentId(
+      (current) =>
+        current === incidentId
+          ? null
+          : incidentId
+    );
+  }
+
   return (
     <div className="page">
       <header className="page-header">
         <div>
-          <p className="page-eyebrow">Team Management</p>
-          <h2>Chatters</h2>
+          <p className="page-eyebrow">
+            Team Management
+          </p>
+
+          <h2>
+            Chatters
+          </h2>
+
           <p className="page-description">
-            Manage the chatters available for incident logging.
+            Manage chatter records
+            and review their QA and
+            incident history.
           </p>
         </div>
 
         <button
           className="primary-button"
           type="button"
-          onClick={openAddForm}
+          onClick={
+            openAddForm
+          }
         >
           Add Chatter
         </button>
       </header>
 
+      {pageError && (
+        <div className="alert alert-error page-alert">
+          {pageError}
+        </div>
+      )}
+
       <section className="content-card">
-        <div className="card-header">
+        <div className="card-header chatter-table-header">
           <div>
-            <h3>Chatter Records</h3>
+            <h3>
+              Chatter Records
+            </h3>
+
             <p>
-              Active chatters will be available when logging new
-              incidents.
+              Select a chatter to
+              view their profile
+              and complete incident
+              history.
             </p>
           </div>
 
-          <div className="filter-group">
-            <button
-              type="button"
-              className={
-                statusFilter === "ALL"
-                  ? "filter-button active"
-                  : "filter-button"
+          <div className="toolbar-controls">
+            <input
+              className="search-input"
+              type="search"
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value
+                )
               }
-              onClick={() => setStatusFilter("ALL")}
-            >
-              All
-            </button>
+              placeholder="Search chatters..."
+              aria-label="Search chatters"
+              maxLength={150}
+            />
 
-            <button
-              type="button"
-              className={
-                statusFilter === "ACTIVE"
-                  ? "filter-button active"
-                  : "filter-button"
-              }
-              onClick={() => setStatusFilter("ACTIVE")}
-            >
-              Active
-            </button>
+            <div className="filter-group">
+              <button
+                type="button"
+                className={
+                  statusFilter ===
+                  "ALL"
+                    ? "filter-button active"
+                    : "filter-button"
+                }
+                onClick={() =>
+                  setStatusFilter(
+                    "ALL"
+                  )
+                }
+              >
+                All
+              </button>
 
-            <button
-              type="button"
-              className={
-                statusFilter === "INACTIVE"
-                  ? "filter-button active"
-                  : "filter-button"
-              }
-              onClick={() => setStatusFilter("INACTIVE")}
-            >
-              Inactive
-            </button>
+              <button
+                type="button"
+                className={
+                  statusFilter ===
+                  "ACTIVE"
+                    ? "filter-button active"
+                    : "filter-button"
+                }
+                onClick={() =>
+                  setStatusFilter(
+                    "ACTIVE"
+                  )
+                }
+              >
+                Active
+              </button>
+
+              <button
+                type="button"
+                className={
+                  statusFilter ===
+                  "INACTIVE"
+                    ? "filter-button active"
+                    : "filter-button"
+                }
+                onClick={() =>
+                  setStatusFilter(
+                    "INACTIVE"
+                  )
+                }
+              >
+                Inactive
+              </button>
+            </div>
           </div>
         </div>
 
-        {pageError && (
-          <div className="alert alert-error">
-            {pageError}
-          </div>
-        )}
-
         {isLoading ? (
           <div className="empty-state">
-            <strong>Loading chatters...</strong>
+            <strong>
+              Loading chatters...
+            </strong>
           </div>
-        ) : chatters.length === 0 ? (
+        ) : chatters.length ===
+          0 ? (
           <div className="empty-state">
-            <strong>No chatters found</strong>
+            <strong>
+              {search.trim()
+                ? "No chatters match your search"
+                : "No chatters found"}
+            </strong>
+
             <span>
-              Add a chatter or choose a different status filter.
+              {search.trim()
+                ? "Try another search or adjust the status filter."
+                : "Add a chatter or choose a different status filter."}
             </span>
           </div>
         ) : (
           <div className="table-wrapper">
-            <table className="data-table">
+            <table className="data-table chatter-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Added</th>
-                  <th className="actions-column">Actions</th>
+                  <th>
+                    Name
+                  </th>
+
+                  <th>
+                    Status
+                  </th>
+
+                  <th>
+                    Added
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
-                {chatters.map((chatter) => (
-                  <tr key={chatter.id}>
-                    <td>
-                      <div className="primary-cell">
-                        {chatter.name}
-                      </div>
-                    </td>
+                {chatters.map(
+                  (chatter) => (
+                    <tr
+                      key={
+                        chatter.id
+                      }
+                      className="chatter-clickable-row"
+                      tabIndex={0}
+                      aria-label={`Open ${chatter.name} profile`}
+                      onClick={() =>
+                        void openChatterDetails(
+                          chatter
+                        )
+                      }
+                      onKeyDown={(
+                        event
+                      ) =>
+                        handleRowKeyDown(
+                          event,
+                          chatter
+                        )
+                      }
+                    >
+                      <td>
+                        <div className="chatter-name-cell">
+                          <div className="chatter-name-content">
+                            <strong>
+                              {
+                                chatter.name
+                              }
+                            </strong>
 
-                    <td>
-                      <span
-                        className={
-                          chatter.status === "ACTIVE"
-                            ? "status-badge active"
-                            : "status-badge inactive"
-                        }
-                      >
-                        {chatter.status === "ACTIVE"
-                          ? "Active"
-                          : "Inactive"}
-                      </span>
-                    </td>
+                            <span>
+                              View profile
+                              and incident
+                              history
+                            </span>
+                          </div>
+                        </div>
+                      </td>
 
-                    <td>
-                      {new Date(
-                        chatter.createdAt
-                      ).toLocaleDateString()}
-                    </td>
-
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          type="button"
-                          className="text-button"
-                          onClick={() =>
-                            openEditForm(chatter)
+                      <td>
+                        <span
+                          className={
+                            chatter.status ===
+                            "ACTIVE"
+                              ? "status-badge active"
+                              : "status-badge inactive"
                           }
                         >
-                          Edit
-                        </button>
+                          {chatter.status ===
+                          "ACTIVE"
+                            ? "Active"
+                            : "Inactive"}
+                        </span>
+                      </td>
 
-                        {chatter.status === "ACTIVE" ? (
-                          <button
-                            type="button"
-                            className="text-button danger"
-                            disabled={
-                              actionId === chatter.id
-                            }
-                            onClick={() =>
-                              void changeStatus(
-                                chatter,
-                                "deactivate"
-                              )
-                            }
-                          >
-                            {actionId === chatter.id
-                              ? "Updating..."
-                              : "Deactivate"}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="text-button success"
-                            disabled={
-                              actionId === chatter.id
-                            }
-                            onClick={() =>
-                              void changeStatus(
-                                chatter,
-                                "reactivate"
-                              )
-                            }
-                          >
-                            {actionId === chatter.id
-                              ? "Updating..."
-                              : "Reactivate"}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      <td>
+                        {new Date(
+                          chatter.createdAt
+                        ).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           </div>
         )}
       </section>
 
+      {/* CHATTER PROFILE */}
+
+      {selectedChatter && (
+        <div
+          className="modal-backdrop chatter-profile-backdrop"
+          onMouseDown={
+            closeChatterDetails
+          }
+        >
+          <div
+            className="modal chatter-profile-modal"
+            onMouseDown={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="chatter-profile-header">
+              <div className="chatter-profile-identity">
+                <div>
+                  <div className="chatter-profile-title-row">
+                    <h3>
+                      {
+                        selectedChatter.name
+                      }
+                    </h3>
+
+                    <span
+                      className={
+                        selectedChatter.status ===
+                        "ACTIVE"
+                          ? "status-badge active"
+                          : "status-badge inactive"
+                      }
+                    >
+                      {selectedChatter.status ===
+                      "ACTIVE"
+                        ? "Active"
+                        : "Inactive"}
+                    </span>
+                  </div>
+
+                  <p>
+                    Chatter profile
+                    and QA incident
+                    history
+                  </p>
+
+                  <span className="chatter-profile-member-since">
+                    Added{" "}
+                    {new Date(
+                      selectedChatter.createdAt
+                    ).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close"
+                onClick={
+                  closeChatterDetails
+                }
+                disabled={
+                  actionId !== null ||
+                  showForm
+                }
+                aria-label="Close chatter profile"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="chatter-profile-content">
+              <div className="chatter-profile-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={
+                    editSelectedChatter
+                  }
+                  disabled={
+                    actionId !== null
+                  }
+                >
+                  Edit Chatter
+                </button>
+
+                {selectedChatter.status ===
+                "ACTIVE" ? (
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={() =>
+                      requestStatusChange(
+                        selectedChatter,
+                        "deactivate"
+                      )
+                    }
+                    disabled={
+                      actionId ===
+                      selectedChatter.id
+                    }
+                  >
+                    {actionId ===
+                    selectedChatter.id
+                      ? "Updating..."
+                      : "Deactivate"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="secondary-button chatter-reactivate-button"
+                    onClick={() =>
+                      requestStatusChange(
+                        selectedChatter,
+                        "reactivate"
+                      )
+                    }
+                    disabled={
+                      actionId ===
+                      selectedChatter.id
+                    }
+                  >
+                    {actionId ===
+                    selectedChatter.id
+                      ? "Updating..."
+                      : "Reactivate"}
+                  </button>
+                )}
+              </div>
+
+              {detailsError && (
+                <div className="alert alert-error">
+                  {detailsError}
+                </div>
+              )}
+
+              <section className="chatter-profile-section">
+                <div className="chatter-profile-section-heading">
+                  <div>
+                    <span>
+                      QA Overview
+                    </span>
+
+                    <h4>
+                      Incident Summary
+                    </h4>
+                  </div>
+                </div>
+
+                {detailsLoading ? (
+                  <div className="chatter-profile-loading">
+                    Loading incident
+                    summary...
+                  </div>
+                ) : (
+                  <div className="chatter-stat-grid">
+                    <div className="chatter-stat-card">
+                      <span>
+                        Total
+                        Incidents
+                      </span>
+
+                      <strong>
+                        {
+                          incidentStats.total
+                        }
+                      </strong>
+                    </div>
+
+                    <div className="chatter-stat-card open">
+                      <span>
+                        Open
+                      </span>
+
+                      <strong>
+                        {
+                          incidentStats.open
+                        }
+                      </strong>
+                    </div>
+
+                    <div className="chatter-stat-card resolved">
+                      <span>
+                        Resolved
+                      </span>
+
+                      <strong>
+                        {
+                          incidentStats.resolved
+                        }
+                      </strong>
+                    </div>
+
+                    <div className="chatter-stat-card voided">
+                      <span>
+                        Voided
+                      </span>
+
+                      <strong>
+                        {
+                          incidentStats.voided
+                        }
+                      </strong>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section className="chatter-profile-section chatter-incidents-section">
+                <div className="chatter-profile-section-heading incident-history-heading">
+                  <div>
+                    <span>
+                      QA History
+                    </span>
+
+                    <h4>
+                      Incidents
+                    </h4>
+                  </div>
+
+                  <div className="filter-group chatter-incident-filters">
+                    <button
+                      type="button"
+                      className={
+                        incidentFilter ===
+                        "ALL"
+                          ? "filter-button active"
+                          : "filter-button"
+                      }
+                      onClick={() =>
+                        setIncidentFilter(
+                          "ALL"
+                        )
+                      }
+                    >
+                      All
+                    </button>
+
+                    <button
+                      type="button"
+                      className={
+                        incidentFilter ===
+                        "OPEN"
+                          ? "filter-button active"
+                          : "filter-button"
+                      }
+                      onClick={() =>
+                        setIncidentFilter(
+                          "OPEN"
+                        )
+                      }
+                    >
+                      Open
+                    </button>
+
+                    <button
+                      type="button"
+                      className={
+                        incidentFilter ===
+                        "RESOLVED"
+                          ? "filter-button active"
+                          : "filter-button"
+                      }
+                      onClick={() =>
+                        setIncidentFilter(
+                          "RESOLVED"
+                        )
+                      }
+                    >
+                      Resolved
+                    </button>
+
+                    <button
+                      type="button"
+                      className={
+                        incidentFilter ===
+                        "VOIDED"
+                          ? "filter-button active"
+                          : "filter-button"
+                      }
+                      onClick={() =>
+                        setIncidentFilter(
+                          "VOIDED"
+                        )
+                      }
+                    >
+                      Voided
+                    </button>
+                  </div>
+                </div>
+
+                {detailsLoading ? (
+                  <div className="chatter-profile-loading chatter-history-loading">
+                    Loading incident
+                    history...
+                  </div>
+                ) : visibleIncidents.length ===
+                  0 ? (
+                  <div className="chatter-profile-empty">
+                    <strong>
+                      {chatterIncidents.length ===
+                      0
+                        ? "No incidents recorded"
+                        : "No incidents in this status"}
+                    </strong>
+
+                    <span>
+                      {chatterIncidents.length ===
+                      0
+                        ? "This chatter currently has no incident history."
+                        : "Choose another status to view other records."}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="chatter-incident-list">
+                    {visibleIncidents.map(
+                      (
+                        incident
+                      ) => {
+                        const isExpanded =
+                          expandedIncidentId ===
+                          incident.id;
+
+                        return (
+                          <article
+                            key={
+                              incident.id
+                            }
+                            className={
+                              isExpanded
+                                ? "chatter-incident-item expanded"
+                                : "chatter-incident-item"
+                            }
+                          >
+                            <button
+                              type="button"
+                              className="chatter-incident-summary"
+                              onClick={() =>
+                                toggleIncident(
+                                  incident.id
+                                )
+                              }
+                              aria-expanded={
+                                isExpanded
+                              }
+                            >
+                              <div className="chatter-incident-main">
+                                <div className="chatter-incident-title-row">
+                                  <strong>
+                                    {
+                                      incident.ruleTitleSnapshot
+                                    }
+                                  </strong>
+
+                                  <span
+                                    className={getIncidentStatusClass(
+                                      incident.status
+                                    )}
+                                  >
+                                    {formatIncidentStatus(
+                                      incident.status
+                                    )}
+                                  </span>
+                                </div>
+
+                                <div className="chatter-incident-meta">
+                                  <span>
+                                    v
+                                    {
+                                      incident
+                                        .ruleVersion
+                                        .versionNumber
+                                    }
+                                  </span>
+
+                                  <span>
+                                    {incident.severityNameSnapshot ??
+                                      "No severity"}
+                                  </span>
+
+                                  <span>
+                                    {incident.weightNameSnapshot
+                                      ? `${incident.weightNameSnapshot}${
+                                          incident.weightValueSnapshot !==
+                                          null
+                                            ? ` (${incident.weightValueSnapshot})`
+                                            : ""
+                                        }`
+                                      : "No weight"}
+                                  </span>
+
+                                  <time>
+                                    {new Date(
+                                      incident.occurredAt
+                                    ).toLocaleString()}
+                                  </time>
+                                </div>
+                              </div>
+
+                              <span
+                                className={
+                                  isExpanded
+                                    ? "chatter-incident-chevron expanded"
+                                    : "chatter-incident-chevron"
+                                }
+                                aria-hidden="true"
+                              >
+                                <svg
+                                  viewBox="0 0 20 20"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path
+                                    d="M5.5 7.5L10 12L14.5 7.5"
+                                    stroke="currentColor"
+                                    strokeWidth="1.7"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </span>
+                            </button>
+
+                            {isExpanded && (
+                              <div className="chatter-incident-details">
+                                <div className="chatter-incident-detail-block">
+                                  <span>
+                                    Rule
+                                    Definition
+                                  </span>
+
+                                  <p>
+                                    {
+                                      incident.ruleDefinitionSnapshot
+                                    }
+                                  </p>
+                                </div>
+
+                                <div className="chatter-incident-detail-block">
+                                  <span>
+                                    Incident
+                                    Details
+                                  </span>
+
+                                  <p>
+                                    {
+                                      incident.details
+                                    }
+                                  </p>
+                                </div>
+
+                                {incident.evidenceUrl && (
+                                  <div className="chatter-incident-detail-block">
+                                    <span>
+                                      Evidence
+                                    </span>
+
+                                    <a
+                                      href={
+                                        incident.evidenceUrl
+                                      }
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="evidence-link"
+                                    >
+                                      Open
+                                      supporting
+                                      evidence
+                                    </a>
+                                  </div>
+                                )}
+
+                                {incident.status ===
+                                  "RESOLVED" && (
+                                  <div className="chatter-incident-lifecycle resolved">
+                                    <span>
+                                      Resolution
+                                    </span>
+
+                                    <p>
+                                      {incident.resolutionNotes ||
+                                        "No resolution notes were provided."}
+                                    </p>
+
+                                    {incident.resolvedAt && (
+                                      <small>
+                                        Resolved{" "}
+                                        {new Date(
+                                          incident.resolvedAt
+                                        ).toLocaleString()}
+                                      </small>
+                                    )}
+                                  </div>
+                                )}
+
+                                {incident.status ===
+                                  "VOIDED" && (
+                                  <div className="chatter-incident-lifecycle voided">
+                                    <span>
+                                      Void
+                                      Reason
+                                    </span>
+
+                                    <p>
+                                      {incident.voidReason ||
+                                        "No void reason was recorded."}
+                                    </p>
+
+                                    {incident.voidedAt && (
+                                      <small>
+                                        Voided{" "}
+                                        {new Date(
+                                          incident.voidedAt
+                                        ).toLocaleString()}
+                                      </small>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </article>
+                        );
+                      }
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / EDIT */}
+
       {showForm && (
         <div
-          className="modal-backdrop"
-          onMouseDown={closeForm}
+          className={
+            selectedChatter &&
+            editingChatter
+              ? "modal-backdrop chatter-edit-backdrop"
+              : "modal-backdrop"
+          }
+          onMouseDown={
+            closeForm
+          }
         >
           <div
             className="modal"
-            onMouseDown={(event) =>
+            onMouseDown={(
+              event
+            ) =>
               event.stopPropagation()
             }
           >
@@ -391,8 +1849,13 @@ await loadChatters();
               <button
                 type="button"
                 className="modal-close"
-                onClick={closeForm}
+                onClick={
+                  closeForm
+                }
                 aria-label="Close"
+                disabled={
+                  isSaving
+                }
               >
                 ×
               </button>
@@ -400,20 +1863,40 @@ await loadChatters();
 
             <form
               className="modal-form"
-              onSubmit={handleSubmit}
+              onSubmit={
+                handleSubmit
+              }
             >
               <label className="form-field">
-                <span>Chatter Name</span>
+                <span>
+                  Chatter Name
+                </span>
 
                 <input
                   type="text"
                   value={name}
-                  onChange={(event) =>
-                    setName(event.target.value)
-                  }
+                  onChange={(
+                    event
+                  ) => {
+                    setName(
+                      event.target
+                        .value
+                    );
+
+                    if (
+                      formError
+                    ) {
+                      setFormError(
+                        ""
+                      );
+                    }
+                  }}
                   placeholder="Enter chatter name"
                   autoFocus
                   maxLength={100}
+                  disabled={
+                    isSaving
+                  }
                 />
               </label>
 
@@ -427,8 +1910,12 @@ await loadChatters();
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={closeForm}
-                  disabled={isSaving}
+                  onClick={
+                    closeForm
+                  }
+                  disabled={
+                    isSaving
+                  }
                 >
                   Cancel
                 </button>
@@ -436,7 +1923,9 @@ await loadChatters();
                 <button
                   type="submit"
                   className="primary-button"
-                  disabled={isSaving}
+                  disabled={
+                    isSaving
+                  }
                 >
                   {isSaving
                     ? "Saving..."
@@ -449,6 +1938,101 @@ await loadChatters();
           </div>
         </div>
       )}
+
+      {/* CONFIRMATION */}
+
+      {pendingConfirmation &&
+        confirmationContent && (
+          <div
+            className="modal-backdrop confirmation-backdrop"
+            onMouseDown={
+              cancelConfirmation
+            }
+          >
+            <div
+              className="modal confirmation-modal"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="chatter-confirmation-title"
+            >
+              <div className="modal-header">
+                <div>
+                  <h3 id="chatter-confirmation-title">
+                    {
+                      confirmationContent.title
+                    }
+                  </h3>
+
+                  <p>
+                    Please confirm
+                    before continuing.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={
+                    cancelConfirmation
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                  aria-label="Close confirmation"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="confirmation-body">
+                <p>
+                  {
+                    confirmationContent.message
+                  }
+                </p>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={
+                    cancelConfirmation
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    confirmationContent.danger
+                      ? "danger-button"
+                      : "primary-button"
+                  }
+                  onClick={() =>
+                    void confirmPendingAction()
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                >
+                  {confirmationBusy
+                    ? "Processing..."
+                    : confirmationContent.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

@@ -1903,7 +1903,9 @@ select option {
   .page-header h2 {
     font-size: 25px;
   }
-  /* =========================================================
+}
+
+/* =========================================================
    XYZ HUB — DESKTOP READABILITY / TYPOGRAPHY SCALE
    ========================================================= */
 
@@ -2602,4 +2604,2335 @@ body {
     width: 23px;
   }
 }
+
+/* =========================================================
+   FINAL UI POLISH
+   Toasts, confirmations, configuration settings,
+   reorder feedback, responsive refinements
+   ========================================================= */
+
+
+/* =========================================================
+   TOAST NOTIFICATIONS
+   ========================================================= */
+
+.toast-region {
+  position: fixed;
+  z-index: 500;
+  top: 22px;
+  right: 24px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  width: min(390px, calc(100vw - 32px));
+
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 30px;
+  align-items: flex-start;
+  gap: 11px;
+
+  width: 100%;
+  padding: 13px 13px 13px 14px;
+
+  border: 1px solid var(--border);
+  border-radius: 11px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.025),
+      transparent 60%
+    ),
+    #202023;
+
+  color: var(--text);
+
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.42),
+    0 4px 14px rgba(0, 0, 0, 0.24);
+
+  pointer-events: auto;
+
+  animation:
+    toast-enter 220ms
+    cubic-bezier(0.2, 0.8, 0.2, 1)
+    both;
+}
+
+.toast::before {
+  content: "";
+
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+
+  width: 3px;
+
+  border-radius: 0 999px 999px 0;
+}
+
+.toast-success::before {
+  background: var(--success);
+}
+
+.toast-error::before {
+  background: var(--danger);
+}
+
+.toast-warning::before {
+  background: var(--warning);
+}
+
+.toast-info::before {
+  background: var(--info);
+}
+
+.toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 32px;
+  height: 32px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+
+  background: var(--surface-deep);
+
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.toast-success .toast-icon {
+  border-color:
+    rgba(157, 213, 168, 0.22);
+
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.toast-error .toast-icon {
+  border-color:
+    rgba(229, 141, 135, 0.22);
+
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.toast-warning .toast-icon {
+  border-color:
+    rgba(225, 189, 119, 0.22);
+
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.toast-info .toast-icon {
+  border-color:
+    rgba(174, 188, 224, 0.2);
+
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.toast-content {
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.toast-title {
+  display: block;
+
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.toast-message {
+  margin: 4px 0 0;
+
+  color: var(--text-secondary);
+
+  font-size: 11px;
+  line-height: 1.5;
+
+  overflow-wrap: anywhere;
+}
+
+.toast-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 28px;
+  height: 28px;
+  padding: 0;
+
+  border: 1px solid transparent;
+  border-radius: 6px;
+
+  background: transparent;
+  color: var(--text-muted);
+
+  font-size: 18px;
+  line-height: 1;
+
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.toast-close:hover {
+  border-color: var(--border-soft);
+
+  background: var(--surface);
+  color: var(--text);
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform:
+      translateX(18px)
+      scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateX(0)
+      scale(1);
+  }
+}
+
+
+/* =========================================================
+   CONFIRMATION MODALS
+   ========================================================= */
+
+.confirmation-backdrop {
+  z-index: 270;
+
+  background:
+    rgba(0, 0, 0, 0.82);
+
+  backdrop-filter:
+    blur(5px);
+}
+
+.confirmation-modal {
+  max-width: 470px;
+
+  overflow: hidden;
+}
+
+.confirmation-modal .modal-header {
+  padding-bottom: 18px;
+}
+
+.confirmation-body {
+  padding: 21px 23px 4px;
+}
+
+.confirmation-body > p {
+  margin: 0;
+
+  color: var(--text-secondary);
+
+  font-size: 12px;
+  line-height: 1.65;
+
+  overflow-wrap: anywhere;
+}
+
+.confirmation-modal > .modal-actions {
+  margin:
+    18px 23px 23px;
+  padding-top: 18px;
+}
+
+.confirmation-summary {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 9px;
+
+  margin-top: 18px;
+}
+
+.confirmation-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  min-width: 0;
+  padding: 11px 12px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 8px;
+
+  background:
+    var(--surface-deep);
+}
+
+.confirmation-summary span {
+  color: var(--text-soft);
+
+  font-size: 9px;
+  line-height: 1.3;
+  font-weight: 650;
+
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.confirmation-summary strong {
+  color: var(--text-secondary);
+
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 650;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   CONFIGURATION HEADER
+   ========================================================= */
+
+.configuration-card-header {
+  position: relative;
+
+  align-items: center;
+}
+
+.configuration-header-actions {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+
+  flex: 0 0 auto;
+}
+
+.configuration-add-button {
+  min-width: 110px;
+}
+
+
+/* =========================================================
+   CONFIGURATION GEAR
+   ========================================================= */
+
+.configuration-settings-wrapper {
+  position: relative;
+
+  flex: 0 0 auto;
+}
+
+.configuration-gear-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+  padding: 0;
+
+  border:
+    1px solid
+    var(--border-strong);
+
+  border-radius:
+    var(--radius-sm);
+
+  background:
+    var(--surface);
+
+  color:
+    var(--text-secondary);
+
+  transition:
+    background 130ms ease,
+    border-color 130ms ease,
+    color 130ms ease,
+    transform 100ms ease;
+}
+
+.configuration-gear-button:hover:not(:disabled) {
+  border-color: #716957;
+
+  background:
+    var(--surface-hover);
+
+  color:
+    var(--accent);
+}
+
+.configuration-gear-button:active:not(:disabled) {
+  transform:
+    translateY(1px);
+}
+
+.configuration-gear-button[aria-expanded="true"] {
+  border-color:
+    rgba(232, 216, 178, 0.5);
+
+  background:
+    var(--accent-soft);
+
+  color:
+    var(--accent);
+}
+
+
+/* =========================================================
+   CONFIGURATION SETTINGS MENU
+   ========================================================= */
+
+.configuration-settings-menu {
+  position: absolute;
+  z-index: 80;
+
+  top: calc(100% + 8px);
+  right: 0;
+
+  width: max-content;
+  min-width: 225px;
+
+  padding: 6px;
+
+  border:
+    1px solid
+    var(--border-strong);
+
+  border-radius: 9px;
+
+  background:
+    #202023;
+
+  box-shadow:
+    0 18px 45px
+      rgba(0, 0, 0, 0.48),
+    0 4px 14px
+      rgba(0, 0, 0, 0.25);
+
+  animation:
+    settings-menu-enter
+    130ms ease both;
+}
+
+.configuration-settings-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+
+  border: 0;
+  border-radius: 6px;
+
+  background:
+    transparent;
+
+  color:
+    var(--text-secondary);
+
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 600;
+
+  text-align: left;
+
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.configuration-settings-item:hover:not(:disabled) {
+  background:
+    var(--surface-hover);
+
+  color:
+    var(--accent);
+}
+
+.settings-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 24px;
+  height: 24px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 6px;
+
+  background:
+    var(--surface-deep);
+
+  color:
+    var(--text-muted);
+
+  font-size: 14px;
+  line-height: 1;
+
+  flex: 0 0 auto;
+}
+
+.configuration-settings-item:hover:not(:disabled)
+  .settings-item-icon {
+  border-color:
+    rgba(232, 216, 178, 0.25);
+
+  color:
+    var(--accent);
+}
+
+@keyframes settings-menu-enter {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(-4px)
+      scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+
+/* =========================================================
+   CONFIGURATION ROW ACTION SPACING
+   ========================================================= */
+
+.config-actions {
+  gap: 18px;
+  padding-left: 14px;
+}
+
+.config-actions .text-button {
+  min-width: 42px;
+}
+
+
+/* =========================================================
+   REORDER HEADER CONTROLS
+   ========================================================= */
+
+.reorder-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+
+  flex: 0 0 auto;
+}
+
+.reorder-controls .primary-button,
+.reorder-controls .secondary-button {
+  min-width: 94px;
+}
+
+
+/* =========================================================
+   REORDER MODE
+   ========================================================= */
+
+.reorder-list.active {
+  position: relative;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(
+        232,
+        216,
+        178,
+        0.025
+      ),
+      transparent 35%
+    );
+}
+
+.reorder-item {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+
+  cursor: default;
+  user-select: none;
+
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    opacity 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.reorder-item:hover {
+  background:
+    rgba(
+      232,
+      216,
+      178,
+      0.025
+    );
+}
+
+
+/* =========================================================
+   RIGHT-SIDE DRAG HANDLE
+   ========================================================= */
+
+.drag-handle {
+  order: 99;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  flex: 0 0 auto;
+
+  min-width: 68px;
+
+  margin-left: auto;
+  margin-right: 0;
+
+  padding-left: 15px;
+  padding-right: 0;
+
+  border-left:
+    1px solid
+    var(--border-soft);
+
+  border-right: 0;
+
+  color:
+    var(--text-muted);
+
+  cursor: grab;
+
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle:hover {
+  border-left-color:
+    #716957;
+
+  color:
+    var(--accent);
+}
+
+.drag-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 30px;
+  height: 36px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 7px;
+
+  background:
+    var(--surface-deep);
+
+  color:
+    var(--text-secondary);
+
+  font-size: 18px;
+  line-height: 1;
+
+  letter-spacing: -4px;
+
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.drag-handle:hover
+  .drag-grip {
+  border-color:
+    rgba(
+      232,
+      216,
+      178,
+      0.35
+    );
+
+  background:
+    var(--accent-soft);
+
+  color:
+    var(--accent);
+
+  box-shadow:
+    0 0 0 3px
+      rgba(
+        232,
+        216,
+        178,
+        0.035
+      );
+}
+
+.reorder-position {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 22px;
+
+  color:
+    var(--text-soft);
+
+  font-size: 10px;
+  font-weight: 700;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+
+/* =========================================================
+   ITEM CURRENTLY BEING DRAGGED
+   ========================================================= */
+
+.reorder-item.dragging {
+  z-index: 3;
+
+  opacity: 0.4;
+
+  transform:
+    scale(0.992);
+
+  background:
+    rgba(
+      232,
+      216,
+      178,
+      0.055
+    );
+
+  box-shadow:
+    inset 0 0 0 1px
+      rgba(
+        232,
+        216,
+        178,
+        0.16
+      ),
+    0 10px 24px
+      rgba(
+        0,
+        0,
+        0,
+        0.2
+      );
+}
+
+.reorder-item.dragging
+  .drag-grip {
+  border-color:
+    var(--accent);
+
+  background:
+    var(--accent-soft);
+
+  color:
+    var(--accent);
+}
+
+
+/* =========================================================
+   DROP TARGET
+   ========================================================= */
+
+.reorder-item.drag-over {
+  background:
+    rgba(
+      232,
+      216,
+      178,
+      0.06
+    );
+
+  box-shadow:
+    inset 0 2px 0
+      var(--accent),
+    0 -7px 18px
+      rgba(
+        0,
+        0,
+        0,
+        0.12
+      );
+}
+
+.reorder-item.drag-over::before {
+  content: "";
+
+  position: absolute;
+  z-index: 4;
+
+  top: -4px;
+  left: 16px;
+  right: 16px;
+
+  height: 2px;
+
+  border-radius: 999px;
+
+  background:
+    var(--accent);
+
+  box-shadow:
+    0 0 0 1px
+      rgba(
+        232,
+        216,
+        178,
+        0.08
+      ),
+    0 0 10px
+      rgba(
+        232,
+        216,
+        178,
+        0.2
+      );
+}
+
+.reorder-item.drag-over::after {
+  content: "";
+
+  position: absolute;
+  z-index: 5;
+
+  top: -7px;
+  left: 12px;
+
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background:
+    var(--accent);
+}
+
+
+/* =========================================================
+   JUST-DROPPED FEEDBACK
+   ========================================================= */
+
+.reorder-item.just-dropped {
+  animation:
+    reorder-settle
+    650ms
+    cubic-bezier(
+      0.2,
+      0.8,
+      0.2,
+      1
+    )
+    both;
+}
+
+.reorder-item.just-dropped::after {
+  content: "Placed";
+
+  position: absolute;
+  z-index: 6;
+
+  top: 10px;
+  right: 14px;
+
+  padding:
+    4px 8px;
+
+  border:
+    1px solid
+    rgba(
+      157,
+      213,
+      168,
+      0.24
+    );
+
+  border-radius:
+    999px;
+
+  background:
+    rgba(
+      91,
+      168,
+      107,
+      0.13
+    );
+
+  color:
+    var(--success);
+
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 750;
+
+  letter-spacing:
+    0.04em;
+
+  text-transform:
+    uppercase;
+
+  animation:
+    placed-label
+    650ms ease both;
+}
+
+@keyframes reorder-settle {
+  0% {
+    background:
+      rgba(
+        232,
+        216,
+        178,
+        0.13
+      );
+
+    box-shadow:
+      inset 3px 0 0
+        var(--accent);
+
+    transform:
+      scale(1.008);
+  }
+
+  40% {
+    transform:
+      scale(1);
+  }
+
+  100% {
+    background:
+      transparent;
+
+    box-shadow:
+      inset 3px 0 0
+        transparent;
+
+    transform:
+      scale(1);
+  }
+}
+
+@keyframes placed-label {
+  0% {
+    opacity: 0;
+
+    transform:
+      translateY(-3px);
+  }
+
+  20% {
+    opacity: 1;
+
+    transform:
+      translateY(0);
+  }
+
+  75% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   REORDER FORM NOTE
+   ========================================================= */
+
+.reorder-form-note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  padding:
+    12px 13px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 8px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(
+        232,
+        216,
+        178,
+        0.04
+      ),
+      transparent 75%
+    ),
+    var(--surface-deep);
+}
+
+.reorder-form-note strong {
+  color:
+    var(--text-secondary);
+
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.reorder-form-note span {
+  color:
+    var(--text-muted);
+
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+
+/* =========================================================
+   DISABLED CONFIGURATION CONTROLS
+   ========================================================= */
+
+.configuration-header-actions
+  button:disabled {
+  opacity: 0.38;
+}
+
+.reorder-list.active
+  .config-item-main {
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   RESPONSIVE — CONFIGURATION
+   ========================================================= */
+
+@media (max-width: 820px) {
+  .configuration-card-header {
+    align-items: flex-start;
+  }
+
+  .configuration-header-actions {
+    flex-shrink: 0;
+  }
+
+  .configuration-settings-menu {
+    right: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .configuration-card-header {
+    align-items: stretch;
+  }
+
+  .configuration-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .configuration-add-button {
+    flex: 1;
+  }
+
+  .configuration-settings-wrapper {
+    flex: 0 0 auto;
+  }
+
+  .configuration-settings-menu {
+    right: 0;
+    left: auto;
+
+    min-width: 220px;
+  }
+
+  .reorder-controls {
+    width: 100%;
+  }
+
+  .reorder-controls
+    .primary-button,
+  .reorder-controls
+    .secondary-button {
+    flex: 1;
+
+    min-width: 0;
+  }
+
+  .reorder-item {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .drag-handle {
+    min-width: 58px;
+
+    padding-left: 10px;
+  }
+
+  .drag-grip {
+    width: 27px;
+    height: 34px;
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE — CONFIRMATIONS
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .confirmation-summary {
+    grid-template-columns:
+      1fr;
+  }
+
+  .confirmation-body {
+    padding:
+      18px 18px 3px;
+  }
+
+  .confirmation-modal
+    > .modal-actions {
+    margin:
+      16px 18px 18px;
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE — TOASTS
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .toast-region {
+    top: 12px;
+    right: 12px;
+    left: 12px;
+
+    width: auto;
+  }
+
+  .toast {
+    grid-template-columns:
+      32px
+      minmax(0, 1fr)
+      28px;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  .toast,
+  .configuration-settings-menu,
+  .reorder-item,
+  .reorder-item.just-dropped,
+  .reorder-item.just-dropped::after,
+  .drag-grip {
+    animation: none !important;
+
+    transition:
+      none !important;
+  }
+}
+/* =========================================================
+   INCIDENT TABLE — WEIGHT ALIGNMENT
+   ========================================================= */
+
+.incidents-table .weight-display {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) 34px;
+  align-items: center;
+  column-gap: 12px;
+
+  width: 100%;
+  min-width: 0;
+}
+
+.incidents-table
+  .weight-display
+  > span:first-child {
+  min-width: 0;
+
+  color: var(--text-secondary);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.incidents-table
+  .weight-display
+  .weight-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  justify-self: end;
+
+  width: 30px;
+  min-width: 30px;
+  height: 27px;
+
+  padding: 0;
+
+  border: 1px solid
+    rgba(232, 216, 178, 0.18);
+
+  border-radius: 6px;
+
+  background:
+    rgba(232, 216, 178, 0.07);
+
+  color: var(--accent);
+
+  font-size: 10px;
+  font-weight: 700;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+/* =========================================================
+   INCIDENT TABLE — CLICKABLE ROWS
+   ========================================================= */
+
+.incident-clickable-row {
+  cursor: pointer;
+
+  transition:
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.incident-clickable-row:hover {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(232, 216, 178, 0.04),
+      rgba(232, 216, 178, 0.012)
+    );
+}
+
+.incident-clickable-row:hover td {
+  border-bottom-color:
+    rgba(232, 216, 178, 0.1);
+}
+
+.incident-clickable-row:focus-visible {
+  outline:
+    1px solid
+    rgba(232, 216, 178, 0.45);
+
+  outline-offset: -2px;
+
+  background:
+    rgba(232, 216, 178, 0.04);
+}
+
+.incident-clickable-row:hover
+  .incident-rule-cell strong {
+  color: var(--accent);
+}
+
+.incident-rule-cell strong {
+  transition:
+    color 150ms ease;
+}
+/* =========================================================
+   FINAL PRE-DEPLOYMENT POLISH
+   Evidence links, dashboard motion,
+   weight alignment, configuration alignment
+   ========================================================= */
+
+
+/* =========================================================
+   INCIDENT EVIDENCE URL
+   ========================================================= */
+
+.incident-evidence-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  width: 100%;
+  max-width: 100%;
+
+  margin-top: 8px;
+  padding: 11px 12px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 8px;
+
+  background:
+    var(--surface-deep);
+
+  color:
+    var(--accent);
+
+  text-decoration: none;
+
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.incident-evidence-link:hover {
+  border-color:
+    rgba(232, 216, 178, 0.32);
+
+  background:
+    var(--accent-soft);
+
+  color:
+    var(--accent-strong);
+}
+
+.incident-evidence-url {
+  min-width: 0;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  color: inherit;
+
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.incident-evidence-icon {
+  flex: 0 0 auto;
+
+  width: 16px;
+  height: 16px;
+
+  color:
+    var(--text-muted);
+
+  transition:
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.incident-evidence-link:hover
+  .incident-evidence-icon {
+  color:
+    var(--accent);
+
+  transform:
+    translate(1px, -1px);
+}
+
+
+/* =========================================================
+   WEIGHT COLUMN
+   Incidents + Dashboard
+   ========================================================= */
+
+.incidents-table .weight-display,
+.dashboard-table .weight-display {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr) 34px;
+
+  align-items: center;
+
+  column-gap: 12px;
+
+  width: 100%;
+  min-width: 0;
+}
+
+.incidents-table
+  .weight-display
+  > span:first-child,
+.dashboard-table
+  .weight-display
+  > span:first-child {
+  min-width: 0;
+
+  color:
+    var(--text-secondary);
+
+  overflow: hidden;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.incidents-table
+  .weight-display
+  .weight-value,
+.dashboard-table
+  .weight-display
+  .weight-value {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  justify-self: end;
+
+  width: 30px;
+  min-width: 30px;
+  height: 27px;
+
+  padding: 0;
+
+  border:
+    1px solid
+    rgba(232, 216, 178, 0.18);
+
+  border-radius: 6px;
+
+  background:
+    rgba(232, 216, 178, 0.07);
+
+  color:
+    var(--accent);
+
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+
+/* =========================================================
+   DASHBOARD — SUBTLE MOTION
+   ========================================================= */
+
+.dashboard-stat-grid {
+  position: relative;
+}
+
+.dashboard-stat-grid
+  .stat-card {
+  position: relative;
+
+  overflow: hidden;
+
+  animation:
+    dashboard-card-enter
+    420ms
+    cubic-bezier(
+      0.2,
+      0.8,
+      0.2,
+      1
+    )
+    both;
+
+  transition:
+    transform 170ms ease,
+    border-color 170ms ease,
+    box-shadow 170ms ease;
+}
+
+.dashboard-stat-grid
+  .stat-card:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.dashboard-stat-grid
+  .stat-card:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+.dashboard-stat-grid
+  .stat-card:nth-child(4) {
+  animation-delay: 135ms;
+}
+
+.dashboard-stat-grid
+  .stat-card:hover {
+  transform:
+    translateY(-2px);
+
+  border-color:
+    rgba(232, 216, 178, 0.24);
+
+  box-shadow:
+    0 9px 25px
+    rgba(0, 0, 0, 0.18);
+}
+
+
+/*
+ * Very soft travelling highlight.
+ *
+ * It moves slowly enough that it is
+ * decorative rather than distracting.
+ */
+.dashboard-stat-grid
+  .stat-card::after {
+  content: "";
+
+  position: absolute;
+
+  top: -45%;
+  left: -45%;
+
+  width: 46%;
+  height: 190%;
+
+  pointer-events: none;
+
+  opacity: 0.09;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(232, 216, 178, 0.3),
+      transparent
+    );
+
+  transform:
+    rotate(14deg)
+    translateX(-240%);
+
+  animation:
+    dashboard-ambient-drift
+    11s
+    ease-in-out
+    infinite;
+}
+
+.dashboard-stat-grid
+  .stat-card:nth-child(2)::after {
+  animation-delay: 2.4s;
+}
+
+.dashboard-stat-grid
+  .stat-card:nth-child(3)::after {
+  animation-delay: 4.8s;
+}
+
+.dashboard-stat-grid
+  .stat-card:nth-child(4)::after {
+  animation-delay: 7.2s;
+}
+
+
+/* =========================================================
+   DASHBOARD SECONDARY CARDS
+   ========================================================= */
+
+.dashboard-secondary-grid
+  .content-card,
+.dashboard-recent-card {
+  animation:
+    dashboard-section-enter
+    470ms
+    cubic-bezier(
+      0.2,
+      0.8,
+      0.2,
+      1
+    )
+    both;
+}
+
+.dashboard-secondary-grid
+  .content-card {
+  animation-delay:
+    100ms;
+}
+
+.dashboard-recent-card {
+  animation-delay:
+    165ms;
+}
+
+
+/* =========================================================
+   DASHBOARD KEYFRAMES
+   ========================================================= */
+
+@keyframes dashboard-card-enter {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0);
+  }
+}
+
+@keyframes dashboard-section-enter {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0);
+  }
+}
+
+@keyframes dashboard-ambient-drift {
+  0%,
+  58% {
+    transform:
+      rotate(14deg)
+      translateX(-260%);
+  }
+
+  78% {
+    transform:
+      rotate(14deg)
+      translateX(500%);
+  }
+
+  100% {
+    transform:
+      rotate(14deg)
+      translateX(500%);
+  }
+}
+
+
+/* =========================================================
+   CONFIGURATION — STATUS ALIGNMENT
+   ========================================================= */
+
+.config-item-header {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr) auto;
+
+  align-items: center;
+
+  column-gap: 12px;
+
+  width: 100%;
+}
+
+.config-item-header
+  > strong {
+  min-width: 0;
+
+  margin: 0;
+}
+
+.config-item-header
+  .config-title-row {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  min-width: 0;
+}
+
+.config-item-header
+  > .status-badge {
+  justify-self: end;
+
+  align-self: center;
+
+  min-width: 58px;
+
+  margin: 0;
+
+  text-align: center;
+}
+
+.config-item-header
+  > .status-badge.active,
+.config-item-header
+  > .status-badge.inactive {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  .dashboard-stat-grid
+    .stat-card,
+
+  .dashboard-stat-grid
+    .stat-card::after,
+
+  .dashboard-secondary-grid
+    .content-card,
+
+  .dashboard-recent-card,
+
+  .incident-evidence-icon {
+    animation:
+      none !important;
+
+    transition:
+      none !important;
+  }
+}
+/* =========================================================
+   RULES TABLE — WEIGHT ALIGNMENT
+   ========================================================= */
+
+.rules-table .weight-display {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) 34px;
+
+  align-items: center;
+  column-gap: 12px;
+
+  width: 100%;
+  min-width: 0;
+}
+
+.rules-table
+  .weight-display
+  > span:first-child {
+  min-width: 0;
+
+  color: var(--text-secondary);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rules-table
+  .weight-display
+  .weight-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  justify-self: end;
+
+  width: 30px;
+  min-width: 30px;
+  height: 27px;
+
+  padding: 0;
+
+  border:
+    1px solid
+    rgba(232, 216, 178, 0.18);
+
+  border-radius: 6px;
+
+  background:
+    rgba(232, 216, 178, 0.07);
+
+  color: var(--accent);
+
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+/* =========================================================
+   CONFIGURATION — UNIFORM ROW COLUMNS
+   ========================================================= */
+
+.config-item:not(.reorder-item) {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    74px
+    112px;
+
+  align-items: center;
+
+  column-gap: 18px;
+}
+
+.config-item:not(.reorder-item)
+  .config-item-main {
+  min-width: 0;
+}
+
+.config-item:not(.reorder-item)
+  .config-item-header {
+  display: block;
+
+  width: auto;
+}
+
+.config-row-status {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  min-width: 0;
+}
+
+.config-row-status
+  .status-badge {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  min-width: 58px;
+
+  margin: 0;
+}
+
+.config-item:not(.reorder-item)
+  .config-actions {
+  display: flex;
+
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 18px;
+
+  min-width: 112px;
+
+  padding-left: 0;
+}
+
+.config-title-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+
+/* Responsive configuration rows */
+
+@media (max-width: 720px) {
+  .config-item:not(.reorder-item) {
+    grid-template-columns:
+      minmax(0, 1fr)
+      auto;
+
+    row-gap: 12px;
+  }
+
+  .config-row-status {
+    justify-content: flex-end;
+  }
+
+  .config-item:not(.reorder-item)
+    .config-actions {
+    grid-column: 1 / -1;
+
+    justify-content: flex-end;
+
+    min-width: 0;
+  }
+}
+.config-item:not(.reorder-item) {
+  grid-template-columns:
+    minmax(0, 1fr)
+    100px
+    120px;
+
+  column-gap: 42px;
+}
+/* =========================================================
+   XYZ HUB — FINAL CANONICAL OVERRIDES
+   Keep this section LAST in index.css.
+   It stabilizes the final production layout after the
+   incremental UI passes above without removing prior styles.
+   ========================================================= */
+
+/* =========================================================
+   DASHBOARD — FINAL PRODUCTION LAYOUT
+   ========================================================= */
+
+.dashboard-secondary-grid-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Keep the dashboard's ambient motion subtle and non-blocking. */
+.dashboard-stat-grid .stat-card,
+.dashboard-secondary-grid .content-card,
+.dashboard-recent-card {
+  will-change: transform, opacity;
+}
+
+/* =========================================================
+   WEIGHT COLUMNS — RULES / INCIDENTS / DASHBOARD
+   Label and numeric value remain in the same table column,
+   but the value badge has a uniform right-side slot.
+   ========================================================= */
+
+.rules-table .weight-display,
+.incidents-table .weight-display,
+.dashboard-table .weight-display {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+  column-gap: 12px;
+
+  width: 100%;
+  min-width: 0;
+}
+
+.rules-table .weight-display > span:first-child,
+.incidents-table .weight-display > span:first-child,
+.dashboard-table .weight-display > span:first-child {
+  min-width: 0;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  color: var(--text-secondary);
+}
+
+.rules-table .weight-display .weight-value,
+.incidents-table .weight-display .weight-value,
+.dashboard-table .weight-display .weight-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  justify-self: end;
+
+  width: 30px;
+  min-width: 30px;
+  height: 27px;
+  padding: 0;
+
+  border: 1px solid rgba(232, 216, 178, 0.18);
+  border-radius: 6px;
+
+  background: rgba(232, 216, 178, 0.07);
+  color: var(--accent);
+
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Give the Weight columns enough room for labels + badge. */
+.rules-table th:nth-child(3),
+.rules-table td:nth-child(3) {
+  width: 190px;
+}
+
+.incidents-table th:nth-child(4),
+.incidents-table td:nth-child(4) {
+  width: 200px;
+}
+
+.dashboard-table th:nth-child(4),
+.dashboard-table td:nth-child(4) {
+  width: 190px;
+}
+
+/* =========================================================
+   INCIDENT EVIDENCE — SAFE LONG URL DISPLAY
+   ========================================================= */
+
+.incident-evidence-link {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.incident-evidence-url {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   CONFIGURATION — FINAL NORMAL-ROW COLUMN GEOMETRY
+
+   Desktop order:
+   1) Name / description / position
+   2) Status
+   3) Edit / Archive / Reactivate
+
+   The flexible first column intentionally takes the remaining
+   width so Status sits farther from the title and closer to the
+   management actions, while remaining identical across rows.
+   ========================================================= */
+
+.config-item:not(.reorder-item) {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    80px
+    118px;
+  align-items: center;
+  column-gap: 20px;
+
+  width: 100%;
+}
+
+.config-item:not(.reorder-item) .config-item-main {
+  grid-column: 1;
+
+  width: 100%;
+  min-width: 0;
+}
+
+.config-item:not(.reorder-item) .config-item-header {
+  display: block;
+
+  width: 100%;
+  margin-bottom: 7px;
+}
+
+.config-item:not(.reorder-item) .config-item-header > strong,
+.config-item:not(.reorder-item) .config-title-row {
+  min-width: 0;
+}
+
+.config-row-status {
+  grid-column: 2;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  min-width: 0;
+
+  justify-self: stretch;
+  align-self: center;
+}
+
+.config-row-status .status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 58px;
+  margin: 0;
+}
+
+.config-item:not(.reorder-item) .config-actions {
+  grid-column: 3;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+
+  width: 100%;
+  min-width: 0;
+  padding-left: 0;
+
+  justify-self: stretch;
+}
+
+.config-item:not(.reorder-item) .config-actions .text-button {
+  flex: 0 0 auto;
+}
+
+/* If an older ConfigurationPage build still renders the status
+   badge inside .config-item-header, keep that legacy layout clean
+   instead of letting it collide with the title. */
+.config-item:not(.reorder-item)
+  .config-item-header
+  > .status-badge {
+  float: right;
+  margin-left: 20px;
+}
+
+/* Weight title + number remain visually connected in Configuration. */
+.config-title-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  min-width: 0;
+}
+
+.config-title-row > strong {
+  min-width: 0;
+}
+
+/* =========================================================
+   CONFIGURATION — REORDER MODE SAFETY
+   Normal-row grid rules above must not affect drag-and-drop rows.
+   ========================================================= */
+
+.config-item.reorder-item {
+  display: flex;
+  align-items: center;
+}
+
+.config-item.reorder-item .config-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.config-item.reorder-item .drag-handle {
+  margin-left: auto;
+}
+
+/* =========================================================
+   CLICKABLE TABLE ROWS — FINAL ACCESSIBILITY POLISH
+   ========================================================= */
+
+.incident-clickable-row,
+.chatter-clickable-row {
+  cursor: pointer;
+}
+
+.incident-clickable-row:focus-visible,
+.chatter-clickable-row:focus-visible {
+  position: relative;
+  z-index: 1;
+}
+
+/* =========================================================
+   RESPONSIVE — FINAL CONFIGURATION COLUMNS
+   ========================================================= */
+
+@media (max-width: 720px) {
+  .config-item:not(.reorder-item) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 14px;
+    row-gap: 12px;
+  }
+
+  .config-item:not(.reorder-item) .config-item-main {
+    grid-column: 1;
+  }
+
+  .config-row-status {
+    grid-column: 2;
+    justify-content: flex-end;
+  }
+
+  .config-item:not(.reorder-item) .config-actions {
+    grid-column: 1 / -1;
+
+    justify-content: flex-end;
+    gap: 18px;
+  }
+
+  .rules-table th:nth-child(3),
+  .rules-table td:nth-child(3),
+  .incidents-table th:nth-child(4),
+  .incidents-table td:nth-child(4),
+  .dashboard-table th:nth-child(4),
+  .dashboard-table td:nth-child(4) {
+    width: auto;
+  }
+}
+
+/* =========================================================
+   REDUCED MOTION — FINAL SAFETY NET
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-stat-grid .stat-card,
+  .dashboard-stat-grid .stat-card::after,
+  .dashboard-secondary-grid .content-card,
+  .dashboard-recent-card,
+  .incident-clickable-row,
+  .chatter-clickable-row,
+  .configuration-settings-menu,
+  .reorder-item,
+  .drag-grip,
+  .toast {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* =========================================================
+   CONFIGURATION — CANONICAL DESKTOP ROW LAYOUT
+   Robust against .config-row-status being nested inside
+   .config-item-main or rendered as its sibling.
+   ========================================================= */
+
+@media (min-width: 721px) {
+  .config-item:not(.reorder-item) {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr)
+      92px
+      124px;
+    grid-template-rows: auto auto auto;
+    align-items: center;
+    column-gap: 28px;
+    row-gap: 0;
+    width: 100%;
+  }
+
+  /* Flatten only the normal-row content wrapper so its children
+     can occupy the parent row grid directly. This is what keeps
+     Status in a true column even if it is nested in the markup. */
+  .config-item:not(.reorder-item) .config-item-main {
+    display: contents;
+  }
+
+  .config-item:not(.reorder-item) .config-item-header {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    margin: 0 0 7px;
+  }
+
+  .config-item:not(.reorder-item) .config-description {
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+  }
+
+  .config-item:not(.reorder-item) .config-meta {
+    grid-column: 1;
+    grid-row: 3;
+    min-width: 0;
+  }
+
+  .config-item:not(.reorder-item) .config-row-status {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    align-self: stretch;
+    justify-self: stretch;
+  }
+
+  .config-item:not(.reorder-item) .config-row-status .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 58px;
+    margin: 0;
+  }
+
+  .config-item:not(.reorder-item) .config-actions {
+    grid-column: 3;
+    grid-row: 1 / 4;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 20px;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    align-self: stretch;
+    justify-self: stretch;
+  }
+
+  .config-item:not(.reorder-item) .config-actions .text-button {
+    flex: 0 0 auto;
+  }
+
+  /* Weight title + numeric value remain grouped in the first column. */
+  .config-item:not(.reorder-item) .config-title-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+  }
 }

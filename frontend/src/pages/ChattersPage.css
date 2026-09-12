@@ -1,0 +1,1163 @@
+/* =========================================================
+   CHATTERS PAGE
+   ========================================================= */
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.chatter-table-header {
+  align-items: center;
+}
+
+.chatter-table {
+  min-width: 720px;
+}
+
+.chatter-clickable-row {
+  cursor: pointer;
+
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.chatter-clickable-row:hover {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(232, 216, 178, 0.04),
+      rgba(232, 216, 178, 0.01)
+    );
+}
+
+.chatter-clickable-row:focus-visible {
+  outline:
+    1px solid
+    rgba(232, 216, 178, 0.45);
+
+  outline-offset: -1px;
+
+  background:
+    rgba(232, 216, 178, 0.04);
+}
+
+
+/* =========================================================
+   CHATTER NAME
+   ========================================================= */
+
+.chatter-name-cell {
+  min-width: 260px;
+}
+
+.chatter-name-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.chatter-name-content strong {
+  color: var(--text);
+
+  font-size: 12.5px;
+  line-height: 1.35;
+  font-weight: 700;
+
+  transition:
+    color 150ms ease;
+}
+
+.chatter-name-content span {
+  color: var(--text-soft);
+
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.chatter-clickable-row:hover
+  .chatter-name-content strong {
+  color: var(--accent);
+}
+
+
+/* =========================================================
+   PROFILE BACKDROP
+   ========================================================= */
+
+.chatter-profile-backdrop {
+  z-index: 230 !important;
+
+  align-items: center !important;
+
+  padding: 28px !important;
+
+  background:
+    rgba(0, 0, 0, 0.82)
+    !important;
+
+  backdrop-filter:
+    blur(7px);
+}
+
+
+/* =========================================================
+   EDIT MODAL ABOVE CHATTER PROFILE
+   ========================================================= */
+
+.chatter-edit-backdrop {
+  z-index: 250 !important;
+
+  background:
+    rgba(0, 0, 0, 0.66)
+    !important;
+
+  backdrop-filter:
+    blur(4px);
+}
+
+
+/* =========================================================
+   PROFILE MODAL
+   ========================================================= */
+
+.chatter-profile-modal {
+  width:
+    min(980px, 100%)
+    !important;
+
+  max-width:
+    980px !important;
+
+  max-height:
+    calc(100vh - 56px)
+    !important;
+
+  overflow-y:
+    auto !important;
+
+  overflow-x:
+    hidden;
+
+  border:
+    1px solid #49494f
+    !important;
+
+  border-radius:
+    16px !important;
+
+  background:
+    linear-gradient(
+      155deg,
+      rgba(
+        255,
+        255,
+        255,
+        0.018
+      ),
+      transparent 35%
+    ),
+    #202023 !important;
+
+  box-shadow:
+    0 35px 90px
+      rgba(0, 0, 0, 0.58),
+    0 8px 25px
+      rgba(0, 0, 0, 0.34);
+
+  animation:
+    chatter-profile-open
+    220ms
+    cubic-bezier(
+      0.2,
+      0.8,
+      0.2,
+      1
+    )
+    both;
+}
+
+@keyframes chatter-profile-open {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(14px)
+      scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+
+/* =========================================================
+   PROFILE HEADER
+   ========================================================= */
+
+.chatter-profile-header {
+  position: sticky;
+  z-index: 15;
+  top: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  gap: 24px;
+
+  padding:
+    22px 25px;
+
+  border-bottom:
+    1px solid
+    var(--border-soft);
+
+  background:
+    rgba(
+      32,
+      32,
+      35,
+      0.97
+    );
+
+  backdrop-filter:
+    blur(14px);
+}
+
+.chatter-profile-identity {
+  min-width: 0;
+}
+
+.chatter-profile-identity
+  > div {
+  min-width: 0;
+}
+
+.chatter-profile-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chatter-profile-title-row h3 {
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 720;
+
+  letter-spacing:
+    -0.02em;
+}
+
+.chatter-profile-identity p {
+  margin:
+    5px 0 0;
+
+  color:
+    var(--text-muted);
+
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.chatter-profile-member-since {
+  display: block;
+
+  margin-top: 5px;
+
+  color:
+    var(--text-soft);
+
+  font-size: 9px;
+}
+
+
+/* =========================================================
+   PROFILE CONTENT
+   ========================================================= */
+
+.chatter-profile-content {
+  padding:
+    24px 25px 28px;
+}
+
+
+/* =========================================================
+   PROFILE ACTIONS
+   ========================================================= */
+
+.chatter-profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content:
+    flex-end;
+  gap: 10px;
+
+  margin-bottom: 25px;
+}
+
+.chatter-reactivate-button {
+  border-color:
+    rgba(
+      157,
+      213,
+      168,
+      0.32
+    );
+
+  color:
+    var(--success);
+}
+
+.chatter-reactivate-button:hover:not(:disabled) {
+  border-color:
+    rgba(
+      157,
+      213,
+      168,
+      0.5
+    );
+
+  background:
+    var(--success-bg);
+
+  color:
+    var(--success);
+}
+
+
+/* =========================================================
+   PROFILE SECTIONS
+   ========================================================= */
+
+.chatter-profile-section {
+  width: 100%;
+
+  margin-top: 24px;
+}
+
+.chatter-profile-section:first-of-type {
+  margin-top: 0;
+}
+
+.chatter-profile-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content:
+    space-between;
+  gap: 18px;
+
+  margin-bottom: 13px;
+}
+
+.chatter-profile-section-heading
+  > div:first-child
+  > span {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color:
+    var(--accent);
+
+  font-size: 8.5px;
+  font-weight: 750;
+
+  letter-spacing:
+    0.11em;
+
+  text-transform:
+    uppercase;
+}
+
+.chatter-profile-section-heading h4 {
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 680;
+}
+
+
+/* =========================================================
+   INCIDENT STATS
+   ========================================================= */
+
+.chatter-stat-grid {
+  display: grid !important;
+
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+
+  gap: 11px;
+}
+
+.chatter-stat-card {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  min-height: 104px;
+
+  padding: 16px;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 10px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(
+        255,
+        255,
+        255,
+        0.018
+      ),
+      transparent 65%
+    ),
+    var(--surface-deep);
+
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease;
+
+  animation:
+    chatter-stat-show
+    260ms ease both;
+}
+
+.chatter-stat-card:nth-child(2) {
+  animation-delay: 35ms;
+}
+
+.chatter-stat-card:nth-child(3) {
+  animation-delay: 70ms;
+}
+
+.chatter-stat-card:nth-child(4) {
+  animation-delay: 105ms;
+}
+
+@keyframes chatter-stat-show {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0);
+  }
+}
+
+.chatter-stat-card:hover {
+  transform:
+    translateY(-2px);
+
+  border-color:
+    var(--border-strong);
+}
+
+.chatter-stat-card::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  right: 0;
+  left: 0;
+
+  height: 2px;
+
+  background:
+    var(--border-strong);
+}
+
+.chatter-stat-card.open::before {
+  background:
+    var(--warning);
+}
+
+.chatter-stat-card.resolved::before {
+  background:
+    var(--success);
+}
+
+.chatter-stat-card.voided::before {
+  background:
+    var(--danger);
+}
+
+.chatter-stat-card span {
+  color:
+    var(--text-muted);
+
+  font-size: 9.5px;
+  font-weight: 650;
+}
+
+.chatter-stat-card strong {
+  margin-top: auto;
+
+  padding-top: 17px;
+
+  color: var(--text);
+
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 680;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.chatter-stat-card.open strong {
+  color:
+    var(--warning);
+}
+
+.chatter-stat-card.resolved strong {
+  color:
+    var(--success);
+}
+
+.chatter-stat-card.voided strong {
+  color:
+    var(--danger);
+}
+
+
+/* =========================================================
+   HISTORY
+   ========================================================= */
+
+.chatter-incidents-section {
+  margin-top: 28px;
+
+  padding-top: 23px;
+
+  border-top:
+    1px solid
+    var(--border-soft);
+}
+
+.incident-history-heading {
+  align-items: center;
+}
+
+.chatter-incident-filters {
+  flex: 0 0 auto;
+}
+
+
+/* =========================================================
+   INCIDENT LIST
+   ========================================================= */
+
+.chatter-incident-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.chatter-incident-item {
+  overflow: hidden;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 9px;
+
+  background:
+    var(--surface-deep);
+
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.chatter-incident-item:hover {
+  border-color:
+    #505057;
+}
+
+.chatter-incident-item.expanded {
+  border-color:
+    rgba(
+      232,
+      216,
+      178,
+      0.25
+    );
+
+  background:
+    #1d1d20;
+
+  box-shadow:
+    0 9px 24px
+      rgba(
+        0,
+        0,
+        0,
+        0.18
+      );
+}
+
+
+/* =========================================================
+   INCIDENT SUMMARY
+   ========================================================= */
+
+.chatter-incident-summary {
+  display: flex !important;
+
+  align-items: center;
+
+  justify-content:
+    space-between;
+
+  gap: 18px;
+
+  width: 100%;
+
+  padding:
+    15px 16px;
+
+  border:
+    0 !important;
+
+  border-radius: 0;
+
+  background:
+    transparent !important;
+
+  color: var(--text);
+
+  text-align: left;
+
+  appearance: none;
+  -webkit-appearance:
+    none;
+
+  transition:
+    background 130ms ease;
+}
+
+.chatter-incident-summary:hover {
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.02
+    )
+    !important;
+}
+
+.chatter-incident-main {
+  flex: 1;
+
+  min-width: 0;
+}
+
+.chatter-incident-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.chatter-incident-title-row strong {
+  color: var(--text);
+
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 680;
+}
+
+.chatter-incident-meta {
+  display: flex !important;
+
+  align-items: center;
+
+  flex-wrap: wrap;
+
+  gap:
+    6px 15px;
+
+  margin-top: 7px;
+
+  color:
+    var(--text-soft);
+
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.chatter-incident-meta span,
+.chatter-incident-meta time {
+  position: relative;
+}
+
+.chatter-incident-meta
+  span:not(:first-child)::before,
+.chatter-incident-meta
+  time::before {
+  content: "•";
+
+  position: absolute;
+
+  left: -10px;
+
+  color: #59595f;
+}
+
+
+/* =========================================================
+   PROPER CHEVRON
+   ========================================================= */
+
+.chatter-incident-chevron {
+  display: flex !important;
+
+  align-items: center;
+
+  justify-content: center;
+
+  flex:
+    0 0 32px;
+
+  width: 32px;
+  height: 32px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 7px;
+
+  background:
+    transparent;
+
+  color:
+    var(--text-muted);
+
+  transition:
+    transform 180ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.chatter-incident-chevron svg {
+  display: block;
+
+  width: 16px;
+  height: 16px;
+
+  transition:
+    transform 180ms ease;
+}
+
+.chatter-incident-summary:hover
+  .chatter-incident-chevron {
+  border-color:
+    rgba(
+      232,
+      216,
+      178,
+      0.25
+    );
+
+  background:
+    var(--accent-soft);
+
+  color:
+    var(--accent);
+}
+
+.chatter-incident-chevron.expanded {
+  border-color:
+    rgba(
+      232,
+      216,
+      178,
+      0.32
+    );
+
+  color:
+    var(--accent);
+}
+
+.chatter-incident-chevron.expanded
+  svg {
+  transform:
+    rotate(180deg);
+}
+
+
+/* =========================================================
+   EXPANDED INCIDENT
+   ========================================================= */
+
+.chatter-incident-details {
+  padding:
+    2px 16px 17px;
+
+  border-top:
+    1px solid
+    var(--border-soft);
+
+  animation:
+    chatter-incident-open
+    180ms ease both;
+}
+
+@keyframes chatter-incident-open {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0);
+  }
+}
+
+.chatter-incident-detail-block {
+  padding-top: 15px;
+}
+
+.chatter-incident-detail-block
+  > span,
+.chatter-incident-lifecycle
+  > span {
+  display: block;
+
+  margin-bottom: 6px;
+
+  color:
+    var(--accent);
+
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 750;
+
+  letter-spacing:
+    0.09em;
+
+  text-transform:
+    uppercase;
+}
+
+.chatter-incident-detail-block p {
+  margin: 0;
+
+  color:
+    var(--text-secondary);
+
+  font-size: 10.5px;
+  line-height: 1.65;
+
+  white-space:
+    pre-wrap;
+
+  overflow-wrap:
+    anywhere;
+}
+
+
+/* =========================================================
+   INCIDENT LIFECYCLE
+   ========================================================= */
+
+.chatter-incident-lifecycle {
+  margin-top: 15px;
+
+  padding: 13px;
+
+  border:
+    1px solid transparent;
+
+  border-radius: 8px;
+}
+
+.chatter-incident-lifecycle.resolved {
+  border-color:
+    rgba(
+      157,
+      213,
+      168,
+      0.19
+    );
+
+  background:
+    var(--success-bg);
+}
+
+.chatter-incident-lifecycle.voided {
+  border-color:
+    rgba(
+      229,
+      141,
+      135,
+      0.19
+    );
+
+  background:
+    var(--danger-bg);
+}
+
+.chatter-incident-lifecycle p {
+  margin: 0;
+
+  color:
+    var(--text-secondary);
+
+  font-size: 10.5px;
+  line-height: 1.6;
+
+  white-space:
+    pre-wrap;
+}
+
+.chatter-incident-lifecycle small {
+  display: block;
+
+  margin-top: 8px;
+
+  color:
+    var(--text-muted);
+
+  font-size: 8.5px;
+}
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.chatter-profile-loading {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  min-height: 104px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 10px;
+
+  background:
+    var(--surface-deep);
+
+  color:
+    var(--text-muted);
+
+  font-size: 10px;
+}
+
+.chatter-history-loading {
+  min-height: 170px;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.chatter-profile-empty {
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  min-height: 165px;
+
+  padding: 28px;
+
+  border:
+    1px dashed
+    var(--border);
+
+  border-radius: 10px;
+
+  background:
+    rgba(
+      0,
+      0,
+      0,
+      0.1
+    );
+
+  text-align: center;
+}
+
+.chatter-profile-empty strong {
+  color:
+    var(--text-secondary);
+
+  font-size: 12px;
+}
+
+.chatter-profile-empty span {
+  max-width: 420px;
+
+  margin-top: 6px;
+
+  color:
+    var(--text-soft);
+
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .chatter-stat-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .incident-history-heading {
+    align-items:
+      flex-start;
+
+    flex-direction:
+      column;
+  }
+
+  .chatter-incident-filters {
+    width: 100%;
+  }
+
+  .chatter-incident-filters
+    .filter-button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .chatter-profile-backdrop {
+    padding:
+      10px !important;
+  }
+
+  .chatter-profile-modal {
+    max-height:
+      calc(100vh - 20px)
+      !important;
+  }
+
+  .chatter-profile-header {
+    padding: 18px;
+  }
+
+  .chatter-profile-content {
+    padding: 18px;
+  }
+
+  .chatter-profile-actions {
+    flex-direction:
+      column;
+
+    align-items:
+      stretch;
+  }
+
+  .chatter-profile-actions
+    button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .chatter-stat-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .chatter-profile-title-row h3 {
+    font-size: 17px;
+  }
+
+  .chatter-incident-filters {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  .chatter-clickable-row,
+  .chatter-profile-modal,
+  .chatter-stat-card,
+  .chatter-incident-item,
+  .chatter-incident-chevron,
+  .chatter-incident-chevron svg,
+  .chatter-incident-details {
+    animation:
+      none !important;
+
+    transition:
+      none !important;
+  }
+}

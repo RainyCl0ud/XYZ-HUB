@@ -11,8 +11,13 @@ import type {
 } from "react";
 
 import { apiRequest } from "../lib/api";
+import {
+  useToast,
+} from "../components/ToastProvider";
 
-type OptionKind = "severity" | "weight";
+type OptionKind =
+  | "severity"
+  | "weight";
 
 type BaseOption = {
   id: string;
@@ -25,46 +30,124 @@ type BaseOption = {
   updatedAt: string;
 };
 
-type SeverityOption = BaseOption;
+type SeverityOption =
+  BaseOption;
 
-type WeightOption = BaseOption & {
-  value: number | null;
-};
+type WeightOption =
+  BaseOption & {
+    value: number | null;
+  };
 
 type OptionListResponse<T> = {
   data: T[];
 };
 
+type MutationResponse<T> = {
+  message: string;
+  data: T;
+};
+
+type SeverityPayload = {
+  name: string;
+  description: string | null;
+};
+
+type WeightPayload = {
+  name: string;
+  value: number | null;
+  description: string | null;
+};
+
+type PendingConfirmation =
+  | {
+      type: "save";
+      kind: "severity";
+      mode: "create" | "edit";
+      optionId: string | null;
+      payload: SeverityPayload;
+    }
+  | {
+      type: "save";
+      kind: "weight";
+      mode: "create" | "edit";
+      optionId: string | null;
+      payload: WeightPayload;
+    }
+  | {
+      type: "status";
+      kind: OptionKind;
+      action:
+        | "archive"
+        | "reactivate";
+      option:
+        | SeverityOption
+        | WeightOption;
+    }
+  | {
+      type: "order";
+      kind: OptionKind;
+    };
+
 function ConfigurationPage() {
+  const toast = useToast();
+
+  /*
+   * =========================================================
+   * DATA
+   * =========================================================
+   */
+
   const [
     severityOptions,
     setSeverityOptions,
-  ] = useState<SeverityOption[]>([]);
+  ] = useState<
+    SeverityOption[]
+  >([]);
 
   const [
     weightOptions,
     setWeightOptions,
-  ] = useState<WeightOption[]>([]);
+  ] = useState<
+    WeightOption[]
+  >([]);
 
-  const [isLoading, setIsLoading] =
-    useState(true);
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
 
-  const [pageError, setPageError] =
-    useState("");
+  const [
+    pageError,
+    setPageError,
+  ] = useState("");
+
+  /*
+   * =========================================================
+   * ADD / EDIT FORM
+   * =========================================================
+   */
 
   const [
     modalKind,
     setModalKind,
-  ] = useState<OptionKind | null>(null);
+  ] =
+    useState<OptionKind | null>(
+      null
+    );
 
   const [
     editingOption,
     setEditingOption,
   ] = useState<
-    SeverityOption | WeightOption | null
+    | SeverityOption
+    | WeightOption
+    | null
   >(null);
 
-  const [name, setName] = useState("");
+  const [
+    name,
+    setName,
+  ] = useState("");
 
   const [
     description,
@@ -76,25 +159,93 @@ function ConfigurationPage() {
     setWeightValue,
   ] = useState("");
 
-  const [formError, setFormError] =
-    useState("");
+  const [
+    formError,
+    setFormError,
+  ] = useState("");
 
-  const [isSaving, setIsSaving] =
-    useState(false);
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
 
-  const [actionId, setActionId] =
-    useState<string | null>(null);
+  const [
+    actionId,
+    setActionId,
+  ] =
+    useState<string | null>(
+      null
+    );
 
   /*
-   * Reorder state
-   *
-   * Only one configuration list can enter
-   * reorder mode at a time.
+   * =========================================================
+   * SETTINGS MENU
+   * =========================================================
    */
+
+  const [
+    settingsMenuKind,
+    setSettingsMenuKind,
+  ] =
+    useState<OptionKind | null>(
+      null
+    );
+
+  /*
+   * Close a gear menu when the user clicks
+   * anywhere outside that menu.
+   */
+  useEffect(() => {
+    if (!settingsMenuKind) {
+      return;
+    }
+
+    function handleOutsideClick(
+      event: MouseEvent
+    ) {
+      const target =
+        event.target;
+
+      if (
+        target instanceof Element &&
+        target.closest(
+          "[data-config-settings-menu]"
+        )
+      ) {
+        return;
+      }
+
+      setSettingsMenuKind(
+        null
+      );
+    }
+
+    document.addEventListener(
+      "mousedown",
+      handleOutsideClick
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+    };
+  }, [settingsMenuKind]);
+
+  /*
+   * =========================================================
+   * REORDER
+   * =========================================================
+   */
+
   const [
     reorderKind,
     setReorderKind,
-  ] = useState<OptionKind | null>(null);
+  ] =
+    useState<OptionKind | null>(
+      null
+    );
 
   const [
     isSavingOrder,
@@ -104,44 +255,81 @@ function ConfigurationPage() {
   const [
     draggedId,
     setDraggedId,
-  ] = useState<string | null>(null);
+  ] =
+    useState<string | null>(
+      null
+    );
 
   const [
     dragOverId,
     setDragOverId,
-  ] = useState<string | null>(null);
+  ] =
+    useState<string | null>(
+      null
+    );
 
   /*
-   * Brief visual confirmation after a successful drop.
-   * A single ID is enough because only one list can be
-   * reordered at a time.
+   * Used to briefly highlight the
+   * item after it has been dropped.
    */
   const [
     lastMovedId,
     setLastMovedId,
-  ] = useState<string | null>(null);
+  ] =
+    useState<string | null>(
+      null
+    );
 
   const placedTimerRef =
-    useRef<number | null>(null);
+    useRef<number | null>(
+      null
+    );
 
   /*
-   * We keep a copy of the original arrangement
-   * so Cancel can restore it exactly.
+   * Original arrangement is preserved
+   * while reorder mode is active.
+   *
+   * Cancel restores this exact copy.
    */
   const [
     severityBackup,
     setSeverityBackup,
-  ] = useState<SeverityOption[]>([]);
+  ] = useState<
+    SeverityOption[]
+  >([]);
 
   const [
     weightBackup,
     setWeightBackup,
-  ] = useState<WeightOption[]>([]);
+  ] = useState<
+    WeightOption[]
+  >([]);
+
+  /*
+   * =========================================================
+   * CONFIRMATION
+   * =========================================================
+   */
+
+  const [
+    pendingConfirmation,
+    setPendingConfirmation,
+  ] =
+    useState<PendingConfirmation | null>(
+      null
+    );
+
+  /*
+   * =========================================================
+   * LOAD CONFIGURATION
+   * =========================================================
+   */
 
   const loadOptions =
     useCallback(async () => {
       try {
         setIsLoading(true);
+
         setPageError("");
 
         const [
@@ -149,12 +337,20 @@ function ConfigurationPage() {
           weightResponse,
         ] = await Promise.all([
           apiRequest<
-            OptionListResponse<SeverityOption>
-          >("/api/severity-options"),
+            OptionListResponse<
+              SeverityOption
+            >
+          >(
+            "/api/severity-options"
+          ),
 
           apiRequest<
-            OptionListResponse<WeightOption>
-          >("/api/weight-options"),
+            OptionListResponse<
+              WeightOption
+            >
+          >(
+            "/api/weight-options"
+          ),
         ]);
 
         setSeverityOptions(
@@ -165,24 +361,37 @@ function ConfigurationPage() {
           weightResponse.data
         );
       } catch (error) {
-        setPageError(
+        const message =
           error instanceof Error
             ? error.message
-            : "Failed to load configuration"
+            : "Failed to load configuration";
+
+        setPageError(
+          message
+        );
+
+        toast.error(
+          message,
+          "Unable to load configuration"
         );
       } finally {
         setIsLoading(false);
       }
-    }, []);
+    }, [toast]);
 
   useEffect(() => {
     void loadOptions();
   }, [loadOptions]);
 
+  /*
+   * Clean up the temporary
+   * "item placed" animation timer.
+   */
   useEffect(() => {
     return () => {
       if (
-        placedTimerRef.current !== null
+        placedTimerRef.current !==
+        null
       ) {
         window.clearTimeout(
           placedTimerRef.current
@@ -191,18 +400,50 @@ function ConfigurationPage() {
     };
   }, []);
 
-  function openAddForm(
-    kind: OptionKind
-  ) {
-    if (reorderKind) {
-      return;
-    }
+  /*
+   * =========================================================
+   * FORM HELPERS
+   * =========================================================
+   */
 
-    setModalKind(kind);
+  function resetForm() {
+    setModalKind(null);
+
     setEditingOption(null);
 
     setName("");
+
     setDescription("");
+
+    setWeightValue("");
+
+    setFormError("");
+  }
+
+  function openAddForm(
+    kind: OptionKind
+  ) {
+    if (
+      reorderKind ||
+      isSavingOrder
+    ) {
+      return;
+    }
+
+    setSettingsMenuKind(
+      null
+    );
+
+    setPageError("");
+
+    setModalKind(kind);
+
+    setEditingOption(null);
+
+    setName("");
+
+    setDescription("");
+
     setWeightValue("");
 
     setFormError("");
@@ -214,14 +455,28 @@ function ConfigurationPage() {
       | SeverityOption
       | WeightOption
   ) {
-    if (reorderKind) {
+    if (
+      reorderKind ||
+      isSavingOrder
+    ) {
       return;
     }
 
-    setModalKind(kind);
-    setEditingOption(option);
+    setSettingsMenuKind(
+      null
+    );
 
-    setName(option.name);
+    setPageError("");
+
+    setModalKind(kind);
+
+    setEditingOption(
+      option
+    );
+
+    setName(
+      option.name
+    );
 
     setDescription(
       option.description ?? ""
@@ -234,7 +489,9 @@ function ConfigurationPage() {
       setWeightValue(
         option.value === null
           ? ""
-          : String(option.value)
+          : String(
+              option.value
+            )
       );
     } else {
       setWeightValue("");
@@ -248,18 +505,35 @@ function ConfigurationPage() {
       return;
     }
 
-    setModalKind(null);
-    setEditingOption(null);
+    setPendingConfirmation(
+      null
+    );
 
-    setName("");
-    setDescription("");
-    setWeightValue("");
-
-    setFormError("");
+    resetForm();
   }
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
+  function showFormError(
+    message: string
+  ) {
+    setFormError(
+      message
+    );
+
+    toast.error(
+      message,
+      "Check configuration details"
+    );
+  }
+
+  /*
+   * =========================================================
+   * FORM VALIDATION
+   * =========================================================
+   */
+
+  function handleSubmit(
+    event:
+      FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
@@ -270,21 +544,94 @@ function ConfigurationPage() {
     const trimmedName =
       name.trim();
 
+    const trimmedDescription =
+      description.trim();
+
     if (!trimmedName) {
-      setFormError(
+      showFormError(
         "Name is required."
       );
 
       return;
     }
 
+    /*
+     * =========================
+     * SEVERITY
+     * =========================
+     */
+
+    if (
+      modalKind === "severity"
+    ) {
+      const payload:
+        SeverityPayload = {
+        name:
+          trimmedName,
+
+        description:
+          trimmedDescription ||
+          null,
+      };
+
+      /*
+       * Do not send an edit request if
+       * nothing actually changed.
+       */
+      if (
+        editingOption &&
+        !("value" in
+          editingOption) &&
+        editingOption.name.trim() ===
+          payload.name &&
+        (editingOption.description ??
+          "") ===
+          (payload.description ?? "")
+      ) {
+        setFormError("");
+
+        toast.info(
+          "No severity changes were detected.",
+          "No changes"
+        );
+
+        return;
+      }
+
+      setFormError("");
+
+      setPendingConfirmation({
+        type: "save",
+        kind: "severity",
+
+        mode:
+          editingOption
+            ? "edit"
+            : "create",
+
+        optionId:
+          editingOption?.id ??
+          null,
+
+        payload,
+      });
+
+      return;
+    }
+
+    /*
+     * =========================
+     * WEIGHT
+     * =========================
+     */
+
     let parsedWeightValue:
       | number
       | null = null;
 
     if (
-      modalKind === "weight" &&
-      weightValue.trim() !== ""
+      weightValue.trim() !==
+      ""
     ) {
       parsedWeightValue =
         Number(weightValue);
@@ -295,7 +642,7 @@ function ConfigurationPage() {
         ) ||
         parsedWeightValue < 0
       ) {
-        setFormError(
+        showFormError(
           "Weight value must be a whole number of 0 or greater."
         );
 
@@ -303,88 +650,239 @@ function ConfigurationPage() {
       }
     }
 
+    const payload:
+      WeightPayload = {
+      name:
+        trimmedName,
+
+      value:
+        parsedWeightValue,
+
+      description:
+        trimmedDescription ||
+        null,
+    };
+
+    if (
+      editingOption &&
+      "value" in
+        editingOption &&
+      editingOption.name.trim() ===
+        payload.name &&
+      editingOption.value ===
+        payload.value &&
+      (editingOption.description ??
+        "") ===
+        (payload.description ?? "")
+    ) {
+      setFormError("");
+
+      toast.info(
+        "No weight changes were detected.",
+        "No changes"
+      );
+
+      return;
+    }
+
+    setFormError("");
+
+    setPendingConfirmation({
+      type: "save",
+      kind: "weight",
+
+      mode:
+        editingOption
+          ? "edit"
+          : "create",
+
+      optionId:
+        editingOption?.id ??
+        null,
+
+      payload,
+    });
+  }
+
+  /*
+   * =========================================================
+   * SAVE SEVERITY / WEIGHT
+   * =========================================================
+   */
+
+  async function saveOption(
+    confirmation: Extract<
+      PendingConfirmation,
+      {
+        type: "save";
+      }
+    >
+  ) {
     const endpoint =
-      modalKind === "severity"
+      confirmation.kind ===
+      "severity"
         ? "/api/severity-options"
         : "/api/weight-options";
 
-    /*
-     * sortOrder is intentionally omitted.
-     *
-     * New records automatically append to
-     * the bottom in the backend.
-     *
-     * Existing records retain their current
-     * position until Reorder mode is used.
-     */
-    const payload =
-      modalKind === "severity"
-        ? {
-            name: trimmedName,
-
-            description:
-              description.trim() ||
-              null,
-          }
-        : {
-            name: trimmedName,
-
-            value:
-              parsedWeightValue,
-
-            description:
-              description.trim() ||
-              null,
-          };
-
     try {
       setIsSaving(true);
+
       setFormError("");
 
-      if (editingOption) {
-        await apiRequest(
-          `${endpoint}/${editingOption.id}`,
-          {
-            method: "PATCH",
+      setPageError("");
 
-            body: JSON.stringify(
-              payload
-            ),
-          }
+      if (
+        confirmation.kind ===
+        "severity"
+      ) {
+        let response:
+          MutationResponse<
+            SeverityOption
+          >;
+
+        if (
+          confirmation.mode ===
+            "edit" &&
+          confirmation.optionId
+        ) {
+          response =
+            await apiRequest<
+              MutationResponse<
+                SeverityOption
+              >
+            >(
+              `${endpoint}/${confirmation.optionId}`,
+              {
+                method:
+                  "PATCH",
+
+                body:
+                  JSON.stringify(
+                    confirmation.payload
+                  ),
+              }
+            );
+        } else {
+          response =
+            await apiRequest<
+              MutationResponse<
+                SeverityOption
+              >
+            >(
+              endpoint,
+              {
+                method:
+                  "POST",
+
+                body:
+                  JSON.stringify(
+                    confirmation.payload
+                  ),
+              }
+            );
+        }
+
+        toast.success(
+          response.message,
+          confirmation.mode ===
+          "edit"
+            ? "Severity updated"
+            : "Severity added"
         );
       } else {
-        await apiRequest(
-          endpoint,
-          {
-            method: "POST",
+        let response:
+          MutationResponse<
+            WeightOption
+          >;
 
-            body: JSON.stringify(
-              payload
-            ),
-          }
+        if (
+          confirmation.mode ===
+            "edit" &&
+          confirmation.optionId
+        ) {
+          response =
+            await apiRequest<
+              MutationResponse<
+                WeightOption
+              >
+            >(
+              `${endpoint}/${confirmation.optionId}`,
+              {
+                method:
+                  "PATCH",
+
+                body:
+                  JSON.stringify(
+                    confirmation.payload
+                  ),
+              }
+            );
+        } else {
+          response =
+            await apiRequest<
+              MutationResponse<
+                WeightOption
+              >
+            >(
+              endpoint,
+              {
+                method:
+                  "POST",
+
+                body:
+                  JSON.stringify(
+                    confirmation.payload
+                  ),
+              }
+            );
+        }
+
+        toast.success(
+          response.message,
+          confirmation.mode ===
+          "edit"
+            ? "Weight updated"
+            : "Weight added"
         );
       }
 
-      setModalKind(null);
-      setEditingOption(null);
+      setPendingConfirmation(
+        null
+      );
 
-      setName("");
-      setDescription("");
-      setWeightValue("");
+      resetForm();
 
       await loadOptions();
     } catch (error) {
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to save option"
+          : "Failed to save option";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setFormError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Configuration not saved"
       );
     } finally {
       setIsSaving(false);
     }
   }
 
-  async function changeStatus(
+  /*
+   * =========================================================
+   * ARCHIVE / REACTIVATE
+   * =========================================================
+   */
+
+  function requestStatusChange(
     kind: OptionKind,
     option:
       | SeverityOption
@@ -394,33 +892,94 @@ function ConfigurationPage() {
       return;
     }
 
+    setSettingsMenuKind(
+      null
+    );
+
+    setPendingConfirmation({
+      type: "status",
+
+      kind,
+
+      action:
+        option.isActive
+          ? "archive"
+          : "reactivate",
+
+      option,
+    });
+  }
+
+  async function changeStatus(
+    confirmation: Extract<
+      PendingConfirmation,
+      {
+        type: "status";
+      }
+    >
+  ) {
     const endpoint =
-      kind === "severity"
+      confirmation.kind ===
+      "severity"
         ? "/api/severity-options"
         : "/api/weight-options";
 
-    const action =
-      option.isActive
-        ? "archive"
-        : "reactivate";
-
     try {
-      setActionId(option.id);
+      setActionId(
+        confirmation.option.id
+      );
+
       setPageError("");
 
-      await apiRequest(
-        `${endpoint}/${option.id}/${action}`,
-        {
-          method: "PATCH",
-        }
+      const response =
+        await apiRequest<
+          MutationResponse<
+            | SeverityOption
+            | WeightOption
+          >
+        >(
+          `${endpoint}/${confirmation.option.id}/${confirmation.action}`,
+          {
+            method: "PATCH",
+          }
+        );
+
+      setPendingConfirmation(
+        null
+      );
+
+      const label =
+        confirmation.kind ===
+        "severity"
+          ? "Severity"
+          : "Weight";
+
+      toast.success(
+        response.message,
+        confirmation.action ===
+        "archive"
+          ? `${label} archived`
+          : `${label} reactivated`
       );
 
       await loadOptions();
     } catch (error) {
-      setPageError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to update option"
+          : "Failed to update option";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setPageError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Configuration not updated"
       );
     } finally {
       setActionId(null);
@@ -428,50 +987,35 @@ function ConfigurationPage() {
   }
 
   /*
-   * =========================
-   * REORDER MODE
-   * =========================
+   * =========================================================
+   * SETTINGS MENU
+   * =========================================================
    */
 
-  function clearPlacedFeedback() {
-    if (
-      placedTimerRef.current !== null
-    ) {
-      window.clearTimeout(
-        placedTimerRef.current
-      );
-
-      placedTimerRef.current = null;
-    }
-
-    setLastMovedId(null);
-  }
-
-  function flashPlacedItem(
-    optionId: string
+  function toggleSettingsMenu(
+    kind: OptionKind
   ) {
     if (
-      placedTimerRef.current !== null
+      reorderKind ||
+      isSavingOrder ||
+      modalKind
     ) {
-      window.clearTimeout(
-        placedTimerRef.current
-      );
+      return;
     }
 
-    setLastMovedId(optionId);
-
-    placedTimerRef.current =
-      window.setTimeout(() => {
-        setLastMovedId(
-          (current) =>
-            current === optionId
-              ? null
-              : current
-        );
-
-        placedTimerRef.current = null;
-      }, 700);
+    setSettingsMenuKind(
+      (current) =>
+        current === kind
+          ? null
+          : kind
+    );
   }
+
+  /*
+   * =========================================================
+   * REORDER MODE
+   * =========================================================
+   */
 
   function beginReorder(
     kind: OptionKind
@@ -484,13 +1028,19 @@ function ConfigurationPage() {
       return;
     }
 
+    setSettingsMenuKind(
+      null
+    );
+
     setPageError("");
 
     /*
-     * Clone the current arrangement so
-     * Cancel can restore it.
+     * Clone the current order so that
+     * Cancel can restore it exactly.
      */
-    if (kind === "severity") {
+    if (
+      kind === "severity"
+    ) {
       setSeverityBackup(
         severityOptions.map(
           (option) => ({
@@ -508,10 +1058,11 @@ function ConfigurationPage() {
       );
     }
 
-    clearPlacedFeedback();
-
     setDraggedId(null);
+
     setDragOverId(null);
+
+    setLastMovedId(null);
 
     setReorderKind(kind);
   }
@@ -525,7 +1076,8 @@ function ConfigurationPage() {
     }
 
     if (
-      reorderKind === "severity"
+      reorderKind ===
+      "severity"
     ) {
       setSeverityOptions(
         severityBackup
@@ -537,32 +1089,47 @@ function ConfigurationPage() {
     }
 
     setReorderKind(null);
+
     setDraggedId(null);
+
     setDragOverId(null);
-    clearPlacedFeedback();
+
+    setLastMovedId(null);
 
     setSeverityBackup([]);
+
     setWeightBackup([]);
+
+    toast.info(
+      "The unsaved order was discarded.",
+      "Reorder cancelled"
+    );
   }
 
   function normalizeSeverityOrder(
-    options: SeverityOption[]
+    options:
+      SeverityOption[]
   ) {
     return options.map(
       (option, index) => ({
         ...option,
-        sortOrder: index + 1,
+
+        sortOrder:
+          index + 1,
       })
     );
   }
 
   function normalizeWeightOrder(
-    options: WeightOption[]
+    options:
+      WeightOption[]
   ) {
     return options.map(
       (option, index) => ({
         ...option,
-        sortOrder: index + 1,
+
+        sortOrder:
+          index + 1,
       })
     );
   }
@@ -578,19 +1145,23 @@ function ConfigurationPage() {
       return;
     }
 
-    if (kind === "severity") {
+    if (
+      kind === "severity"
+    ) {
       setSeverityOptions(
         (current) => {
           const sourceIndex =
             current.findIndex(
               (option) =>
-                option.id === sourceId
+                option.id ===
+                sourceId
             );
 
           const targetIndex =
             current.findIndex(
               (option) =>
-                option.id === targetId
+                option.id ===
+                targetId
             );
 
           if (
@@ -630,13 +1201,15 @@ function ConfigurationPage() {
         const sourceIndex =
           current.findIndex(
             (option) =>
-              option.id === sourceId
+              option.id ===
+              sourceId
           );
 
         const targetIndex =
           current.findIndex(
             (option) =>
-              option.id === targetId
+              option.id ===
+              targetId
           );
 
         if (
@@ -669,9 +1242,39 @@ function ConfigurationPage() {
     );
   }
 
+  function flashPlacedItem(
+    optionId: string
+  ) {
+    if (
+      placedTimerRef.current !==
+      null
+    ) {
+      window.clearTimeout(
+        placedTimerRef.current
+      );
+    }
+
+    setLastMovedId(
+      optionId
+    );
+
+    placedTimerRef.current =
+      window.setTimeout(
+        () => {
+          setLastMovedId(
+            null
+          );
+
+          placedTimerRef.current =
+            null;
+        },
+        900
+      );
+  }
+
   function handleDragStart(
     event:
-      DragEvent<HTMLElement>,
+      DragEvent<HTMLDivElement>,
     kind: OptionKind,
     optionId: string
   ) {
@@ -684,7 +1287,11 @@ function ConfigurationPage() {
       return;
     }
 
-    setDraggedId(optionId);
+    setDraggedId(
+      optionId
+    );
+
+    setLastMovedId(null);
 
     event.dataTransfer.effectAllowed =
       "move";
@@ -697,7 +1304,7 @@ function ConfigurationPage() {
 
   function handleDragOver(
     event:
-      DragEvent<HTMLElement>,
+      DragEvent<HTMLDivElement>,
     kind: OptionKind,
     optionId: string
   ) {
@@ -714,15 +1321,18 @@ function ConfigurationPage() {
       "move";
 
     if (
-      dragOverId !== optionId
+      dragOverId !==
+      optionId
     ) {
-      setDragOverId(optionId);
+      setDragOverId(
+        optionId
+      );
     }
   }
 
   function handleDrop(
     event:
-      DragEvent<HTMLElement>,
+      DragEvent<HTMLDivElement>,
     kind: OptionKind,
     targetId: string
   ) {
@@ -755,16 +1365,40 @@ function ConfigurationPage() {
     );
 
     setDraggedId(null);
+
     setDragOverId(null);
 
     if (didMove) {
-      flashPlacedItem(sourceId);
+      flashPlacedItem(
+        sourceId
+      );
     }
   }
 
   function handleDragEnd() {
     setDraggedId(null);
+
     setDragOverId(null);
+  }
+
+  /*
+   * Save Order is an important mutation,
+   * so clicking it opens confirmation first.
+   */
+  function requestSaveOrder(
+    kind: OptionKind
+  ) {
+    if (
+      reorderKind !== kind ||
+      isSavingOrder
+    ) {
+      return;
+    }
+
+    setPendingConfirmation({
+      type: "order",
+      kind,
+    });
   }
 
   async function saveOrder(
@@ -785,14 +1419,17 @@ function ConfigurationPage() {
     const orderedIds =
       kind === "severity"
         ? severityOptions.map(
-            (option) => option.id
+            (option) =>
+              option.id
           )
         : weightOptions.map(
-            (option) => option.id
+            (option) =>
+              option.id
           );
 
     try {
       setIsSavingOrder(true);
+
       setPageError("");
 
       if (
@@ -803,13 +1440,18 @@ function ConfigurationPage() {
             OptionListResponse<
               SeverityOption
             >
-          >(endpoint, {
-            method: "PATCH",
+          >(
+            endpoint,
+            {
+              method:
+                "PATCH",
 
-            body: JSON.stringify({
-              orderedIds,
-            }),
-          });
+              body:
+                JSON.stringify({
+                  orderedIds,
+                }),
+            }
+          );
 
         setSeverityOptions(
           response.data
@@ -820,88 +1462,466 @@ function ConfigurationPage() {
             OptionListResponse<
               WeightOption
             >
-          >(endpoint, {
-            method: "PATCH",
+          >(
+            endpoint,
+            {
+              method:
+                "PATCH",
 
-            body: JSON.stringify({
-              orderedIds,
-            }),
-          });
+              body:
+                JSON.stringify({
+                  orderedIds,
+                }),
+            }
+          );
 
         setWeightOptions(
           response.data
         );
       }
 
+      setPendingConfirmation(
+        null
+      );
+
       setReorderKind(null);
 
       setSeverityBackup([]);
+
       setWeightBackup([]);
 
       setDraggedId(null);
+
       setDragOverId(null);
-      clearPlacedFeedback();
+
+      setLastMovedId(null);
+
+      toast.success(
+        kind === "severity"
+          ? "Severity order saved successfully."
+          : "Weight order saved successfully.",
+        "Order saved"
+      );
     } catch (error) {
-      setPageError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to save order"
+          : "Failed to save order";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setPageError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Order not saved"
       );
     } finally {
-      setIsSavingOrder(false);
+      setIsSavingOrder(
+        false
+      );
     }
   }
+
+  /*
+   * =========================================================
+   * CONFIRMATION HANDLING
+   * =========================================================
+   */
+
+  async function confirmPendingAction() {
+    if (
+      !pendingConfirmation
+    ) {
+      return;
+    }
+
+    if (
+      pendingConfirmation.type ===
+      "save"
+    ) {
+      await saveOption(
+        pendingConfirmation
+      );
+
+      return;
+    }
+
+    if (
+      pendingConfirmation.type ===
+      "status"
+    ) {
+      await changeStatus(
+        pendingConfirmation
+      );
+
+      return;
+    }
+
+    await saveOrder(
+      pendingConfirmation.kind
+    );
+  }
+
+  function cancelConfirmation() {
+    if (
+      isSaving ||
+      isSavingOrder ||
+      actionId !== null
+    ) {
+      return;
+    }
+
+    setPendingConfirmation(
+      null
+    );
+  }
+
+  function getConfirmationContent() {
+    if (
+      !pendingConfirmation
+    ) {
+      return null;
+    }
+
+    /*
+     * =========================
+     * ADD / EDIT
+     * =========================
+     */
+
+    if (
+      pendingConfirmation.type ===
+      "save"
+    ) {
+      const label =
+        pendingConfirmation.kind ===
+        "severity"
+          ? "Severity"
+          : "Weight";
+
+      if (
+        pendingConfirmation.mode ===
+        "create"
+      ) {
+        return {
+          title:
+            `Add ${label}?`,
+
+          message:
+            `Add "${pendingConfirmation.payload.name}" to the ${pendingConfirmation.kind === "severity" ? "severity levels" : "strike weights"}?`,
+
+          confirmLabel:
+            `Add ${label}`,
+
+          danger: false,
+        };
+      }
+
+      return {
+        title:
+          `Save ${label} Changes?`,
+
+        message:
+          `Save the changes to "${pendingConfirmation.payload.name}"?`,
+
+        confirmLabel:
+          "Save Changes",
+
+        danger: false,
+      };
+    }
+
+    /*
+     * =========================
+     * ARCHIVE / REACTIVATE
+     * =========================
+     */
+
+    if (
+      pendingConfirmation.type ===
+      "status"
+    ) {
+      const label =
+        pendingConfirmation.kind ===
+        "severity"
+          ? "severity"
+          : "weight";
+
+      if (
+        pendingConfirmation.action ===
+        "archive"
+      ) {
+        return {
+          title:
+            `Archive ${label === "severity" ? "Severity" : "Weight"}?`,
+
+          message:
+            `Archive "${pendingConfirmation.option.name}"? It will no longer be available for new rule configuration, but historical rule and incident records will remain preserved.`,
+
+          confirmLabel:
+            "Archive",
+
+          danger: true,
+        };
+      }
+
+      return {
+        title:
+          `Reactivate ${label === "severity" ? "Severity" : "Weight"}?`,
+
+        message:
+          `Reactivate "${pendingConfirmation.option.name}"? It will become available for rule configuration again.`,
+
+        confirmLabel:
+          "Reactivate",
+
+        danger: false,
+      };
+    }
+
+    /*
+     * =========================
+     * SAVE ORDER
+     * =========================
+     */
+
+    return {
+      title:
+        pendingConfirmation.kind ===
+        "severity"
+          ? "Save Severity Order?"
+          : "Save Weight Order?",
+
+      message:
+        pendingConfirmation.kind ===
+        "severity"
+          ? "Save the current severity level order? This will become the order shown throughout configuration."
+          : "Save the current strike weight order? This will become the order shown throughout configuration.",
+
+      confirmLabel:
+        "Save Order",
+
+      danger: false,
+    };
+  }
+
+  const confirmationContent =
+    getConfirmationContent();
+
+  const confirmationBusy =
+    pendingConfirmation?.type ===
+    "save"
+      ? isSaving
+      : pendingConfirmation?.type ===
+          "order"
+        ? isSavingOrder
+        : pendingConfirmation?.type ===
+            "status"
+          ? actionId ===
+            pendingConfirmation.option.id
+          : false;
+
+  /*
+   * =========================================================
+   * REORDER HEADER CONTROLS
+   * =========================================================
+   */
 
   function renderReorderControls(
     kind: OptionKind
   ) {
-    const isThisListReordering =
-      reorderKind === kind;
-
-    if (isThisListReordering) {
-      return (
-        <div className="reorder-controls">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={cancelReorder}
-            disabled={isSavingOrder}
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() =>
-              void saveOrder(kind)
-            }
-            disabled={isSavingOrder}
-          >
-            {isSavingOrder
-              ? "Saving..."
-              : "Save Order"}
-          </button>
-        </div>
-      );
+    if (
+      reorderKind !== kind
+    ) {
+      return null;
     }
 
     return (
-      <button
-        type="button"
-        className="secondary-button"
-        onClick={() =>
-          beginReorder(kind)
-        }
-        disabled={
-          reorderKind !== null ||
-          isSavingOrder
-        }
-      >
-        Reorder
-      </button>
+      <div className="reorder-controls">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={
+            cancelReorder
+          }
+          disabled={
+            isSavingOrder
+          }
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="primary-button"
+          onClick={() =>
+            requestSaveOrder(
+              kind
+            )
+          }
+          disabled={
+            isSavingOrder
+          }
+        >
+          {isSavingOrder
+            ? "Saving..."
+            : "Save Order"}
+        </button>
+      </div>
     );
   }
+
+  /*
+   * =========================================================
+   * GEAR ICON
+   * =========================================================
+   */
+
+  function GearIcon() {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        aria-hidden="true"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="3"
+        />
+
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20.3h-3v-.08a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.56-1.03H5.3v-3h.14A1.7 1.7 0 0 0 7 9.94a1.7 1.7 0 0 0-.34-1.88L6.6 8l2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.7 4.7v-.08h3v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 11h.04v3h-.04A1.7 1.7 0 0 0 19.4 15Z" />
+      </svg>
+    );
+  }
+
+  /*
+   * =========================================================
+   * HEADER ACTIONS
+   * =========================================================
+   */
+
+  function renderHeaderActions(
+    kind: OptionKind
+  ) {
+    if (
+      reorderKind === kind
+    ) {
+      return renderReorderControls(
+        kind
+      );
+    }
+
+    const isDisabled =
+      reorderKind !== null ||
+      isSavingOrder;
+
+    const options =
+      kind === "severity"
+        ? severityOptions
+        : weightOptions;
+
+    return (
+      <div className="configuration-header-actions">
+        <button
+          className="secondary-button configuration-add-button"
+          type="button"
+          onClick={() =>
+            openAddForm(kind)
+          }
+          disabled={
+            isDisabled
+          }
+        >
+          {kind === "severity"
+            ? "Add Severity"
+            : "Add Weight"}
+        </button>
+
+        <div
+          className="configuration-settings-wrapper"
+          data-config-settings-menu
+        >
+          <button
+            type="button"
+            className="configuration-gear-button"
+            onClick={() =>
+              toggleSettingsMenu(
+                kind
+              )
+            }
+            disabled={
+              isDisabled
+            }
+            aria-label={
+              kind === "severity"
+                ? "Severity settings"
+                : "Weight settings"
+            }
+            aria-haspopup="menu"
+            aria-expanded={
+              settingsMenuKind ===
+              kind
+            }
+            title="Settings"
+          >
+            <GearIcon />
+          </button>
+
+          {settingsMenuKind ===
+            kind && (
+            <div
+              className="configuration-settings-menu"
+              role="menu"
+            >
+              <button
+                type="button"
+                className="configuration-settings-item"
+                role="menuitem"
+                disabled={
+                  options.length <
+                  2
+                }
+                onClick={() =>
+                  beginReorder(
+                    kind
+                  )
+                }
+              >
+                <span className="settings-item-icon">
+                  ↕
+                </span>
+
+                <span>
+                  {kind ===
+                  "severity"
+                    ? "Reorder severity levels"
+                    : "Reorder strike weights"}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /*
+   * =========================================================
+   * PAGE
+   * =========================================================
+   */
 
   return (
     <div className="page">
@@ -916,11 +1936,12 @@ function ConfigurationPage() {
           </h2>
 
           <p className="page-description">
-            Configure the severity and
-            strike-weight options used by
-            rules. These values are stored
-            in the database and are not
-            hardcoded.
+            Configure the severity
+            and strike-weight
+            options used by rules.
+            These values are stored
+            in the database and are
+            not hardcoded.
           </p>
         </div>
       </header>
@@ -932,6 +1953,10 @@ function ConfigurationPage() {
       )}
 
       <div className="two-column-grid">
+        {/* =================================================
+            SEVERITY
+            ================================================= */}
+
         <section className="content-card">
           <div className="card-header configuration-card-header">
             <div>
@@ -947,29 +1972,9 @@ function ConfigurationPage() {
               </p>
             </div>
 
-            <div className="configuration-header-actions">
-              {renderReorderControls(
-                "severity"
-              )}
-
-              {reorderKind !==
-                "severity" && (
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() =>
-                    openAddForm(
-                      "severity"
-                    )
-                  }
-                  disabled={
-                    reorderKind !== null
-                  }
-                >
-                  Add Severity
-                </button>
-              )}
-            </div>
+            {renderHeaderActions(
+              "severity"
+            )}
           </div>
 
           {isLoading ? (
@@ -987,8 +1992,8 @@ function ConfigurationPage() {
               </strong>
 
               <span>
-                Add your first severity
-                level.
+                Add your first
+                severity level.
               </span>
             </div>
           ) : (
@@ -1001,8 +2006,14 @@ function ConfigurationPage() {
               }
             >
               {severityOptions.map(
-                (option, index) => (
+                (
+                  option,
+                  index
+                ) => (
                   <div
+                    key={
+                      option.id
+                    }
                     className={[
                       "config-item",
 
@@ -1028,9 +2039,10 @@ function ConfigurationPage() {
                         ? "just-dropped"
                         : "",
                     ]
-                      .filter(Boolean)
+                      .filter(
+                        Boolean
+                      )
                       .join(" ")}
-                    key={option.id}
                     onDragOver={(
                       event
                     ) =>
@@ -1040,7 +2052,9 @@ function ConfigurationPage() {
                         option.id
                       )
                     }
-                    onDrop={(event) =>
+                    onDrop={(
+                      event
+                    ) =>
                       handleDrop(
                         event,
                         "severity",
@@ -1049,23 +2063,26 @@ function ConfigurationPage() {
                     }
                   >
                     <div className="config-item-main">
-                      <div className="config-item-header">
-                        <strong>
-                          {option.name}
-                        </strong>
-
-                        <span
-                          className={
-                            option.isActive
-                              ? "status-badge active"
-                              : "status-badge inactive"
-                          }
-                        >
-                          {option.isActive
-                            ? "Active"
-                            : "Archived"}
-                        </span>
-                      </div>
+                <div className="config-item-header">
+  <strong>
+    {option.name}
+  </strong>
+</div>
+{reorderKind !== "severity" && (
+  <div className="config-row-status">
+    <span
+      className={
+        option.isActive
+          ? "status-badge active"
+          : "status-badge inactive"
+      }
+    >
+      {option.isActive
+        ? "Active"
+        : "Archived"}
+    </span>
+  </div>
+)}
 
                       <p className="config-description">
                         {option.description ||
@@ -1082,7 +2099,7 @@ function ConfigurationPage() {
                     </div>
 
                     {reorderKind ===
-                      "severity" && (
+                    "severity" ? (
                       <div
                         className="drag-handle"
                         draggable={
@@ -1104,7 +2121,8 @@ function ConfigurationPage() {
                         aria-label={`Drag ${option.name} to reorder`}
                       >
                         <span className="reorder-position">
-                          {index + 1}
+                          {index +
+                            1}
                         </span>
 
                         <span
@@ -1114,10 +2132,7 @@ function ConfigurationPage() {
                           ⋮⋮
                         </span>
                       </div>
-                    )}
-
-                    {reorderKind !==
-                      "severity" && (
+                    ) : (
                       <div className="config-actions">
                         <button
                           type="button"
@@ -1144,7 +2159,7 @@ function ConfigurationPage() {
                             option.id
                           }
                           onClick={() =>
-                            void changeStatus(
+                            requestStatusChange(
                               "severity",
                               option
                             )
@@ -1166,6 +2181,10 @@ function ConfigurationPage() {
           )}
         </section>
 
+        {/* =================================================
+            WEIGHTS
+            ================================================= */}
+
         <section className="content-card">
           <div className="card-header configuration-card-header">
             <div>
@@ -1181,29 +2200,9 @@ function ConfigurationPage() {
               </p>
             </div>
 
-            <div className="configuration-header-actions">
-              {renderReorderControls(
-                "weight"
-              )}
-
-              {reorderKind !==
-                "weight" && (
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() =>
-                    openAddForm(
-                      "weight"
-                    )
-                  }
-                  disabled={
-                    reorderKind !== null
-                  }
-                >
-                  Add Weight
-                </button>
-              )}
-            </div>
+            {renderHeaderActions(
+              "weight"
+            )}
           </div>
 
           {isLoading ? (
@@ -1221,8 +2220,8 @@ function ConfigurationPage() {
               </strong>
 
               <span>
-                Add your first strike
-                weight.
+                Add your first
+                strike weight.
               </span>
             </div>
           ) : (
@@ -1235,8 +2234,14 @@ function ConfigurationPage() {
               }
             >
               {weightOptions.map(
-                (option, index) => (
+                (
+                  option,
+                  index
+                ) => (
                   <div
+                    key={
+                      option.id
+                    }
                     className={[
                       "config-item",
 
@@ -1262,9 +2267,10 @@ function ConfigurationPage() {
                         ? "just-dropped"
                         : "",
                     ]
-                      .filter(Boolean)
+                      .filter(
+                        Boolean
+                      )
                       .join(" ")}
-                    key={option.id}
                     onDragOver={(
                       event
                     ) =>
@@ -1274,7 +2280,9 @@ function ConfigurationPage() {
                         option.id
                       )
                     }
-                    onDrop={(event) =>
+                    onDrop={(
+                      event
+                    ) =>
                       handleDrop(
                         event,
                         "weight",
@@ -1283,34 +2291,34 @@ function ConfigurationPage() {
                     }
                   >
                     <div className="config-item-main">
-                      <div className="config-item-header">
-                        <div className="config-title-row">
-                          <strong>
-                            {option.name}
-                          </strong>
+                    <div className="config-item-header">
+  <div className="config-title-row">
+    <strong>
+      {option.name}
+    </strong>
 
-                          {option.value !==
-                            null && (
-                            <span className="weight-value">
-                              {
-                                option.value
-                              }
-                            </span>
-                          )}
-                        </div>
-
-                        <span
-                          className={
-                            option.isActive
-                              ? "status-badge active"
-                              : "status-badge inactive"
-                          }
-                        >
-                          {option.isActive
-                            ? "Active"
-                            : "Archived"}
-                        </span>
-                      </div>
+    {option.value !== null && (
+      <span className="weight-value">
+        {option.value}
+      </span>
+    )}
+  </div>
+</div>
+{reorderKind !== "weight" && (
+  <div className="config-row-status">
+    <span
+      className={
+        option.isActive
+          ? "status-badge active"
+          : "status-badge inactive"
+      }
+    >
+      {option.isActive
+        ? "Active"
+        : "Archived"}
+    </span>
+  </div>
+)}
 
                       <p className="config-description">
                         {option.description ||
@@ -1327,7 +2335,7 @@ function ConfigurationPage() {
                     </div>
 
                     {reorderKind ===
-                      "weight" && (
+                    "weight" ? (
                       <div
                         className="drag-handle"
                         draggable={
@@ -1349,7 +2357,8 @@ function ConfigurationPage() {
                         aria-label={`Drag ${option.name} to reorder`}
                       >
                         <span className="reorder-position">
-                          {index + 1}
+                          {index +
+                            1}
                         </span>
 
                         <span
@@ -1359,10 +2368,7 @@ function ConfigurationPage() {
                           ⋮⋮
                         </span>
                       </div>
-                    )}
-
-                    {reorderKind !==
-                      "weight" && (
+                    ) : (
                       <div className="config-actions">
                         <button
                           type="button"
@@ -1389,7 +2395,7 @@ function ConfigurationPage() {
                             option.id
                           }
                           onClick={() =>
-                            void changeStatus(
+                            requestStatusChange(
                               "weight",
                               option
                             )
@@ -1412,6 +2418,10 @@ function ConfigurationPage() {
         </section>
       </div>
 
+      {/* =====================================================
+          ADD / EDIT MODAL
+          ===================================================== */}
+
       {modalKind && (
         <div
           className="modal-backdrop"
@@ -1433,6 +2443,7 @@ function ConfigurationPage() {
                   {editingOption
                     ? "Edit"
                     : "Add"}{" "}
+
                   {modalKind ===
                   "severity"
                     ? "Severity"
@@ -1454,6 +2465,9 @@ function ConfigurationPage() {
                   closeModal
                 }
                 aria-label="Close"
+                disabled={
+                  isSaving
+                }
               >
                 ×
               </button>
@@ -1464,6 +2478,7 @@ function ConfigurationPage() {
               onSubmit={
                 handleSubmit
               }
+              noValidate
             >
               <div className="form-stack">
                 <label className="form-field">
@@ -1476,12 +2491,20 @@ function ConfigurationPage() {
                     value={name}
                     onChange={(
                       event
-                    ) =>
+                    ) => {
                       setName(
                         event.target
                           .value
-                      )
-                    }
+                      );
+
+                      if (
+                        formError
+                      ) {
+                        setFormError(
+                          ""
+                        );
+                      }
+                    }}
                     placeholder={
                       modalKind ===
                       "severity"
@@ -1492,6 +2515,9 @@ function ConfigurationPage() {
                       100
                     }
                     autoFocus
+                    disabled={
+                      isSaving
+                    }
                   />
                 </label>
 
@@ -1511,14 +2537,24 @@ function ConfigurationPage() {
                       }
                       onChange={(
                         event
-                      ) =>
+                      ) => {
                         setWeightValue(
-                          event
-                            .target
+                          event.target
                             .value
-                        )
-                      }
+                        );
+
+                        if (
+                          formError
+                        ) {
+                          setFormError(
+                            ""
+                          );
+                        }
+                      }}
                       placeholder="Example: 2"
+                      disabled={
+                        isSaving
+                      }
                     />
 
                     <small className="form-helper">
@@ -1541,17 +2577,28 @@ function ConfigurationPage() {
                     }
                     onChange={(
                       event
-                    ) =>
+                    ) => {
                       setDescription(
                         event.target
                           .value
-                      )
-                    }
+                      );
+
+                      if (
+                        formError
+                      ) {
+                        setFormError(
+                          ""
+                        );
+                      }
+                    }}
                     placeholder="Describe when this option should be used"
                     maxLength={
                       500
                     }
                     rows={4}
+                    disabled={
+                      isSaving
+                    }
                   />
                 </label>
 
@@ -1564,9 +2611,8 @@ function ConfigurationPage() {
                     New items are
                     added to the
                     bottom. Use the
-                    Reorder button
-                    on the
-                    Configuration
+                    settings menu on
+                    the Configuration
                     page to change
                     their position.
                   </span>
@@ -1614,6 +2660,104 @@ function ConfigurationPage() {
           </div>
         </div>
       )}
+
+      {/* =====================================================
+          CONFIRMATION MODAL
+          ===================================================== */}
+
+      {pendingConfirmation &&
+        confirmationContent && (
+          <div
+            className="modal-backdrop confirmation-backdrop"
+            onMouseDown={
+              cancelConfirmation
+            }
+          >
+            <div
+              className="modal confirmation-modal"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="configuration-confirmation-title"
+            >
+              <div className="modal-header">
+                <div>
+                  <h3 id="configuration-confirmation-title">
+                    {
+                      confirmationContent.title
+                    }
+                  </h3>
+
+                  <p>
+                    Please confirm
+                    before
+                    continuing.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={
+                    cancelConfirmation
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                  aria-label="Close confirmation"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="confirmation-body">
+                <p>
+                  {
+                    confirmationContent.message
+                  }
+                </p>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={
+                    cancelConfirmation
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    confirmationContent.danger
+                      ? "danger-button"
+                      : "primary-button"
+                  }
+                  onClick={() =>
+                    void confirmPendingAction()
+                  }
+                  disabled={
+                    confirmationBusy
+                  }
+                >
+                  {confirmationBusy
+                    ? "Processing..."
+                    : confirmationContent.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
