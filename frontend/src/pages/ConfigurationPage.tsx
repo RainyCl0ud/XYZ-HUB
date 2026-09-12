@@ -2601,22 +2601,6 @@ function ConfigurationPage() {
                     }
                   />
                 </label>
-
-                <div className="reorder-form-note">
-                  <strong>
-                    Position
-                  </strong>
-
-                  <span>
-                    New items are
-                    added to the
-                    bottom. Use the
-                    settings menu on
-                    the Configuration
-                    page to change
-                    their position.
-                  </span>
-                </div>
               </div>
 
               {formError && (
