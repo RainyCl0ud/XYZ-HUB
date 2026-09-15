@@ -191,6 +191,14 @@ function ConfigurationPage() {
       null
     );
 
+  const [
+    archiveModalKind,
+    setArchiveModalKind,
+  ] =
+    useState<OptionKind | null>(
+      null
+    );
+
   /*
    * Close a gear menu when the user clicks
    * anywhere outside that menu.
@@ -399,6 +407,62 @@ function ConfigurationPage() {
       }
     };
   }, []);
+
+  /*
+   * =========================================================
+   * ACTIVE / ARCHIVED COLLECTIONS
+   * =========================================================
+   */
+
+  const activeSeverityOptions =
+    severityOptions.filter(
+      (option) =>
+        option.isActive
+    );
+
+  const archivedSeverityOptions =
+    severityOptions.filter(
+      (option) =>
+        !option.isActive
+    );
+
+  const activeWeightOptions =
+    weightOptions.filter(
+      (option) =>
+        option.isActive
+    );
+
+  const archivedWeightOptions =
+    weightOptions.filter(
+      (option) =>
+        !option.isActive
+    );
+
+  /*
+   * =========================================================
+   * ARCHIVE MODAL
+   * =========================================================
+   */
+
+  function openArchiveModal(
+    kind: OptionKind
+  ) {
+    setSettingsMenuKind(null);
+
+    setArchiveModalKind(kind);
+  }
+
+  function closeArchiveModal() {
+    if (
+      actionId !== null
+    ) {
+      return;
+    }
+
+    setPendingConfirmation(null);
+
+    setArchiveModalKind(null);
+  }
 
   /*
    * =========================================================
@@ -1829,8 +1893,8 @@ function ConfigurationPage() {
 
     const options =
       kind === "severity"
-        ? severityOptions
-        : weightOptions;
+        ? activeSeverityOptions
+        : activeWeightOptions;
 
     return (
       <div className="configuration-header-actions">
@@ -1910,6 +1974,28 @@ function ConfigurationPage() {
                     : "Reorder strike weights"}
                 </span>
               </button>
+
+              <button
+                type="button"
+                className="configuration-settings-item"
+                role="menuitem"
+                onClick={() =>
+                  openArchiveModal(
+                    kind
+                  )
+                }
+              >
+                <span className="settings-item-icon">
+                  ▣
+                </span>
+
+                <span>
+                  {kind ===
+                  "severity"
+                    ? `Archived (${archivedSeverityOptions.length})`
+                    : `Archived (${archivedWeightOptions.length})`}
+                </span>
+              </button>
             </div>
           )}
         </div>
@@ -1984,7 +2070,7 @@ function ConfigurationPage() {
                 options...
               </strong>
             </div>
-          ) : severityOptions.length ===
+          ) : activeSeverityOptions.length ===
             0 ? (
             <div className="empty-state">
               <strong>
@@ -2005,7 +2091,7 @@ function ConfigurationPage() {
                   : "config-list"
               }
             >
-              {severityOptions.map(
+              {activeSeverityOptions.map(
                 (
                   option,
                   index
@@ -2212,7 +2298,7 @@ function ConfigurationPage() {
                 options...
               </strong>
             </div>
-          ) : weightOptions.length ===
+          ) : activeWeightOptions.length ===
             0 ? (
             <div className="empty-state">
               <strong>
@@ -2233,7 +2319,7 @@ function ConfigurationPage() {
                   : "config-list"
               }
             >
-              {weightOptions.map(
+              {activeWeightOptions.map(
                 (
                   option,
                   index
@@ -2417,6 +2503,212 @@ function ConfigurationPage() {
           )}
         </section>
       </div>
+
+      {/* =====================================================
+          ARCHIVE MODAL
+          ===================================================== */}
+
+      {archiveModalKind && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={
+            closeArchiveModal
+          }
+        >
+          <div
+            className="modal modal-history configuration-archive-modal"
+            onMouseDown={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="modal-header">
+              <div>
+                <h3>
+                  {archiveModalKind ===
+                  "severity"
+                    ? "Archived Severity"
+                    : "Archived Weights"}
+                </h3>
+
+                <p>
+                  {archiveModalKind ===
+                  "severity"
+                    ? "Severity levels that are no longer available for new rule configuration."
+                    : "Strike weights that are no longer available for new rule configuration."}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close"
+                onClick={
+                  closeArchiveModal
+                }
+                disabled={
+                  actionId !== null
+                }
+                aria-label="Close archive"
+              >
+                ×
+              </button>
+            </div>
+
+            {isLoading ? (
+              <div className="empty-state">
+                <strong>
+                  Loading archive...
+                </strong>
+              </div>
+            ) : archiveModalKind ===
+                "severity" ? (
+              archivedSeverityOptions.length ===
+              0 ? (
+                <div className="empty-state">
+                  <strong>
+                    No archived severity levels
+                  </strong>
+
+                  <span>
+                    Severity levels you archive will appear here.
+                  </span>
+                </div>
+              ) : (
+                <div className="config-list configuration-archive-list">
+                  {archivedSeverityOptions.map(
+                    (option) => (
+                      <div
+                        key={option.id}
+                        className="config-item configuration-archive-item"
+                      >
+                        <div className="config-item-main">
+                          <div className="config-item-header">
+                            <strong>
+                              {option.name}
+                            </strong>
+                          </div>
+
+                          <p className="config-description">
+                            {option.description ||
+                              "No description provided."}
+                          </p>
+
+                          {option.archivedAt && (
+                            <span className="config-meta">
+                              Archived: {" "}
+                              {new Date(
+                                option.archivedAt
+                              ).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="config-actions">
+                          <button
+                            type="button"
+                            className="text-button success"
+                            disabled={
+                              actionId ===
+                              option.id
+                            }
+                            onClick={() =>
+                              requestStatusChange(
+                                "severity",
+                                option
+                              )
+                            }
+                          >
+                            {actionId ===
+                            option.id
+                              ? "Updating..."
+                              : "Reactivate"}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              )
+            ) : archivedWeightOptions.length ===
+              0 ? (
+              <div className="empty-state">
+                <strong>
+                  No archived strike weights
+                </strong>
+
+                <span>
+                  Strike weights you archive will appear here.
+                </span>
+              </div>
+            ) : (
+              <div className="config-list configuration-archive-list">
+                {archivedWeightOptions.map(
+                  (option) => (
+                    <div
+                      key={option.id}
+                      className="config-item configuration-archive-item"
+                    >
+                      <div className="config-item-main">
+                        <div className="config-item-header">
+                          <div className="config-title-row">
+                            <strong>
+                              {option.name}
+                            </strong>
+
+                            {option.value !==
+                              null && (
+                              <span className="weight-value">
+                                {option.value}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="config-description">
+                          {option.description ||
+                            "No description provided."}
+                        </p>
+
+                        {option.archivedAt && (
+                          <span className="config-meta">
+                            Archived: {" "}
+                            {new Date(
+                              option.archivedAt
+                            ).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="config-actions">
+                        <button
+                          type="button"
+                          className="text-button success"
+                          disabled={
+                            actionId ===
+                            option.id
+                          }
+                          onClick={() =>
+                            requestStatusChange(
+                              "weight",
+                              option
+                            )
+                          }
+                        >
+                          {actionId ===
+                          option.id
+                            ? "Updating..."
+                            : "Reactivate"}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* =====================================================
           ADD / EDIT MODAL

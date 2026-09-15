@@ -401,7 +401,7 @@
 
   grid-template-columns:
     repeat(
-      4,
+      3,
       minmax(0, 1fr)
     );
 
@@ -460,6 +460,14 @@
   animation-delay: 105ms;
 }
 
+.chatter-stat-card:nth-child(5) {
+  animation-delay: 140ms;
+}
+
+.chatter-stat-card:nth-child(6) {
+  animation-delay: 175ms;
+}
+
 @keyframes chatter-stat-show {
   from {
     opacity: 0;
@@ -514,6 +522,16 @@
     var(--danger);
 }
 
+.chatter-stat-card.active-strikes::before {
+  background:
+    var(--success);
+}
+
+.chatter-stat-card.expired-strikes::before {
+  background:
+    var(--info);
+}
+
 .chatter-stat-card span {
   color:
     var(--text-muted);
@@ -552,6 +570,16 @@
     var(--danger);
 }
 
+.chatter-stat-card.active-strikes strong {
+  color:
+    var(--success);
+}
+
+.chatter-stat-card.expired-strikes strong {
+  color:
+    var(--info);
+}
+
 
 /* =========================================================
    HISTORY
@@ -569,6 +597,18 @@
 
 .incident-history-heading {
   align-items: center;
+}
+
+.chatter-history-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chatter-strike-filter {
+  min-width: 160px;
 }
 
 .chatter-incident-filters {
@@ -703,6 +743,42 @@
   font-weight: 680;
 }
 
+.chatter-strike-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 25px;
+  padding: 0 9px;
+
+  border: 1px solid transparent;
+  border-radius: 999px;
+
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.chatter-strike-status.active {
+  border-color:
+    rgba(157, 213, 168, 0.14);
+
+  background:
+    var(--success-bg);
+  color:
+    var(--success);
+}
+
+.chatter-strike-status.expired {
+  border-color:
+    rgba(174, 188, 224, 0.16);
+
+  background:
+    var(--info-bg);
+  color:
+    var(--info);
+}
+
 .chatter-incident-meta {
   display: flex !important;
 
@@ -730,7 +806,9 @@
 .chatter-incident-meta
   span:not(:first-child)::before,
 .chatter-incident-meta
-  time::before {
+  time::before,
+.chatter-incident-meta
+  .chatter-strike-expiry::before {
   content: "•";
 
   position: absolute;
@@ -738,6 +816,11 @@
   left: -10px;
 
   color: #59595f;
+}
+
+.chatter-strike-expiry {
+  color:
+    var(--text-muted);
 }
 
 
@@ -897,6 +980,82 @@
 
   overflow-wrap:
     anywhere;
+}
+
+.chatter-incident-strike {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  margin-top: 15px;
+  padding: 13px;
+
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.chatter-incident-strike.active {
+  border-color:
+    rgba(157, 213, 168, 0.19);
+
+  background:
+    var(--success-bg);
+}
+
+.chatter-incident-strike.expired {
+  border-color:
+    rgba(174, 188, 224, 0.19);
+
+  background:
+    var(--info-bg);
+}
+
+.chatter-incident-strike > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chatter-incident-strike span {
+  color:
+    var(--text-muted);
+
+  font-size: 8px;
+  font-weight: 750;
+
+  letter-spacing:
+    0.09em;
+
+  text-transform:
+    uppercase;
+}
+
+.chatter-incident-strike strong {
+  color:
+    var(--text);
+
+  font-size: 10px;
+}
+
+.chatter-incident-strike.active strong {
+  color:
+    var(--success);
+}
+
+.chatter-incident-strike.expired strong {
+  color:
+    var(--info);
+}
+
+.chatter-incident-strike small {
+  color:
+    var(--text-muted);
+
+  font-size: 8.5px;
+  line-height: 1.45;
+
+  text-align: right;
 }
 
 
@@ -1073,7 +1232,17 @@
       column;
   }
 
+  .chatter-history-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .chatter-strike-filter {
+    flex: 1 1 190px;
+  }
+
   .chatter-incident-filters {
+    flex: 1 1 100%;
     width: 100%;
   }
 
@@ -1130,11 +1299,28 @@
     font-size: 17px;
   }
 
+  .chatter-history-controls {
+    align-items: stretch;
+  }
+
+  .chatter-strike-filter {
+    width: 100%;
+  }
+
   .chatter-incident-filters {
     display: grid;
 
     grid-template-columns:
       repeat(2, 1fr);
+  }
+
+  .chatter-incident-strike {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .chatter-incident-strike small {
+    text-align: left;
   }
 }
 

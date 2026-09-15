@@ -19,6 +19,11 @@ type IncidentStatus =
   | "RESOLVED"
   | "VOIDED";
 
+type StrikeActivityStatus =
+  | "ACTIVE"
+  | "EXPIRED"
+  | "NOT_APPLICABLE";
+
 type Chatter = {
   id: string;
   name: string;
@@ -77,6 +82,10 @@ type Incident = {
     | null;
 
   occurredAt: string;
+  expiresAt: string;
+
+  strikeActivityStatus:
+    StrikeActivityStatus;
 
   details: string;
 
@@ -139,6 +148,11 @@ type IncidentFilter =
   | "ALL"
   | IncidentStatus;
 
+type StrikeActivityFilter =
+  | "ALL"
+  | "ACTIVE"
+  | "EXPIRED";
+
 type ActionType =
   | "resolve"
   | "void";
@@ -200,6 +214,14 @@ function IncidentsPage() {
     setStatusFilter,
   ] =
     useState<IncidentFilter>(
+      "ALL"
+    );
+
+  const [
+    strikeActivityFilter,
+    setStrikeActivityFilter,
+  ] =
+    useState<StrikeActivityFilter>(
       "ALL"
     );
 
@@ -549,7 +571,7 @@ function IncidentsPage() {
 
   /*
    * =========================================================
-   * LOCAL SEARCH
+   * LOCAL SEARCH + STRIKE ACTIVITY FILTER
    * =========================================================
    */
 
@@ -559,12 +581,22 @@ function IncidentsPage() {
         .trim()
         .toLowerCase();
 
-      if (!query) {
-        return incidents;
-      }
-
       return incidents.filter(
         (incident) => {
+          if (
+            strikeActivityFilter !==
+              "ALL" &&
+            incident
+              .strikeActivityStatus !==
+              strikeActivityFilter
+          ) {
+            return false;
+          }
+
+          if (!query) {
+            return true;
+          }
+
           const searchable = [
             incident.chatter.name,
 
@@ -584,6 +616,30 @@ function IncidentsPage() {
 
             incident.status,
 
+            formatStatus(
+              incident.status
+            ),
+
+            incident
+              .strikeActivityStatus,
+
+            formatStrikeActivityStatus(
+              incident
+                .strikeActivityStatus
+            ),
+
+            incident.occurredAt,
+
+            new Date(
+              incident.occurredAt
+            ).toLocaleString(),
+
+            incident.expiresAt,
+
+            new Date(
+              incident.expiresAt
+            ).toLocaleString(),
+
             incident
               .resolutionNotes,
 
@@ -601,6 +657,7 @@ function IncidentsPage() {
     }, [
       incidents,
       search,
+      strikeActivityFilter,
     ]);
 
   /*
@@ -1245,6 +1302,56 @@ function IncidentsPage() {
     return "Voided";
   }
 
+  function getStrikeActivityClass(
+    status: StrikeActivityStatus
+  ) {
+    if (
+      status === "ACTIVE"
+    ) {
+      return "incident-status resolved";
+    }
+
+    if (
+      status === "EXPIRED"
+    ) {
+      return "incident-status open";
+    }
+
+    return "";
+  }
+
+  function formatStrikeActivityStatus(
+    status: StrikeActivityStatus
+  ) {
+    if (
+      status === "ACTIVE"
+    ) {
+      return "Active";
+    }
+
+    if (
+      status === "EXPIRED"
+    ) {
+      return "Expired";
+    }
+
+    return "—";
+  }
+
+  function formatExpiryLabel(
+    status: StrikeActivityStatus
+  ) {
+    if (
+      status === "NOT_APPLICABLE"
+    ) {
+      return "Expiry";
+    }
+
+    return status === "EXPIRED"
+      ? "Expired"
+      : "Expires";
+  }
+
   /*
    * =========================================================
    * PAGE
@@ -1267,9 +1374,10 @@ function IncidentsPage() {
             Log, review, resolve,
             and void chatter
             incidents while
-            preserving the exact
-            rule version that
-            applied.
+            preserving historical
+            rule data and tracking
+            each strike's 30-day
+            activity period.
           </p>
         </div>
 
@@ -1330,9 +1438,9 @@ function IncidentsPage() {
             <p>
               Historical rule
               wording, severity,
-              and weight are
-              preserved with every
-              record.
+              weight, and strike
+              expiry are preserved
+              with every record.
             </p>
           </div>
 
@@ -1428,6 +1536,32 @@ function IncidentsPage() {
               )}
             </select>
 
+            <select
+              className="toolbar-select"
+              value={
+                strikeActivityFilter
+              }
+              onChange={(event) =>
+                setStrikeActivityFilter(
+                  event.target
+                    .value as StrikeActivityFilter
+                )
+              }
+              aria-label="Filter by strike status"
+            >
+              <option value="ALL">
+                All Strike Statuses
+              </option>
+
+              <option value="ACTIVE">
+                Active Strikes
+              </option>
+
+              <option value="EXPIRED">
+                Expired Strikes
+              </option>
+            </select>
+
             <div className="filter-group">
               {(
                 [
@@ -1495,7 +1629,9 @@ function IncidentsPage() {
               {search.trim() ||
               chatterFilter ||
               ruleFilter ||
-              statusFilter !== "ALL"
+              statusFilter !== "ALL" ||
+              strikeActivityFilter !==
+                "ALL"
                 ? "No incident records match the current search or filters."
                 : "Incident records will appear here after they are logged."}
             </span>
@@ -1503,118 +1639,181 @@ function IncidentsPage() {
         ) : (
           <div className="table-wrapper">
             <table className="data-table incidents-table">
-  <thead>
-    <tr>
-      <th>Chatter</th>
-      <th>Rule</th>
-      <th>Severity</th>
-      <th>Weight</th>
-      <th>Occurred</th>
-      <th>Status</th>
-    </tr>
-  </thead>
+              <thead>
+                <tr>
+                  <th>Chatter</th>
+                  <th>Rule</th>
+                  <th>Severity</th>
+                  <th>Weight</th>
+                  <th>Occurred</th>
+                  <th>Expires</th>
+                  <th>
+                    Incident Status
+                  </th>
+                  <th>
+                    Strike Status
+                  </th>
+                </tr>
+              </thead>
 
-  <tbody>
-    {visibleIncidents.map(
-      (incident) => (
-        <tr
-          key={incident.id}
-          className="incident-clickable-row"
-          tabIndex={0}
-          role="button"
-          aria-label={`View ${incident.ruleTitleSnapshot} incident for ${incident.chatter.name}`}
-          onClick={() =>
-            void openIncidentDetails(
-              incident
-            )
-          }
-          onKeyDown={(event) => {
-            if (
-              event.key === "Enter" ||
-              event.key === " "
-            ) {
-              event.preventDefault();
+              <tbody>
+                {visibleIncidents.map(
+                  (incident) => (
+                    <tr
+                      key={incident.id}
+                      className="incident-clickable-row"
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`View ${incident.ruleTitleSnapshot} incident for ${incident.chatter.name}`}
+                      onClick={() =>
+                        void openIncidentDetails(
+                          incident
+                        )
+                      }
+                      onKeyDown={(event) => {
+                        if (
+                          event.key ===
+                            "Enter" ||
+                          event.key === " "
+                        ) {
+                          event.preventDefault();
 
-              void openIncidentDetails(
-                incident
-              );
-            }
-          }}
-        >
-          <td>
-            <div className="primary-cell">
-              {incident.chatter.name}
-            </div>
-          </td>
+                          void openIncidentDetails(
+                            incident
+                          );
+                        }
+                      }}
+                    >
+                      <td>
+                        <div className="primary-cell">
+                          {
+                            incident
+                              .chatter.name
+                          }
+                        </div>
+                      </td>
 
-          <td>
-            <div className="incident-rule-cell">
-              <strong>
-                {
-                  incident.ruleTitleSnapshot
-                }
-              </strong>
+                      <td>
+                        <div className="incident-rule-cell">
+                          <strong>
+                            {
+                              incident
+                                .ruleTitleSnapshot
+                            }
+                          </strong>
 
-              <span>
-                v
-                {
-                  incident.ruleVersion
-                    .versionNumber
-                }
-              </span>
-            </div>
-          </td>
+                          <span>
+                            v
+                            {
+                              incident
+                                .ruleVersion
+                                .versionNumber
+                            }
+                          </span>
+                        </div>
+                      </td>
 
-          <td>
-            {incident.severityNameSnapshot ??
-              "—"}
-          </td>
+                      <td>
+                        {incident
+                          .severityNameSnapshot ??
+                          "—"}
+                      </td>
 
-          <td>
-            {incident.weightNameSnapshot ? (
-              <div className="weight-display">
-                <span>
-                  {
-                    incident.weightNameSnapshot
-                  }
-                </span>
+                      <td>
+                        {incident
+                          .weightNameSnapshot ? (
+                          <div className="weight-display">
+                            <span>
+                              {
+                                incident
+                                  .weightNameSnapshot
+                              }
+                            </span>
 
-                {incident.weightValueSnapshot !==
-                  null && (
-                  <span className="weight-value">
-                    {
-                      incident.weightValueSnapshot
-                    }
-                  </span>
+                            {incident
+                              .weightValueSnapshot !==
+                              null && (
+                              <span className="weight-value">
+                                {
+                                  incident
+                                    .weightValueSnapshot
+                                }
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+
+                      <td>
+                        {new Date(
+                          incident.occurredAt
+                        ).toLocaleString()}
+                      </td>
+
+                      <td>
+                        <div className="incident-rule-cell">
+                          <strong>
+                            {incident
+                              .strikeActivityStatus ===
+                            "NOT_APPLICABLE"
+                              ? "—"
+                              : new Date(
+                                  incident.expiresAt
+                                ).toLocaleString()}
+                          </strong>
+
+                          <span>
+                            {incident
+                              .strikeActivityStatus ===
+                            "NOT_APPLICABLE"
+                              ? "Not applicable"
+                              : incident
+                                    .strikeActivityStatus ===
+                                  "EXPIRED"
+                                ? "Expired"
+                                : "30-day expiry"}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span
+                          className={getStatusClass(
+                            incident.status
+                          )}
+                        >
+                          {formatStatus(
+                            incident.status
+                          )}
+                        </span>
+                      </td>
+
+                      <td>
+                        {incident
+                          .strikeActivityStatus ===
+                        "NOT_APPLICABLE" ? (
+                          <span>—</span>
+                        ) : (
+                          <span
+                            className={getStrikeActivityClass(
+                              incident
+                                .strikeActivityStatus
+                            )}
+                          >
+                            {formatStrikeActivityStatus(
+                              incident
+                                .strikeActivityStatus
+                            )}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
                 )}
-              </div>
-            ) : (
-              "—"
-            )}
-          </td>
-
-          <td>
-            {new Date(
-              incident.occurredAt
-            ).toLocaleString()}
-          </td>
-
-          <td>
-            <span
-              className={getStatusClass(
-                incident.status
-              )}
-            >
-              {formatStatus(
-                incident.status
-              )}
-            </span>
-          </td>
-        </tr>
-      )
-    )}
-  </tbody>
-</table>
+              </tbody>
+            </table>
           </div>
         )}
       </section>
@@ -1648,9 +1847,10 @@ function IncidentsPage() {
                   Select a chatter
                   and rule.
                   Severity, weight,
-                  and the exact rule
-                  version are
-                  captured
+                  the exact rule
+                  version, and the
+                  30-day strike
+                  expiry are captured
                   automatically.
                 </p>
               </div>
@@ -2048,15 +2248,45 @@ function IncidentsPage() {
                       </strong>
                     </div>
 
-                    <span
-                      className={getStatusClass(
-                        selectedIncident.status
-                      )}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems:
+                          "center",
+                        gap: "8px",
+                        flexWrap: "wrap",
+                        justifyContent:
+                          "flex-end",
+                      }}
                     >
-                      {formatStatus(
-                        selectedIncident.status
+                      <span
+                        className={getStatusClass(
+                          selectedIncident.status
+                        )}
+                        title="Incident workflow status"
+                      >
+                        {formatStatus(
+                          selectedIncident.status
+                        )}
+                      </span>
+
+                      {selectedIncident
+                        .strikeActivityStatus !==
+                        "NOT_APPLICABLE" && (
+                        <span
+                          className={getStrikeActivityClass(
+                            selectedIncident
+                              .strikeActivityStatus
+                          )}
+                          title="Current strike activity status"
+                        >
+                          {formatStrikeActivityStatus(
+                            selectedIncident
+                              .strikeActivityStatus
+                          )}
+                        </span>
                       )}
-                    </span>
+                    </div>
                   </div>
 
                   <div className="detail-section">
@@ -2132,6 +2362,42 @@ function IncidentsPage() {
                           {new Date(
                             selectedIncident.occurredAt
                           ).toLocaleString()}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>
+                          {formatExpiryLabel(
+                            selectedIncident
+                              .strikeActivityStatus
+                          )}
+                        </span>
+
+                        <strong>
+                          {selectedIncident
+                            .strikeActivityStatus ===
+                          "NOT_APPLICABLE"
+                            ? "Not applicable"
+                            : new Date(
+                                selectedIncident.expiresAt
+                              ).toLocaleString()}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>
+                          Strike Status
+                        </span>
+
+                        <strong>
+                          {selectedIncident
+                            .strikeActivityStatus ===
+                          "NOT_APPLICABLE"
+                            ? "—"
+                            : formatStrikeActivityStatus(
+                                selectedIncident
+                                  .strikeActivityStatus
+                              )}
                         </strong>
                       </div>
                     </div>
@@ -2589,6 +2855,16 @@ function IncidentsPage() {
                           undefined
                           ? ` (${selectedRule.currentVersion.weightValueSnapshot})`
                           : ""}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Strike Duration
+                      </span>
+
+                      <strong>
+                        30 days
                       </strong>
                     </div>
                   </div>

@@ -4936,3 +4936,488 @@ body {
     min-width: 0;
   }
 }
+/* =========================================================
+   XYZ HUB — STRIKE EXPIRY + CONFIGURATION ARCHIVE POLISH
+   Added after the canonical overrides so these rules remain
+   authoritative for the current local build.
+   ========================================================= */
+
+
+/* =========================================================
+   CONFIGURATION — ARCHIVE MENU ACTION
+
+   Archive is intentionally styled as a warning/management
+   action rather than a destructive delete action.
+   ========================================================= */
+
+.configuration-settings-menu
+  .configuration-settings-item:last-child {
+  color: var(--warning);
+
+  background:
+    rgba(205, 157, 67, 0.045);
+}
+
+.configuration-settings-menu
+  .configuration-settings-item:last-child
+  .settings-item-icon {
+  border-color:
+    rgba(225, 189, 119, 0.2);
+
+  background:
+    var(--warning-bg);
+
+  color:
+    var(--warning);
+}
+
+.configuration-settings-menu
+  .configuration-settings-item:last-child:hover:not(:disabled) {
+  background:
+    rgba(205, 157, 67, 0.12);
+
+  color:
+    #edcb89;
+}
+
+.configuration-settings-menu
+  .configuration-settings-item:last-child:hover:not(:disabled)
+  .settings-item-icon {
+  border-color:
+    rgba(225, 189, 119, 0.36);
+
+  background:
+    rgba(205, 157, 67, 0.16);
+
+  color:
+    #edcb89;
+}
+
+
+/* =========================================================
+   CONFIGURATION — ARCHIVE MODAL
+   ========================================================= */
+
+.configuration-archive-modal {
+  width:
+    min(720px, 100%);
+
+  max-width:
+    720px;
+
+  overflow:
+    hidden;
+}
+
+.configuration-archive-modal
+  .modal-header {
+  background:
+    rgba(255, 255, 255, 0.012);
+}
+
+.configuration-archive-modal
+  .empty-state {
+  min-height:
+    185px;
+}
+
+.configuration-archive-list {
+  max-height:
+    min(58vh, 520px);
+
+  overflow-y:
+    auto;
+
+  padding:
+    7px 0;
+}
+
+.configuration-archive-item {
+  display:
+    grid !important;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto !important;
+
+  grid-template-rows:
+    auto !important;
+
+  align-items:
+    center !important;
+
+  gap:
+    24px !important;
+
+  min-height:
+    104px;
+
+  padding:
+    18px 22px;
+
+  background:
+    transparent;
+}
+
+.configuration-archive-item:hover {
+  background:
+    rgba(255, 255, 255, 0.018);
+}
+
+.configuration-archive-item
+  .config-item-main {
+  display:
+    block !important;
+
+  grid-column:
+    auto !important;
+
+  grid-row:
+    auto !important;
+
+  min-width:
+    0;
+}
+
+.configuration-archive-item
+  .config-item-header {
+  display:
+    block !important;
+
+  grid-column:
+    auto !important;
+
+  grid-row:
+    auto !important;
+
+  margin:
+    0 0 7px !important;
+}
+
+.configuration-archive-item
+  .config-description {
+  grid-column:
+    auto !important;
+
+  grid-row:
+    auto !important;
+}
+
+.configuration-archive-item
+  .config-meta {
+  grid-column:
+    auto !important;
+
+  grid-row:
+    auto !important;
+
+  margin-top:
+    9px;
+
+  color:
+    var(--text-soft);
+}
+
+.configuration-archive-item
+  .config-actions {
+  grid-column:
+    auto !important;
+
+  grid-row:
+    auto !important;
+
+  align-self:
+    center !important;
+
+  justify-self:
+    end !important;
+
+  width:
+    auto !important;
+
+  padding:
+    0 !important;
+}
+
+.configuration-archive-item
+  .text-button.success {
+  min-width:
+    76px;
+
+  padding:
+    6px 8px;
+
+  border-radius:
+    6px;
+
+  background:
+    rgba(91, 168, 107, 0.055);
+
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.configuration-archive-item
+  .text-button.success:hover:not(:disabled) {
+  background:
+    var(--success-bg);
+
+  color:
+    var(--success);
+}
+
+
+/* =========================================================
+   INCIDENTS — STRIKE EXPIRY COLUMNS
+   ========================================================= */
+
+.incidents-table {
+  min-width:
+    1240px;
+}
+
+.incidents-table
+  th:nth-child(5),
+.incidents-table
+  td:nth-child(5) {
+  width:
+    170px;
+}
+
+.incidents-table
+  th:nth-child(6),
+.incidents-table
+  td:nth-child(6) {
+  width:
+    190px;
+}
+
+.incidents-table
+  th:nth-child(7),
+.incidents-table
+  td:nth-child(7),
+.incidents-table
+  th:nth-child(8),
+.incidents-table
+  td:nth-child(8) {
+  width:
+    120px;
+
+  white-space:
+    nowrap;
+}
+
+.incidents-table
+  td:nth-child(5) {
+  white-space:
+    nowrap;
+}
+
+.incidents-table
+  td:nth-child(6)
+  .incident-rule-cell {
+  min-width:
+    150px;
+}
+
+.incidents-table
+  td:nth-child(6)
+  .incident-rule-cell
+  strong {
+  white-space:
+    nowrap;
+
+  color:
+    var(--text-secondary);
+}
+
+.incidents-table
+  td:nth-child(6)
+  .incident-rule-cell
+  span {
+  color:
+    var(--text-soft);
+}
+
+/* A voided incident has no strike lifecycle. */
+.incidents-table
+  td:nth-child(8)
+  > span:not([class]) {
+  color:
+    var(--text-soft);
+
+  font-weight:
+    700;
+}
+
+
+/* =========================================================
+   DASHBOARD — RECENT ACTIVITY STRIKE LIFECYCLE
+   ========================================================= */
+
+.dashboard-table {
+  min-width:
+    1200px;
+}
+
+.dashboard-table
+  th:nth-child(5),
+.dashboard-table
+  td:nth-child(5),
+.dashboard-table
+  th:nth-child(6),
+.dashboard-table
+  td:nth-child(6) {
+  width:
+    175px;
+
+  white-space:
+    nowrap;
+}
+
+.dashboard-table
+  th:nth-child(7),
+.dashboard-table
+  td:nth-child(7),
+.dashboard-table
+  th:nth-child(8),
+.dashboard-table
+  td:nth-child(8) {
+  width:
+    120px;
+
+  white-space:
+    nowrap;
+}
+
+/*
+ * Expired strikes currently reuse status-badge.inactive in
+ * DashboardPage. Scope the override to the Strike Status column
+ * so an expired strike reads as historical/warning rather than
+ * looking like an inactive chatter.
+ */
+.dashboard-table
+  td:nth-child(8)
+  .status-badge.inactive {
+  border-color:
+    rgba(225, 189, 119, 0.18);
+
+  background:
+    var(--warning-bg);
+
+  color:
+    var(--warning);
+}
+
+/* Voided incidents have no applicable strike status. */
+.dashboard-table
+  td:nth-child(8)
+  > span:not([class]) {
+  color:
+    var(--text-soft);
+
+  font-weight:
+    700;
+}
+
+
+/* =========================================================
+   STRIKE STATUS — VISUAL CONSISTENCY
+   ========================================================= */
+
+/* Active strike badges remain green. */
+.incidents-table
+  td:nth-child(8)
+  .incident-status.resolved,
+.dashboard-table
+  td:nth-child(8)
+  .status-badge.active {
+  box-shadow:
+    inset 0 0 0 1px
+      rgba(157, 213, 168, 0.025);
+}
+
+/* Expired strike badges remain warning/gold. */
+.incidents-table
+  td:nth-child(8)
+  .incident-status.open,
+.dashboard-table
+  td:nth-child(8)
+  .status-badge.inactive {
+  box-shadow:
+    inset 0 0 0 1px
+      rgba(225, 189, 119, 0.025);
+}
+
+
+/* =========================================================
+   RESPONSIVE — NEW ARCHIVE / EXPIRY UI
+   ========================================================= */
+
+@media (max-width: 720px) {
+  .configuration-archive-modal {
+    width:
+      100%;
+
+    max-width:
+      none;
+  }
+
+  .configuration-archive-list {
+    max-height:
+      55vh;
+  }
+
+  .configuration-archive-item {
+    grid-template-columns:
+      minmax(0, 1fr) !important;
+
+    gap:
+      14px !important;
+
+    padding:
+      17px 18px;
+  }
+
+  .configuration-archive-item
+    .config-actions {
+    justify-self:
+      stretch !important;
+
+    width:
+      100% !important;
+  }
+
+  .configuration-archive-item
+    .config-actions
+    .text-button {
+    width:
+      100%;
+  }
+
+  .incidents-table,
+  .dashboard-table {
+    min-width:
+      1180px;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION — ARCHIVE UI
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .configuration-settings-menu
+    .configuration-settings-item:last-child,
+  .configuration-settings-menu
+    .configuration-settings-item:last-child
+    .settings-item-icon,
+  .configuration-archive-item,
+  .configuration-archive-item
+    .text-button.success {
+    transition:
+      none !important;
+  }
+}

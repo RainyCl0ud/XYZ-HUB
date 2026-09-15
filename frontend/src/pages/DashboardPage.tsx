@@ -4,6 +4,11 @@ import { apiRequest } from "../lib/api";
 
 type IncidentStatus = "OPEN" | "RESOLVED" | "VOIDED";
 
+type StrikeActivityStatus =
+  | "ACTIVE"
+  | "EXPIRED"
+  | "NOT_APPLICABLE";
+
 type RecentIncident = {
   id: string;
 
@@ -13,7 +18,10 @@ type RecentIncident = {
   weightValueSnapshot: number | null;
 
   occurredAt: string;
+  expiresAt: string;
+
   status: IncidentStatus;
+  strikeActivityStatus: StrikeActivityStatus;
 
   chatter: {
     id: string;
@@ -95,6 +103,30 @@ function DashboardPage() {
     }
 
     return "Voided";
+  }
+
+  function getStrikeStatusClass(
+    status: StrikeActivityStatus
+  ) {
+    if (status === "ACTIVE") {
+      return "status-badge active";
+    }
+
+    return "status-badge inactive";
+  }
+
+  function formatStrikeStatus(
+    status: StrikeActivityStatus
+  ) {
+    if (status === "ACTIVE") {
+      return "Active";
+    }
+
+    if (status === "EXPIRED") {
+      return "Expired";
+    }
+
+    return "—";
   }
 
   return (
@@ -199,60 +231,60 @@ function DashboardPage() {
         </div>
       </section>
 
-  <section className="dashboard-secondary-grid dashboard-secondary-grid-single">
-  <div className="content-card">
-    <div className="card-header">
-      <div>
-        <h3>Incident Status</h3>
+      <section className="dashboard-secondary-grid dashboard-secondary-grid-single">
+        <div className="content-card">
+          <div className="card-header">
+            <div>
+              <h3>Incident Status</h3>
 
-        <p>
-          Current breakdown of all incident records.
-        </p>
-      </div>
-    </div>
+              <p>
+                Current breakdown of all incident records.
+              </p>
+            </div>
+          </div>
 
-    <div className="status-summary">
-      <div className="status-summary-item">
-        <div>
-          <span className="status-dot open" />
-          <span>Open</span>
+          <div className="status-summary">
+            <div className="status-summary-item">
+              <div>
+                <span className="status-dot open" />
+                <span>Open</span>
+              </div>
+
+              <strong>
+                {isLoading
+                  ? "—"
+                  : dashboard?.counts.openIncidents ?? 0}
+              </strong>
+            </div>
+
+            <div className="status-summary-item">
+              <div>
+                <span className="status-dot resolved" />
+                <span>Resolved</span>
+              </div>
+
+              <strong>
+                {isLoading
+                  ? "—"
+                  : dashboard?.counts.resolvedIncidents ?? 0}
+              </strong>
+            </div>
+
+            <div className="status-summary-item">
+              <div>
+                <span className="status-dot voided" />
+                <span>Voided</span>
+              </div>
+
+              <strong>
+                {isLoading
+                  ? "—"
+                  : dashboard?.counts.voidedIncidents ?? 0}
+              </strong>
+            </div>
+          </div>
         </div>
-
-        <strong>
-          {isLoading
-            ? "—"
-            : dashboard?.counts.openIncidents ?? 0}
-        </strong>
-      </div>
-
-      <div className="status-summary-item">
-        <div>
-          <span className="status-dot resolved" />
-          <span>Resolved</span>
-        </div>
-
-        <strong>
-          {isLoading
-            ? "—"
-            : dashboard?.counts.resolvedIncidents ?? 0}
-        </strong>
-      </div>
-
-      <div className="status-summary-item">
-        <div>
-          <span className="status-dot voided" />
-          <span>Voided</span>
-        </div>
-
-        <strong>
-          {isLoading
-            ? "—"
-            : dashboard?.counts.voidedIncidents ?? 0}
-        </strong>
-      </div>
-    </div>
-  </div>
-</section>
+      </section>
 
       <section className="content-card dashboard-recent-card">
         <div className="card-header">
@@ -296,7 +328,9 @@ function DashboardPage() {
                   <th>Severity</th>
                   <th>Weight</th>
                   <th>Occurred</th>
-                  <th>Status</th>
+                  <th>Expires</th>
+                  <th>Incident Status</th>
+                  <th>Strike Status</th>
                 </tr>
               </thead>
 
@@ -361,6 +395,15 @@ function DashboardPage() {
                       </td>
 
                       <td>
+                        {incident.strikeActivityStatus ===
+                        "NOT_APPLICABLE"
+                          ? "—"
+                          : new Date(
+                              incident.expiresAt
+                            ).toLocaleString()}
+                      </td>
+
+                      <td>
                         <span
                           className={getStatusClass(
                             incident.status
@@ -370,6 +413,28 @@ function DashboardPage() {
                             incident.status
                           )}
                         </span>
+                      </td>
+
+                      <td>
+                        {incident.strikeActivityStatus ===
+                        "NOT_APPLICABLE" ? (
+                          <span
+                            aria-label="Not applicable"
+                            title="Voided incidents are invalidated and do not have a strike status."
+                          >
+                            —
+                          </span>
+                        ) : (
+                          <span
+                            className={getStrikeStatusClass(
+                              incident.strikeActivityStatus
+                            )}
+                          >
+                            {formatStrikeStatus(
+                              incident.strikeActivityStatus
+                            )}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   )
