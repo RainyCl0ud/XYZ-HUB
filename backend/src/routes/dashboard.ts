@@ -3,6 +3,31 @@ import { prisma } from "../lib/prisma.js";
 
 const router = Router();
 
+type IncidentWorkflowStatus =
+  | "OPEN"
+  | "RESOLVED"
+  | "VOIDED";
+
+type StrikeActivityStatus =
+  | "ACTIVE"
+  | "EXPIRED"
+  | "NOT_APPLICABLE";
+
+function getStrikeActivityStatus(incident: {
+  status: IncidentWorkflowStatus;
+  expiresAt: Date;
+}): StrikeActivityStatus {
+  if (incident.status === "VOIDED") {
+    return "NOT_APPLICABLE";
+  }
+
+  if (incident.expiresAt.getTime() <= Date.now()) {
+    return "EXPIRED";
+  }
+
+  return "ACTIVE";
+}
+
 // GET /api/dashboard/summary
 router.get("/summary", async (_req, res) => {
   try {
@@ -63,6 +88,7 @@ router.get("/summary", async (_req, res) => {
           weightValueSnapshot: true,
 
           occurredAt: true,
+          expiresAt: true,
           status: true,
 
           chatter: {
@@ -92,14 +118,28 @@ router.get("/summary", async (_req, res) => {
           activeRules,
         },
 
-        recentIncidents,
+        recentIncidents:
+          recentIncidents.map(
+            (incident) => ({
+              ...incident,
+
+              strikeActivityStatus:
+                getStrikeActivityStatus(
+                  incident
+                ),
+            })
+          ),
       },
     });
   } catch (error) {
-    console.error("Failed to load dashboard summary:", error);
+    console.error(
+      "Failed to load dashboard summary:",
+      error
+    );
 
     res.status(500).json({
-      message: "Failed to load dashboard summary",
+      message:
+        "Failed to load dashboard summary",
     });
   }
 });

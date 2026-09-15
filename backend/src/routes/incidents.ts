@@ -4,6 +4,97 @@ import { prisma } from "../lib/prisma.js";
 
 const router = Router();
 
+const STRIKE_DURATION_DAYS = 30;
+
+/*
+ * =========================
+ * STRIKE ACTIVITY HELPERS
+ * =========================
+ */
+
+type IncidentWorkflowStatus =
+  | "OPEN"
+  | "RESOLVED"
+  | "VOIDED";
+
+type StrikeActivityStatus =
+  | "ACTIVE"
+  | "EXPIRED"
+  | "NOT_APPLICABLE";
+
+/**
+ * Returns the current strike activity state.
+ *
+ * Workflow status and strike activity are intentionally separate:
+ *
+ * Workflow:
+ * OPEN / RESOLVED / VOIDED
+ *
+ * Strike activity:
+ * ACTIVE / EXPIRED / NOT_APPLICABLE
+ *
+ * A resolved incident can still count as an active strike until
+ * its 30-day expiry date has passed.
+ *
+ * A voided incident is invalidated. It remains in history for audit
+ * purposes, but it is not considered an active or expired strike.
+ */
+function getStrikeActivityStatus(incident: {
+  status: IncidentWorkflowStatus;
+  expiresAt: Date;
+}): StrikeActivityStatus {
+  if (incident.status === "VOIDED") {
+    return "NOT_APPLICABLE";
+  }
+
+  if (incident.expiresAt.getTime() <= Date.now()) {
+    return "EXPIRED";
+  }
+
+  return "ACTIVE";
+}
+
+/**
+ * Adds the calculated strike activity status to an incident
+ * without modifying the stored incident record.
+ */
+function withStrikeActivity<
+  T extends {
+    status: IncidentWorkflowStatus;
+    expiresAt: Date;
+  },
+>(incident: T) {
+  return {
+    ...incident,
+    strikeActivityStatus:
+      getStrikeActivityStatus(incident),
+  };
+}
+
+/**
+ * Expires exactly 30 x 24 hours after issuance.
+ * This is an elapsed-time calculation, not "same date next month",
+ * so month lengths do not affect the expiry period.
+ */
+function calculateExpiryDate(
+  occurredAt: Date
+): Date {
+  return new Date(
+    occurredAt.getTime() +
+      STRIKE_DURATION_DAYS *
+        24 *
+        60 *
+        60 *
+        1000
+  );
+}
+
+/*
+ * =========================
+ * VALIDATION
+ * =========================
+ */
+
 const createIncidentSchema = z.object({
   chatterId: z
     .string()
@@ -18,7 +109,10 @@ const createIncidentSchema = z.object({
   details: z
     .string()
     .trim()
-    .min(1, "Incident details are required")
+    .min(
+      1,
+      "Incident details are required"
+    )
     .max(
       5000,
       "Incident details must be 5000 characters or fewer"
@@ -31,7 +125,9 @@ const createIncidentSchema = z.object({
       2000,
       "Evidence URL must be 2000 characters or fewer"
     )
-    .url("Evidence URL must be a valid URL")
+    .url(
+      "Evidence URL must be a valid URL"
+    )
     .refine(
       (value) =>
         value.startsWith("http://") ||
@@ -88,12 +184,14 @@ router.get("/", async (req, res) => {
         : undefined;
 
     const chatterId =
-      typeof req.query.chatterId === "string"
+      typeof req.query.chatterId ===
+      "string"
         ? req.query.chatterId
         : undefined;
 
     const ruleId =
-      typeof req.query.ruleId === "string"
+      typeof req.query.ruleId ===
+      "string"
         ? req.query.ruleId
         : undefined;
 
@@ -145,7 +243,9 @@ router.get("/", async (req, res) => {
       });
 
     res.status(200).json({
-      data: incidents,
+      data: incidents.map(
+        withStrikeActivity
+      ),
     });
   } catch (error) {
     console.error(
@@ -198,7 +298,9 @@ router.get("/:id", async (req, res) => {
     }
 
     res.status(200).json({
-      data: incident,
+      data: withStrikeActivity(
+        incident
+      ),
     });
   } catch (error) {
     console.error(
@@ -314,20 +416,18 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * occurredAt is generated here on the server.
-     *
-     * The client can no longer submit or override
-     * the incident timestamp.
-     */
     const occurredAt = new Date();
+
+    const expiresAt =
+      calculateExpiryDate(
+        occurredAt
+      );
 
     const incident =
       await prisma.incident.create({
         data: {
-          chatterId: chatter.id,
+          chatterId:
+            chatter.id,
 
           ruleVersionId:
             currentVersion.id,
@@ -351,6 +451,8 @@ router.post("/", async (req, res) => {
               .weightValueSnapshot,
 
           occurredAt,
+
+          expiresAt,
 
           details:
             result.data.details,
@@ -383,7 +485,9 @@ router.post("/", async (req, res) => {
       message:
         "Incident logged successfully",
 
-      data: incident,
+      data: withStrikeActivity(
+        incident
+      ),
     });
   } catch (error) {
     console.error(
@@ -455,7 +559,8 @@ router.patch(
       }
 
       if (
-        existing.status === "RESOLVED"
+        existing.status ===
+        "RESOLVED"
       ) {
         res.status(409).json({
           message:
@@ -472,14 +577,16 @@ router.patch(
           },
 
           data: {
-            status: "RESOLVED",
+            status:
+              "RESOLVED",
 
             resolutionNotes:
               result.data
                 .resolutionNotes ||
               null,
 
-            resolvedAt: new Date(),
+            resolvedAt:
+              new Date(),
           },
 
           include: {
@@ -505,7 +612,9 @@ router.patch(
         message:
           "Incident resolved successfully",
 
-        data: incident,
+        data: withStrikeActivity(
+          incident
+        ),
       });
     } catch (error) {
       console.error(
@@ -584,12 +693,14 @@ router.patch(
           },
 
           data: {
-            status: "VOIDED",
+            status:
+              "VOIDED",
 
             voidReason:
               result.data.reason,
 
-            voidedAt: new Date(),
+            voidedAt:
+              new Date(),
           },
 
           include: {
@@ -615,7 +726,9 @@ router.patch(
         message:
           "Incident voided successfully",
 
-        data: incident,
+        data: withStrikeActivity(
+          incident
+        ),
       });
     } catch (error) {
       console.error(
