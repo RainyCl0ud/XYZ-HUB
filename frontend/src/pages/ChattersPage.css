@@ -401,11 +401,11 @@
 
   grid-template-columns:
     repeat(
-      3,
+      6,
       minmax(0, 1fr)
     );
 
-  gap: 11px;
+  gap: 8px;
 }
 
 .chatter-stat-card {
@@ -414,9 +414,10 @@
   display: flex;
   flex-direction: column;
 
-  min-height: 104px;
+  min-height: 72px;
 
-  padding: 16px;
+  padding:
+    11px 12px;
 
   overflow: hidden;
 
@@ -424,7 +425,7 @@
     1px solid
     var(--border-soft);
 
-  border-radius: 10px;
+  border-radius: 9px;
 
   background:
     linear-gradient(
@@ -536,18 +537,19 @@
   color:
     var(--text-muted);
 
-  font-size: 9.5px;
+  font-size: 8.5px;
+  line-height: 1.25;
   font-weight: 650;
 }
 
 .chatter-stat-card strong {
   margin-top: auto;
 
-  padding-top: 17px;
+  padding-top: 9px;
 
   color: var(--text);
 
-  font-size: 28px;
+  font-size: 21px;
   line-height: 1;
   font-weight: 680;
 
@@ -761,20 +763,32 @@
 
 .chatter-strike-status.active {
   border-color:
-    rgba(157, 213, 168, 0.14);
+    rgba(
+      157,
+      213,
+      168,
+      0.14
+    );
 
   background:
     var(--success-bg);
+
   color:
     var(--success);
 }
 
 .chatter-strike-status.expired {
   border-color:
-    rgba(174, 188, 224, 0.16);
+    rgba(
+      174,
+      188,
+      224,
+      0.16
+    );
 
   background:
     var(--info-bg);
+
   color:
     var(--info);
 }
@@ -985,19 +999,28 @@
 .chatter-incident-strike {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content:
+    space-between;
   gap: 14px;
 
   margin-top: 15px;
   padding: 13px;
 
-  border: 1px solid transparent;
+  border:
+    1px solid
+    transparent;
+
   border-radius: 8px;
 }
 
 .chatter-incident-strike.active {
   border-color:
-    rgba(157, 213, 168, 0.19);
+    rgba(
+      157,
+      213,
+      168,
+      0.19
+    );
 
   background:
     var(--success-bg);
@@ -1005,13 +1028,19 @@
 
 .chatter-incident-strike.expired {
   border-color:
-    rgba(174, 188, 224, 0.19);
+    rgba(
+      174,
+      188,
+      224,
+      0.19
+    );
 
   background:
     var(--info-bg);
 }
 
-.chatter-incident-strike > div {
+.chatter-incident-strike
+  > div {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1038,12 +1067,14 @@
   font-size: 10px;
 }
 
-.chatter-incident-strike.active strong {
+.chatter-incident-strike.active
+  strong {
   color:
     var(--success);
 }
 
-.chatter-incident-strike.expired strong {
+.chatter-incident-strike.expired
+  strong {
   color:
     var(--info);
 }
@@ -1069,7 +1100,8 @@
   padding: 13px;
 
   border:
-    1px solid transparent;
+    1px solid
+    transparent;
 
   border-radius: 8px;
 }
@@ -1136,7 +1168,7 @@
 
   justify-content: center;
 
-  min-height: 104px;
+  min-height: 78px;
 
   border:
     1px solid
@@ -1219,7 +1251,7 @@
   .chatter-stat-grid {
     grid-template-columns:
       repeat(
-        2,
+        3,
         minmax(0, 1fr)
       );
   }
@@ -1234,15 +1266,20 @@
 
   .chatter-history-controls {
     width: 100%;
-    justify-content: flex-start;
+
+    justify-content:
+      flex-start;
   }
 
   .chatter-strike-filter {
-    flex: 1 1 190px;
+    flex:
+      1 1 190px;
   }
 
   .chatter-incident-filters {
-    flex: 1 1 100%;
+    flex:
+      1 1 100%;
+
     width: 100%;
   }
 
@@ -1300,7 +1337,8 @@
   }
 
   .chatter-history-controls {
-    align-items: stretch;
+    align-items:
+      stretch;
   }
 
   .chatter-strike-filter {
@@ -1311,15 +1349,22 @@
     display: grid;
 
     grid-template-columns:
-      repeat(2, 1fr);
+      repeat(
+        2,
+        1fr
+      );
   }
 
   .chatter-incident-strike {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items:
+      flex-start;
+
+    flex-direction:
+      column;
   }
 
-  .chatter-incident-strike small {
+  .chatter-incident-strike
+    small {
     text-align: left;
   }
 }
@@ -1331,14 +1376,15 @@
 
 @media (
   prefers-reduced-motion:
-  reduce
+    reduce
 ) {
   .chatter-clickable-row,
   .chatter-profile-modal,
   .chatter-stat-card,
   .chatter-incident-item,
   .chatter-incident-chevron,
-  .chatter-incident-chevron svg,
+  .chatter-incident-chevron
+    svg,
   .chatter-incident-details {
     animation:
       none !important;

@@ -10,6 +10,7 @@ import type {
 } from "react";
 
 import { apiRequest } from "../lib/api";
+
 import {
   useToast,
 } from "../components/ToastProvider";
@@ -78,11 +79,6 @@ type MutationResponse = {
   data?: unknown;
 };
 
-type RuleFilter =
-  | "ALL"
-  | "ACTIVE"
-  | "ARCHIVED";
-
 type RulePayload = {
   title: string;
   definition: string;
@@ -123,9 +119,9 @@ function RulesPage() {
   ] = useState<WeightOption[]>([]);
 
   const [
-    filter,
-    setFilter,
-  ] = useState<RuleFilter>("ALL");
+    showArchivedRules,
+    setShowArchivedRules,
+  ] = useState(false);
 
   const [
     search,
@@ -221,24 +217,18 @@ function RulesPage() {
         setIsLoading(true);
         setPageError("");
 
-        let endpoint =
-          "/api/rules";
-
-        if (filter === "ACTIVE") {
-          endpoint +=
-            "?active=true";
-        }
-
-        if (
-          filter === "ARCHIVED"
-        ) {
-          endpoint +=
-            "?active=false";
-        }
-
+        /*
+         * Load active and archived rules together.
+         *
+         * Active records are displayed in the
+         * main table.
+         *
+         * Archived records are displayed in the
+         * separate Archived Rules modal.
+         */
         const response =
           await apiRequest<RuleListResponse>(
-            endpoint
+            "/api/rules"
           );
 
         setRules(response.data);
@@ -257,7 +247,7 @@ function RulesPage() {
       } finally {
         setIsLoading(false);
       }
-    }, [filter, toast]);
+    }, [toast]);
 
   const loadConfiguration =
     useCallback(async () => {
@@ -311,9 +301,23 @@ function RulesPage() {
 
   /*
    * =========================================================
-   * SEARCH
+   * ACTIVE / ARCHIVED RULES + SEARCH
    * =========================================================
    */
+
+  const activeRules =
+    useMemo(() => {
+      return rules.filter(
+        (rule) => rule.isActive
+      );
+    }, [rules]);
+
+  const archivedRules =
+    useMemo(() => {
+      return rules.filter(
+        (rule) => !rule.isActive
+      );
+    }, [rules]);
 
   const visibleRules =
     useMemo(() => {
@@ -322,10 +326,10 @@ function RulesPage() {
         .toLowerCase();
 
       if (!query) {
-        return rules;
+        return activeRules;
       }
 
-      return rules.filter(
+      return activeRules.filter(
         (rule) => {
           const version =
             rule.currentVersion;
@@ -348,7 +352,22 @@ function RulesPage() {
           );
         }
       );
-    }, [rules, search]);
+    }, [
+      activeRules,
+      search,
+    ]);
+
+  function openArchivedRules() {
+    setShowArchivedRules(true);
+  }
+
+  function closeArchivedRules() {
+    if (actionId !== null) {
+      return;
+    }
+
+    setShowArchivedRules(false);
+  }
 
   /*
    * =========================================================
@@ -397,10 +416,13 @@ function RulesPage() {
       setPageError("");
 
       /*
-       * Load all configuration records here
-       * rather than active-only configuration
-       * so historical/current references can
-       * still be represented in the editor.
+       * Load all configuration records here,
+       * including archived options.
+       *
+       * This allows an older/current rule
+       * version to preserve references to
+       * configuration values that may have
+       * since been archived.
        */
       const [
         severityResponse,
@@ -491,13 +513,6 @@ function RulesPage() {
     );
   }
 
-  /*
-   * Submitting the form does NOT immediately
-   * write to the database.
-   *
-   * It validates the form and opens a
-   * confirmation modal first.
-   */
   function handleSubmit(
     event:
       FormEvent<HTMLFormElement>
@@ -565,6 +580,7 @@ function RulesPage() {
   ) {
     try {
       setIsSaving(true);
+
       setFormError("");
       setPageError("");
 
@@ -607,11 +623,6 @@ function RulesPage() {
         null
       );
 
-      /*
-       * The backend intentionally returns
-       * this message when an edit contained
-       * no meaningful changes.
-       */
       if (
         response.message ===
         "No rule changes were detected"
@@ -630,6 +641,7 @@ function RulesPage() {
 
       toast.success(
         response.message,
+
         confirmation.mode ===
         "version"
           ? "Rule version created"
@@ -639,7 +651,7 @@ function RulesPage() {
       await loadRules();
 
       /*
-       * Restore the standard active-only
+       * Restore the normal active-only
        * configuration list after editing.
        */
       await loadConfiguration();
@@ -716,6 +728,7 @@ function RulesPage() {
 
       toast.success(
         response.message,
+
         action === "archive"
           ? "Rule archived"
           : "Rule reactivated"
@@ -802,9 +815,11 @@ function RulesPage() {
           "create"
         ) {
           return {
-            title: "Create Rule?",
+            title:
+              "Create Rule?",
 
-            message: `Create "${pendingConfirmation.payload.title}" as a new rule?`,
+            message:
+              `Create "${pendingConfirmation.payload.title}" as a new rule?`,
 
             confirmLabel:
               "Create Rule",
@@ -871,7 +886,8 @@ function RulesPage() {
       : pendingConfirmation?.type ===
           "status"
         ? actionId ===
-          pendingConfirmation.rule.id
+          pendingConfirmation
+            .rule.id
         : false;
 
   /*
@@ -950,7 +966,9 @@ function RulesPage() {
         <button
           className="primary-button"
           type="button"
-          onClick={openAddRule}
+          onClick={
+            openAddRule
+          }
         >
           Add Rule
         </button>
@@ -987,58 +1005,20 @@ function RulesPage() {
                   event.target.value
                 )
               }
-              placeholder="Search rules..."
-              aria-label="Search rules"
+              placeholder="Search active rules..."
+              aria-label="Search active rules"
             />
 
-            <div className="filter-group">
-              <button
-                type="button"
-                className={
-                  filter === "ALL"
-                    ? "filter-button active"
-                    : "filter-button"
-                }
-                onClick={() =>
-                  setFilter("ALL")
-                }
-              >
-                All
-              </button>
-
-              <button
-                type="button"
-                className={
-                  filter === "ACTIVE"
-                    ? "filter-button active"
-                    : "filter-button"
-                }
-                onClick={() =>
-                  setFilter(
-                    "ACTIVE"
-                  )
-                }
-              >
-                Active
-              </button>
-
-              <button
-                type="button"
-                className={
-                  filter ===
-                  "ARCHIVED"
-                    ? "filter-button active"
-                    : "filter-button"
-                }
-                onClick={() =>
-                  setFilter(
-                    "ARCHIVED"
-                  )
-                }
-              >
-                Archived
-              </button>
-            </div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={
+                openArchivedRules
+              }
+            >
+              Archived (
+              {archivedRules.length})
+            </button>
           </div>
         </div>
 
@@ -1057,8 +1037,8 @@ function RulesPage() {
 
             <span>
               {search.trim()
-                ? "No rules match your search and current filter."
-                : "Add a rule or adjust the current filter."}
+                ? "No active rules match your search."
+                : "Add a rule to begin building your active rule list."}
             </span>
           </div>
         ) : (
@@ -1127,19 +1107,23 @@ function RulesPage() {
                         </td>
 
                         <td>
-                          {version?.weightNameSnapshot ? (
+                          {version
+                            ?.weightNameSnapshot ? (
                             <div className="weight-display">
                               <span>
                                 {
-                                  version.weightNameSnapshot
+                                  version
+                                    .weightNameSnapshot
                                 }
                               </span>
 
-                              {version.weightValueSnapshot !==
+                              {version
+                                .weightValueSnapshot !==
                                 null && (
                                 <span className="weight-value">
                                   {
-                                    version.weightValueSnapshot
+                                    version
+                                      .weightValueSnapshot
                                   }
                                 </span>
                               )}
@@ -1189,19 +1173,17 @@ function RulesPage() {
                               History
                             </button>
 
-                            {rule.isActive && (
-                              <button
-                                type="button"
-                                className="text-button"
-                                onClick={() =>
-                                  void openEditRule(
-                                    rule
-                                  )
-                                }
-                              >
-                                Edit
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              className="text-button"
+                              onClick={() =>
+                                void openEditRule(
+                                  rule
+                                )
+                              }
+                            >
+                              Edit
+                            </button>
 
                             <button
                               type="button"
@@ -1209,11 +1191,7 @@ function RulesPage() {
                                 actionId ===
                                 rule.id
                               }
-                              className={
-                                rule.isActive
-                                  ? "text-button danger"
-                                  : "text-button success"
-                              }
+                              className="text-button danger"
                               onClick={() =>
                                 requestRuleStatusChange(
                                   rule
@@ -1222,10 +1200,8 @@ function RulesPage() {
                             >
                               {actionId ===
                               rule.id
-                                ? "Updating..."
-                                : rule.isActive
-                                  ? "Archive"
-                                  : "Reactivate"}
+                                ? "Archiving..."
+                                : "Archive"}
                             </button>
                           </div>
                         </td>
@@ -1238,6 +1214,205 @@ function RulesPage() {
           </div>
         )}
       </section>
+
+      {/* =====================================================
+          ARCHIVED RULES
+          ===================================================== */}
+
+      {showArchivedRules && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={
+            closeArchivedRules
+          }
+        >
+          <div
+            className="modal modal-history"
+            onMouseDown={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="modal-header">
+              <div>
+                <h3>
+                  Archived Rules
+                </h3>
+
+                <p>
+                  Archived rules are
+                  preserved for
+                  historical records
+                  and can be
+                  reactivated at any
+                  time.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close"
+                onClick={
+                  closeArchivedRules
+                }
+                disabled={
+                  actionId !== null
+                }
+                aria-label="Close archived rules"
+              >
+                ×
+              </button>
+            </div>
+
+            {archivedRules.length ===
+            0 ? (
+              <div className="empty-state">
+                <strong>
+                  No archived rules
+                </strong>
+
+                <span>
+                  Rules that are
+                  archived will
+                  appear here.
+                </span>
+              </div>
+            ) : (
+              <div className="history-list">
+                {archivedRules.map(
+                  (rule) => {
+                    const version =
+                      rule.currentVersion;
+
+                    return (
+                      <article
+                        key={
+                          rule.id
+                        }
+                        className="history-item"
+                      >
+                        <div className="history-item-header">
+                          <div>
+                            <span className="status-badge inactive">
+                              Archived
+                            </span>
+
+                            <h4>
+                              {version
+                                ?.title ??
+                                "Untitled Rule"}
+                            </h4>
+                          </div>
+
+                          {rule.archivedAt && (
+                            <time>
+                              Archived{" "}
+                              {new Date(
+                                rule.archivedAt
+                              ).toLocaleString()}
+                            </time>
+                          )}
+                        </div>
+
+                        <p className="history-definition">
+                          {version
+                            ?.definition ??
+                            "No definition available."}
+                        </p>
+
+                        <div className="history-meta">
+                          <span>
+                            Severity:{" "}
+
+                            <strong>
+                              {version
+                                ?.severityNameSnapshot ??
+                                "None"}
+                            </strong>
+                          </span>
+
+                          <span>
+                            Weight:{" "}
+
+                            <strong>
+                              {version
+                                ?.weightNameSnapshot ??
+                                "None"}
+                            </strong>
+
+                            {version
+                              ?.weightValueSnapshot !==
+                              null &&
+                            version
+                              ?.weightValueSnapshot !==
+                              undefined
+                              ? ` (${version.weightValueSnapshot})`
+                              : ""}
+                          </span>
+
+                          <span>
+                            Version:{" "}
+
+                            <strong>
+                              v
+                              {version
+                                ?.versionNumber ??
+                                0}
+                            </strong>
+                          </span>
+                        </div>
+
+                        <div
+                          className="table-actions"
+                          style={{
+                            marginTop:
+                              "14px",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() =>
+                              void openHistory(
+                                rule
+                              )
+                            }
+                            disabled={
+                              historyLoading
+                            }
+                          >
+                            History
+                          </button>
+
+                          <button
+                            type="button"
+                            className="text-button success"
+                            disabled={
+                              actionId ===
+                              rule.id
+                            }
+                            onClick={() =>
+                              requestRuleStatusChange(
+                                rule
+                              )
+                            }
+                          >
+                            {actionId ===
+                            rule.id
+                              ? "Reactivating..."
+                              : "Reactivate"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  }
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* =====================================================
           ADD / EDIT RULE MODAL
@@ -1418,6 +1593,7 @@ function RulesPage() {
                             {
                               option.name
                             }
+
                             {!option.isActive
                               ? " (Archived)"
                               : ""}
@@ -1604,7 +1780,8 @@ function RulesPage() {
                           <span className="version-badge">
                             Version{" "}
                             {
-                              version.versionNumber
+                              version
+                                .versionNumber
                             }
                           </span>
 
@@ -1631,20 +1808,25 @@ function RulesPage() {
                       <div className="history-meta">
                         <span>
                           Severity:{" "}
+
                           <strong>
-                            {version.severityNameSnapshot ??
+                            {version
+                              .severityNameSnapshot ??
                               "None"}
                           </strong>
                         </span>
 
                         <span>
                           Weight:{" "}
+
                           <strong>
-                            {version.weightNameSnapshot ??
+                            {version
+                              .weightNameSnapshot ??
                               "None"}
                           </strong>
 
-                          {version.weightValueSnapshot !==
+                          {version
+                            .weightValueSnapshot !==
                             null &&
                             ` (${version.weightValueSnapshot})`}
                         </span>
@@ -1748,7 +1930,8 @@ function RulesPage() {
                 >
                   {confirmationBusy
                     ? "Processing..."
-                    : confirmationContent.confirmLabel}
+                    : confirmationContent
+                        .confirmLabel}
                 </button>
               </div>
             </div>
