@@ -10,6 +10,7 @@ import type {
 } from "react";
 
 import { apiRequest } from "../lib/api";
+
 import {
   useToast,
 } from "../components/ToastProvider";
@@ -55,6 +56,7 @@ type RuleVersion = {
 type Rule = {
   id: string;
   isActive: boolean;
+
   currentVersion:
     | RuleVersion
     | null;
@@ -381,13 +383,6 @@ function IncidentsPage() {
 
         setPageError("");
 
-        /*
-         * Complete lists are loaded for
-         * historical filtering.
-         *
-         * Active subsets are then derived
-         * specifically for NEW incidents.
-         */
         const [
           chatterResponse,
           ruleResponse,
@@ -538,7 +533,7 @@ function IncidentsPage() {
 
   /*
    * =========================================================
-   * SELECTED RULE
+   * SELECTED RULE / CHATTER
    * =========================================================
    */
 
@@ -571,7 +566,7 @@ function IncidentsPage() {
 
   /*
    * =========================================================
-   * LOCAL SEARCH + STRIKE ACTIVITY FILTER
+   * SEARCH + STRIKE FILTER
    * =========================================================
    */
 
@@ -662,15 +657,17 @@ function IncidentsPage() {
 
   /*
    * =========================================================
-   * LOG INCIDENT FORM
+   * LOG INCIDENT
    * =========================================================
    */
 
   function resetLogForm() {
     setChatterId("");
+
     setRuleId("");
 
     setDetails("");
+
     setEvidenceUrl("");
 
     setFormError("");
@@ -709,16 +706,6 @@ function IncidentsPage() {
     );
   }
 
-  /*
-   * The form now validates and prepares
-   * the incident only.
-   *
-   * No timestamp is supplied by the
-   * browser.
-   *
-   * The backend records occurredAt when
-   * the incident is actually created.
-   */
   function handleLogIncident(
     event:
       FormEvent<HTMLFormElement>
@@ -792,6 +779,7 @@ function IncidentsPage() {
 
       payload: {
         chatterId,
+
         ruleId,
 
         details:
@@ -816,6 +804,7 @@ function IncidentsPage() {
       setIsSaving(true);
 
       setFormError("");
+
       setPageError("");
 
       const response =
@@ -918,7 +907,7 @@ function IncidentsPage() {
 
   /*
    * =========================================================
-   * RESOLVE / VOID FORM
+   * RESOLVE / VOID
    * =========================================================
    */
 
@@ -970,12 +959,6 @@ function IncidentsPage() {
     );
   }
 
-  /*
-   * Submitting Resolve / Void does not
-   * immediately change the incident.
-   *
-   * It opens the final confirmation first.
-   */
   function handleAction(
     event:
       FormEvent<HTMLFormElement>
@@ -1037,6 +1020,7 @@ function IncidentsPage() {
       setActionSaving(true);
 
       setActionError("");
+
       setPageError("");
 
       let response:
@@ -1067,7 +1051,8 @@ function IncidentsPage() {
 
               body:
                 JSON.stringify({
-                  reason: notes,
+                  reason:
+                    notes,
                 }),
             }
           );
@@ -1082,6 +1067,7 @@ function IncidentsPage() {
       setActionIncident(null);
 
       setActionNotes("");
+
       setActionError("");
 
       if (
@@ -1190,7 +1176,8 @@ function IncidentsPage() {
             (item) =>
               item.id ===
               pendingConfirmation
-                .payload.ruleId
+                .payload
+                .ruleId
           );
 
         return {
@@ -1371,13 +1358,12 @@ function IncidentsPage() {
           </h2>
 
           <p className="page-description">
-            Log, review, resolve,
-            and void chatter
-            incidents while
-            preserving historical
-            rule data and tracking
-            each strike's 30-day
-            activity period.
+            Manage chatter
+            incidents, preserve
+            historical rule data,
+            and track each strike
+            through its automatic
+            30-day lifecycle.
           </p>
         </div>
 
@@ -1436,11 +1422,9 @@ function IncidentsPage() {
             </h3>
 
             <p>
-              Historical rule
-              wording, severity,
-              weight, and strike
-              expiry are preserved
-              with every record.
+              Review current and
+              historical incident
+              records.
             </p>
           </div>
 
@@ -1629,7 +1613,8 @@ function IncidentsPage() {
               {search.trim() ||
               chatterFilter ||
               ruleFilter ||
-              statusFilter !== "ALL" ||
+              statusFilter !==
+                "ALL" ||
               strikeActivityFilter !==
                 "ALL"
                 ? "No incident records match the current search or filters."
@@ -1641,15 +1626,34 @@ function IncidentsPage() {
             <table className="data-table incidents-table">
               <thead>
                 <tr>
-                  <th>Chatter</th>
-                  <th>Rule</th>
-                  <th>Severity</th>
-                  <th>Weight</th>
-                  <th>Occurred</th>
-                  <th>Expires</th>
+                  <th>
+                    Chatter
+                  </th>
+
+                  <th>
+                    Rule
+                  </th>
+
+                  <th>
+                    Severity
+                  </th>
+
+                  <th>
+                    Weight
+                  </th>
+
+                  <th>
+                    Occurred
+                  </th>
+
+                  <th>
+                    Expires
+                  </th>
+
                   <th>
                     Incident Status
                   </th>
+
                   <th>
                     Strike Status
                   </th>
@@ -1658,159 +1662,183 @@ function IncidentsPage() {
 
               <tbody>
                 {visibleIncidents.map(
-                  (incident) => (
-                    <tr
-                      key={incident.id}
-                      className="incident-clickable-row"
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`View ${incident.ruleTitleSnapshot} incident for ${incident.chatter.name}`}
-                      onClick={() =>
-                        void openIncidentDetails(
-                          incident
-                        )
-                      }
-                      onKeyDown={(event) => {
-                        if (
-                          event.key ===
-                            "Enter" ||
-                          event.key === " "
-                        ) {
-                          event.preventDefault();
+                  (incident) => {
+                    const isExpired =
+                      incident
+                        .strikeActivityStatus ===
+                      "EXPIRED";
 
+                    return (
+                      <tr
+                        key={
+                          incident.id
+                        }
+                        className={[
+                          "incident-clickable-row",
+                          isExpired
+                            ? "incident-row-expired"
+                            : "",
+                        ]
+                          .filter(
+                            Boolean
+                          )
+                          .join(" ")}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`View ${incident.ruleTitleSnapshot} incident for ${incident.chatter.name}`}
+                        onClick={() =>
                           void openIncidentDetails(
                             incident
-                          );
+                          )
                         }
-                      }}
-                    >
-                      <td>
-                        <div className="primary-cell">
-                          {
-                            incident
-                              .chatter.name
+                        onKeyDown={(
+                          event
+                        ) => {
+                          if (
+                            event.key ===
+                              "Enter" ||
+                            event.key ===
+                              " "
+                          ) {
+                            event.preventDefault();
+
+                            void openIncidentDetails(
+                              incident
+                            );
                           }
-                        </div>
-                      </td>
-
-                      <td>
-                        <div className="incident-rule-cell">
-                          <strong>
+                        }}
+                      >
+                        <td>
+                          <div className="primary-cell">
                             {
                               incident
-                                .ruleTitleSnapshot
+                                .chatter
+                                .name
                             }
-                          </strong>
+                          </div>
+                        </td>
 
-                          <span>
-                            v
-                            {
-                              incident
-                                .ruleVersion
-                                .versionNumber
-                            }
-                          </span>
-                        </div>
-                      </td>
-
-                      <td>
-                        {incident
-                          .severityNameSnapshot ??
-                          "—"}
-                      </td>
-
-                      <td>
-                        {incident
-                          .weightNameSnapshot ? (
-                          <div className="weight-display">
-                            <span>
+                        <td>
+                          <span className="incident-rule-inline">
+                            <strong>
                               {
                                 incident
-                                  .weightNameSnapshot
+                                  .ruleTitleSnapshot
                               }
-                            </span>
+                            </strong>
 
-                            {incident
-                              .weightValueSnapshot !==
-                              null && (
-                              <span className="weight-value">
+                            <sup className="incident-rule-version">
+                              v
+                              {
+                                incident
+                                  .ruleVersion
+                                  .versionNumber
+                              }
+                            </sup>
+                          </span>
+                        </td>
+
+                        <td>
+                          {incident
+                            .severityNameSnapshot ??
+                            "—"}
+                        </td>
+
+                        <td>
+                          {incident
+                            .weightNameSnapshot ? (
+                            <div className="weight-display">
+                              <span>
                                 {
                                   incident
-                                    .weightValueSnapshot
+                                    .weightNameSnapshot
                                 }
                               </span>
-                            )}
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
 
-                      <td>
-                        {new Date(
-                          incident.occurredAt
-                        ).toLocaleString()}
-                      </td>
+                              {incident
+                                .weightValueSnapshot !==
+                                null && (
+                                <span className="weight-value">
+                                  {
+                                    incident
+                                      .weightValueSnapshot
+                                  }
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
 
-                      <td>
-                        <div className="incident-rule-cell">
-                          <strong>
-                            {incident
-                              .strikeActivityStatus ===
-                            "NOT_APPLICABLE"
-                              ? "—"
-                              : new Date(
+                        <td className="incident-date-cell">
+                          {new Date(
+                            incident.occurredAt
+                          ).toLocaleString()}
+                        </td>
+
+                        <td className="incident-date-cell">
+                          {incident
+                            .strikeActivityStatus ===
+                          "NOT_APPLICABLE" ? (
+                            <span>
+                              —
+                            </span>
+                          ) : (
+                            <span className="incident-expiry-date">
+                              <span className="incident-expiry-label">
+                                {incident
+                                  .strikeActivityStatus ===
+                                "EXPIRED"
+                                  ? "Expired"
+                                  : "Expires"}
+                              </span>
+
+                              <span>
+                                {new Date(
                                   incident.expiresAt
                                 ).toLocaleString()}
-                          </strong>
-
-                          <span>
-                            {incident
-                              .strikeActivityStatus ===
-                            "NOT_APPLICABLE"
-                              ? "Not applicable"
-                              : incident
-                                    .strikeActivityStatus ===
-                                  "EXPIRED"
-                                ? "Expired"
-                                : "30-day expiry"}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td>
-                        <span
-                          className={getStatusClass(
-                            incident.status
+                              </span>
+                            </span>
                           )}
-                        >
-                          {formatStatus(
-                            incident.status
-                          )}
-                        </span>
-                      </td>
+                        </td>
 
-                      <td>
-                        {incident
-                          .strikeActivityStatus ===
-                        "NOT_APPLICABLE" ? (
-                          <span>—</span>
-                        ) : (
+                        <td>
                           <span
-                            className={getStrikeActivityClass(
-                              incident
-                                .strikeActivityStatus
+                            className={getStatusClass(
+                              incident.status
                             )}
                           >
-                            {formatStrikeActivityStatus(
-                              incident
-                                .strikeActivityStatus
+                            {formatStatus(
+                              incident.status
                             )}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
+                        </td>
+
+                        <td>
+                          {incident
+                            .strikeActivityStatus ===
+                          "NOT_APPLICABLE" ? (
+                            <span>
+                              —
+                            </span>
+                          ) : (
+                            <span
+                              className={getStrikeActivityClass(
+                                incident
+                                  .strikeActivityStatus
+                              )}
+                            >
+                              {formatStrikeActivityStatus(
+                                incident
+                                  .strikeActivityStatus
+                              )}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  }
                 )}
               </tbody>
             </table>
@@ -2027,6 +2055,7 @@ function IncidentsPage() {
                     <div className="rule-preview-meta">
                       <span>
                         Severity:{" "}
+
                         <strong>
                           {selectedRule
                             .currentVersion
@@ -2037,6 +2066,7 @@ function IncidentsPage() {
 
                       <span>
                         Weight:{" "}
+
                         <strong>
                           {selectedRule
                             .currentVersion
@@ -2060,7 +2090,9 @@ function IncidentsPage() {
                   </span>
 
                   <textarea
-                    value={details}
+                    value={
+                      details
+                    }
                     onChange={(
                       event
                     ) => {
@@ -2187,374 +2219,420 @@ function IncidentsPage() {
           }
         >
           <div
-            className="modal modal-history"
+            className={[
+              "modal",
+              "modal-history",
+              "incident-detail-modal-card",
+              selectedIncident
+                ?.strikeActivityStatus ===
+              "EXPIRED"
+                ? "incident-detail-modal-card--expired"
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             onMouseDown={(
               event
             ) =>
               event.stopPropagation()
             }
           >
-            <div className="modal-header">
-              <div>
-             <h3>
-  {selectedIncident?.ruleTitleSnapshot ??
-    "Incident Details"}
-</h3>
-
-               <p>
-  Incident record for{" "}
-  <strong>
-    {selectedIncident?.chatter.name}
-  </strong>
-</p>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                onClick={
-                  closeIncidentDetails
-                }
-                disabled={
-                  detailLoading
-                }
-                aria-label="Close"
+            {selectedIncident
+              ?.strikeActivityStatus ===
+              "EXPIRED" && (
+              <div
+                className="incident-expired-watermark"
+                aria-hidden="true"
               >
-                ×
-              </button>
-            </div>
-
-            {detailLoading ? (
-              <div className="empty-state">
-                <strong>
-                  Loading incident...
-                </strong>
+                EXPIRED
               </div>
-            ) : (
-              selectedIncident && (
-                <div className="incident-detail">
-                  <div className="incident-detail-top">
-                    <div>
-                      <span className="detail-label">
-                        Chatter
-                      </span>
+            )}
 
-                      <strong>
-                        {
-                          selectedIncident
-                            .chatter
-                            .name
-                        }
-                      </strong>
-                    </div>
+            <div className="incident-detail-modal-content">
+              <div className="modal-header">
+                <div>
+                  <h3>
+                    {selectedIncident
+                      ?.ruleTitleSnapshot ??
+                      "Incident Details"}
+                  </h3>
 
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems:
-                          "center",
-                        gap: "8px",
-                        flexWrap: "wrap",
-                        justifyContent:
-                          "flex-end",
-                      }}
-                    >
-                      <span
-                        className={getStatusClass(
-                          selectedIncident.status
-                        )}
-                        title="Incident workflow status"
-                      >
-                        {formatStatus(
-                          selectedIncident.status
-                        )}
-                      </span>
+                  <p>
+                    Incident record
+                    for{" "}
 
+                    <strong>
                       {selectedIncident
-                        .strikeActivityStatus !==
-                        "NOT_APPLICABLE" && (
-                        <span
-                          className={getStrikeActivityClass(
-                            selectedIncident
-                              .strikeActivityStatus
-                          )}
-                          title="Current strike activity status"
-                        >
-                          {formatStrikeActivityStatus(
-                            selectedIncident
-                              .strikeActivityStatus
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                        ?.chatter
+                        .name}
+                    </strong>
+                  </p>
+                </div>
 
-                  <div className="detail-section">
-                    <span className="detail-label">
-                      Rule Snapshot
-                    </span>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={
+                    closeIncidentDetails
+                  }
+                  disabled={
+                    detailLoading
+                  }
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
 
-                    <h4>
-                      {
-                        selectedIncident
-                          .ruleTitleSnapshot
-                      }
-                    </h4>
-
-                    <p>
-                      {
-                        selectedIncident
-                          .ruleDefinitionSnapshot
-                      }
-                    </p>
-
-                    <div className="detail-meta-grid">
+              {detailLoading ? (
+                <div className="empty-state">
+                  <strong>
+                    Loading incident...
+                  </strong>
+                </div>
+              ) : (
+                selectedIncident && (
+                  <div className="incident-detail">
+                    <div className="incident-detail-top">
                       <div>
-                        <span>
-                          Rule Version
+                        <span className="detail-label">
+                          Chatter
                         </span>
 
                         <strong>
-                          v
                           {
                             selectedIncident
-                              .ruleVersion
-                              .versionNumber
+                              .chatter
+                              .name
                           }
                         </strong>
                       </div>
 
-                      <div>
-                        <span>
-                          Severity
-                        </span>
-
-                        <strong>
-                          {selectedIncident
-                            .severityNameSnapshot ??
-                            "None"}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Weight
-                        </span>
-
-                        <strong>
-                          {selectedIncident
-                            .weightNameSnapshot ??
-                            "None"}
-
-                          {selectedIncident
-                            .weightValueSnapshot !==
-                            null &&
-                            ` (${selectedIncident.weightValueSnapshot})`}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Occurred
-                        </span>
-
-                        <strong>
-                          {new Date(
-                            selectedIncident.occurredAt
-                          ).toLocaleString()}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          {formatExpiryLabel(
-                            selectedIncident
-                              .strikeActivityStatus
+                      <div
+                        style={{
+                          display:
+                            "flex",
+                          alignItems:
+                            "center",
+                          gap:
+                            "8px",
+                          flexWrap:
+                            "wrap",
+                          justifyContent:
+                            "flex-end",
+                        }}
+                      >
+                        <span
+                          className={getStatusClass(
+                            selectedIncident.status
+                          )}
+                          title="Incident workflow status"
+                        >
+                          {formatStatus(
+                            selectedIncident.status
                           )}
                         </span>
 
-                        <strong>
-                          {selectedIncident
-                            .strikeActivityStatus ===
-                          "NOT_APPLICABLE"
-                            ? "Not applicable"
-                            : new Date(
-                                selectedIncident.expiresAt
-                              ).toLocaleString()}
-                        </strong>
+                        {selectedIncident
+                          .strikeActivityStatus !==
+                          "NOT_APPLICABLE" && (
+                          <span
+                            className={getStrikeActivityClass(
+                              selectedIncident
+                                .strikeActivityStatus
+                            )}
+                            title="Current strike activity status"
+                          >
+                            {formatStrikeActivityStatus(
+                              selectedIncident
+                                .strikeActivityStatus
+                            )}
+                          </span>
+                        )}
                       </div>
+                    </div>
 
-                      <div>
-                        <span>
-                          Strike Status
+                    <div className="detail-section">
+                      <span className="detail-label">
+                        Rule Snapshot
+                      </span>
+
+                      <h4>
+                        {
+                          selectedIncident
+                            .ruleTitleSnapshot
+                        }
+                      </h4>
+
+                      <p>
+                        {
+                          selectedIncident
+                            .ruleDefinitionSnapshot
+                        }
+                      </p>
+
+                      <div className="detail-meta-grid">
+                        <div>
+                          <span>
+                            Rule Version
+                          </span>
+
+                          <strong>
+                            v
+                            {
+                              selectedIncident
+                                .ruleVersion
+                                .versionNumber
+                            }
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Severity
+                          </span>
+
+                          <strong>
+                            {selectedIncident
+                              .severityNameSnapshot ??
+                              "None"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Weight
+                          </span>
+
+                          <strong>
+                            {selectedIncident
+                              .weightNameSnapshot ??
+                              "None"}
+
+                            {selectedIncident
+                              .weightValueSnapshot !==
+                              null &&
+                              ` (${selectedIncident.weightValueSnapshot})`}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Occurred
+                          </span>
+
+                          <strong>
+                            {new Date(
+                              selectedIncident.occurredAt
+                            ).toLocaleString()}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            {formatExpiryLabel(
+                              selectedIncident
+                                .strikeActivityStatus
+                            )}
+                          </span>
+
+                          <strong>
+                            {selectedIncident
+                              .strikeActivityStatus ===
+                            "NOT_APPLICABLE"
+                              ? "Not applicable"
+                              : new Date(
+                                  selectedIncident.expiresAt
+                                ).toLocaleString()}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Strike Status
+                          </span>
+
+                          <strong>
+                            {selectedIncident
+                              .strikeActivityStatus ===
+                            "NOT_APPLICABLE"
+                              ? "—"
+                              : formatStrikeActivityStatus(
+                                  selectedIncident
+                                    .strikeActivityStatus
+                                )}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="detail-section">
+                      <span className="detail-label">
+                        Incident Details
+                      </span>
+
+                      <p className="detail-body">
+                        {
+                          selectedIncident.details
+                        }
+                      </p>
+                    </div>
+
+                    <div className="detail-section">
+                      <span className="detail-label">
+                        Evidence
+                      </span>
+
+                      {selectedIncident.evidenceUrl ? (
+                        <a
+                          className="incident-evidence-link"
+                          href={
+                            selectedIncident.evidenceUrl
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          title={
+                            selectedIncident.evidenceUrl
+                          }
+                        >
+                          <span className="incident-evidence-url">
+                            {
+                              selectedIncident.evidenceUrl
+                            }
+                          </span>
+
+                          <svg
+                            className="incident-evidence-icon"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M8 4H5.5A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5V12"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                            />
+
+                            <path
+                              d="M11 4h5v5M16 4l-7 7"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </a>
+                      ) : (
+                        <p className="detail-body">
+                          No evidence URL
+                          is included in
+                          this log.
+                        </p>
+                      )}
+                    </div>
+
+                    {selectedIncident.status ===
+                      "RESOLVED" && (
+                      <div className="detail-section lifecycle-section resolved">
+                        <span className="detail-label">
+                          Resolution
                         </span>
 
-                        <strong>
+                        <p>
                           {selectedIncident
-                            .strikeActivityStatus ===
-                          "NOT_APPLICABLE"
-                            ? "—"
-                            : formatStrikeActivityStatus(
-                                selectedIncident
-                                  .strikeActivityStatus
-                              )}
-                        </strong>
+                            .resolutionNotes ||
+                            "No resolution notes provided."}
+                        </p>
+
+                        {selectedIncident.resolvedAt && (
+                          <small>
+                            Resolved{" "}
+
+                            {new Date(
+                              selectedIncident.resolvedAt
+                            ).toLocaleString()}
+                          </small>
+                        )}
                       </div>
-                    </div>
-                  </div>
+                    )}
 
-                  <div className="detail-section">
-                    <span className="detail-label">
-                      Incident Details
-                    </span>
-
-                    <p className="detail-body">
-                      {
-                        selectedIncident.details
-                      }
-                    </p>
-                  </div>
-
-                 {selectedIncident.evidenceUrl && (
-  <div className="detail-section">
-    <span className="detail-label">
-      Evidence
-    </span>
-
-    <a
-      className="incident-evidence-link"
-      href={selectedIncident.evidenceUrl}
-      target="_blank"
-      rel="noreferrer"
-      title={selectedIncident.evidenceUrl}
-    >
-      <span className="incident-evidence-url">
-        {selectedIncident.evidenceUrl}
-      </span>
-
-      <svg
-        className="incident-evidence-icon"
-        viewBox="0 0 20 20"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M8 4H5.5A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5V12"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-
-        <path
-          d="M11 4h5v5M16 4l-7 7"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </a>
-  </div>
-)}
-
-                  {selectedIncident.status ===
-                    "RESOLVED" && (
-                    <div className="detail-section lifecycle-section resolved">
-                      <span className="detail-label">
-                        Resolution
-                      </span>
-
-                      <p>
-                        {selectedIncident
-                          .resolutionNotes ||
-                          "No resolution notes provided."}
-                      </p>
-
-                      {selectedIncident.resolvedAt && (
-                        <small>
-                          Resolved{" "}
-                          {new Date(
-                            selectedIncident.resolvedAt
-                          ).toLocaleString()}
-                        </small>
-                      )}
-                    </div>
-                  )}
-
-                  {selectedIncident.status ===
-                    "VOIDED" && (
-                    <div className="detail-section lifecycle-section voided">
-                      <span className="detail-label">
-                        Void Reason
-                      </span>
-
-                      <p>
-                        {selectedIncident
-                          .voidReason ||
-                          "No void reason recorded."}
-                      </p>
-
-                      {selectedIncident.voidedAt && (
-                        <small>
-                          Voided{" "}
-                          {new Date(
-                            selectedIncident.voidedAt
-                          ).toLocaleString()}
-                        </small>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="incident-detail-actions">
                     {selectedIncident.status ===
-                      "OPEN" && (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => {
-                          const incident =
-                            selectedIncident;
-
-                          setSelectedIncident(
-                            null
-                          );
-
-                          openAction(
-                            "resolve",
-                            incident
-                          );
-                        }}
-                      >
-                        Resolve
-                      </button>
-                    )}
-
-                    {selectedIncident.status !==
                       "VOIDED" && (
-                      <button
-                        type="button"
-                        className="danger-button"
-                        onClick={() => {
-                          const incident =
-                            selectedIncident;
+                      <div className="detail-section lifecycle-section voided">
+                        <span className="detail-label">
+                          Void Reason
+                        </span>
 
-                          setSelectedIncident(
-                            null
-                          );
+                        <p>
+                          {selectedIncident
+                            .voidReason ||
+                            "No void reason recorded."}
+                        </p>
 
-                          openAction(
-                            "void",
-                            incident
-                          );
-                        }}
-                      >
-                        Void Incident
-                      </button>
+                        {selectedIncident.voidedAt && (
+                          <small>
+                            Voided{" "}
+
+                            {new Date(
+                              selectedIncident.voidedAt
+                            ).toLocaleString()}
+                          </small>
+                        )}
+                      </div>
                     )}
+
+                    <div className="incident-detail-actions">
+                      {selectedIncident.status ===
+                        "OPEN" && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => {
+                            const incident =
+                              selectedIncident;
+
+                            setSelectedIncident(
+                              null
+                            );
+
+                            openAction(
+                              "resolve",
+                              incident
+                            );
+                          }}
+                        >
+                          Resolve
+                        </button>
+                      )}
+
+                      {selectedIncident.status !==
+                        "VOIDED" && (
+                        <button
+                          type="button"
+                          className="danger-button"
+                          onClick={() => {
+                            const incident =
+                              selectedIncident;
+
+                            setSelectedIncident(
+                              null
+                            );
+
+                            openAction(
+                              "void",
+                              incident
+                            );
+                          }}
+                        >
+                          Void Incident
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )
-            )}
+                )
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -2865,6 +2943,26 @@ function IncidentsPage() {
 
                       <strong>
                         30 days
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Evidence URL
+                      </span>
+
+                      <strong
+                        title={
+                          pendingConfirmation
+                            .payload
+                            .evidenceUrl ??
+                          undefined
+                        }
+                      >
+                        {pendingConfirmation
+                          .payload
+                          .evidenceUrl ??
+                          "No evidence URL is included in this log."}
                       </strong>
                     </div>
                   </div>

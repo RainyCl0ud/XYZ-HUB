@@ -11,6 +11,7 @@ import type {
 } from "react";
 
 import { apiRequest } from "../lib/api";
+
 import {
   useToast,
 } from "../components/ToastProvider";
@@ -199,10 +200,6 @@ function ConfigurationPage() {
       null
     );
 
-  /*
-   * Close a gear menu when the user clicks
-   * anywhere outside that menu.
-   */
   useEffect(() => {
     if (!settingsMenuKind) {
       return;
@@ -276,10 +273,6 @@ function ConfigurationPage() {
       null
     );
 
-  /*
-   * Used to briefly highlight the
-   * item after it has been dropped.
-   */
   const [
     lastMovedId,
     setLastMovedId,
@@ -293,12 +286,6 @@ function ConfigurationPage() {
       null
     );
 
-  /*
-   * Original arrangement is preserved
-   * while reorder mode is active.
-   *
-   * Cancel restores this exact copy.
-   */
   const [
     severityBackup,
     setSeverityBackup,
@@ -391,10 +378,6 @@ function ConfigurationPage() {
     void loadOptions();
   }, [loadOptions]);
 
-  /*
-   * Clean up the temporary
-   * "item placed" animation timer.
-   */
   useEffect(() => {
     return () => {
       if (
@@ -459,9 +442,13 @@ function ConfigurationPage() {
       return;
     }
 
-    setPendingConfirmation(null);
+    setPendingConfirmation(
+      null
+    );
 
-    setArchiveModalKind(null);
+    setArchiveModalKind(
+      null
+    );
   }
 
   /*
@@ -619,12 +606,6 @@ function ConfigurationPage() {
       return;
     }
 
-    /*
-     * =========================
-     * SEVERITY
-     * =========================
-     */
-
     if (
       modalKind === "severity"
     ) {
@@ -638,10 +619,6 @@ function ConfigurationPage() {
           null,
       };
 
-      /*
-       * Do not send an edit request if
-       * nothing actually changed.
-       */
       if (
         editingOption &&
         !("value" in
@@ -682,12 +659,6 @@ function ConfigurationPage() {
 
       return;
     }
-
-    /*
-     * =========================
-     * WEIGHT
-     * =========================
-     */
 
     let parsedWeightValue:
       | number
@@ -1098,10 +1069,6 @@ function ConfigurationPage() {
 
     setPageError("");
 
-    /*
-     * Clone the current order so that
-     * Cancel can restore it exactly.
-     */
     if (
       kind === "severity"
     ) {
@@ -1445,10 +1412,6 @@ function ConfigurationPage() {
     setDragOverId(null);
   }
 
-  /*
-   * Save Order is an important mutation,
-   * so clicking it opens confirmation first.
-   */
   function requestSaveOrder(
     kind: OptionKind
   ) {
@@ -1652,12 +1615,6 @@ function ConfigurationPage() {
       return null;
     }
 
-    /*
-     * =========================
-     * ADD / EDIT
-     * =========================
-     */
-
     if (
       pendingConfirmation.type ===
       "save"
@@ -1700,12 +1657,6 @@ function ConfigurationPage() {
       };
     }
 
-    /*
-     * =========================
-     * ARCHIVE / REACTIVATE
-     * =========================
-     */
-
     if (
       pendingConfirmation.type ===
       "status"
@@ -1747,12 +1698,6 @@ function ConfigurationPage() {
         danger: false,
       };
     }
-
-    /*
-     * =========================
-     * SAVE ORDER
-     * =========================
-     */
 
     return {
       title:
@@ -1842,7 +1787,7 @@ function ConfigurationPage() {
 
   /*
    * =========================================================
-   * GEAR ICON
+   * SETTINGS ICON
    * =========================================================
    */
 
@@ -1855,17 +1800,48 @@ function ConfigurationPage() {
         aria-hidden="true"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.8"
+        strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <circle
-          cx="12"
-          cy="12"
-          r="3"
+        <path
+          d="
+            M19.43 12.98
+            c.04-.32.07-.65.07-.98
+            s-.03-.66-.07-.98
+            l2.11-1.65
+            -2-3.46
+            -2.49 1
+            a7.7 7.7 0 0 0-1.69-.98
+            L15 3.25
+            h-4
+            l-.38 2.68
+            c-.61.25-1.17.58-1.69.98
+            l-2.49-1
+            -2 3.46
+            2.11 1.65
+            c-.04.32-.07.65-.07.98
+            s.03.66.07.98
+            l-2.11 1.65
+            2 3.46
+            2.49-1
+            c.52.4 1.08.73 1.69.98
+            L11 20.75
+            h4
+            l.38-2.68
+            c.61-.25 1.17-.58 1.69-.98
+            l2.49 1
+            2-3.46
+            -2.11-1.65
+            Z
+          "
         />
 
-        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20.3h-3v-.08a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.56-1.03H5.3v-3h.14A1.7 1.7 0 0 0 7 9.94a1.7 1.7 0 0 0-.34-1.88L6.6 8l2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.7 4.7v-.08h3v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 11h.04v3h-.04A1.7 1.7 0 0 0 19.4 15Z" />
+        <circle
+          cx="13"
+          cy="12"
+          r="3.25"
+        />
       </svg>
     );
   }
@@ -2025,9 +2001,6 @@ function ConfigurationPage() {
             Configure the severity
             and strike-weight
             options used by rules.
-            These values are stored
-            in the database and are
-            not hardcoded.
           </p>
         </div>
       </header>
@@ -2092,10 +2065,7 @@ function ConfigurationPage() {
               }
             >
               {activeSeverityOptions.map(
-                (
-                  option,
-                  index
-                ) => (
+                (option) => (
                   <div
                     key={
                       option.id
@@ -2149,39 +2119,33 @@ function ConfigurationPage() {
                     }
                   >
                     <div className="config-item-main">
-                <div className="config-item-header">
-  <strong>
-    {option.name}
-  </strong>
-</div>
-{reorderKind !== "severity" && (
-  <div className="config-row-status">
-    <span
-      className={
-        option.isActive
-          ? "status-badge active"
-          : "status-badge inactive"
-      }
-    >
-      {option.isActive
-        ? "Active"
-        : "Archived"}
-    </span>
-  </div>
-)}
+                      <div className="config-item-header">
+                        <strong>
+                          {option.name}
+                        </strong>
+                      </div>
+
+                      {reorderKind !==
+                        "severity" && (
+                        <div className="config-row-status">
+                          <span
+                            className={
+                              option.isActive
+                                ? "status-badge active"
+                                : "status-badge inactive"
+                            }
+                          >
+                            {option.isActive
+                              ? "Active"
+                              : "Archived"}
+                          </span>
+                        </div>
+                      )}
 
                       <p className="config-description">
                         {option.description ||
                           "No description provided."}
                       </p>
-
-                      {reorderKind !==
-                        "severity" && (
-                        <span className="config-meta">
-                          Position:{" "}
-                          {index + 1}
-                        </span>
-                      )}
                     </div>
 
                     {reorderKind ===
@@ -2206,11 +2170,6 @@ function ConfigurationPage() {
                         title="Drag to reorder"
                         aria-label={`Drag ${option.name} to reorder`}
                       >
-                        <span className="reorder-position">
-                          {index +
-                            1}
-                        </span>
-
                         <span
                           aria-hidden="true"
                           className="drag-grip"
@@ -2320,10 +2279,7 @@ function ConfigurationPage() {
               }
             >
               {activeWeightOptions.map(
-                (
-                  option,
-                  index
-                ) => (
+                (option) => (
                   <div
                     key={
                       option.id
@@ -2377,47 +2333,42 @@ function ConfigurationPage() {
                     }
                   >
                     <div className="config-item-main">
-                    <div className="config-item-header">
-  <div className="config-title-row">
-    <strong>
-      {option.name}
-    </strong>
+                      <div className="config-item-header">
+                        <div className="config-title-row">
+                          <strong>
+                            {option.name}
+                          </strong>
 
-    {option.value !== null && (
-      <span className="weight-value">
-        {option.value}
-      </span>
-    )}
-  </div>
-</div>
-{reorderKind !== "weight" && (
-  <div className="config-row-status">
-    <span
-      className={
-        option.isActive
-          ? "status-badge active"
-          : "status-badge inactive"
-      }
-    >
-      {option.isActive
-        ? "Active"
-        : "Archived"}
-    </span>
-  </div>
-)}
+                          {option.value !==
+                            null && (
+                            <span className="weight-value">
+                              {option.value}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {reorderKind !==
+                        "weight" && (
+                        <div className="config-row-status">
+                          <span
+                            className={
+                              option.isActive
+                                ? "status-badge active"
+                                : "status-badge inactive"
+                            }
+                          >
+                            {option.isActive
+                              ? "Active"
+                              : "Archived"}
+                          </span>
+                        </div>
+                      )}
 
                       <p className="config-description">
                         {option.description ||
                           "No description provided."}
                       </p>
-
-                      {reorderKind !==
-                        "weight" && (
-                        <span className="config-meta">
-                          Position:{" "}
-                          {index + 1}
-                        </span>
-                      )}
                     </div>
 
                     {reorderKind ===
@@ -2442,11 +2393,6 @@ function ConfigurationPage() {
                         title="Drag to reorder"
                         aria-label={`Drag ${option.name} to reorder`}
                       >
-                        <span className="reorder-position">
-                          {index +
-                            1}
-                        </span>
-
                         <span
                           aria-hidden="true"
                           className="drag-grip"
@@ -2596,7 +2542,7 @@ function ConfigurationPage() {
 
                           {option.archivedAt && (
                             <span className="config-meta">
-                              Archived: {" "}
+                              Archived:{" "}
                               {new Date(
                                 option.archivedAt
                               ).toLocaleString()}
@@ -2672,7 +2618,7 @@ function ConfigurationPage() {
 
                         {option.archivedAt && (
                           <span className="config-meta">
-                            Archived: {" "}
+                            Archived:{" "}
                             {new Date(
                               option.archivedAt
                             ).toLocaleString()}
@@ -2848,13 +2794,6 @@ function ConfigurationPage() {
                         isSaving
                       }
                     />
-
-                    <small className="form-helper">
-                      Optional until
-                      the final strike
-                      tally is
-                      confirmed.
-                    </small>
                   </label>
                 )}
 
@@ -2970,8 +2909,7 @@ function ConfigurationPage() {
 
                   <p>
                     Please confirm
-                    before
-                    continuing.
+                    before continuing.
                   </p>
                 </div>
 

@@ -5421,3 +5421,294 @@ body {
       none !important;
   }
 }
+/* =========================================================
+   INCIDENT TABLE — INLINE VERSION / EXPIRY
+   ========================================================= */
+
+.incident-rule-inline {
+  display: inline-flex;
+  align-items: flex-start;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.incident-rule-version {
+  position: relative;
+  top: -0.15em;
+
+  margin-left: 4px;
+
+  font-size: 0.65em;
+  font-weight: 600;
+  line-height: 1;
+
+  opacity: 0.62;
+  white-space: nowrap;
+}
+
+.incident-date-cell {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.incident-expiry-date {
+  position: relative;
+
+  display: inline-block;
+
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.incident-expiry-label {
+  position: absolute;
+
+  left: 0;
+  bottom: calc(100% + 2px);
+
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+
+  letter-spacing: 0.03em;
+
+  opacity: 0.6;
+
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   EXPIRED INCIDENT — TABLE SCRATCH EFFECT
+   ========================================================= */
+
+.incident-row-expired {
+  position: relative;
+
+  opacity: 0.82;
+}
+/* =========================================================
+   EXPIRED INCIDENT — TABLE SCRATCH EFFECT
+   Scratch only:
+   Chatter | Rule | Severity | Weight
+   ========================================================= */
+
+.incident-row-expired {
+  opacity: 0.82;
+}
+
+/*
+ * Only the first four columns participate:
+ * 1. Chatter
+ * 2. Rule
+ * 3. Severity
+ * 4. Weight
+ */
+.incident-row-expired td:nth-child(-n + 4) {
+  position: relative;
+}
+
+/*
+ * Single scratch line through the first four columns only.
+ */
+.incident-row-expired td:nth-child(-n + 4)::after {
+  content: "";
+
+  position: absolute;
+
+  top: 50%;
+  left: 0;
+  right: 0;
+
+  height: 1.5px;
+
+  background: rgba(
+    235,
+    232,
+    224,
+    0.48
+  );
+
+  transform: translateY(-50%);
+
+  pointer-events: none;
+
+  z-index: 4;
+}
+
+/*
+ * Give the scratch a little spacing
+ * at the beginning and end.
+ */
+.incident-row-expired td:first-child::after {
+  left: 12px;
+}
+
+.incident-row-expired td:nth-child(4)::after {
+  right: 12px;
+}
+
+/*
+ * Slightly soften the expired row.
+ */
+.incident-row-expired:hover {
+  opacity: 0.92;
+}
+
+.incident-row-expired:hover
+td:nth-child(-n + 4)::after {
+  background: rgba(
+    235,
+    232,
+    224,
+    0.6
+  );
+}
+.incident-detail-modal-card {
+  position: relative;
+
+  overflow: hidden;
+}
+
+/*
+ * Keep actual modal information above the watermark.
+ */
+.incident-detail-modal-content {
+  position: relative;
+
+  z-index: 2;
+}
+
+/*
+ * Large historical-status stamp.
+ */
+.incident-expired-watermark {
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  z-index: 1;
+
+  transform:
+    translate(-50%, -50%)
+    rotate(-17deg);
+
+  pointer-events: none;
+  user-select: none;
+
+  font-size:
+    clamp(
+      72px,
+      10vw,
+      118px
+    );
+
+  font-weight: 900;
+  line-height: 1;
+
+  letter-spacing: 0.12em;
+
+  color: rgba(
+    225,
+    189,
+    119,
+    0.055
+  );
+
+  -webkit-text-stroke:
+    2px
+    rgba(
+      225,
+      189,
+      119,
+      0.14
+    );
+
+  text-transform: uppercase;
+
+  white-space: nowrap;
+}
+
+/*
+ * Very subtle historical tint around expired details.
+ */
+.incident-detail-modal-card--expired {
+  border-color:
+    rgba(
+      225,
+      189,
+      119,
+      0.28
+    );
+}
+
+/*
+ * Make the stamp look a little more like an ink imprint
+ * instead of perfectly clean digital typography.
+ */
+.incident-expired-watermark::before,
+.incident-expired-watermark::after {
+  content: "";
+
+  position: absolute;
+
+  left: -5%;
+  right: -5%;
+
+  height: 3px;
+
+  border-radius: 999px;
+
+  background:
+    rgba(
+      225,
+      189,
+      119,
+      0.11
+    );
+}
+
+.incident-expired-watermark::before {
+  top: -12px;
+}
+
+.incident-expired-watermark::after {
+  bottom: -12px;
+}
+
+
+/* =========================================================
+   RESPONSIVE EXPIRED STAMP
+   ========================================================= */
+
+@media (
+  max-width: 720px
+) {
+  .incident-expired-watermark {
+    font-size:
+      clamp(
+        48px,
+        15vw,
+        76px
+      );
+
+    letter-spacing:
+      0.08em;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION / ACCESSIBILITY
+   ========================================================= */
+
+@media (
+  prefers-reduced-motion:
+    reduce
+) {
+  .incident-row-expired {
+    transition: none;
+  }
+}
