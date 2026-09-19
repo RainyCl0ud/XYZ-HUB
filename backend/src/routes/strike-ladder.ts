@@ -28,21 +28,17 @@ const router = Router();
 
 const ladderStepSchema =
   z.object({
-    minActiveStrikes:
-      z
-        .number()
-        .int(
-          "Strike threshold must be a whole number"
-        )
-        .min(
-          0,
-          "Strike threshold cannot be negative"
-        )
-        .max(
-          999,
-          "Strike threshold is too large"
-        ),
-
+    /*
+     * Active-strike numbering is intentionally NOT accepted
+     * from management. Array position determines the threshold:
+     *
+     * first step  → 0 strikes
+     * second step → 1 strike
+     * third step  → 2 strikes
+     *
+     * Zod strips unknown fields, so even if a client attempts
+     * to send minActiveStrikes manually, it is ignored.
+     */
     standingLabel:
       z
         .string()
@@ -90,6 +86,10 @@ const ladderConfigurationSchema =
             "Strike duration cannot exceed 365 days"
           ),
 
+      /*
+       * At least one step is required because index 0 is the
+       * permanent base/default strike state.
+       */
       steps:
         z
           .array(
@@ -97,7 +97,7 @@ const ladderConfigurationSchema =
           )
           .min(
             1,
-            "At least one ladder step is required"
+            "The 0-strike base step is required"
           )
           .max(
             50,
@@ -106,14 +106,14 @@ const ladderConfigurationSchema =
     })
     .superRefine(
       (value, context) => {
-        const thresholds =
-          value.steps.map(
-            (step) =>
-              step.minActiveStrikes
-          );
-
+        /*
+         * 0 active strikes is always the default/base state.
+         * Its commission deduction is a protected 0%.
+         */
         if (
-          !thresholds.includes(0)
+          value.steps[0] &&
+          value.steps[0]
+            .deductionPercent !== 0
         ) {
           context.addIssue({
             code:
@@ -121,29 +121,12 @@ const ladderConfigurationSchema =
 
             path: [
               "steps",
+              0,
+              "deductionPercent",
             ],
 
             message:
-              "Strike ladder must include a 0-strike starting step",
-          });
-        }
-
-        if (
-          new Set(
-            thresholds
-          ).size !==
-          thresholds.length
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode.custom,
-
-            path: [
-              "steps",
-            ],
-
-            message:
-              "Strike ladder contains duplicate active-strike thresholds",
+              "The 0-strike base step must always have a 0% deduction",
           });
         }
       }
@@ -160,14 +143,40 @@ type LadderPayload =
     typeof ladderConfigurationSchema
   >;
 
-function normalizeSteps(
+type SequentialLadderPayload = {
+  durationDays: number;
+
+  steps: Array<{
+    minActiveStrikes: number;
+    standingLabel: string;
+    deductionPercent: number;
+  }>;
+};
+
+function buildSequentialSteps(
   steps:
     LadderPayload["steps"]
-) {
-  return [...steps].sort(
-    (first, second) =>
-      first.minActiveStrikes -
-      second.minActiveStrikes
+): SequentialLadderPayload["steps"] {
+  /*
+   * Thresholds are system controlled.
+   *
+   * Removing a row from the management UI simply shortens
+   * this array, so the remaining steps are automatically
+   * renumbered 0, 1, 2, 3... on the next saved version.
+   */
+  return steps.map(
+    (step, index) => ({
+      minActiveStrikes:
+        index,
+
+      standingLabel:
+        step.standingLabel.trim(),
+
+      deductionPercent:
+        index === 0
+          ? 0
+          : step.deductionPercent,
+    })
   );
 }
 
@@ -188,7 +197,7 @@ function sameConfiguration(
   },
 
   submitted:
-    LadderPayload
+    SequentialLadderPayload
 ) {
   if (
     current.durationDays !==
@@ -198,18 +207,15 @@ function sameConfiguration(
   }
 
   const currentSteps =
-    normalizeSteps(
-      current.steps
-    );
-
-  const submittedSteps =
-    normalizeSteps(
-      submitted.steps
+    [...current.steps].sort(
+      (first, second) =>
+        first.minActiveStrikes -
+        second.minActiveStrikes
     );
 
   if (
     currentSteps.length !==
-    submittedSteps.length
+    submitted.steps.length
   ) {
     return false;
   }
@@ -217,7 +223,7 @@ function sameConfiguration(
   return currentSteps.every(
     (currentStep, index) => {
       const submittedStep =
-        submittedSteps[index];
+        submitted.steps[index];
 
       return (
         currentStep
@@ -228,8 +234,7 @@ function sameConfiguration(
           .standingLabel
           .trim() ===
           submittedStep
-            .standingLabel
-            .trim() &&
+            .standingLabel &&
         currentStep
           .deductionPercent ===
           submittedStep
@@ -417,13 +422,18 @@ router.post(
       return;
     }
 
-    const payload = {
+    const payload:
+      SequentialLadderPayload = {
       durationDays:
         validation.data
           .durationDays,
 
+      /*
+       * Management controls labels and deductions.
+       * The backend controls the actual strike numbers.
+       */
       steps:
-        normalizeSteps(
+        buildSequentialSteps(
           validation.data.steps
         ),
     };

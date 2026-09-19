@@ -393,6 +393,224 @@
 
 
 /* =========================================================
+   CURRENT STRIKE STANDING
+   ========================================================= */
+
+.chatter-ladder-version-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 25px;
+  padding: 0 9px;
+
+  border:
+    1px solid
+    rgba(
+      232,
+      216,
+      178,
+      0.2
+    );
+
+  border-radius: 999px;
+
+  background:
+    var(--accent-soft);
+
+  color:
+    var(--accent);
+
+  font-size: 8.5px;
+  line-height: 1;
+  font-weight: 750;
+
+  letter-spacing:
+    0.04em;
+}
+
+.chatter-standing-panel {
+  display: grid;
+
+  grid-template-columns:
+    minmax(220px, 0.9fr)
+    minmax(0, 1.55fr);
+
+  gap: 11px;
+}
+
+.chatter-standing-primary,
+.chatter-standing-metrics {
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius: 10px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(
+        232,
+        216,
+        178,
+        0.035
+      ),
+      transparent 62%
+    ),
+    var(--surface-deep);
+}
+
+.chatter-standing-primary {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  min-height: 154px;
+
+  padding: 19px;
+
+  overflow: hidden;
+}
+
+.chatter-standing-primary::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  right: 0;
+  bottom: 0;
+
+  width: 3px;
+
+  background:
+    var(--accent);
+}
+
+.chatter-standing-primary > span,
+.chatter-standing-metric > span {
+  color:
+    var(--text-muted);
+
+  font-size: 8.5px;
+  line-height: 1.35;
+  font-weight: 750;
+
+  letter-spacing:
+    0.08em;
+
+  text-transform:
+    uppercase;
+}
+
+.chatter-standing-primary > strong {
+  margin-top: 11px;
+
+  color:
+    var(--accent);
+
+  font-size: 21px;
+  line-height: 1.18;
+  font-weight: 720;
+
+  letter-spacing:
+    -0.02em;
+}
+
+.chatter-standing-primary p {
+  margin:
+    9px 0 0;
+
+  color:
+    var(--text-soft);
+
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.chatter-standing-metrics {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  overflow: hidden;
+}
+
+.chatter-standing-metric {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 76px;
+
+  padding: 15px;
+
+  border-right:
+    1px solid
+    var(--border-soft);
+
+  border-bottom:
+    1px solid
+    var(--border-soft);
+}
+
+.chatter-standing-metric:nth-child(2n) {
+  border-right: 0;
+}
+
+.chatter-standing-metric:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.chatter-standing-metric strong {
+  margin-top: auto;
+
+  padding-top: 10px;
+
+  color:
+    var(--text);
+
+  font-size: 18px;
+  line-height: 1.15;
+  font-weight: 700;
+
+  font-variant-numeric:
+    tabular-nums;
+
+  overflow-wrap:
+    anywhere;
+}
+
+.chatter-standing-next-expiry strong {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.chatter-standing-metric small {
+  display: block;
+
+  margin-top: 4px;
+
+  color:
+    var(--text-soft);
+
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.chatter-standing-empty {
+  min-height: 112px;
+}
+
+
+/* =========================================================
    INCIDENT STATS
    ========================================================= */
 
@@ -401,11 +619,11 @@
 
   grid-template-columns:
     repeat(
-      6,
+      3,
       minmax(0, 1fr)
     );
 
-  gap: 8px;
+  gap: 11px;
 }
 
 .chatter-stat-card {
@@ -414,10 +632,9 @@
   display: flex;
   flex-direction: column;
 
-  min-height: 72px;
+  min-height: 104px;
 
-  padding:
-    11px 12px;
+  padding: 16px;
 
   overflow: hidden;
 
@@ -425,7 +642,7 @@
     1px solid
     var(--border-soft);
 
-  border-radius: 9px;
+  border-radius: 10px;
 
   background:
     linear-gradient(
@@ -537,19 +754,18 @@
   color:
     var(--text-muted);
 
-  font-size: 8.5px;
-  line-height: 1.25;
+  font-size: 9.5px;
   font-weight: 650;
 }
 
 .chatter-stat-card strong {
   margin-top: auto;
 
-  padding-top: 9px;
+  padding-top: 17px;
 
   color: var(--text);
 
-  font-size: 21px;
+  font-size: 28px;
   line-height: 1;
   font-weight: 680;
 
@@ -763,32 +979,20 @@
 
 .chatter-strike-status.active {
   border-color:
-    rgba(
-      157,
-      213,
-      168,
-      0.14
-    );
+    rgba(157, 213, 168, 0.14);
 
   background:
     var(--success-bg);
-
   color:
     var(--success);
 }
 
 .chatter-strike-status.expired {
   border-color:
-    rgba(
-      174,
-      188,
-      224,
-      0.16
-    );
+    rgba(174, 188, 224, 0.16);
 
   background:
     var(--info-bg);
-
   color:
     var(--info);
 }
@@ -999,28 +1203,19 @@
 .chatter-incident-strike {
   display: flex;
   align-items: center;
-  justify-content:
-    space-between;
+  justify-content: space-between;
   gap: 14px;
 
   margin-top: 15px;
   padding: 13px;
 
-  border:
-    1px solid
-    transparent;
-
+  border: 1px solid transparent;
   border-radius: 8px;
 }
 
 .chatter-incident-strike.active {
   border-color:
-    rgba(
-      157,
-      213,
-      168,
-      0.19
-    );
+    rgba(157, 213, 168, 0.19);
 
   background:
     var(--success-bg);
@@ -1028,19 +1223,13 @@
 
 .chatter-incident-strike.expired {
   border-color:
-    rgba(
-      174,
-      188,
-      224,
-      0.19
-    );
+    rgba(174, 188, 224, 0.19);
 
   background:
     var(--info-bg);
 }
 
-.chatter-incident-strike
-  > div {
+.chatter-incident-strike > div {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1067,14 +1256,12 @@
   font-size: 10px;
 }
 
-.chatter-incident-strike.active
-  strong {
+.chatter-incident-strike.active strong {
   color:
     var(--success);
 }
 
-.chatter-incident-strike.expired
-  strong {
+.chatter-incident-strike.expired strong {
   color:
     var(--info);
 }
@@ -1100,8 +1287,7 @@
   padding: 13px;
 
   border:
-    1px solid
-    transparent;
+    1px solid transparent;
 
   border-radius: 8px;
 }
@@ -1168,7 +1354,7 @@
 
   justify-content: center;
 
-  min-height: 78px;
+  min-height: 104px;
 
   border:
     1px solid
@@ -1248,10 +1434,19 @@
    ========================================================= */
 
 @media (max-width: 900px) {
+  .chatter-standing-panel {
+    grid-template-columns:
+      1fr;
+  }
+
+  .chatter-standing-primary {
+    min-height: 132px;
+  }
+
   .chatter-stat-grid {
     grid-template-columns:
       repeat(
-        3,
+        2,
         minmax(0, 1fr)
       );
   }
@@ -1266,20 +1461,15 @@
 
   .chatter-history-controls {
     width: 100%;
-
-    justify-content:
-      flex-start;
+    justify-content: flex-start;
   }
 
   .chatter-strike-filter {
-    flex:
-      1 1 190px;
+    flex: 1 1 190px;
   }
 
   .chatter-incident-filters {
-    flex:
-      1 1 100%;
-
+    flex: 1 1 100%;
     width: 100%;
   }
 
@@ -1324,6 +1514,24 @@
 }
 
 @media (max-width: 520px) {
+  .chatter-standing-metrics {
+    grid-template-columns:
+      1fr;
+  }
+
+  .chatter-standing-metric,
+  .chatter-standing-metric:nth-child(2n),
+  .chatter-standing-metric:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom:
+      1px solid
+      var(--border-soft);
+  }
+
+  .chatter-standing-metric:last-child {
+    border-bottom: 0;
+  }
+
   .chatter-stat-grid {
     grid-template-columns:
       repeat(
@@ -1337,8 +1545,7 @@
   }
 
   .chatter-history-controls {
-    align-items:
-      stretch;
+    align-items: stretch;
   }
 
   .chatter-strike-filter {
@@ -1349,22 +1556,15 @@
     display: grid;
 
     grid-template-columns:
-      repeat(
-        2,
-        1fr
-      );
+      repeat(2, 1fr);
   }
 
   .chatter-incident-strike {
-    align-items:
-      flex-start;
-
-    flex-direction:
-      column;
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .chatter-incident-strike
-    small {
+  .chatter-incident-strike small {
     text-align: left;
   }
 }
@@ -1376,15 +1576,14 @@
 
 @media (
   prefers-reduced-motion:
-    reduce
+  reduce
 ) {
   .chatter-clickable-row,
   .chatter-profile-modal,
   .chatter-stat-card,
   .chatter-incident-item,
   .chatter-incident-chevron,
-  .chatter-incident-chevron
-    svg,
+  .chatter-incident-chevron svg,
   .chatter-incident-details {
     animation:
       none !important;

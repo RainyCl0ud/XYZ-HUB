@@ -39,6 +39,17 @@ type Chatter = {
   updatedAt: string;
 };
 
+type StrikeSummary = {
+  activeStrikeCount: number;
+  standingLabel: string;
+  deductionPercent: number;
+  nextExpiryAt:
+    | string
+    | null;
+  ladderVersionId: string;
+  ladderVersion: number;
+};
+
 type ChatterIncident = {
   id: string;
 
@@ -102,7 +113,10 @@ type ChatterListResponse = {
 };
 
 type ChatterDetailResponse = {
-  data: Chatter;
+  data: Chatter & {
+    strikeSummary:
+      StrikeSummary;
+  };
 };
 
 type IncidentListResponse = {
@@ -146,6 +160,56 @@ type PendingConfirmation =
         | "reactivate";
       chatter: Chatter;
     };
+
+const TEXAS_TIME_ZONE =
+  "America/Chicago";
+
+function formatTexasDate(
+  value: string
+) {
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone:
+        TEXAS_TIME_ZONE,
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
+  ).format(new Date(value));
+}
+
+function formatTexasDateTime(
+  value: string
+) {
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone:
+        TEXAS_TIME_ZONE,
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }
+  ).format(new Date(value));
+}
+
+function formatPercentage(
+  value: number
+) {
+  return Number.isInteger(value)
+    ? String(value)
+    : value.toFixed(2).replace(
+        /0+$/,
+        ""
+      ).replace(
+        /\.$/,
+        ""
+      );
+}
 
 function ChattersPage() {
   const toast = useToast();
@@ -220,6 +284,14 @@ function ChattersPage() {
     setSelectedChatter,
   ] =
     useState<Chatter | null>(null);
+
+  const [
+    chatterStrikeSummary,
+    setChatterStrikeSummary,
+  ] =
+    useState<StrikeSummary | null>(
+      null
+    );
 
   const [
     chatterIncidents,
@@ -376,6 +448,10 @@ function ChattersPage() {
       null
     );
 
+    setChatterStrikeSummary(
+      null
+    );
+
     setChatterIncidents([]);
 
     setDetailsError("");
@@ -398,6 +474,10 @@ function ChattersPage() {
   ) {
     setSelectedChatter(
       chatter
+    );
+
+    setChatterStrikeSummary(
+      null
     );
 
     setChatterIncidents([]);
@@ -436,6 +516,11 @@ function ChattersPage() {
 
       setSelectedChatter(
         chatterResponse.data
+      );
+
+      setChatterStrikeSummary(
+        chatterResponse.data
+          .strikeSummary
       );
 
       setChatterIncidents(
@@ -1133,9 +1218,9 @@ function ChattersPage() {
     }
 
     const formattedDate =
-      new Date(
+      formatTexasDateTime(
         incident.expiresAt
-      ).toLocaleString();
+      );
 
     return incident.strikeActivityStatus ===
       "EXPIRED"
@@ -1374,9 +1459,9 @@ function ChattersPage() {
                       </td>
 
                       <td>
-                        {new Date(
+                        {formatTexasDate(
                           chatter.createdAt
-                        ).toLocaleDateString()}
+                        )}
                       </td>
                     </tr>
                   )
@@ -1437,9 +1522,9 @@ function ChattersPage() {
 
                   <span className="chatter-profile-member-since">
                     Added{" "}
-                    {new Date(
+                    {formatTexasDate(
                       selectedChatter.createdAt
-                    ).toLocaleDateString()}
+                    )}
                   </span>
                 </div>
               </div>
@@ -1524,6 +1609,138 @@ function ChattersPage() {
                   {detailsError}
                 </div>
               )}
+
+              <section className="chatter-profile-section chatter-standing-section">
+                <div className="chatter-profile-section-heading">
+                  <div>
+                    <span>
+                      Strike Standing
+                    </span>
+
+                    <h4>
+                      Current Standing
+                    </h4>
+                  </div>
+
+                  {!detailsLoading &&
+                    chatterStrikeSummary && (
+                      <span className="chatter-ladder-version-badge">
+                        Ladder v
+                        {
+                          chatterStrikeSummary.ladderVersion
+                        }
+                      </span>
+                    )}
+                </div>
+
+                {detailsLoading ? (
+                  <div className="chatter-profile-loading">
+                    Loading current
+                    strike standing...
+                  </div>
+                ) : chatterStrikeSummary ? (
+                  <div className="chatter-standing-panel">
+                    <div className="chatter-standing-primary">
+                      <span>
+                        Current Standing
+                      </span>
+
+                      <strong>
+                        {
+                          chatterStrikeSummary.standingLabel
+                        }
+                      </strong>
+
+                      <p>
+                        Based on{" "}
+                        {
+                          chatterStrikeSummary.activeStrikeCount
+                        }{" "}
+                        active{" "}
+                        {chatterStrikeSummary.activeStrikeCount ===
+                        1
+                          ? "strike"
+                          : "strikes"}{" "}
+                        under the current
+                        ladder.
+                      </p>
+                    </div>
+
+                    <div className="chatter-standing-metrics">
+                      <div className="chatter-standing-metric">
+                        <span>
+                          Active Strikes
+                        </span>
+
+                        <strong>
+                          {
+                            chatterStrikeSummary.activeStrikeCount
+                          }
+                        </strong>
+                      </div>
+
+                      <div className="chatter-standing-metric">
+                        <span>
+                          Commission
+                          Deduction
+                        </span>
+
+                        <strong>
+                          {formatPercentage(
+                            chatterStrikeSummary.deductionPercent
+                          )}
+                          %
+                        </strong>
+                      </div>
+
+                      <div className="chatter-standing-metric chatter-standing-next-expiry">
+                        <span>
+                          Next Expiry
+                        </span>
+
+                        <strong>
+                          {chatterStrikeSummary.nextExpiryAt
+                            ? formatTexasDateTime(
+                                chatterStrikeSummary.nextExpiryAt
+                              )
+                            : "—"}
+                        </strong>
+
+                        <small>
+                          {chatterStrikeSummary.nextExpiryAt
+                            ? "Earliest active strike expiry"
+                            : "No active strike expiry"}
+                        </small>
+                      </div>
+
+                      <div className="chatter-standing-metric">
+                        <span>
+                          Ladder Version
+                        </span>
+
+                        <strong>
+                          v
+                          {
+                            chatterStrikeSummary.ladderVersion
+                          }
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="chatter-profile-empty chatter-standing-empty">
+                    <strong>
+                      Standing unavailable
+                    </strong>
+
+                    <span>
+                      The current strike
+                      standing could not be
+                      loaded.
+                    </span>
+                  </div>
+                )}
+              </section>
 
               <section className="chatter-profile-section">
                 <div className="chatter-profile-section-heading">
@@ -1850,9 +2067,9 @@ function ChattersPage() {
 
                                   <time>
                                     Issued{" "}
-                                    {new Date(
+                                    {formatTexasDateTime(
                                       incident.occurredAt
-                                    ).toLocaleString()}
+                                    )}
                                   </time>
 
                                   {formatStrikeExpiry(
@@ -1941,17 +2158,17 @@ function ChattersPage() {
 
                                     <small>
                                       Issued{" "}
-                                      {new Date(
+                                      {formatTexasDateTime(
                                         incident.occurredAt
-                                      ).toLocaleString()}
+                                      )}
                                       {" · "}
                                       {incident.strikeActivityStatus ===
                                       "EXPIRED"
                                         ? "Expired"
                                         : "Expires"}{" "}
-                                      {new Date(
+                                      {formatTexasDateTime(
                                         incident.expiresAt
-                                      ).toLocaleString()}
+                                      )}
                                     </small>
                                   </div>
                                 )}
@@ -1992,9 +2209,9 @@ function ChattersPage() {
                                     {incident.resolvedAt && (
                                       <small>
                                         Resolved{" "}
-                                        {new Date(
+                                        {formatTexasDateTime(
                                           incident.resolvedAt
-                                        ).toLocaleString()}
+                                        )}
                                       </small>
                                     )}
                                   </div>
@@ -2016,9 +2233,9 @@ function ChattersPage() {
                                     {incident.voidedAt && (
                                       <small>
                                         Voided{" "}
-                                        {new Date(
+                                        {formatTexasDateTime(
                                           incident.voidedAt
-                                        ).toLocaleString()}
+                                        )}
                                       </small>
                                     )}
                                   </div>

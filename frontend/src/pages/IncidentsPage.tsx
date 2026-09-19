@@ -141,6 +141,17 @@ type RuleListResponse = {
   data: Rule[];
 };
 
+type StrikeLadderVersion = {
+  id: string;
+  versionNumber: number;
+  durationDays: number;
+  isCurrent: boolean;
+};
+
+type StrikeLadderResponse = {
+  data: StrikeLadderVersion;
+};
+
 type IncidentMutationResponse = {
   message: string;
   data: Incident;
@@ -210,6 +221,14 @@ function IncidentsPage() {
     allRules,
     setAllRules,
   ] = useState<Rule[]>([]);
+
+  const [
+    currentStrikeLadder,
+    setCurrentStrikeLadder,
+  ] =
+    useState<StrikeLadderVersion | null>(
+      null
+    );
 
   const [
     statusFilter,
@@ -386,6 +405,7 @@ function IncidentsPage() {
         const [
           chatterResponse,
           ruleResponse,
+          ladderResponse,
         ] = await Promise.all([
           apiRequest<ChatterListResponse>(
             "/api/chatters"
@@ -393,6 +413,10 @@ function IncidentsPage() {
 
           apiRequest<RuleListResponse>(
             "/api/rules"
+          ),
+
+          apiRequest<StrikeLadderResponse>(
+            "/api/strike-ladder"
           ),
         ]);
 
@@ -412,6 +436,10 @@ function IncidentsPage() {
 
         setAllRules(
           completeRules
+        );
+
+        setCurrentStrikeLadder(
+          ladderResponse.data
         );
 
         setActiveChatters(
@@ -1362,8 +1390,11 @@ function IncidentsPage() {
             incidents, preserve
             historical rule data,
             and track each strike
-            through its automatic
-            30-day lifecycle.
+            through its automatic{" "}
+            {currentStrikeLadder
+              ? `${currentStrikeLadder.durationDays}-day`
+              : "configured"}{" "}
+            lifecycle.
           </p>
         </div>
 
@@ -1375,6 +1406,7 @@ function IncidentsPage() {
           }
           disabled={
             dependenciesLoading ||
+            !currentStrikeLadder ||
             activeChatters.length ===
               0 ||
             activeRules.length ===
@@ -1876,9 +1908,12 @@ function IncidentsPage() {
                   and rule.
                   Severity, weight,
                   the exact rule
-                  version, and the
-                  30-day strike
-                  expiry are captured
+                  version, and the{" "}
+                  {currentStrikeLadder
+                    ? `${currentStrikeLadder.durationDays}-day`
+                    : "configured"}{" "}
+                  strike expiry are
+                  captured
                   automatically.
                 </p>
               </div>
@@ -2942,7 +2977,14 @@ function IncidentsPage() {
                       </span>
 
                       <strong>
-                        30 days
+                        {currentStrikeLadder
+                          ? `${currentStrikeLadder.durationDays} ${
+                              currentStrikeLadder.durationDays ===
+                              1
+                                ? "day"
+                                : "days"
+                            }`
+                          : "—"}
                       </strong>
                     </div>
 

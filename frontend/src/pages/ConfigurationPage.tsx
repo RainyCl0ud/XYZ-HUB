@@ -39,8 +39,45 @@ type WeightOption =
     value: number | null;
   };
 
+type StrikeLadderStep = {
+  id: string;
+  ladderVersionId: string;
+  minActiveStrikes: number;
+  standingLabel: string;
+  deductionPercent: number;
+};
+
+type StrikeLadderVersion = {
+  id: string;
+  versionNumber: number;
+  durationDays: number;
+  isCurrent: boolean;
+  createdAt: string;
+  steps: StrikeLadderStep[];
+};
+
+type StrikeLadderPayloadStep = {
+  standingLabel: string;
+  deductionPercent: number;
+};
+
+type StrikeLadderPayload = {
+  durationDays: number;
+  steps: StrikeLadderPayloadStep[];
+};
+
+type LadderDraftStep = {
+  clientId: string;
+  standingLabel: string;
+  deductionPercent: string;
+};
+
 type OptionListResponse<T> = {
   data: T[];
+};
+
+type DataResponse<T> = {
+  data: T;
 };
 
 type MutationResponse<T> = {
@@ -87,6 +124,10 @@ type PendingConfirmation =
   | {
       type: "order";
       kind: OptionKind;
+    }
+  | {
+      type: "ladder";
+      payload: StrikeLadderPayload;
     };
 
 function ConfigurationPage() {
@@ -113,6 +154,13 @@ function ConfigurationPage() {
   >([]);
 
   const [
+    currentLadder,
+    setCurrentLadder,
+  ] = useState<
+    StrikeLadderVersion | null
+  >(null);
+
+  const [
     isLoading,
     setIsLoading,
   ] = useState(true);
@@ -124,7 +172,7 @@ function ConfigurationPage() {
 
   /*
    * =========================================================
-   * ADD / EDIT FORM
+   * ADD / EDIT SEVERITY + WEIGHT
    * =========================================================
    */
 
@@ -180,7 +228,7 @@ function ConfigurationPage() {
 
   /*
    * =========================================================
-   * SETTINGS MENU
+   * SETTINGS / ARCHIVE
    * =========================================================
    */
 
@@ -302,6 +350,71 @@ function ConfigurationPage() {
 
   /*
    * =========================================================
+   * STRIKE LADDER EDITOR + HISTORY
+   * =========================================================
+   */
+
+  const [
+    showLadderEditor,
+    setShowLadderEditor,
+  ] = useState(false);
+
+  const [
+    ladderDuration,
+    setLadderDuration,
+  ] = useState("");
+
+  const [
+    ladderDraftSteps,
+    setLadderDraftSteps,
+  ] = useState<
+    LadderDraftStep[]
+  >([]);
+
+  const [
+    ladderFormError,
+    setLadderFormError,
+  ] = useState("");
+
+  const [
+    isSavingLadder,
+    setIsSavingLadder,
+  ] = useState(false);
+
+  const [
+    showLadderHistory,
+    setShowLadderHistory,
+  ] = useState(false);
+
+  const [
+    ladderHistory,
+    setLadderHistory,
+  ] = useState<
+    StrikeLadderVersion[]
+  >([]);
+
+  const [
+    ladderHistoryLoading,
+    setLadderHistoryLoading,
+  ] = useState(false);
+
+  const ladderDraftIdRef =
+    useRef(0);
+
+  const [
+    newlyAddedLadderStepId,
+    setNewlyAddedLadderStepId,
+  ] = useState<string | null>(
+    null
+  );
+
+  const ladderStepElementRefs =
+    useRef<
+      Map<string, HTMLDivElement>
+    >(new Map());
+
+  /*
+   * =========================================================
    * CONFIRMATION
    * =========================================================
    */
@@ -320,16 +433,16 @@ function ConfigurationPage() {
    * =========================================================
    */
 
-  const loadOptions =
+  const loadConfiguration =
     useCallback(async () => {
       try {
         setIsLoading(true);
-
         setPageError("");
 
         const [
           severityResponse,
           weightResponse,
+          ladderResponse,
         ] = await Promise.all([
           apiRequest<
             OptionListResponse<
@@ -346,6 +459,14 @@ function ConfigurationPage() {
           >(
             "/api/weight-options"
           ),
+
+          apiRequest<
+            DataResponse<
+              StrikeLadderVersion
+            >
+          >(
+            "/api/strike-ladder"
+          ),
         ]);
 
         setSeverityOptions(
@@ -354,6 +475,10 @@ function ConfigurationPage() {
 
         setWeightOptions(
           weightResponse.data
+        );
+
+        setCurrentLadder(
+          ladderResponse.data
         );
       } catch (error) {
         const message =
@@ -375,8 +500,8 @@ function ConfigurationPage() {
     }, [toast]);
 
   useEffect(() => {
-    void loadOptions();
-  }, [loadOptions]);
+    void loadConfiguration();
+  }, [loadConfiguration]);
 
   useEffect(() => {
     return () => {
@@ -390,6 +515,88 @@ function ConfigurationPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      !showLadderEditor ||
+      !newlyAddedLadderStepId
+    ) {
+      return;
+    }
+
+    const stepId =
+      newlyAddedLadderStepId;
+
+    /*
+     * Wait for React to render the newly added row, then
+     * bring it into view and focus its Standing field.
+     */
+    const scrollTimer =
+      window.setTimeout(
+        () => {
+          const row =
+            ladderStepElementRefs.current.get(
+              stepId
+            );
+
+          if (!row) {
+            return;
+          }
+
+          row.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+
+          const standingInput =
+            row.querySelector<HTMLInputElement>(
+              '[data-ladder-standing-input="true"]'
+            );
+
+          window.setTimeout(
+            () => {
+              standingInput?.focus({
+                preventScroll: true,
+              });
+
+              standingInput?.select();
+            },
+            280
+          );
+        },
+        60
+      );
+
+    /*
+     * Keep the visual highlight long enough to be obvious,
+     * then return the row to its normal appearance.
+     */
+    const highlightTimer =
+      window.setTimeout(
+        () => {
+          setNewlyAddedLadderStepId(
+            (current) =>
+              current === stepId
+                ? null
+                : current
+          );
+        },
+        2200
+      );
+
+    return () => {
+      window.clearTimeout(
+        scrollTimer
+      );
+
+      window.clearTimeout(
+        highlightTimer
+      );
+    };
+  }, [
+    newlyAddedLadderStepId,
+    showLadderEditor,
+  ]);
 
   /*
    * =========================================================
@@ -431,7 +638,6 @@ function ConfigurationPage() {
     kind: OptionKind
   ) {
     setSettingsMenuKind(null);
-
     setArchiveModalKind(kind);
   }
 
@@ -453,21 +659,16 @@ function ConfigurationPage() {
 
   /*
    * =========================================================
-   * FORM HELPERS
+   * SEVERITY / WEIGHT FORM HELPERS
    * =========================================================
    */
 
   function resetForm() {
     setModalKind(null);
-
     setEditingOption(null);
-
     setName("");
-
     setDescription("");
-
     setWeightValue("");
-
     setFormError("");
   }
 
@@ -486,17 +687,11 @@ function ConfigurationPage() {
     );
 
     setPageError("");
-
     setModalKind(kind);
-
     setEditingOption(null);
-
     setName("");
-
     setDescription("");
-
     setWeightValue("");
-
     setFormError("");
   }
 
@@ -518,9 +713,7 @@ function ConfigurationPage() {
     );
 
     setPageError("");
-
     setModalKind(kind);
-
     setEditingOption(
       option
     );
@@ -578,7 +771,7 @@ function ConfigurationPage() {
 
   /*
    * =========================================================
-   * FORM VALIDATION
+   * SEVERITY / WEIGHT FORM VALIDATION
    * =========================================================
    */
 
@@ -761,9 +954,7 @@ function ConfigurationPage() {
 
     try {
       setIsSaving(true);
-
       setFormError("");
-
       setPageError("");
 
       if (
@@ -887,7 +1078,7 @@ function ConfigurationPage() {
 
       resetForm();
 
-      await loadOptions();
+      await loadConfiguration();
     } catch (error) {
       const message =
         error instanceof Error
@@ -933,7 +1124,6 @@ function ConfigurationPage() {
 
     setPendingConfirmation({
       type: "status",
-
       kind,
 
       action:
@@ -997,7 +1187,7 @@ function ConfigurationPage() {
           : `${label} reactivated`
       );
 
-      await loadOptions();
+      await loadConfiguration();
     } catch (error) {
       const message =
         error instanceof Error
@@ -1090,19 +1280,14 @@ function ConfigurationPage() {
     }
 
     setDraggedId(null);
-
     setDragOverId(null);
-
     setLastMovedId(null);
 
     setReorderKind(kind);
   }
 
   function cancelReorder() {
-    if (
-      !reorderKind ||
-      isSavingOrder
-    ) {
+    if (isSavingOrder) {
       return;
     }
 
@@ -1111,58 +1296,34 @@ function ConfigurationPage() {
       "severity"
     ) {
       setSeverityOptions(
-        severityBackup
+        severityBackup.map(
+          (option) => ({
+            ...option,
+          })
+        )
       );
-    } else {
+    }
+
+    if (
+      reorderKind ===
+      "weight"
+    ) {
       setWeightOptions(
-        weightBackup
+        weightBackup.map(
+          (option) => ({
+            ...option,
+          })
+        )
       );
     }
 
     setReorderKind(null);
-
-    setDraggedId(null);
-
-    setDragOverId(null);
-
-    setLastMovedId(null);
-
     setSeverityBackup([]);
-
     setWeightBackup([]);
-
-    toast.info(
-      "The unsaved order was discarded.",
-      "Reorder cancelled"
-    );
-  }
-
-  function normalizeSeverityOrder(
-    options:
-      SeverityOption[]
-  ) {
-    return options.map(
-      (option, index) => ({
-        ...option,
-
-        sortOrder:
-          index + 1,
-      })
-    );
-  }
-
-  function normalizeWeightOrder(
-    options:
-      WeightOption[]
-  ) {
-    return options.map(
-      (option, index) => ({
-        ...option,
-
-        sortOrder:
-          index + 1,
-      })
-    );
+    setDraggedId(null);
+    setDragOverId(null);
+    setLastMovedId(null);
+    setPendingConfirmation(null);
   }
 
   function moveOption(
@@ -1170,112 +1331,75 @@ function ConfigurationPage() {
     sourceId: string,
     targetId: string
   ) {
+    const source =
+      kind === "severity"
+        ? severityOptions
+        : weightOptions;
+
+    const sourceIndex =
+      source.findIndex(
+        (option) =>
+          option.id === sourceId
+      );
+
+    const targetIndex =
+      source.findIndex(
+        (option) =>
+          option.id === targetId
+      );
+
     if (
-      sourceId === targetId
+      sourceIndex < 0 ||
+      targetIndex < 0 ||
+      sourceIndex === targetIndex
     ) {
       return;
     }
+
+    const next = [
+      ...source,
+    ];
+
+    const [
+      moved,
+    ] = next.splice(
+      sourceIndex,
+      1
+    );
+
+    next.splice(
+      targetIndex,
+      0,
+      moved
+    );
+
+    const normalized =
+      next.map(
+        (option, index) => ({
+          ...option,
+          sortOrder:
+            index + 1,
+        })
+      );
 
     if (
       kind === "severity"
     ) {
       setSeverityOptions(
-        (current) => {
-          const sourceIndex =
-            current.findIndex(
-              (option) =>
-                option.id ===
-                sourceId
-            );
-
-          const targetIndex =
-            current.findIndex(
-              (option) =>
-                option.id ===
-                targetId
-            );
-
-          if (
-            sourceIndex === -1 ||
-            targetIndex === -1
-          ) {
-            return current;
-          }
-
-          const next = [
-            ...current,
-          ];
-
-          const [moved] =
-            next.splice(
-              sourceIndex,
-              1
-            );
-
-          next.splice(
-            targetIndex,
-            0,
-            moved
-          );
-
-          return normalizeSeverityOrder(
-            next
-          );
-        }
+        normalized as SeverityOption[]
       );
-
-      return;
+    } else {
+      setWeightOptions(
+        normalized as WeightOption[]
+      );
     }
-
-    setWeightOptions(
-      (current) => {
-        const sourceIndex =
-          current.findIndex(
-            (option) =>
-              option.id ===
-              sourceId
-          );
-
-        const targetIndex =
-          current.findIndex(
-            (option) =>
-              option.id ===
-              targetId
-          );
-
-        if (
-          sourceIndex === -1 ||
-          targetIndex === -1
-        ) {
-          return current;
-        }
-
-        const next = [
-          ...current,
-        ];
-
-        const [moved] =
-          next.splice(
-            sourceIndex,
-            1
-          );
-
-        next.splice(
-          targetIndex,
-          0,
-          moved
-        );
-
-        return normalizeWeightOrder(
-          next
-        );
-      }
-    );
   }
 
   function flashPlacedItem(
-    optionId: string
+    id: string
   ) {
+    setLastMovedId(id);
+
     if (
       placedTimerRef.current !==
       null
@@ -1285,21 +1409,14 @@ function ConfigurationPage() {
       );
     }
 
-    setLastMovedId(
-      optionId
-    );
-
     placedTimerRef.current =
       window.setTimeout(
         () => {
-          setLastMovedId(
-            null
-          );
-
+          setLastMovedId(null);
           placedTimerRef.current =
             null;
         },
-        900
+        500
       );
   }
 
@@ -1322,7 +1439,9 @@ function ConfigurationPage() {
       optionId
     );
 
-    setLastMovedId(null);
+    setDragOverId(
+      optionId
+    );
 
     event.dataTransfer.effectAllowed =
       "move";
@@ -1396,7 +1515,6 @@ function ConfigurationPage() {
     );
 
     setDraggedId(null);
-
     setDragOverId(null);
 
     if (didMove) {
@@ -1408,7 +1526,6 @@ function ConfigurationPage() {
 
   function handleDragEnd() {
     setDraggedId(null);
-
     setDragOverId(null);
   }
 
@@ -1456,7 +1573,6 @@ function ConfigurationPage() {
 
     try {
       setIsSavingOrder(true);
-
       setPageError("");
 
       if (
@@ -1512,15 +1628,10 @@ function ConfigurationPage() {
       );
 
       setReorderKind(null);
-
       setSeverityBackup([]);
-
       setWeightBackup([]);
-
       setDraggedId(null);
-
       setDragOverId(null);
-
       setLastMovedId(null);
 
       toast.success(
@@ -1552,6 +1663,655 @@ function ConfigurationPage() {
         false
       );
     }
+  }
+
+  /*
+   * =========================================================
+   * STRIKE LADDER HELPERS
+   * =========================================================
+   */
+
+  function nextLadderDraftId() {
+    ladderDraftIdRef.current +=
+      1;
+
+    return `ladder-step-${ladderDraftIdRef.current}`;
+  }
+
+  function formatDeduction(
+    value: number
+  ) {
+    return Number.isInteger(value)
+      ? String(value)
+      : String(
+          Number(
+            value.toFixed(2)
+          )
+        );
+  }
+
+  function formatThresholdRange(
+    steps: StrikeLadderStep[],
+    index: number
+  ) {
+    const current =
+      steps[index];
+
+    const next =
+      steps[index + 1];
+
+    if (!next) {
+      return `${current.minActiveStrikes}+`;
+    }
+
+    if (
+      next.minActiveStrikes ===
+      current.minActiveStrikes +
+        1
+    ) {
+      return String(
+        current.minActiveStrikes
+      );
+    }
+
+    return `${current.minActiveStrikes}–${next.minActiveStrikes - 1}`;
+  }
+
+  function sameLadderConfiguration(
+    payload:
+      StrikeLadderPayload
+  ) {
+    if (!currentLadder) {
+      return false;
+    }
+
+    if (
+      currentLadder.durationDays !==
+      payload.durationDays
+    ) {
+      return false;
+    }
+
+    const currentSteps =
+      [...currentLadder.steps]
+        .sort(
+          (first, second) =>
+            first.minActiveStrikes -
+            second.minActiveStrikes
+        );
+
+    if (
+      currentSteps.length !==
+      payload.steps.length
+    ) {
+      return false;
+    }
+
+    return currentSteps.every(
+      (step, index) => {
+        const submitted =
+          payload.steps[index];
+
+        /*
+         * New ladder versions are always sequential.
+         * If an older/current configuration somehow contains
+         * a gap, saving through the editor normalizes it.
+         */
+        return (
+          step.minActiveStrikes ===
+            index &&
+          step.standingLabel.trim() ===
+            submitted.standingLabel &&
+          step.deductionPercent ===
+            submitted.deductionPercent
+        );
+      }
+    );
+  }
+
+  function openLadderEditor() {
+    if (!currentLadder) {
+      return;
+    }
+
+    setPageError("");
+    setLadderFormError("");
+    setNewlyAddedLadderStepId(
+      null
+    );
+
+    setLadderDuration(
+      String(
+        currentLadder.durationDays
+      )
+    );
+
+    setLadderDraftSteps(
+      [...currentLadder.steps]
+        .sort(
+          (first, second) =>
+            first.minActiveStrikes -
+            second.minActiveStrikes
+        )
+        .map(
+          (step, index) => ({
+            clientId:
+              nextLadderDraftId(),
+
+            standingLabel:
+              step.standingLabel,
+
+            /*
+             * The base 0-strike row always carries a fixed
+             * 0% deduction. Historical data is therefore
+             * normalized in the editor as well.
+             */
+            deductionPercent:
+              index === 0
+                ? "0"
+                : String(
+                    step.deductionPercent
+                  ),
+          })
+        )
+    );
+
+    setShowLadderEditor(
+      true
+    );
+  }
+
+  function closeLadderEditor() {
+    if (isSavingLadder) {
+      return;
+    }
+
+    setPendingConfirmation(
+      null
+    );
+
+    setShowLadderEditor(
+      false
+    );
+
+    setLadderFormError("");
+    setLadderDuration("");
+    setLadderDraftSteps([]);
+    setNewlyAddedLadderStepId(
+      null
+    );
+    ladderStepElementRefs.current.clear();
+  }
+
+  function updateLadderDraftStep(
+    clientId: string,
+    field:
+      | "standingLabel"
+      | "deductionPercent",
+    value: string
+  ) {
+    setLadderDraftSteps(
+      (current) => {
+        const targetIndex =
+          current.findIndex(
+            (step) =>
+              step.clientId ===
+              clientId
+          );
+
+        /*
+         * The base row's deduction is a protected system
+         * rule. Even an accidental UI call cannot change it.
+         */
+        if (
+          targetIndex === 0 &&
+          field ===
+            "deductionPercent"
+        ) {
+          return current;
+        }
+
+        return current.map(
+          (step) =>
+            step.clientId ===
+            clientId
+              ? {
+                  ...step,
+                  [field]:
+                    value,
+                }
+              : step
+        );
+      }
+    );
+
+    if (ladderFormError) {
+      setLadderFormError("");
+    }
+  }
+
+  function addLadderStep() {
+    /*
+     * The backend accepts a maximum of 50 steps. Keep the
+     * editor aligned with that same rule and give management
+     * immediate feedback instead of silently doing nothing.
+     */
+    if (
+      ladderDraftSteps.length >=
+      50
+    ) {
+      const message =
+        "The strike ladder cannot contain more than 50 steps.";
+
+      setLadderFormError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Step not added"
+      );
+
+      return;
+    }
+
+    /*
+     * Active-strike numbers are system controlled.
+     * The new row automatically becomes the next sequential
+     * strike number because its array index is the threshold.
+     */
+    const newStepId =
+      nextLadderDraftId();
+
+    const newStepNumber =
+      ladderDraftSteps.length;
+
+    setLadderDraftSteps(
+      (current) => [
+        ...current,
+
+        {
+          clientId:
+            newStepId,
+
+          standingLabel:
+            "New Standing",
+
+          deductionPercent:
+            "0",
+        },
+      ]
+    );
+
+    setNewlyAddedLadderStepId(
+      newStepId
+    );
+
+    setLadderFormError("");
+
+    toast.success(
+      `Strike step ${newStepNumber} was added.`,
+      "Step added"
+    );
+  }
+
+  function removeLadderStep(
+    clientId: string
+  ) {
+    const targetIndex =
+      ladderDraftSteps.findIndex(
+        (step) =>
+          step.clientId ===
+          clientId
+      );
+
+    /*
+     * Index 0 is the permanent base state.
+     * Management may edit its label and deduction,
+     * but the base row itself can never be removed.
+     */
+    if (targetIndex === 0) {
+      const message =
+        "The 0-strike base step cannot be removed.";
+
+      setLadderFormError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Base step required"
+      );
+
+      return;
+    }
+
+    if (targetIndex < 0) {
+      return;
+    }
+
+    /*
+     * No threshold renumbering is stored in the draft.
+     * Once a row is removed, the remaining array indexes
+     * immediately become 0, 1, 2, 3... in the UI and API.
+     */
+    setLadderDraftSteps(
+      (current) =>
+        current.filter(
+          (step) =>
+            step.clientId !==
+            clientId
+        )
+    );
+
+    ladderStepElementRefs.current.delete(
+      clientId
+    );
+
+    if (
+      newlyAddedLadderStepId ===
+      clientId
+    ) {
+      setNewlyAddedLadderStepId(
+        null
+      );
+    }
+
+    setLadderFormError("");
+  }
+
+  function showLadderError(
+    message: string
+  ) {
+    setLadderFormError(
+      message
+    );
+
+    toast.error(
+      message,
+      "Check strike ladder"
+    );
+  }
+
+  function handleLadderSubmit(
+    event:
+      FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    const durationDays =
+      Number(
+        ladderDuration
+      );
+
+    if (
+      !Number.isInteger(
+        durationDays
+      ) ||
+      durationDays < 1 ||
+      durationDays > 365
+    ) {
+      showLadderError(
+        "Strike duration must be a whole number between 1 and 365 days."
+      );
+
+      return;
+    }
+
+    /*
+     * Step 0 is permanent, so a valid editor state
+     * must always contain at least that base row.
+     */
+    if (
+      ladderDraftSteps.length ===
+      0
+    ) {
+      showLadderError(
+        "The 0-strike base step is required."
+      );
+
+      return;
+    }
+
+    const parsedSteps:
+      StrikeLadderPayloadStep[] =
+      [];
+
+    for (
+      const [
+        index,
+        draft,
+      ] of
+        ladderDraftSteps.entries()
+    ) {
+      /*
+       * 0 active strikes is the permanent default state,
+       * so its deduction is always 0%. Management may only
+       * change the wording of that base standing.
+       */
+      const deduction =
+        index === 0
+          ? 0
+          : Number(
+              draft.deductionPercent
+            );
+
+      const label =
+        draft.standingLabel.trim();
+
+      if (!label) {
+        showLadderError(
+          "Every ladder step must have a standing label."
+        );
+
+        return;
+      }
+
+      if (
+        label.length > 120
+      ) {
+        showLadderError(
+          "Standing labels must be 120 characters or fewer."
+        );
+
+        return;
+      }
+
+      if (
+        !Number.isFinite(
+          deduction
+        ) ||
+        deduction < 0 ||
+        deduction > 100
+      ) {
+        showLadderError(
+          "Every deduction percentage must be between 0 and 100."
+        );
+
+        return;
+      }
+
+      parsedSteps.push({
+        standingLabel:
+          label,
+
+        deductionPercent:
+          deduction,
+      });
+    }
+
+    /*
+     * The API derives minActiveStrikes from array position:
+     * index 0 → 0 strikes
+     * index 1 → 1 strike
+     * index 2 → 2 strikes
+     * and so on.
+     */
+    const payload:
+      StrikeLadderPayload = {
+      durationDays,
+      steps:
+        parsedSteps,
+    };
+
+    if (
+      sameLadderConfiguration(
+        payload
+      )
+    ) {
+      setLadderFormError("");
+
+      toast.info(
+        "No strike ladder changes were detected.",
+        "No changes"
+      );
+
+      return;
+    }
+
+    setLadderFormError("");
+
+    setPendingConfirmation({
+      type: "ladder",
+      payload,
+    });
+  }
+
+  async function saveStrikeLadder(
+    confirmation: Extract<
+      PendingConfirmation,
+      {
+        type: "ladder";
+      }
+    >
+  ) {
+    try {
+      setIsSavingLadder(true);
+      setPageError("");
+      setLadderFormError("");
+
+      const response =
+        await apiRequest<
+          MutationResponse<
+            StrikeLadderVersion
+          >
+        >(
+          "/api/strike-ladder",
+          {
+            method: "POST",
+
+            body:
+              JSON.stringify(
+                confirmation.payload
+              ),
+          }
+        );
+
+      setPendingConfirmation(
+        null
+      );
+
+      setCurrentLadder(
+        response.data
+      );
+
+      setShowLadderEditor(
+        false
+      );
+
+      setLadderDuration("");
+      setLadderDraftSteps([]);
+      setLadderHistory([]);
+
+      toast.success(
+        response.message,
+        response.data.isCurrent
+          ? `Strike ladder v${response.data.versionNumber} is current`
+          : "Strike ladder saved"
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to update strike ladder";
+
+      setPendingConfirmation(
+        null
+      );
+
+      setLadderFormError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Strike ladder not saved"
+      );
+    } finally {
+      setIsSavingLadder(
+        false
+      );
+    }
+  }
+
+  async function openLadderHistory() {
+    try {
+      setLadderHistoryLoading(
+        true
+      );
+
+      setPageError("");
+      setShowLadderHistory(
+        true
+      );
+
+      const response =
+        await apiRequest<
+          OptionListResponse<
+            StrikeLadderVersion
+          >
+        >(
+          "/api/strike-ladder/history"
+        );
+
+      setLadderHistory(
+        response.data
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to load strike ladder history";
+
+      setShowLadderHistory(
+        false
+      );
+
+      setPageError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Unable to load ladder history"
+      );
+    } finally {
+      setLadderHistoryLoading(
+        false
+      );
+    }
+  }
+
+  function closeLadderHistory() {
+    if (
+      ladderHistoryLoading
+    ) {
+      return;
+    }
+
+    setShowLadderHistory(
+      false
+    );
   }
 
   /*
@@ -1589,6 +2349,17 @@ function ConfigurationPage() {
       return;
     }
 
+    if (
+      pendingConfirmation.type ===
+      "ladder"
+    ) {
+      await saveStrikeLadder(
+        pendingConfirmation
+      );
+
+      return;
+    }
+
     await saveOrder(
       pendingConfirmation.kind
     );
@@ -1598,6 +2369,7 @@ function ConfigurationPage() {
     if (
       isSaving ||
       isSavingOrder ||
+      isSavingLadder ||
       actionId !== null
     ) {
       return;
@@ -1699,6 +2471,24 @@ function ConfigurationPage() {
       };
     }
 
+    if (
+      pendingConfirmation.type ===
+      "ladder"
+    ) {
+      return {
+        title:
+          "Create New Strike Ladder Version?",
+
+        message:
+          "Save these changes as a new immutable strike ladder version? The previous ladder versions will remain preserved for audit history.",
+
+        confirmLabel:
+          "Create New Version",
+
+        danger: false,
+      };
+    }
+
     return {
       title:
         pendingConfirmation.kind ===
@@ -1733,7 +2523,10 @@ function ConfigurationPage() {
             "status"
           ? actionId ===
             pendingConfirmation.option.id
-          : false;
+          : pendingConfirmation?.type ===
+              "ladder"
+            ? isSavingLadder
+            : false;
 
   /*
    * =========================================================
@@ -1994,13 +2787,14 @@ function ConfigurationPage() {
           </p>
 
           <h2>
-            Severity & Weight
+            System Configuration
           </h2>
 
           <p className="page-description">
-            Configure the severity
-            and strike-weight
-            options used by rules.
+            Manage severity,
+            strike-weight, and
+            strike-ladder settings
+            used by QA workflows.
           </p>
         </div>
       </header>
@@ -2451,6 +3245,207 @@ function ConfigurationPage() {
       </div>
 
       {/* =====================================================
+          STRIKE LADDER
+          ===================================================== */}
+
+      <section className="content-card strike-ladder-card">
+        <div className="card-header configuration-card-header strike-ladder-card-header">
+          <div>
+            <div className="strike-ladder-title-line">
+              <h3>
+                Strike Ladder
+              </h3>
+
+              {currentLadder && (
+                <span className="strike-ladder-version-badge">
+                  v
+                  {
+                    currentLadder.versionNumber
+                  }
+                  {" "}
+                  Current
+                </span>
+              )}
+            </div>
+
+            <p>
+              Configure how active
+              strikes translate into
+              standing and commission
+              deductions.
+            </p>
+          </div>
+
+          <div className="strike-ladder-header-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                void openLadderHistory()
+              }
+              disabled={
+                isLoading ||
+                ladderHistoryLoading
+              }
+            >
+              {ladderHistoryLoading
+                ? "Loading..."
+                : "Version History"}
+            </button>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={
+                openLadderEditor
+              }
+              disabled={
+                isLoading ||
+                !currentLadder
+              }
+            >
+              Edit Ladder
+            </button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="empty-state">
+            <strong>
+              Loading strike
+              ladder...
+            </strong>
+          </div>
+        ) : !currentLadder ? (
+          <div className="empty-state">
+            <strong>
+              Strike ladder unavailable
+            </strong>
+
+            <span>
+              The current strike
+              ladder could not be
+              loaded.
+            </span>
+          </div>
+        ) : (
+          <div className="strike-ladder-content">
+            <div className="strike-ladder-meta-grid">
+              <div className="strike-ladder-meta-card">
+                <span>
+                  Current Version
+                </span>
+
+                <strong>
+                  v
+                  {
+                    currentLadder.versionNumber
+                  }
+                </strong>
+              </div>
+
+              <div className="strike-ladder-meta-card">
+                <span>
+                  Strike Duration
+                </span>
+
+                <strong>
+                  {
+                    currentLadder.durationDays
+                  }{" "}
+                  {currentLadder.durationDays ===
+                  1
+                    ? "day"
+                    : "days"}
+                </strong>
+              </div>
+
+              <div className="strike-ladder-meta-card">
+                <span>
+                  Ladder Steps
+                </span>
+
+                <strong>
+                  {
+                    currentLadder.steps.length
+                  }
+                </strong>
+              </div>
+            </div>
+
+            <div className="strike-ladder-table">
+              <div className="strike-ladder-table-header">
+                <span>
+                  Active Strikes
+                </span>
+
+                <span>
+                  Standing
+                </span>
+
+                <span>
+                  Deduction
+                </span>
+              </div>
+
+              {[...currentLadder.steps]
+                .sort(
+                  (
+                    first,
+                    second
+                  ) =>
+                    first.minActiveStrikes -
+                    second.minActiveStrikes
+                )
+                .map(
+                  (
+                    step,
+                    index,
+                    steps
+                  ) => (
+                    <div
+                      className="strike-ladder-table-row"
+                      key={
+                        step.id
+                      }
+                    >
+                      <strong className="strike-ladder-threshold">
+                        {formatThresholdRange(
+                          steps,
+                          index
+                        )}
+                      </strong>
+
+                      <span className="strike-ladder-standing">
+                        {
+                          step.standingLabel
+                        }
+                      </span>
+
+                      <strong className="strike-ladder-deduction">
+                        {formatDeduction(
+                          step.deductionPercent
+                        )}
+                        %
+                      </strong>
+                    </div>
+                  )
+                )}
+            </div>
+
+            <p className="strike-ladder-footnote">
+              Each threshold applies
+              until the next configured
+              threshold. The highest
+              threshold automatically
+              applies to that number of
+              strikes and above.
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* =====================================================
           ARCHIVE MODAL
           ===================================================== */}
 
@@ -2657,7 +3652,7 @@ function ConfigurationPage() {
       )}
 
       {/* =====================================================
-          ADD / EDIT MODAL
+          ADD / EDIT SEVERITY OR WEIGHT
           ===================================================== */}
 
       {modalKind && (
@@ -2872,6 +3867,515 @@ function ConfigurationPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================
+          STRIKE LADDER EDITOR
+          ===================================================== */}
+
+      {showLadderEditor && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={
+            closeLadderEditor
+          }
+        >
+          <div
+            className="modal modal-wide strike-ladder-editor-modal"
+            onMouseDown={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="modal-header">
+              <div>
+                <h3>
+                  Edit Strike Ladder
+                </h3>
+
+                <p>
+                  Saving changes creates
+                  a new immutable ladder
+                  version.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close"
+                onClick={
+                  closeLadderEditor
+                }
+                aria-label="Close strike ladder editor"
+                disabled={
+                  isSavingLadder
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              className="modal-form strike-ladder-editor-form"
+              onSubmit={
+                handleLadderSubmit
+              }
+              noValidate
+            >
+              <div className="strike-ladder-duration-row">
+                <label className="form-field">
+                  <span>
+                    Strike Duration
+                  </span>
+
+                  <div className="strike-ladder-duration-input">
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      step="1"
+                      value={
+                        ladderDuration
+                      }
+                      onChange={(
+                        event
+                      ) => {
+                        setLadderDuration(
+                          event.target
+                            .value
+                        );
+
+                        if (
+                          ladderFormError
+                        ) {
+                          setLadderFormError(
+                            ""
+                          );
+                        }
+                      }}
+                      disabled={
+                        isSavingLadder
+                      }
+                    />
+
+                    <span>
+                      days
+                    </span>
+                  </div>
+                </label>
+
+                <p>
+                  Changing the duration
+                  will apply to newly
+                  issued strikes once the
+                  incident integration is
+                  enabled. Existing
+                  incident expiry dates
+                  remain unchanged.
+                </p>
+              </div>
+
+              <div className="strike-ladder-editor-heading">
+                <div>
+                  <span>
+                    Ladder Steps
+                  </span>
+
+                  <p>
+                    Active-strike numbers
+                    are assigned by the
+                    system. The 0-strike
+                    base and its 0%
+                    deduction are fixed.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={
+                    addLadderStep
+                  }
+                  disabled={
+                    isSavingLadder
+                  }
+                >
+                  Add Step
+                </button>
+              </div>
+
+              <div className="strike-ladder-editor-list">
+                {ladderDraftSteps.map(
+                  (
+                    step,
+                    index
+                  ) => (
+                    <div
+                      className={[
+                        "strike-ladder-editor-row",
+
+                        newlyAddedLadderStepId ===
+                        step.clientId
+                          ? "newly-added"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      key={
+                        step.clientId
+                      }
+                      ref={(element) => {
+                        if (element) {
+                          ladderStepElementRefs.current.set(
+                            step.clientId,
+                            element
+                          );
+                        } else {
+                          ladderStepElementRefs.current.delete(
+                            step.clientId
+                          );
+                        }
+                      }}
+                    >
+                      <div className="strike-ladder-system-threshold">
+                        <span>
+                          Active Strikes
+                        </span>
+
+                        <strong>
+                          {index}
+                        </strong>
+
+                        {index === 0 && (
+                          <small>
+                            Required base
+                          </small>
+                        )}
+                      </div>
+
+                      <label className="form-field strike-ladder-label-field">
+                        <span>
+                          Standing
+                        </span>
+
+                        <input
+                          type="text"
+                          data-ladder-standing-input="true"
+                          maxLength={
+                            120
+                          }
+                          value={
+                            step.standingLabel
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            updateLadderDraftStep(
+                              step.clientId,
+                              "standingLabel",
+                              event.target
+                                .value
+                            )
+                          }
+                          disabled={
+                            isSavingLadder
+                          }
+                        />
+                      </label>
+
+                      {index === 0 ? (
+                        <div className="strike-ladder-fixed-deduction">
+                          <span>
+                            Deduction %
+                          </span>
+
+                          <strong>
+                            0%
+                          </strong>
+
+                          <small>
+                            Fixed default
+                          </small>
+                        </div>
+                      ) : (
+                        <label className="form-field strike-ladder-deduction-field">
+                          <span>
+                            Deduction %
+                          </span>
+
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={
+                              step.deductionPercent
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              updateLadderDraftStep(
+                                step.clientId,
+                                "deductionPercent",
+                                event.target
+                                  .value
+                              )
+                            }
+                            disabled={
+                              isSavingLadder
+                            }
+                          />
+                        </label>
+                      )}
+
+                      {index === 0 ? (
+                        <span className="strike-ladder-base-step">
+                          Base
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-button danger strike-ladder-remove-step"
+                          onClick={() =>
+                            removeLadderStep(
+                              step.clientId
+                            )
+                          }
+                          disabled={
+                            isSavingLadder
+                          }
+                          title="Remove ladder step"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  )
+                )}
+              </div>
+
+              {ladderFormError && (
+                <div className="alert alert-error">
+                  {
+                    ladderFormError
+                  }
+                </div>
+              )}
+
+              <div className="strike-ladder-editor-note">
+                <strong>
+                  Versioned configuration
+                </strong>
+
+                <span>
+                  Previous ladder versions
+                  are never overwritten.
+                  Saving creates a new
+                  current version and keeps
+                  the old policy available
+                  in history.
+                </span>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={
+                    closeLadderEditor
+                  }
+                  disabled={
+                    isSavingLadder
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={
+                    isSavingLadder
+                  }
+                >
+                  {isSavingLadder
+                    ? "Saving..."
+                    : "Save New Version"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================
+          STRIKE LADDER HISTORY
+          ===================================================== */}
+
+      {showLadderHistory && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={
+            closeLadderHistory
+          }
+        >
+          <div
+            className="modal modal-history strike-ladder-history-modal"
+            onMouseDown={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="modal-header">
+              <div>
+                <h3>
+                  Strike Ladder
+                  Version History
+                </h3>
+
+                <p>
+                  Previous configurations
+                  are preserved as
+                  read-only audit history.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close"
+                onClick={
+                  closeLadderHistory
+                }
+                aria-label="Close ladder history"
+                disabled={
+                  ladderHistoryLoading
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            {ladderHistoryLoading ? (
+              <div className="empty-state">
+                <strong>
+                  Loading ladder
+                  history...
+                </strong>
+              </div>
+            ) : ladderHistory.length ===
+              0 ? (
+              <div className="empty-state">
+                <strong>
+                  No ladder history
+                </strong>
+              </div>
+            ) : (
+              <div className="strike-ladder-history-list">
+                {ladderHistory.map(
+                  (version) => {
+                    const orderedSteps =
+                      [...version.steps]
+                        .sort(
+                          (
+                            first,
+                            second
+                          ) =>
+                            first.minActiveStrikes -
+                            second.minActiveStrikes
+                        );
+
+                    return (
+                      <article
+                        className={
+                          version.isCurrent
+                            ? "strike-ladder-history-item current"
+                            : "strike-ladder-history-item"
+                        }
+                        key={
+                          version.id
+                        }
+                      >
+                        <div className="strike-ladder-history-item-header">
+                          <div>
+                            <div className="strike-ladder-history-version-line">
+                              <strong>
+                                Version{" "}
+                                {
+                                  version.versionNumber
+                                }
+                              </strong>
+
+                              {version.isCurrent && (
+                                <span className="strike-ladder-version-badge">
+                                  Current
+                                </span>
+                              )}
+                            </div>
+
+                            <span>
+                              {
+                                version.durationDays
+                              }{" "}
+                              {version.durationDays ===
+                              1
+                                ? "day"
+                                : "days"}{" "}
+                              strike duration
+                            </span>
+                          </div>
+
+                          <time>
+                            {new Date(
+                              version.createdAt
+                            ).toLocaleString()}
+                          </time>
+                        </div>
+
+                        <div className="strike-ladder-history-steps">
+                          {orderedSteps.map(
+                            (
+                              step,
+                              index
+                            ) => (
+                              <div
+                                key={
+                                  step.id
+                                }
+                                className="strike-ladder-history-step"
+                              >
+                                <strong>
+                                  {formatThresholdRange(
+                                    orderedSteps,
+                                    index
+                                  )}
+                                </strong>
+
+                                <span>
+                                  {
+                                    step.standingLabel
+                                  }
+                                </span>
+
+                                <strong>
+                                  {formatDeduction(
+                                    step.deductionPercent
+                                  )}
+                                  %
+                                </strong>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </article>
+                    );
+                  }
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

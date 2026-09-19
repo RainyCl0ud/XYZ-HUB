@@ -1,10 +1,19 @@
 import { Router } from "express";
 import { z } from "zod";
+
 import { prisma } from "../lib/prisma.js";
 
-const router = Router();
+import {
+  calculateExpiryDate,
+  getCurrentStrikeLadder,
+  getStrikeActivityStatus,
+} from "../services/strike-ladder.js";
 
-const STRIKE_DURATION_DAYS = 30;
+import type {
+  IncidentWorkflowStatus,
+} from "../services/strike-ladder.js";
+
+const router = Router();
 
 /*
  * =========================
@@ -12,20 +21,11 @@ const STRIKE_DURATION_DAYS = 30;
  * =========================
  */
 
-type IncidentWorkflowStatus =
-  | "OPEN"
-  | "RESOLVED"
-  | "VOIDED";
-
-type StrikeActivityStatus =
-  | "ACTIVE"
-  | "EXPIRED"
-  | "NOT_APPLICABLE";
-
 /**
- * Returns the current strike activity state.
+ * Adds the calculated strike activity status to an incident
+ * without modifying the stored incident record.
  *
- * Workflow status and strike activity are intentionally separate:
+ * Workflow status and strike activity remain separate:
  *
  * Workflow:
  * OPEN / RESOLVED / VOIDED
@@ -33,30 +33,10 @@ type StrikeActivityStatus =
  * Strike activity:
  * ACTIVE / EXPIRED / NOT_APPLICABLE
  *
- * A resolved incident can still count as an active strike until
- * its 30-day expiry date has passed.
+ * OPEN and RESOLVED incidents can remain active strikes until
+ * their individually stored expiry timestamp has passed.
  *
- * A voided incident is invalidated. It remains in history for audit
- * purposes, but it is not considered an active or expired strike.
- */
-function getStrikeActivityStatus(incident: {
-  status: IncidentWorkflowStatus;
-  expiresAt: Date;
-}): StrikeActivityStatus {
-  if (incident.status === "VOIDED") {
-    return "NOT_APPLICABLE";
-  }
-
-  if (incident.expiresAt.getTime() <= Date.now()) {
-    return "EXPIRED";
-  }
-
-  return "ACTIVE";
-}
-
-/**
- * Adds the calculated strike activity status to an incident
- * without modifying the stored incident record.
+ * VOIDED incidents remain in history but never count as strikes.
  */
 function withStrikeActivity<
   T extends {
@@ -66,27 +46,12 @@ function withStrikeActivity<
 >(incident: T) {
   return {
     ...incident,
-    strikeActivityStatus:
-      getStrikeActivityStatus(incident),
-  };
-}
 
-/**
- * Expires exactly 30 x 24 hours after issuance.
- * This is an elapsed-time calculation, not "same date next month",
- * so month lengths do not affect the expiry period.
- */
-function calculateExpiryDate(
-  occurredAt: Date
-): Date {
-  return new Date(
-    occurredAt.getTime() +
-      STRIKE_DURATION_DAYS *
-        24 *
-        60 *
-        60 *
-        1000
-  );
+    strikeActivityStatus:
+      getStrikeActivityStatus(
+        incident
+      ),
+  };
 }
 
 /*
@@ -95,77 +60,90 @@ function calculateExpiryDate(
  * =========================
  */
 
-const createIncidentSchema = z.object({
-  chatterId: z
-    .string()
-    .trim()
-    .min(1, "Chatter is required"),
+const createIncidentSchema =
+  z.object({
+    chatterId: z
+      .string()
+      .trim()
+      .min(
+        1,
+        "Chatter is required"
+      ),
 
-  ruleId: z
-    .string()
-    .trim()
-    .min(1, "Rule is required"),
+    ruleId: z
+      .string()
+      .trim()
+      .min(
+        1,
+        "Rule is required"
+      ),
 
-  details: z
-    .string()
-    .trim()
-    .min(
-      1,
-      "Incident details are required"
-    )
-    .max(
-      5000,
-      "Incident details must be 5000 characters or fewer"
-    ),
+    details: z
+      .string()
+      .trim()
+      .min(
+        1,
+        "Incident details are required"
+      )
+      .max(
+        5000,
+        "Incident details must be 5000 characters or fewer"
+      ),
 
-  evidenceUrl: z
-    .string()
-    .trim()
-    .max(
-      2000,
-      "Evidence URL must be 2000 characters or fewer"
-    )
-    .url(
-      "Evidence URL must be a valid URL"
-    )
-    .refine(
-      (value) =>
-        value.startsWith("http://") ||
-        value.startsWith("https://"),
-      {
-        message:
-          "Evidence URL must begin with http:// or https://",
-      }
-    )
-    .nullable()
-    .optional(),
-});
+    evidenceUrl: z
+      .string()
+      .trim()
+      .max(
+        2000,
+        "Evidence URL must be 2000 characters or fewer"
+      )
+      .url(
+        "Evidence URL must be a valid URL"
+      )
+      .refine(
+        (value) =>
+          value.startsWith(
+            "http://"
+          ) ||
+          value.startsWith(
+            "https://"
+          ),
+        {
+          message:
+            "Evidence URL must begin with http:// or https://",
+        }
+      )
+      .nullable()
+      .optional(),
+  });
 
-const resolveIncidentSchema = z.object({
-  resolutionNotes: z
-    .string()
-    .trim()
-    .max(
-      2000,
-      "Resolution notes must be 2000 characters or fewer"
-    )
-    .nullable()
-    .optional(),
-});
+const resolveIncidentSchema =
+  z.object({
+    resolutionNotes: z
+      .string()
+      .trim()
+      .max(
+        2000,
+        "Resolution notes must be 2000 characters or fewer"
+      )
+      .nullable()
+      .optional(),
+  });
 
-const voidIncidentSchema = z.object({
-  reason: z
-    .string()
-    .trim()
-    .min(
-      1,
-      "A reason is required when voiding an incident"
-    )
-    .max(
-      2000,
-      "Void reason must be 2000 characters or fewer"
-    ),
-});
+const voidIncidentSchema =
+  z.object({
+    reason: z
+      .string()
+      .trim()
+      .min(
+        1,
+        "A reason is required when voiding an incident"
+      )
+      .max(
+        2000,
+        "Void reason must be 2000 characters or fewer"
+      ),
+  });
 
 /*
  * =========================
@@ -174,91 +152,105 @@ const voidIncidentSchema = z.object({
  */
 
 // GET /api/incidents
-router.get("/", async (req, res) => {
-  try {
-    const status =
-      req.query.status === "OPEN" ||
-      req.query.status === "RESOLVED" ||
-      req.query.status === "VOIDED"
-        ? req.query.status
-        : undefined;
+router.get(
+  "/",
+  async (req, res) => {
+    try {
+      const status =
+        req.query.status ===
+          "OPEN" ||
+        req.query.status ===
+          "RESOLVED" ||
+        req.query.status ===
+          "VOIDED"
+          ? req.query.status
+          : undefined;
 
-    const chatterId =
-      typeof req.query.chatterId ===
-      "string"
-        ? req.query.chatterId
-        : undefined;
+      const chatterId =
+        typeof req.query
+          .chatterId ===
+        "string"
+          ? req.query.chatterId
+          : undefined;
 
-    const ruleId =
-      typeof req.query.ruleId ===
-      "string"
-        ? req.query.ruleId
-        : undefined;
+      const ruleId =
+        typeof req.query.ruleId ===
+        "string"
+          ? req.query.ruleId
+          : undefined;
 
-    const incidents =
-      await prisma.incident.findMany({
-        where: {
-          ...(status
-            ? {
-                status,
-              }
-            : {}),
+      const incidents =
+        await prisma.incident.findMany(
+          {
+            where: {
+              ...(status
+                ? {
+                    status,
+                  }
+                : {}),
 
-          ...(chatterId
-            ? {
-                chatterId,
-              }
-            : {}),
+              ...(chatterId
+                ? {
+                    chatterId,
+                  }
+                : {}),
 
-          ...(ruleId
-            ? {
-                ruleVersion: {
-                  ruleId,
+              ...(ruleId
+                ? {
+                    ruleVersion:
+                      {
+                        ruleId,
+                      },
+                  }
+                : {}),
+            },
+
+            include: {
+              chatter: {
+                select: {
+                  id: true,
+                  name: true,
+                  status: true,
                 },
-              }
-            : {}),
-        },
+              },
 
-        include: {
-          chatter: {
-            select: {
-              id: true,
-              name: true,
-              status: true,
+              ruleVersion: {
+                select: {
+                  id: true,
+                  ruleId: true,
+
+                  versionNumber:
+                    true,
+                },
+              },
             },
-          },
 
-          ruleVersion: {
-            select: {
-              id: true,
-              ruleId: true,
-              versionNumber: true,
+            orderBy: {
+              occurredAt:
+                "desc",
             },
-          },
-        },
+          }
+        );
 
-        orderBy: {
-          occurredAt: "desc",
-        },
+      res.status(200).json({
+        data:
+          incidents.map(
+            withStrikeActivity
+          ),
       });
+    } catch (error) {
+      console.error(
+        "Failed to fetch incidents:",
+        error
+      );
 
-    res.status(200).json({
-      data: incidents.map(
-        withStrikeActivity
-      ),
-    });
-  } catch (error) {
-    console.error(
-      "Failed to fetch incidents:",
-      error
-    );
-
-    res.status(500).json({
-      message:
-        "Failed to fetch incidents",
-    });
+      res.status(500).json({
+        message:
+          "Failed to fetch incidents",
+      });
+    }
   }
-});
+);
 
 /*
  * =========================
@@ -267,53 +259,61 @@ router.get("/", async (req, res) => {
  */
 
 // GET /api/incidents/:id
-router.get("/:id", async (req, res) => {
-  try {
-    const incident =
-      await prisma.incident.findUnique({
-        where: {
-          id: req.params.id,
-        },
-
-        include: {
-          chatter: true,
-
-          ruleVersion: {
-            select: {
-              id: true,
-              ruleId: true,
-              versionNumber: true,
+router.get(
+  "/:id",
+  async (req, res) => {
+    try {
+      const incident =
+        await prisma.incident.findUnique(
+          {
+            where: {
+              id: req.params.id,
             },
-          },
-        },
-      });
 
-    if (!incident) {
-      res.status(404).json({
+            include: {
+              chatter: true,
+
+              ruleVersion: {
+                select: {
+                  id: true,
+                  ruleId: true,
+
+                  versionNumber:
+                    true,
+                },
+              },
+            },
+          }
+        );
+
+      if (!incident) {
+        res.status(404).json({
+          message:
+            "Incident not found",
+        });
+
+        return;
+      }
+
+      res.status(200).json({
+        data:
+          withStrikeActivity(
+            incident
+          ),
+      });
+    } catch (error) {
+      console.error(
+        "Failed to fetch incident:",
+        error
+      );
+
+      res.status(500).json({
         message:
-          "Incident not found",
+          "Failed to fetch incident",
       });
-
-      return;
     }
-
-    res.status(200).json({
-      data: withStrikeActivity(
-        incident
-      ),
-    });
-  } catch (error) {
-    console.error(
-      "Failed to fetch incident:",
-      error
-    );
-
-    res.status(500).json({
-      message:
-        "Failed to fetch incident",
-    });
   }
-});
+);
 
 /*
  * =========================
@@ -322,185 +322,276 @@ router.get("/:id", async (req, res) => {
  */
 
 // POST /api/incidents
-router.post("/", async (req, res) => {
-  try {
-    const result =
-      createIncidentSchema.safeParse(
-        req.body
-      );
+router.post(
+  "/",
+  async (req, res) => {
+    try {
+      const result =
+        createIncidentSchema.safeParse(
+          req.body
+        );
 
-    if (!result.success) {
-      res.status(400).json({
-        message:
-          "Invalid incident data",
+      if (!result.success) {
+        res.status(400).json({
+          message:
+            "Invalid incident data",
 
-        errors:
-          result.error.flatten()
-            .fieldErrors,
-      });
+          errors:
+            result.error
+              .flatten()
+              .fieldErrors,
+        });
 
-      return;
-    }
+        return;
+      }
 
-    const chatter =
-      await prisma.chatter.findUnique({
-        where: {
-          id: result.data.chatterId,
-        },
-      });
+      /*
+       * -------------------------------------------------------
+       * CHATTER
+       * -------------------------------------------------------
+       */
 
-    if (!chatter) {
-      res.status(400).json({
-        message:
-          "Selected chatter does not exist",
-      });
+      const chatter =
+        await prisma.chatter.findUnique(
+          {
+            where: {
+              id:
+                result.data
+                  .chatterId,
+            },
+          }
+        );
 
-      return;
-    }
+      if (!chatter) {
+        res.status(400).json({
+          message:
+            "Selected chatter does not exist",
+        });
 
-    if (
-      chatter.status !== "ACTIVE"
-    ) {
-      res.status(400).json({
-        message:
-          "Selected chatter is inactive",
-      });
+        return;
+      }
 
-      return;
-    }
+      if (
+        chatter.status !==
+        "ACTIVE"
+      ) {
+        res.status(400).json({
+          message:
+            "Selected chatter is inactive",
+        });
 
-    const rule =
-      await prisma.rule.findUnique({
-        where: {
-          id: result.data.ruleId,
-        },
+        return;
+      }
 
-        include: {
-          versions: {
-            orderBy: {
-              versionNumber: "desc",
+      /*
+       * -------------------------------------------------------
+       * RULE + CURRENT VERSION
+       * -------------------------------------------------------
+       */
+
+      const rule =
+        await prisma.rule.findUnique(
+          {
+            where: {
+              id:
+                result.data
+                  .ruleId,
             },
 
-            take: 1,
-          },
-        },
-      });
+            include: {
+              versions: {
+                orderBy: {
+                  versionNumber:
+                    "desc",
+                },
 
-    if (!rule) {
-      res.status(400).json({
-        message:
-          "Selected rule does not exist",
-      });
+                take: 1,
+              },
+            },
+          }
+        );
 
-      return;
-    }
+      if (!rule) {
+        res.status(400).json({
+          message:
+            "Selected rule does not exist",
+        });
 
-    if (!rule.isActive) {
-      res.status(400).json({
-        message:
-          "Selected rule is archived",
-      });
+        return;
+      }
 
-      return;
-    }
+      if (!rule.isActive) {
+        res.status(400).json({
+          message:
+            "Selected rule is archived",
+        });
 
-    const currentVersion =
-      rule.versions[0];
+        return;
+      }
 
-    if (!currentVersion) {
-      res.status(400).json({
-        message:
-          "Selected rule does not have a valid version",
-      });
+      const currentVersion =
+        rule.versions[0];
 
-      return;
-    }
+      if (!currentVersion) {
+        res.status(400).json({
+          message:
+            "Selected rule does not have a valid version",
+        });
 
-    const occurredAt = new Date();
+        return;
+      }
 
-    const expiresAt =
-      calculateExpiryDate(
-        occurredAt
-      );
+      /*
+       * -------------------------------------------------------
+       * CURRENT STRIKE LADDER
+       * -------------------------------------------------------
+       *
+       * The strike duration is no longer hardcoded here.
+       *
+       * Management controls the duration through:
+       *
+       * System Configuration
+       * → Strike Ladder
+       *
+       * The CURRENT ladder configuration is read when the
+       * incident is created.
+       *
+       * Example:
+       *
+       * Ladder duration = 30 days
+       * Incident created today
+       * → expires exactly 30 x 24 hours later
+       *
+       * If management later changes the duration to 45 days,
+       * this incident keeps its already stored expiry date.
+       * Only newly created incidents use the new duration.
+       */
 
-    const incident =
-      await prisma.incident.create({
-        data: {
-          chatterId:
-            chatter.id,
+      const strikeLadder =
+        await getCurrentStrikeLadder();
 
-          ruleVersionId:
-            currentVersion.id,
+      /*
+       * occurredAt is generated on the server.
+       *
+       * The frontend cannot choose or override the incident
+       * creation timestamp.
+       */
+      const occurredAt =
+        new Date();
 
-          ruleTitleSnapshot:
-            currentVersion.title,
-
-          ruleDefinitionSnapshot:
-            currentVersion.definition,
-
-          severityNameSnapshot:
-            currentVersion
-              .severityNameSnapshot,
-
-          weightNameSnapshot:
-            currentVersion
-              .weightNameSnapshot,
-
-          weightValueSnapshot:
-            currentVersion
-              .weightValueSnapshot,
-
+      const expiresAt =
+        calculateExpiryDate(
           occurredAt,
+          strikeLadder.durationDays
+        );
 
-          expiresAt,
+      /*
+       * -------------------------------------------------------
+       * CREATE INCIDENT
+       * -------------------------------------------------------
+       */
 
-          details:
-            result.data.details,
+      const incident =
+        await prisma.incident.create(
+          {
+            data: {
+              chatterId:
+                chatter.id,
 
-          evidenceUrl:
-            result.data.evidenceUrl ||
-            null,
-        },
+              ruleVersionId:
+                currentVersion.id,
 
-        include: {
-          chatter: {
-            select: {
-              id: true,
-              name: true,
-              status: true,
+              /*
+               * Historical rule snapshot.
+               *
+               * Future rule edits must never alter how this
+               * incident appeared when it was created.
+               */
+              ruleTitleSnapshot:
+                currentVersion
+                  .title,
+
+              ruleDefinitionSnapshot:
+                currentVersion
+                  .definition,
+
+              severityNameSnapshot:
+                currentVersion
+                  .severityNameSnapshot,
+
+              weightNameSnapshot:
+                currentVersion
+                  .weightNameSnapshot,
+
+              weightValueSnapshot:
+                currentVersion
+                  .weightValueSnapshot,
+
+              occurredAt,
+
+              /*
+               * The actual expiration timestamp is stored
+               * permanently on the incident.
+               *
+               * We intentionally do NOT recalculate this later
+               * from whatever the current ladder duration becomes.
+               */
+              expiresAt,
+
+              details:
+                result.data
+                  .details,
+
+              evidenceUrl:
+                result.data
+                  .evidenceUrl ||
+                null,
             },
-          },
 
-          ruleVersion: {
-            select: {
-              id: true,
-              ruleId: true,
-              versionNumber: true,
+            include: {
+              chatter: {
+                select: {
+                  id: true,
+                  name: true,
+                  status: true,
+                },
+              },
+
+              ruleVersion: {
+                select: {
+                  id: true,
+                  ruleId: true,
+
+                  versionNumber:
+                    true,
+                },
+              },
             },
-          },
-        },
+          }
+        );
+
+      res.status(201).json({
+        message:
+          "Incident logged successfully",
+
+        data:
+          withStrikeActivity(
+            incident
+          ),
       });
+    } catch (error) {
+      console.error(
+        "Failed to log incident:",
+        error
+      );
 
-    res.status(201).json({
-      message:
-        "Incident logged successfully",
-
-      data: withStrikeActivity(
-        incident
-      ),
-    });
-  } catch (error) {
-    console.error(
-      "Failed to log incident:",
-      error
-    );
-
-    res.status(500).json({
-      message:
-        "Failed to log incident",
-    });
+      res.status(500).json({
+        message:
+          "Failed to log incident",
+      });
+    }
   }
-});
+);
 
 /*
  * =========================
@@ -524,7 +615,8 @@ router.patch(
             "Invalid resolution data",
 
           errors:
-            result.error.flatten()
+            result.error
+              .flatten()
               .fieldErrors,
         });
 
@@ -532,11 +624,13 @@ router.patch(
       }
 
       const existing =
-        await prisma.incident.findUnique({
-          where: {
-            id: req.params.id,
-          },
-        });
+        await prisma.incident.findUnique(
+          {
+            where: {
+              id: req.params.id,
+            },
+          }
+        );
 
       if (!existing) {
         res.status(404).json({
@@ -548,7 +642,8 @@ router.patch(
       }
 
       if (
-        existing.status === "VOIDED"
+        existing.status ===
+        "VOIDED"
       ) {
         res.status(409).json({
           message:
@@ -571,50 +666,55 @@ router.patch(
       }
 
       const incident =
-        await prisma.incident.update({
-          where: {
-            id: req.params.id,
-          },
-
-          data: {
-            status:
-              "RESOLVED",
-
-            resolutionNotes:
-              result.data
-                .resolutionNotes ||
-              null,
-
-            resolvedAt:
-              new Date(),
-          },
-
-          include: {
-            chatter: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-              },
+        await prisma.incident.update(
+          {
+            where: {
+              id: req.params.id,
             },
 
-            ruleVersion: {
-              select: {
-                id: true,
-                ruleId: true,
-                versionNumber: true,
+            data: {
+              status:
+                "RESOLVED",
+
+              resolutionNotes:
+                result.data
+                  .resolutionNotes ||
+                null,
+
+              resolvedAt:
+                new Date(),
+            },
+
+            include: {
+              chatter: {
+                select: {
+                  id: true,
+                  name: true,
+                  status: true,
+                },
+              },
+
+              ruleVersion: {
+                select: {
+                  id: true,
+                  ruleId: true,
+
+                  versionNumber:
+                    true,
+                },
               },
             },
-          },
-        });
+          }
+        );
 
       res.status(200).json({
         message:
           "Incident resolved successfully",
 
-        data: withStrikeActivity(
-          incident
-        ),
+        data:
+          withStrikeActivity(
+            incident
+          ),
       });
     } catch (error) {
       console.error(
@@ -652,7 +752,8 @@ router.patch(
             "Invalid void data",
 
           errors:
-            result.error.flatten()
+            result.error
+              .flatten()
               .fieldErrors,
         });
 
@@ -660,11 +761,13 @@ router.patch(
       }
 
       const existing =
-        await prisma.incident.findUnique({
-          where: {
-            id: req.params.id,
-          },
-        });
+        await prisma.incident.findUnique(
+          {
+            where: {
+              id: req.params.id,
+            },
+          }
+        );
 
       if (!existing) {
         res.status(404).json({
@@ -676,7 +779,8 @@ router.patch(
       }
 
       if (
-        existing.status === "VOIDED"
+        existing.status ===
+        "VOIDED"
       ) {
         res.status(409).json({
           message:
@@ -687,48 +791,53 @@ router.patch(
       }
 
       const incident =
-        await prisma.incident.update({
-          where: {
-            id: req.params.id,
-          },
-
-          data: {
-            status:
-              "VOIDED",
-
-            voidReason:
-              result.data.reason,
-
-            voidedAt:
-              new Date(),
-          },
-
-          include: {
-            chatter: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-              },
+        await prisma.incident.update(
+          {
+            where: {
+              id: req.params.id,
             },
 
-            ruleVersion: {
-              select: {
-                id: true,
-                ruleId: true,
-                versionNumber: true,
+            data: {
+              status:
+                "VOIDED",
+
+              voidReason:
+                result.data.reason,
+
+              voidedAt:
+                new Date(),
+            },
+
+            include: {
+              chatter: {
+                select: {
+                  id: true,
+                  name: true,
+                  status: true,
+                },
+              },
+
+              ruleVersion: {
+                select: {
+                  id: true,
+                  ruleId: true,
+
+                  versionNumber:
+                    true,
+                },
               },
             },
-          },
-        });
+          }
+        );
 
       res.status(200).json({
         message:
           "Incident voided successfully",
 
-        data: withStrikeActivity(
-          incident
-        ),
+        data:
+          withStrikeActivity(
+            incident
+          ),
       });
     } catch (error) {
       console.error(
@@ -743,5 +852,4 @@ router.patch(
     }
   }
 );
-
 export default router;

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { getCurrentStrikeLadder } from "../services/strike-ladder.js";
 
 const router = Router();
 
@@ -209,8 +210,115 @@ router.get("/:id", async (req, res) => {
       return;
     }
 
+    /*
+     * Current strike standing is derived live.
+     *
+     * We intentionally do NOT persist:
+     *
+     * - currentStrikeCount
+     * - currentStanding
+     * - currentDeduction
+     *
+     * Those values can change automatically when a strike expires
+     * or when management creates a new strike-ladder version.
+     */
+    const now = new Date();
+
+    const [
+      strikeLadder,
+      activeStrikeIncidents,
+    ] = await Promise.all([
+      getCurrentStrikeLadder(),
+
+      prisma.incident.findMany({
+        where: {
+          chatterId:
+            chatter.id,
+
+          /*
+           * RESOLVED incidents still count until expiry.
+           * VOIDED incidents never count.
+           */
+          status: {
+            not: "VOIDED",
+          },
+
+          expiresAt: {
+            gt: now,
+          },
+        },
+
+        select: {
+          expiresAt: true,
+        },
+
+        orderBy: {
+          expiresAt: "asc",
+        },
+      }),
+    ]);
+
+    const activeStrikeCount =
+      activeStrikeIncidents.length;
+
+    /*
+     * The current standing uses the CURRENT ladder version.
+     *
+     * The highest step whose threshold is less than or equal to
+     * the chatter's active strike count wins.
+     *
+     * If the count is above the final configured step, the final
+     * step continues to apply.
+     */
+    const orderedSteps =
+      [...strikeLadder.steps].sort(
+        (first, second) =>
+          first.minActiveStrikes -
+          second.minActiveStrikes
+      );
+
+    let matchedStep =
+      orderedSteps[0] ?? null;
+
+    for (const step of orderedSteps) {
+      if (
+        step.minActiveStrikes <=
+        activeStrikeCount
+      ) {
+        matchedStep = step;
+        continue;
+      }
+
+      break;
+    }
+
+    const strikeSummary = {
+      activeStrikeCount,
+
+      standingLabel:
+        matchedStep?.standingLabel ??
+        "Clear",
+
+      deductionPercent:
+        matchedStep?.deductionPercent ??
+        0,
+
+      nextExpiryAt:
+        activeStrikeIncidents[0]
+          ?.expiresAt ?? null,
+
+      ladderVersionId:
+        strikeLadder.id,
+
+      ladderVersion:
+        strikeLadder.versionNumber,
+    };
+
     res.status(200).json({
-      data: chatter,
+      data: {
+        ...chatter,
+        strikeSummary,
+      },
     });
   } catch (error) {
     console.error(
