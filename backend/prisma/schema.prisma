@@ -18,12 +18,377 @@ enum IncidentStatus {
   VOIDED
 }
 
+enum UserStatus {
+  PENDING_SETUP
+  ACTIVE
+  DEACTIVATED
+}
+
+enum RoleDataScope {
+  ALL
+  SELF_AND_TEAM
+  SELF
+}
+
+enum TwoFactorMethodType {
+  EMAIL
+  AUTHENTICATOR
+}
+
+/*
+ * =========================================================
+ * LOGIN GATE — USERS
+ * =========================================================
+ */
+
+model User {
+  id String @id @default(cuid())
+
+  name  String
+  email String @unique
+
+  passwordHash String?
+
+  status UserStatus @default(PENDING_SETUP)
+
+  emailVerifiedAt DateTime?
+  lastSignInAt     DateTime?
+  deactivatedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roleMemberships     UserRole[] @relation("UserRoleMember")
+  roleAssignmentsMade UserRole[] @relation("UserRoleAssigner")
+
+  modelAssignments     UserModelAssignment[] @relation("UserModelMember")
+  modelAssignmentsMade UserModelAssignment[] @relation("UserModelAssigner")
+
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  twoFactorMethods    UserTwoFactorMethod[]
+  twoFactorChallenges TwoFactorChallenge[]
+
+  invites        Invite[] @relation("Invitee")
+  invitesCreated Invite[] @relation("InviteCreator")
+
+  chatterProfile Chatter?
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+/*
+ * =========================================================
+ * LOGIN GATE — ROLES
+ * =========================================================
+ */
+
+model Role {
+  id String @id @default(cuid())
+
+  /*
+   * Permanent internal identifier for default roles.
+   *
+   * Examples:
+   * OWNER
+   * OPS_MANAGER
+   * MANAGER
+   *
+   * Custom roles use null.
+   */
+  systemKey String? @unique
+
+  name String @unique
+
+  rank      Int?
+  dataScope RoleDataScope
+
+  landingPath String?
+
+  isSystem Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@index([rank])
+  @@index([isSystem])
+}
+
+model UserRole {
+  id String @id @default(cuid())
+
+  userId String
+  roleId String
+
+  assignedByUserId String?
+
+  assignedAt DateTime @default(now())
+
+  user       User  @relation("UserRoleMember", fields: [userId], references: [id], onDelete: Cascade)
+  role       Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  assignedBy User? @relation("UserRoleAssigner", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([assignedByUserId])
+}
+
+/*
+ * =========================================================
+ * LOGIN GATE — PERMISSIONS
+ * =========================================================
+ */
+
+model Permission {
+  id String @id @default(cuid())
+
+  key String @unique
+
+  name        String
+  description String?
+
+  pageKey     String
+  categoryKey String?
+  actionKey   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+
+  @@index([pageKey])
+  @@index([categoryKey])
+  @@index([actionKey])
+}
+
+model RolePermission {
+  id String @id @default(cuid())
+
+  roleId       String
+  permissionId String
+
+  createdAt DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+/*
+ * =========================================================
+ * LOGIN GATE — MODELS
+ * =========================================================
+ */
+
+model AgencyModel {
+  id String @id @default(cuid())
+
+  name String @unique
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments UserModelAssignment[]
+  incidents   Incident[]
+
+  @@index([isActive])
+}
+
+model UserModelAssignment {
+  id String @id @default(cuid())
+
+  userId  String
+  modelId String
+
+  assignedByUserId String?
+
+  assignedAt DateTime @default(now())
+
+  user       User        @relation("UserModelMember", fields: [userId], references: [id], onDelete: Cascade)
+  model      AgencyModel @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  assignedBy User?       @relation("UserModelAssigner", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, modelId])
+  @@index([userId])
+  @@index([modelId])
+  @@index([assignedByUserId])
+}
+
+/*
+ * =========================================================
+ * LOGIN GATE — INVITES
+ * =========================================================
+ */
+
+model Invite {
+  id String @id @default(cuid())
+
+  userId String
+
+  tokenHash String @unique
+
+  createdByUserId String?
+
+  sentAt    DateTime @default(now())
+  expiresAt DateTime
+
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  user      User  @relation("Invitee", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdByUserId])
+  @@index([expiresAt])
+  @@index([acceptedAt])
+  @@index([revokedAt])
+}
+
+/*
+ * =========================================================
+ * LOGIN GATE — SESSIONS
+ * =========================================================
+ */
+
+model Session {
+  id String @id @default(cuid())
+
+  userId String
+
+  tokenHash String @unique
+
+  userAgent String?
+  ipAddress String?
+
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime?
+
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+/*
+ * =========================================================
+ * LOGIN GATE — PASSWORD RESET
+ * =========================================================
+ */
+
+model PasswordResetToken {
+  id String @id @default(cuid())
+
+  userId String
+
+  tokenHash String @unique
+
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
+}
+
+/*
+ * =========================================================
+ * LOGIN GATE — TWO-FACTOR AUTHENTICATION
+ * =========================================================
+ */
+
+model UserTwoFactorMethod {
+  id String @id @default(cuid())
+
+  userId String
+
+  type TwoFactorMethodType
+
+  isEnabled Boolean @default(true)
+
+  verifiedAt DateTime?
+
+  /*
+   * Reserved for future authenticator application support.
+   */
+  secretEncrypted String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@index([type])
+}
+
+model TwoFactorChallenge {
+  id String @id @default(cuid())
+
+  userId String
+
+  methodType TwoFactorMethodType
+
+  codeHash String
+
+  expiresAt DateTime
+
+  consumedAt DateTime?
+
+  failedAttempts Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([consumedAt])
+}
+
+/*
+ * =========================================================
+ * EXISTING QA / STRIKE SYSTEM
+ * =========================================================
+ */
+
 model Chatter {
-  id        String        @id @default(cuid())
-  name      String
-  status    ChatterStatus @default(ACTIVE)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id String @id @default(cuid())
+
+  /*
+   * Temporary bridge between the existing QA chatter record
+   * and the Login Gate user identity.
+   */
+  userId String? @unique
+
+  name   String
+  status ChatterStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   incidents Incident[]
 
@@ -31,11 +396,13 @@ model Chatter {
 }
 
 model Rule {
-  id         String    @id @default(cuid())
+  id String @id @default(cuid())
+
   isActive   Boolean   @default(true)
   archivedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   versions RuleVersion[]
 
@@ -43,14 +410,18 @@ model Rule {
 }
 
 model SeverityOption {
-  id          String    @id @default(cuid())
+  id String @id @default(cuid())
+
   name        String
   description String?
-  sortOrder   Int       @default(0)
-  isActive    Boolean   @default(true)
-  archivedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+
+  sortOrder Int @default(0)
+
+  isActive   Boolean   @default(true)
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   ruleVersions RuleVersion[]
 
@@ -59,15 +430,19 @@ model SeverityOption {
 }
 
 model WeightOption {
-  id          String    @id @default(cuid())
+  id String @id @default(cuid())
+
   name        String
   value       Int?
   description String?
-  sortOrder   Int       @default(0)
-  isActive    Boolean   @default(true)
-  archivedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+
+  sortOrder Int @default(0)
+
+  isActive   Boolean   @default(true)
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   ruleVersions RuleVersion[]
 
@@ -76,7 +451,8 @@ model WeightOption {
 }
 
 model RuleVersion {
-  id            String @id @default(cuid())
+  id String @id @default(cuid())
+
   ruleId        String
   versionNumber Int
 
@@ -86,7 +462,6 @@ model RuleVersion {
   severityOptionId String?
   weightOptionId   String?
 
-  // Historical snapshot of the selected configuration
   severityNameSnapshot String?
   weightNameSnapshot   String?
   weightValueSnapshot  Int?
@@ -106,11 +481,18 @@ model RuleVersion {
 }
 
 model Incident {
-  id            String @id @default(cuid())
+  id String @id @default(cuid())
+
   chatterId     String
   ruleVersionId String
 
-  // Historical snapshot of the rule at the time the incident was logged
+  /*
+   * Optional during the QA → Login Gate transition.
+   *
+   * New incidents will later require model context.
+   */
+  modelId String?
+
   ruleTitleSnapshot      String
   ruleDefinitionSnapshot String
   severityNameSnapshot   String?
@@ -119,8 +501,6 @@ model Incident {
 
   occurredAt DateTime @default(now())
 
-  // The expiry timestamp is permanently stored when the incident is created.
-  // Future changes to the configured strike duration must not rewrite this.
   expiresAt DateTime
 
   details     String
@@ -134,11 +514,13 @@ model Incident {
   voidReason String?
   voidedAt   DateTime?
 
-  chatter     Chatter     @relation(fields: [chatterId], references: [id], onDelete: Restrict)
-  ruleVersion RuleVersion @relation(fields: [ruleVersionId], references: [id], onDelete: Restrict)
+  chatter     Chatter      @relation(fields: [chatterId], references: [id], onDelete: Restrict)
+  ruleVersion RuleVersion  @relation(fields: [ruleVersionId], references: [id], onDelete: Restrict)
+  agencyModel AgencyModel? @relation(fields: [modelId], references: [id], onDelete: Restrict)
 
   @@index([chatterId])
   @@index([ruleVersionId])
+  @@index([modelId])
   @@index([status])
   @@index([occurredAt])
   @@index([expiresAt])
@@ -148,29 +530,18 @@ model Incident {
  * =========================================================
  * STRIKE LADDER CONFIGURATION
  * =========================================================
- *
- * The ladder is versioned rather than edited in place.
- *
- * Example:
- *
- * v1
- * 0 → Clear → 0%
- * 1 → Formal Warning → 0%
- * 2 → 20% Commission Cut → 20%
- *
- * If management later changes the ladder, v1 remains
- * preserved and v2 becomes the current configuration.
- *
- * Authentication/audit ownership will be linked later
- * once the User/RBAC system exists.
  */
 
 model StrikeLadderVersion {
-  id            String   @id @default(cuid())
-  versionNumber Int      @unique
-  durationDays  Int      @default(30)
-  isCurrent     Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  id String @id @default(cuid())
+
+  versionNumber Int @unique
+
+  durationDays Int @default(30)
+
+  isCurrent Boolean @default(false)
+
+  createdAt DateTime @default(now())
 
   steps StrikeLadderStep[]
 
@@ -179,29 +550,31 @@ model StrikeLadderVersion {
 }
 
 model StrikeLadderStep {
-  id              String @id @default(cuid())
+  id String @id @default(cuid())
+
   ladderVersionId String
 
-  // This step becomes applicable when the chatter has
-  // at least this many currently active strikes.
-  //
-  // Example:
-  // 0 = Clear
-  // 1 = Formal Warning
-  // 2 = 20% Commission Cut
-  // 4 = Termination Review / 4+
   minActiveStrikes Int
 
   standingLabel String
 
-  // Percentage only, not an actual monetary amount.
-  // Float allows values such as 12.5% if management
-  // ever decides to use fractional percentages.
   deductionPercent Float
 
-ladderVersion StrikeLadderVersion @relation(fields: [ladderVersionId], references: [id], onDelete: Restrict)
+  ladderVersion StrikeLadderVersion @relation(fields: [ladderVersionId], references: [id], onDelete: Restrict)
 
   @@unique([ladderVersionId, minActiveStrikes])
   @@index([ladderVersionId])
   @@index([minActiveStrikes])
 }
+
+/*
+ * =========================================================
+ * AUDIT LOG
+ * =========================================================
+ *
+ * Intentionally not stored in the main Prisma/PostgreSQL
+ * schema.
+ *
+ * The audit log will use a separate append-only logging
+ * adapter/service.
+ */
