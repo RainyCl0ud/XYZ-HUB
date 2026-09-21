@@ -10,6 +10,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts",
     "test:access": "tsx scripts/test-access-control.ts",
+    "test:middleware": "tsx scripts/test-access-middleware.ts",
     "start": "node dist/index.js"
   },
   "keywords": [],
