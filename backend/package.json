@@ -9,6 +9,7 @@
     "build": "prisma generate && tsc",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts",
+    "test:access": "tsx scripts/test-access-control.ts",
     "start": "node dist/index.js"
   },
   "keywords": [],
