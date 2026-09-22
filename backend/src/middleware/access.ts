@@ -18,9 +18,9 @@ import {
 export type AuthenticatedRequest =
   Request & {
     userId?: string;
+    sessionId?: string;
     access?: AccessContext;
   };
-
 /*
  * Temporary authentication bridge.
  *

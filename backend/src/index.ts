@@ -2,6 +2,12 @@ import {
   prisma,
 } from "./lib/prisma.js";
 
+import {
+  loadSession,
+} from "./middleware/session-auth.js";
+
+import cookieParser from "cookie-parser";
+
 import chatterRoutes from "./routes/chatters.js";
 
 import severityOptionRoutes from "./routes/severity-options.js";
@@ -30,6 +36,14 @@ const PORT =
 app.use(cors());
 
 app.use(express.json());
+
+app.use(
+  cookieParser()
+);
+
+app.use(
+  loadSession
+);
 
 app.use(
   "/api/chatters",
