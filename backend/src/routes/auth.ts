@@ -24,6 +24,17 @@ import {
 } from "../services/password.js";
 
 import {
+  completePasswordReset,
+  createPasswordReset,
+  invalidatePasswordReset,
+  validatePasswordResetToken,
+} from "../services/password-reset.js";
+
+import {
+  sendPasswordReset,
+} from "../services/password-reset-delivery.js";
+
+import {
   createSession,
   revokeSessionToken,
 } from "../services/session.js";
@@ -88,6 +99,47 @@ const verifyTwoFactorSchema =
         .string()
         .regex(
           /^\d{6}$/
+        ),
+  });
+
+  /*
+ * Temporary password policy.
+ *
+ * The same 12-character implementation
+ * default currently used by account setup.
+ */
+const PASSWORD_MIN_LENGTH =
+  12;
+
+const requestPasswordResetSchema =
+  z.object({
+    email:
+      z
+        .string()
+        .trim()
+        .email(),
+  });
+
+const validatePasswordResetSchema =
+  z.object({
+    token:
+      z
+        .string()
+        .min(1),
+  });
+
+const completePasswordResetSchema =
+  z.object({
+    token:
+      z
+        .string()
+        .min(1),
+
+    password:
+      z
+        .string()
+        .min(
+          PASSWORD_MIN_LENGTH
         ),
   });
 
@@ -611,6 +663,264 @@ router.post(
       status:
         "SIGNED_OUT",
     });
+  }
+);
+
+/*
+ * =========================================================
+ * POST /api/auth/password-reset/request
+ * =========================================================
+ *
+ * Public endpoint.
+ *
+ * Always gives the same outward response for:
+ *
+ * - existing account
+ * - unknown email
+ * - pending setup
+ * - deactivated account
+ *
+ * This reduces account enumeration.
+ */
+router.post(
+  "/password-reset/request",
+
+  async (
+    req,
+    res
+  ) => {
+    const parsed =
+      requestPasswordResetSchema.safeParse(
+        req.body
+      );
+
+    if (!parsed.success) {
+      res.status(400).json({
+        error:
+          "INVALID_REQUEST",
+
+        message:
+          "A valid email address is required.",
+      });
+
+      return;
+    }
+
+    try {
+      const result =
+        await createPasswordReset(
+          parsed.data.email
+        );
+
+      if (result) {
+        try {
+          await sendPasswordReset({
+            name:
+              result.user.name,
+
+            email:
+              result.user.email,
+
+            token:
+              result.token,
+
+            expiresAt:
+              result.reset.expiresAt,
+          });
+        } catch (
+          deliveryError
+        ) {
+          /*
+           * A link that was not successfully
+           * delivered must not remain active.
+           */
+          await invalidatePasswordReset(
+            result.reset.id
+          );
+
+          console.error(
+            "Password-reset delivery failed:",
+            deliveryError
+          );
+        }
+      }
+
+      /*
+       * Do NOT reveal whether the email
+       * belongs to an account.
+       */
+      res.status(202).json({
+        status:
+          "PASSWORD_RESET_REQUEST_ACCEPTED",
+
+        message:
+          "If an active account exists for that email address, a password reset link will be sent.",
+      });
+    } catch (error) {
+      console.error(
+        "Password-reset request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "PASSWORD_RESET_REQUEST_FAILED",
+
+        message:
+          "Unable to process the password-reset request.",
+      });
+    }
+  }
+);
+
+
+/*
+ * =========================================================
+ * POST /api/auth/password-reset/validate
+ * =========================================================
+ *
+ * Public endpoint used by the future
+ * reset-password screen.
+ */
+router.post(
+  "/password-reset/validate",
+
+  async (
+    req,
+    res
+  ) => {
+    const parsed =
+      validatePasswordResetSchema.safeParse(
+        req.body
+      );
+
+    if (!parsed.success) {
+      res.status(400).json({
+        error:
+          "INVALID_REQUEST",
+
+        message:
+          "A password-reset token is required.",
+      });
+
+      return;
+    }
+
+    try {
+      const reset =
+        await validatePasswordResetToken(
+          parsed.data.token
+        );
+
+      if (!reset) {
+        res.status(400).json({
+          error:
+            "INVALID_PASSWORD_RESET",
+
+          message:
+            "This password-reset link is invalid, expired, or already used.",
+        });
+
+        return;
+      }
+
+      res.status(200).json({
+        status:
+          "VALID_PASSWORD_RESET",
+
+        expiresAt:
+          reset.expiresAt,
+      });
+    } catch (error) {
+      console.error(
+        "Password-reset validation failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "PASSWORD_RESET_VALIDATION_FAILED",
+
+        message:
+          "Unable to validate the password-reset link.",
+      });
+    }
+  }
+);
+
+
+/*
+ * =========================================================
+ * POST /api/auth/password-reset/complete
+ * =========================================================
+ */
+router.post(
+  "/password-reset/complete",
+
+  async (
+    req,
+    res
+  ) => {
+    const parsed =
+      completePasswordResetSchema.safeParse(
+        req.body
+      );
+
+    if (!parsed.success) {
+      res.status(400).json({
+        error:
+          "INVALID_REQUEST",
+
+        message:
+          `A valid reset token and password of at least ${PASSWORD_MIN_LENGTH} characters are required.`,
+      });
+
+      return;
+    }
+
+    try {
+      const result =
+        await completePasswordReset(
+          parsed.data.token,
+          parsed.data.password
+        );
+
+      if (
+        result.status ===
+        "INVALID_RESET"
+      ) {
+        res.status(400).json({
+          error:
+            "INVALID_PASSWORD_RESET",
+
+          message:
+            "This password-reset link is invalid, expired, or already used.",
+        });
+
+        return;
+      }
+
+      res.status(200).json({
+        status:
+          "PASSWORD_RESET_COMPLETE",
+
+        message:
+          "Your password has been changed. Please sign in again.",
+      });
+    } catch (error) {
+      console.error(
+        "Password-reset completion failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "PASSWORD_RESET_FAILED",
+
+        message:
+          "Unable to reset the password.",
+      });
+    }
   }
 );
 
