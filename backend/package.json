@@ -24,6 +24,7 @@
     "local:invite-fixtures": "tsx scripts/show-local-invite-fixtures.ts",
     "test:resend-invite": "tsx scripts/test-resend-invite.ts",
     "test:people-status": "tsx scripts/test-people-status.ts",
+    "test:people-access-update": "tsx scripts/test-people-access-update.ts",
     "start": "node dist/index.js"
   },
   "keywords": [],

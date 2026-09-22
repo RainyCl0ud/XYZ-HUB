@@ -41,6 +41,11 @@ import {
   PeopleStatusError,
 } from "../services/people-status.js";
 
+import {
+  updatePersonAccess,
+  PeopleAccessUpdateError,
+} from "../services/people-access-update.js";
+
 const router =
   Router();
 
@@ -58,6 +63,23 @@ const invitePersonSchema =
         .trim()
         .email(),
 
+    roleIds:
+      z
+        .array(
+          z.string().min(1)
+        )
+        .min(1),
+
+    modelIds:
+      z
+        .array(
+          z.string().min(1)
+        )
+        .default([]),
+  });
+
+  const updatePersonAccessSchema =
+  z.object({
     roleIds:
       z
         .array(
@@ -689,6 +711,156 @@ router.post(
 
         message:
           "Unable to reactivate the user.",
+      });
+    }
+  }
+);
+
+/*
+ * =========================================================
+ * PUT /api/people/:userId/access
+ * =========================================================
+ *
+ * Replaces the target person's complete
+ * role/model assignment set.
+ */
+router.put(
+  "/:userId/access",
+
+  requireAuth,
+
+  requirePermission(
+    "people.manage"
+  ),
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const userId =
+      Array.isArray(
+        req.params.userId
+      )
+        ? req.params.userId[0]
+        : req.params.userId;
+
+    if (!userId) {
+      res.status(400).json({
+        error:
+          "INVALID_USER_ID",
+      });
+
+      return;
+    }
+
+    const parsed =
+      updatePersonAccessSchema.safeParse(
+        req.body
+      );
+
+    if (!parsed.success) {
+      res.status(400).json({
+        error:
+          "INVALID_REQUEST",
+
+        message:
+          "At least one role is required.",
+      });
+
+      return;
+    }
+
+    try {
+      const user =
+        await updatePersonAccess(
+          {
+            userId,
+
+            roleIds:
+              parsed.data.roleIds,
+
+            modelIds:
+              parsed.data.modelIds,
+          },
+
+          req.access
+        );
+
+      res.status(200).json({
+        status:
+          "USER_ACCESS_UPDATED",
+
+        user,
+      });
+    } catch (error) {
+      if (
+        error instanceof
+        PeopleAccessUpdateError
+      ) {
+        switch (
+          error.code
+        ) {
+          case "PEOPLE_MANAGE_REQUIRED":
+          case "ROLE_NOT_ASSIGNABLE":
+          case "CURRENT_ROLE_NOT_MANAGEABLE":
+          case "MODEL_NOT_ASSIGNABLE":
+          case "CURRENT_MODEL_NOT_MANAGEABLE":
+            res.status(403).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+
+          case "USER_NOT_FOUND":
+            res.status(404).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+
+          case "ROLE_REQUIRED":
+          case "INVALID_ROLE":
+          case "INVALID_MODEL":
+            res.status(400).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+        }
+      }
+
+      console.error(
+        "Update person access request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "UPDATE_PERSON_ACCESS_FAILED",
+
+        message:
+          "Unable to update the user's access.",
       });
     }
   }
