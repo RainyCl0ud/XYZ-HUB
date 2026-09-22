@@ -20,9 +20,10 @@
     "test:invite-token": "tsx scripts/test-invite-token.ts",
     "test:invite": "tsx scripts/test-invite.ts",
     "test:invite-acceptance": "tsx scripts/test-invite-acceptance.ts",
-    "test:invite-routes": "tsx scripts/test-invite-routes.ts",
     "test:people-invite": "tsx scripts/test-people-invite.ts",
     "local:invite-fixtures": "tsx scripts/show-local-invite-fixtures.ts",
+    "test:resend-invite": "tsx scripts/test-resend-invite.ts",
+    "test:people-status": "tsx scripts/test-people-status.ts",
     "start": "node dist/index.js"
   },
   "keywords": [],
