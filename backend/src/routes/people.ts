@@ -51,6 +51,11 @@ import {
   PeopleDeleteError,
 } from "../services/people-delete.js";
 
+import {
+  resetPersonTwoFactor,
+  PeopleTwoFactorError,
+} from "../services/people-two-factor.js";
+
 const router =
   Router();
 
@@ -1024,6 +1029,121 @@ router.delete(
 
         message:
           "Unable to permanently delete the user.",
+      });
+    }
+  }
+);
+/*
+ * =========================================================
+ * POST /api/people/:userId/reset-2fa
+ * =========================================================
+ *
+ * Owner-only security operation.
+ *
+ * Invalidates:
+ * - outstanding 2FA challenges
+ * - existing sessions
+ * - future authenticator enrollment
+ *
+ * Email remains the default Step 1 method.
+ */
+router.post(
+  "/:userId/reset-2fa",
+
+  requireAuth,
+
+  requireOwner,
+
+  requirePermission(
+    "two_factor.reset"
+  ),
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const userId =
+      Array.isArray(
+        req.params.userId
+      )
+        ? req.params.userId[0]
+        : req.params.userId;
+
+    if (!userId) {
+      res.status(400).json({
+        error:
+          "INVALID_USER_ID",
+      });
+
+      return;
+    }
+
+    try {
+      const result =
+        await resetPersonTwoFactor(
+          userId,
+          req.access
+        );
+
+      res.status(200).json({
+        status:
+          "TWO_FACTOR_RESET",
+
+        ...result,
+      });
+    } catch (error) {
+      if (
+        error instanceof
+        PeopleTwoFactorError
+      ) {
+        switch (
+          error.code
+        ) {
+          case "OWNER_REQUIRED":
+          case "TWO_FACTOR_RESET_REQUIRED":
+            res.status(403).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+
+          case "USER_NOT_FOUND":
+            res.status(404).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+        }
+      }
+
+      console.error(
+        "Reset 2FA request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "RESET_TWO_FACTOR_FAILED",
+
+        message:
+          "Unable to reset two-factor authentication.",
       });
     }
   }
