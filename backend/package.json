@@ -15,6 +15,7 @@
     "test:session": "tsx scripts/test-session.ts",
     "test:session-auth": "tsx scripts/test-session-auth.ts",
     "test:two-factor": "tsx scripts/test-two-factor.ts",
+    "local:create-owner": "tsx scripts/create-local-owner.ts",
     "test:password": "tsx scripts/test-password.ts",
     "start": "node dist/index.js"
   },

@@ -22,11 +22,15 @@ export type AuthenticatedRequest =
     access?: AccessContext;
   };
 /*
- * Temporary authentication bridge.
+ * Requires a valid authenticated user.
  *
- * For now this expects req.userId to already exist.
- * The real session/auth middleware will populate it
- * once we build the sign-in/session flow.
+ * loadSession runs earlier in the middleware
+ * chain and populates req.userId when the
+ * browser presents a valid active session.
+ *
+ * This middleware then loads the centralized
+ * roles, permissions, rank, and model-access
+ * context.
  */
 export async function requireAuth(
   req: AuthenticatedRequest,
