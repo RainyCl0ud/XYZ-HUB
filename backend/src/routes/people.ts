@@ -56,6 +56,12 @@ import {
   PeopleTwoFactorError,
 } from "../services/people-two-factor.js";
 
+import {
+  listPeople,
+  getPersonDetail,
+  PeopleReadError,
+} from "../services/people-read.js";
+
 const router =
   Router();
 
@@ -133,6 +139,187 @@ const invitePersonSchema =
  * - model visibility
  * - email uniqueness
  */
+
+/*
+ * =========================================================
+ * GET /api/people
+ * =========================================================
+ *
+ * People Management list.
+ */
+router.get(
+  "/",
+
+  requireAuth,
+
+  requirePermission(
+    "people.manage"
+  ),
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    try {
+      const people =
+        await listPeople(
+          req.access
+        );
+
+      res.status(200).json({
+        people,
+      });
+    } catch (error) {
+      if (
+        error instanceof
+        PeopleReadError
+      ) {
+        if (
+          error.code ===
+          "PEOPLE_MANAGE_REQUIRED"
+        ) {
+          res.status(403).json({
+            error:
+              error.code,
+
+            message:
+              error.message,
+          });
+
+          return;
+        }
+      }
+
+      console.error(
+        "List people request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "LIST_PEOPLE_FAILED",
+
+        message:
+          "Unable to load people.",
+      });
+    }
+  }
+);
+
+
+/*
+ * =========================================================
+ * GET /api/people/:userId
+ * =========================================================
+ *
+ * Individual People Management profile.
+ */
+router.get(
+  "/:userId",
+
+  requireAuth,
+
+  requirePermission(
+    "people.manage"
+  ),
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const userId =
+      Array.isArray(
+        req.params.userId
+      )
+        ? req.params.userId[0]
+        : req.params.userId;
+
+    if (!userId) {
+      res.status(400).json({
+        error:
+          "INVALID_USER_ID",
+      });
+
+      return;
+    }
+
+    try {
+      const person =
+        await getPersonDetail(
+          userId,
+          req.access
+        );
+
+      res.status(200).json({
+        person,
+      });
+    } catch (error) {
+      if (
+        error instanceof
+        PeopleReadError
+      ) {
+        switch (
+          error.code
+        ) {
+          case "PEOPLE_MANAGE_REQUIRED":
+          case "PERSON_NOT_VISIBLE":
+            res.status(403).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+
+          case "USER_NOT_FOUND":
+            res.status(404).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+        }
+      }
+
+      console.error(
+        "Person detail request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "PERSON_DETAIL_FAILED",
+
+        message:
+          "Unable to load the person.",
+      });
+    }
+  }
+);
+
 router.post(
   "/invite",
 
@@ -1041,11 +1228,11 @@ router.delete(
  * Owner-only security operation.
  *
  * Invalidates:
- * - outstanding 2FA challenges
- * - existing sessions
- * - future authenticator enrollment
- *
- * Email remains the default Step 1 method.
+  * - outstanding 2FA challenges
+  * - existing sessions
+  * - future authenticator enrollment
+  *
+  * Email remains the default Step 1 method.
  */
 router.post(
   "/:userId/reset-2fa",
