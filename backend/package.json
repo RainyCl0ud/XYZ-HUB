@@ -25,6 +25,7 @@
     "test:resend-invite": "tsx scripts/test-resend-invite.ts",
     "test:people-status": "tsx scripts/test-people-status.ts",
     "test:people-access-update": "tsx scripts/test-people-access-update.ts",
+    "test:people-delete": "tsx scripts/test-people-delete.ts",
     "start": "node dist/index.js"
   },
   "keywords": [],

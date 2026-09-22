@@ -46,6 +46,11 @@ import {
   PeopleAccessUpdateError,
 } from "../services/people-access-update.js";
 
+import {
+  deletePerson,
+  PeopleDeleteError,
+} from "../services/people-delete.js";
+
 const router =
   Router();
 
@@ -93,6 +98,15 @@ const invitePersonSchema =
           z.string().min(1)
         )
         .default([]),
+  });
+
+  const deletePersonSchema =
+  z.object({
+    confirmEmail:
+      z
+        .string()
+        .trim()
+        .email(),
   });
 
 /*
@@ -861,6 +875,155 @@ router.put(
 
         message:
           "Unable to update the user's access.",
+      });
+    }
+  }
+);
+
+/*
+ * =========================================================
+ * DELETE /api/people/:userId
+ * =========================================================
+ *
+ * Permanent deletion.
+ *
+ * Owner only.
+ * Explicit email confirmation required.
+ */
+router.delete(
+  "/:userId",
+
+  requireAuth,
+
+  requireOwner,
+
+  requirePermission(
+    "people.delete"
+  ),
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const userId =
+      Array.isArray(
+        req.params.userId
+      )
+        ? req.params.userId[0]
+        : req.params.userId;
+
+    if (!userId) {
+      res.status(400).json({
+        error:
+          "INVALID_USER_ID",
+      });
+
+      return;
+    }
+
+    const parsed =
+      deletePersonSchema.safeParse(
+        req.body
+      );
+
+    if (!parsed.success) {
+      res.status(400).json({
+        error:
+          "INVALID_REQUEST",
+
+        message:
+          "The user's email is required to confirm permanent deletion.",
+      });
+
+      return;
+    }
+
+    try {
+      const deleted =
+        await deletePerson(
+          {
+            userId,
+
+            confirmEmail:
+              parsed.data
+                .confirmEmail,
+          },
+
+          req.access
+        );
+
+      res.status(200).json({
+        status:
+          "USER_DELETED",
+
+        user:
+          deleted,
+      });
+    } catch (error) {
+      if (
+        error instanceof
+        PeopleDeleteError
+      ) {
+        switch (
+          error.code
+        ) {
+          case "OWNER_REQUIRED":
+          case "PEOPLE_DELETE_REQUIRED":
+            res.status(403).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+
+          case "USER_NOT_FOUND":
+            res.status(404).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+
+          case "CANNOT_DELETE_SELF":
+          case "CONFIRMATION_MISMATCH":
+            res.status(409).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+        }
+      }
+
+      console.error(
+        "Delete person request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "DELETE_PERSON_FAILED",
+
+        message:
+          "Unable to permanently delete the user.",
       });
     }
   }
