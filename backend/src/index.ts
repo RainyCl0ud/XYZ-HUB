@@ -6,6 +6,8 @@ import {
   loadSession,
 } from "./middleware/session-auth.js";
 
+import inviteRoutes from "./routes/invites.js";
+
 import authRoutes from "./routes/auth.js";
 
 import cookieParser from "cookie-parser";
@@ -50,6 +52,11 @@ app.use(
 app.use(
   "/api/auth",
   authRoutes
+);
+
+app.use(
+  "/api/invites",
+  inviteRoutes
 );
 
 app.use(

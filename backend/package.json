@@ -17,6 +17,10 @@
     "test:two-factor": "tsx scripts/test-two-factor.ts",
     "local:create-owner": "tsx scripts/create-local-owner.ts",
     "test:password": "tsx scripts/test-password.ts",
+    "test:invite-token": "tsx scripts/test-invite-token.ts",
+    "test:invite": "tsx scripts/test-invite.ts",
+    "test:invite-acceptance": "tsx scripts/test-invite-acceptance.ts",
+    "test:invite-routes": "tsx scripts/test-invite-routes.ts",
     "start": "node dist/index.js"
   },
   "keywords": [],
