@@ -125,14 +125,16 @@ function App() {
           <Route
             path="/models"
             element={
-              <RequireSystemRole
-                roles={[
-                  "OWNER",
-                  "OPS_MANAGER",
-                ]}
-              >
-                <ModelsPage />
-              </RequireSystemRole>
+              <RequirePermission permission="people.manage">
+                <RequireSystemRole
+                  roles={[
+                    "OWNER",
+                    "OPS_MANAGER",
+                  ]}
+                >
+                  <ModelsPage />
+                </RequireSystemRole>
+              </RequirePermission>
             }
           />
         </Route>
