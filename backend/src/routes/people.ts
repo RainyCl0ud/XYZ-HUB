@@ -836,6 +836,7 @@ router.post(
 
           case "USER_NOT_ACTIVE":
           case "USER_NOT_DEACTIVATED":
+          case "CANNOT_DEACTIVATE_SELF":
             res.status(409).json({
               error:
                 error.code,
@@ -1093,6 +1094,17 @@ router.put(
 
           case "USER_NOT_FOUND":
             res.status(404).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+
+          case "CANNOT_UPDATE_SELF_ACCESS":
+            res.status(409).json({
               error:
                 error.code,
 
