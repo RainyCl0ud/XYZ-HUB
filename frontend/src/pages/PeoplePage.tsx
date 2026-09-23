@@ -546,6 +546,21 @@ function PeoplePage() {
       ]
     );
 
+  const activeAssignableModels =
+    useMemo(
+      () =>
+        options?.models.filter(
+          (
+            model
+          ) =>
+            model.isActive
+        ) ??
+        [],
+      [
+        options,
+      ]
+    );
+
   const assignableRoleIds =
     useMemo(
       () =>
@@ -1911,8 +1926,8 @@ function PeoplePage() {
                 </span>
 
                 <div className="people-option-grid">
-                  {options?.models.length ? (
-                    options.models.map(
+                  {activeAssignableModels.length ? (
+                    activeAssignableModels.map(
                       (
                         model
                       ) => (
@@ -2090,40 +2105,53 @@ function PeoplePage() {
                       options.models.map(
                         (
                           model
-                        ) => (
-                          <label
-                            key={
+                        ) => {
+                          const currentlySelected =
+                            accessModelIds.includes(
                               model.id
-                            }
-                            className="people-check-option"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={
-                                accessModelIds.includes(
-                                  model.id
-                                )
-                              }
-                              onChange={() =>
-                                toggleSelection(
-                                  accessModelIds,
-                                  model.id,
-                                  setAccessModelIds
-                                )
-                              }
-                            />
+                            );
 
-                            <span>
-                              <strong>
-                                {model.name}
-                              </strong>
+                          return (
+                            <label
+                              key={
+                                model.id
+                              }
+                              className="people-check-option"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={
+                                  currentlySelected
+                                }
+                                disabled={
+                                  !model.isActive &&
+                                  !currentlySelected
+                                }
+                                onChange={() =>
+                                  toggleSelection(
+                                    accessModelIds,
+                                    model.id,
+                                    setAccessModelIds
+                                  )
+                                }
+                              />
 
-                              <small>
-                                Active model
-                              </small>
-                            </span>
-                          </label>
-                        )
+                              <span>
+                                <strong>
+                                  {model.name}
+                                </strong>
+
+                                <small>
+                                  {model.isActive
+                                    ? "Active model"
+                                    : currentlySelected
+                                      ? "Inactive · existing assignment"
+                                      : "Inactive · unavailable"}
+                                </small>
+                              </span>
+                            </label>
+                          );
+                        }
                       )
                     ) : (
                       <span className="people-empty-inline">
