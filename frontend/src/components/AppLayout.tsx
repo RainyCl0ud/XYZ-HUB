@@ -29,6 +29,12 @@ function AppLayout() {
   ] =
     useState(false);
 
+  const canManagePeople =
+    access?.permissions.includes(
+      "people.manage"
+    ) ??
+    false;
+
   const roleNames =
     access?.roles
       .map(
@@ -145,6 +151,21 @@ function AppLayout() {
           >
             Configuration
           </NavLink>
+
+          {canManagePeople && (
+            <NavLink
+              to="/people"
+              className={({
+                isActive,
+              }) =>
+                isActive
+                  ? "nav-link active"
+                  : "nav-link"
+              }
+            >
+              People
+            </NavLink>
+          )}
         </nav>
 
         <div className="sidebar-account">
