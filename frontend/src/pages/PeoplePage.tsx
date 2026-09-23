@@ -580,9 +580,14 @@ function PeoplePage() {
       ]
     );
 
+  const isSelectedSelf =
+    selectedPerson?.id ===
+    user?.id;
+
   const canManageSelected =
     Boolean(
       selectedPerson &&
+      !isSelectedSelf &&
       selectedPerson.roles.every(
         (
           role
@@ -1579,7 +1584,9 @@ function PeoplePage() {
 
                   {!canManageSelected && (
                     <p className="people-scope-note">
-                      This profile is visible to you, but one or more of its current roles/models are outside the assignments you are allowed to change.
+                      {isSelectedSelf
+                        ? "Your own role and model assignments cannot be changed from People Management. This prevents accidental self-lockout."
+                        : "This profile is visible to you, but one or more of its current roles/models are outside the assignments you are allowed to change."}
                     </p>
                   )}
                 </div>
@@ -1674,6 +1681,7 @@ function PeoplePage() {
 
                     {selectedPerson.status ===
                       "ACTIVE" &&
+                      !isSelectedSelf &&
                       options
                         ?.capabilities
                         .canDeactivate && (
