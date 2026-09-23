@@ -307,6 +307,32 @@ async function runTests() {
         owner.id
       );
 
+    await expectAccessError(
+      () =>
+        updatePersonAccess(
+          {
+            userId:
+              manager.id,
+
+            roleIds: [
+              managerRole.id,
+            ],
+
+            modelIds: [
+              modelA.id,
+            ],
+          },
+
+          managerAccess
+        ),
+
+      "CANNOT_UPDATE_SELF_ACCESS"
+    );
+
+    console.log(
+      "✓ user cannot change their own roles or model access"
+    );
+
     const originalAssignment =
       await prisma
         .userModelAssignment
