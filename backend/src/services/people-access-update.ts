@@ -297,12 +297,22 @@ export async function updatePersonAccess(
     const model
     of models
   ) {
+    const alreadyAssigned =
+      target.modelAssignments.some(
+        (
+          assignment
+        ) =>
+          assignment.modelId ===
+          model.id
+      );
+
     if (
-      !model.isActive
+      !model.isActive &&
+      !alreadyAssigned
     ) {
       throw new PeopleAccessUpdateError(
         "INVALID_MODEL",
-        `The model "${model.name}" is inactive and cannot be assigned.`
+        `The model "${model.name}" is inactive and cannot be newly assigned.`
       );
     }
 
