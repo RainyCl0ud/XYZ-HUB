@@ -8,6 +8,7 @@ import "./pages/AuthPages.css";
 
 import RequireAuth from "./auth/RequireAuth";
 import RequirePermission from "./auth/RequirePermission";
+import RequireSystemRole from "./auth/RequireSystemRole";
 
 import AppLayout from "./components/AppLayout";
 
@@ -23,6 +24,7 @@ import RulesPage from "./pages/RulesPage";
 import ChattersPage from "./pages/ChattersPage";
 import ConfigurationPage from "./pages/ConfigurationPage";
 import PeoplePage from "./pages/PeoplePage";
+import ModelsPage from "./pages/ModelsPage";
 
 function App() {
   return (
@@ -117,6 +119,20 @@ function App() {
               <RequirePermission permission="people.manage">
                 <PeoplePage />
               </RequirePermission>
+            }
+          />
+
+          <Route
+            path="/models"
+            element={
+              <RequireSystemRole
+                roles={[
+                  "OWNER",
+                  "OPS_MANAGER",
+                ]}
+              >
+                <ModelsPage />
+              </RequireSystemRole>
             }
           />
         </Route>
