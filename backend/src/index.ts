@@ -6,6 +6,10 @@ import {
   loadSession,
 } from "./middleware/session-auth.js";
 
+import {
+  requireAuth,
+} from "./middleware/access.js";
+
 import peopleRoutes from "./routes/people.js";
 
 import inviteRoutes from "./routes/invites.js";
@@ -111,7 +115,7 @@ app.use(
 );
 
 app.use(
-  loadSession 
+  loadSession
 );
 
 app.use(
@@ -129,38 +133,56 @@ app.use(
   peopleRoutes
 );
 
+/*
+ * The QA/operations API predates Login Gate.
+ *
+ * Frontend route protection is not a security
+ * boundary, so every internal API below also
+ * requires a valid active XYZ Hub session.
+ *
+ * Fine-grained role/model authorization can be
+ * layered on top of this baseline as each
+ * workflow's permission rules are finalized.
+ */
 app.use(
   "/api/chatters",
+  requireAuth,
   chatterRoutes
 );
 
 app.use(
   "/api/severity-options",
+  requireAuth,
   severityOptionRoutes
 );
 
 app.use(
   "/api/weight-options",
+  requireAuth,
   weightOptionRoutes
 );
 
 app.use(
   "/api/rules",
+  requireAuth,
   ruleRoutes
 );
 
 app.use(
   "/api/incidents",
+  requireAuth,
   incidentRoutes
 );
 
 app.use(
   "/api/dashboard",
+  requireAuth,
   dashboardRoutes
 );
 
 app.use(
   "/api/strike-ladder",
+  requireAuth,
   strikeLadderRoutes
 );
 
@@ -178,6 +200,7 @@ app.get(
 
 app.get(
   "/health/db",
+  requireAuth,
   async (_req, res) => {
     try {
       const chatterCount =
