@@ -18,6 +18,7 @@ export type UpdatePersonAccessInput = {
 export type PeopleAccessUpdateErrorCode =
   | "PEOPLE_MANAGE_REQUIRED"
   | "USER_NOT_FOUND"
+  | "CANNOT_UPDATE_SELF_ACCESS"
   | "ROLE_REQUIRED"
   | "INVALID_ROLE"
   | "ROLE_NOT_ASSIGNABLE"
@@ -63,6 +64,16 @@ export async function updatePersonAccess(
     throw new PeopleAccessUpdateError(
       "PEOPLE_MANAGE_REQUIRED",
       "You do not have permission to manage people."
+    );
+  }
+
+  if (
+    input.userId ===
+    access.userId
+  ) {
+    throw new PeopleAccessUpdateError(
+      "CANNOT_UPDATE_SELF_ACCESS",
+      "You cannot change your own role or model assignments."
     );
   }
 
