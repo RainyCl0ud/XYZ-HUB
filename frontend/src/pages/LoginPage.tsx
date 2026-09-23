@@ -173,13 +173,15 @@ function LoginPage() {
 
   return (
     <AuthShell
-      eyebrow="Secure access"
+      immersive
+      brandSubtitle="Internal Operations Portal"
+      eyebrow="Secure sign in"
       title="Sign in to XYZ Hub"
-      description="Enter your agency account credentials. A verification code will be required before access is granted."
+      description="Sign in with your staff account to access the internal workspace. Verification may be required before access is granted."
       footer={
         <>
-          Accounts are created through an
-          invitation from XYZ management.
+          This portal is for authorized
+          internal staff only.
         </>
       }
     >
@@ -197,7 +199,7 @@ function LoginPage() {
 
         <label className="auth-field">
           <span className="auth-label">
-            Email address
+            Work email
           </span>
 
           <input
