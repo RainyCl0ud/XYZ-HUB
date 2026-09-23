@@ -7,6 +7,7 @@ import {
 import "./pages/AuthPages.css";
 
 import RequireAuth from "./auth/RequireAuth";
+import RequirePermission from "./auth/RequirePermission";
 
 import AppLayout from "./components/AppLayout";
 
@@ -21,6 +22,7 @@ import IncidentsPage from "./pages/IncidentsPage";
 import RulesPage from "./pages/RulesPage";
 import ChattersPage from "./pages/ChattersPage";
 import ConfigurationPage from "./pages/ConfigurationPage";
+import PeoplePage from "./pages/PeoplePage";
 
 function App() {
   return (
@@ -106,6 +108,15 @@ function App() {
             path="/configuration"
             element={
               <ConfigurationPage />
+            }
+          />
+
+          <Route
+            path="/people"
+            element={
+              <RequirePermission permission="people.manage">
+                <PeoplePage />
+              </RequirePermission>
             }
           />
         </Route>
