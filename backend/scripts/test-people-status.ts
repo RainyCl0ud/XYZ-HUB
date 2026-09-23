@@ -348,11 +348,11 @@ async function runTests() {
           managerAccess
         ),
 
-      "ROLE_NOT_MANAGEABLE"
+      "CANNOT_DEACTIVATE_SELF"
     );
 
     console.log(
-      "✓ Manager cannot deactivate another Manager-level account"
+      "✓ user cannot deactivate their own account"
     );
 
     await expectStatusError(
