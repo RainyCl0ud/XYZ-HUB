@@ -29,6 +29,18 @@ function AppLayout() {
   ] =
     useState(false);
 
+  const canManageModels =
+    access?.roles.some(
+      (
+        role
+      ) =>
+        role.systemKey ===
+          "OWNER" ||
+        role.systemKey ===
+          "OPS_MANAGER"
+    ) ??
+    false;
+
   const canManagePeople =
     access?.permissions.includes(
       "people.manage"
@@ -164,6 +176,21 @@ function AppLayout() {
               }
             >
               People
+            </NavLink>
+          )}
+
+          {canManageModels && (
+            <NavLink
+              to="/models"
+              className={({
+                isActive,
+              }) =>
+                isActive
+                  ? "nav-link active"
+                  : "nav-link"
+              }
+            >
+              Models
             </NavLink>
           )}
         </nav>
