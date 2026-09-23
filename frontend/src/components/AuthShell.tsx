@@ -18,6 +18,87 @@ type AuthShellProps = {
   brandSubtitle?: string;
 };
 
+type PortalGlyphName =
+  | "staff"
+  | "assignments"
+  | "operations"
+  | "teams"
+  | "oversight";
+
+function PortalGlyph({
+  name,
+}: {
+  name:
+    PortalGlyphName;
+}) {
+  if (
+    name ===
+    "assignments"
+  ) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M4 17.5 9.2 12l3.7 3.5L20 7.5" />
+        <path d="M15.5 7.5H20V12" />
+      </svg>
+    );
+  }
+
+  if (
+    name ===
+      "staff" ||
+    name ===
+      "teams"
+  ) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <circle
+          cx="9"
+          cy="8"
+          r="2.7"
+        />
+        <circle
+          cx="16.3"
+          cy="9.3"
+          r="2.1"
+        />
+        <path d="M3.9 18.2c.6-3.2 2.4-4.8 5.2-4.8s4.7 1.6 5.3 4.8" />
+        <path d="M14.2 14.1c2.8-.1 4.7 1.2 5.4 3.9" />
+      </svg>
+    );
+  }
+
+  if (
+    name ===
+    "oversight"
+  ) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M12 3.6 18.2 6v5.2c0 4-2 7.1-6.2 9.2-4.2-2.1-6.2-5.2-6.2-9.2V6L12 3.6Z" />
+        <path d="m9.4 11.7 1.8 1.8 3.6-4" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M12 3.8a8.2 8.2 0 1 0 8.2 8.2A8.2 8.2 0 0 0 12 3.8Z" />
+      <path d="M12 7.7v4.7l3.1 1.8" />
+    </svg>
+  );
+}
+
 function PortalFeature({
   icon,
   title,
@@ -36,10 +117,13 @@ function PortalFeature({
 }) {
   return (
     <div className="auth-portal-feature">
-      <div
-        className={`auth-portal-feature-icon auth-portal-feature-icon--${icon}`}
-        aria-hidden="true"
-      />
+      <div className="auth-portal-feature-icon">
+        <PortalGlyph
+          name={
+            icon
+          }
+        />
+      </div>
 
       <div>
         <strong>
@@ -49,6 +133,51 @@ function PortalFeature({
         <span>
           {description}
         </span>
+      </div>
+    </div>
+  );
+}
+
+function VisualCard({
+  className,
+  icon,
+  title,
+  description,
+}: {
+  className:
+    string;
+
+  icon:
+    "assignments" |
+    "teams" |
+    "oversight";
+
+  title:
+    string;
+
+  description:
+    string;
+}) {
+  return (
+    <div
+      className={`auth-visual-card ${className}`}
+    >
+      <span className="auth-visual-card-icon">
+        <PortalGlyph
+          name={
+            icon
+          }
+        />
+      </span>
+
+      <div>
+        <strong>
+          {title}
+        </strong>
+
+        <small>
+          {description}
+        </small>
       </div>
     </div>
   );
@@ -99,12 +228,12 @@ function AuthShell({
             </p>
 
             <h2>
-              Operations with
+              Operations
               <br />
-              clarity and
+              with clarity
               <br />
               <span>
-                control.
+                and control.
               </span>
             </h2>
 
@@ -194,7 +323,10 @@ function AuthShell({
       </main>
 
       {immersive && (
-        <aside className="auth-portal-visual" aria-hidden="true">
+        <aside
+          className="auth-portal-visual"
+          aria-hidden="true"
+        >
           <div className="auth-portal-quote">
             <span />
 
@@ -211,8 +343,15 @@ function AuthShell({
             <div className="auth-globe-orbit auth-globe-orbit--three" />
 
             <div className="auth-globe">
-              <div className="auth-globe-grid auth-globe-grid--one" />
-              <div className="auth-globe-grid auth-globe-grid--two" />
+              <div className="auth-earth-glow" />
+              <div className="auth-continent auth-continent--north-america" />
+              <div className="auth-continent auth-continent--central-america" />
+              <div className="auth-continent auth-continent--south-america" />
+              <div className="auth-city-lights auth-city-lights--north" />
+              <div className="auth-city-lights auth-city-lights--south" />
+              <div className="auth-globe-grid auth-globe-grid--longitude" />
+              <div className="auth-globe-grid auth-globe-grid--latitude" />
+
               <span className="auth-globe-light auth-globe-light--one" />
               <span className="auth-globe-light auth-globe-light--two" />
               <span className="auth-globe-light auth-globe-light--three" />
@@ -220,49 +359,30 @@ function AuthShell({
               <span className="auth-globe-light auth-globe-light--five" />
               <span className="auth-globe-light auth-globe-light--six" />
               <span className="auth-globe-light auth-globe-light--seven" />
+              <span className="auth-globe-light auth-globe-light--eight" />
+              <span className="auth-globe-light auth-globe-light--nine" />
             </div>
 
-            <div className="auth-visual-card auth-visual-card--assignments">
-              <span className="auth-visual-card-icon auth-visual-card-icon--chart" />
+            <VisualCard
+              className="auth-visual-card--assignments"
+              icon="assignments"
+              title="Assignments"
+              description="Linked people and creator access"
+            />
 
-              <div>
-                <strong>
-                  Assignments
-                </strong>
+            <VisualCard
+              className="auth-visual-card--teams"
+              icon="teams"
+              title="Teams"
+              description="Internal staff aligned by role"
+            />
 
-                <small>
-                  Linked people and creator access
-                </small>
-              </div>
-            </div>
-
-            <div className="auth-visual-card auth-visual-card--teams">
-              <span className="auth-visual-card-icon auth-visual-card-icon--people" />
-
-              <div>
-                <strong>
-                  Teams
-                </strong>
-
-                <small>
-                  Internal staff aligned by role
-                </small>
-              </div>
-            </div>
-
-            <div className="auth-visual-card auth-visual-card--oversight">
-              <span className="auth-visual-card-icon auth-visual-card-icon--shield" />
-
-              <div>
-                <strong>
-                  Oversight
-                </strong>
-
-                <small>
-                  Controlled through secure access
-                </small>
-              </div>
-            </div>
+            <VisualCard
+              className="auth-visual-card--oversight"
+              icon="oversight"
+              title="Oversight"
+              description="Controlled through secure access"
+            />
           </div>
 
           <div className="auth-portal-keywords">
