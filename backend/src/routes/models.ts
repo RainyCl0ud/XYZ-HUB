@@ -2,6 +2,10 @@ import {
   Router,
 } from "express";
 
+import type {
+  Response,
+} from "express";
+
 import {
   z,
 } from "zod";
@@ -50,11 +54,7 @@ function handleModelError(
   error:
     unknown,
   res:
-    Parameters<
-      Parameters<
-        typeof router.get
-      >[1]
-    >[1]
+    Response
 ) {
   if (
     error instanceof
