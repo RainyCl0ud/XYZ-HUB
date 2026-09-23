@@ -569,6 +569,72 @@ async function runTests() {
       "✓ Owner can update roles and models across the agency"
     );
 
+    await prisma.agencyModel.update({
+      where: {
+        id:
+          modelB.id,
+      },
+
+      data: {
+        isActive:
+          false,
+      },
+    });
+
+    const preservedInactive =
+      await updatePersonAccess(
+        {
+          userId:
+            otherManager.id,
+
+          roleIds: [
+            chatterRole.id,
+          ],
+
+          modelIds: [
+            modelB.id,
+          ],
+        },
+
+        ownerAccess
+      );
+
+    assert.equal(
+      preservedInactive.models[0]
+        ?.id,
+      modelB.id
+    );
+
+    console.log(
+      "✓ existing inactive model assignment can be preserved"
+    );
+
+    await expectAccessError(
+      () =>
+        updatePersonAccess(
+          {
+            userId:
+              chatter.id,
+
+            roleIds: [
+              trialRole.id,
+            ],
+
+            modelIds: [
+              modelB.id,
+            ],
+          },
+
+          ownerAccess
+        ),
+
+      "INVALID_MODEL"
+    );
+
+    console.log(
+      "✓ inactive model cannot be newly assigned"
+    );
+
     console.log("");
 
     console.log(
