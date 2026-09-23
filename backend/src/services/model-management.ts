@@ -7,6 +7,7 @@ import {
 } from "../lib/prisma.js";
 
 import {
+  hasPermission,
   type AccessContext,
 } from "./access-control.js";
 
@@ -41,14 +42,23 @@ export function canManageModelCatalog(
   access:
     AccessContext
 ): boolean {
-  return access.roles.some(
-    (
-      role
-    ) =>
-      role.systemKey ===
-        "OWNER" ||
-      role.systemKey ===
-        "OPS_MANAGER"
+  const hasManagementRole =
+    access.roles.some(
+      (
+        role
+      ) =>
+        role.systemKey ===
+          "OWNER" ||
+        role.systemKey ===
+          "OPS_MANAGER"
+    );
+
+  return (
+    hasManagementRole &&
+    hasPermission(
+      access,
+      "people.manage"
+    )
   );
 }
 
