@@ -29,7 +29,8 @@
     "test:people-delete": "tsx scripts/test-people-delete.ts",
     "test:people-two-factor": "tsx scripts/test-people-two-factor.ts",
     "test:people-read": "tsx scripts/test-people-read.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test:model-management": "tsx scripts/test-model-management.ts"
   },
   "keywords": [],
   "author": "",
