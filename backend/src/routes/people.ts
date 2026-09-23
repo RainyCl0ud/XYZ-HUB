@@ -62,6 +62,10 @@ import {
   PeopleReadError,
 } from "../services/people-read.js";
 
+import {
+  getPeopleManagementOptions,
+} from "../services/people-options.js";
+
 const router =
   Router();
 
@@ -210,6 +214,63 @@ router.get(
 
         message:
           "Unable to load people.",
+      });
+    }
+  }
+);
+
+
+/*
+ * =========================================================
+ * GET /api/people/options
+ * =========================================================
+ *
+ * Returns only roles and models the current
+ * manager is allowed to assign.
+ */
+router.get(
+  "/options",
+
+  requireAuth,
+
+  requirePermission(
+    "people.manage"
+  ),
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    try {
+      const options =
+        await getPeopleManagementOptions(
+          req.access
+        );
+
+      res.status(200).json(
+        options
+      );
+    } catch (error) {
+      console.error(
+        "People options request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "PEOPLE_OPTIONS_FAILED",
+
+        message:
+          "Unable to load People Management options.",
       });
     }
   }
