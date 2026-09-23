@@ -1,14 +1,77 @@
-import { NavLink, Outlet } from "react-router-dom";
+import {
+  useState,
+} from "react";
+
+import {
+  NavLink,
+  Outlet,
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  useAuth,
+} from "../auth/AuthContext";
 
 function AppLayout() {
+  const navigate =
+    useNavigate();
+
+  const {
+    user,
+    access,
+    logout,
+  } =
+    useAuth();
+
+  const [
+    signingOut,
+    setSigningOut,
+  ] =
+    useState(false);
+
+  const roleNames =
+    access?.roles
+      .map(
+        (role) =>
+          role.name
+      )
+      .join(", ") ||
+    "XYZ Hub User";
+
+  async function handleLogout() {
+    setSigningOut(
+      true
+    );
+
+    try {
+      await logout();
+
+      navigate(
+        "/login",
+        {
+          replace:
+            true,
+        }
+      );
+    } finally {
+      setSigningOut(
+        false
+      );
+    }
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-header">
-          <div className="brand-mark">X</div>
+          <div className="brand-mark">
+            X
+          </div>
 
           <div className="brand-copy">
-            <h1 className="brand-name">XYZ Hub</h1>
+            <h1 className="brand-name">
+              XYZ Hub
+            </h1>
 
             <p className="brand-subtitle">
               Agency Operation Management
@@ -20,8 +83,12 @@ function AppLayout() {
           <NavLink
             to="/"
             end
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
+            className={({
+              isActive,
+            }) =>
+              isActive
+                ? "nav-link active"
+                : "nav-link"
             }
           >
             Dashboard
@@ -29,8 +96,12 @@ function AppLayout() {
 
           <NavLink
             to="/incidents"
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
+            className={({
+              isActive,
+            }) =>
+              isActive
+                ? "nav-link active"
+                : "nav-link"
             }
           >
             Incidents
@@ -38,8 +109,12 @@ function AppLayout() {
 
           <NavLink
             to="/rules"
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
+            className={({
+              isActive,
+            }) =>
+              isActive
+                ? "nav-link active"
+                : "nav-link"
             }
           >
             Rules & Strike Reasons
@@ -47,8 +122,12 @@ function AppLayout() {
 
           <NavLink
             to="/chatters"
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
+            className={({
+              isActive,
+            }) =>
+              isActive
+                ? "nav-link active"
+                : "nav-link"
             }
           >
             Chatters
@@ -56,17 +135,56 @@ function AppLayout() {
 
           <NavLink
             to="/configuration"
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
+            className={({
+              isActive,
+            }) =>
+              isActive
+                ? "nav-link active"
+                : "nav-link"
             }
           >
             Configuration
           </NavLink>
         </nav>
 
+        <div className="sidebar-account">
+          <div className="sidebar-account-name">
+            {user?.name ??
+              "Signed in"}
+          </div>
+
+          <div className="sidebar-account-email">
+            {user?.email}
+          </div>
+
+          <div className="sidebar-account-role">
+            {roleNames}
+          </div>
+
+          <button
+            className="sidebar-signout-button"
+            type="button"
+            onClick={() => {
+              void handleLogout();
+            }}
+            disabled={
+              signingOut
+            }
+          >
+            {signingOut
+              ? "Signing out..."
+              : "Sign out"}
+          </button>
+        </div>
+
         <div className="sidebar-footer">
           <span className="environment-dot" />
-          <span>Development</span>
+
+          <span>
+            {import.meta.env
+              .VITE_APP_ENV ??
+              "Development"}
+          </span>
         </div>
       </aside>
 

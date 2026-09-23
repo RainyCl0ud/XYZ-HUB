@@ -39,7 +39,70 @@ const app = express();
 const PORT =
   process.env.PORT || 3000;
 
-app.use(cors());
+const frontendUrl =
+  process.env.FRONTEND_URL
+    ?.trim()
+    .replace(/\/+$/, "");
+
+const allowedOrigins =
+  new Set(
+    [
+      "http://localhost:5173",
+
+      frontendUrl,
+    ].filter(
+      (
+        origin
+      ): origin is string =>
+        Boolean(origin)
+    )
+  );
+
+app.use(
+  cors({
+    origin: (
+      origin,
+      callback
+    ) => {
+      /*
+       * Requests without an Origin header
+       * include tools such as PowerShell,
+       * curl, health checks, and server-side
+       * requests.
+       */
+      if (!origin) {
+        callback(
+          null,
+          true
+        );
+
+        return;
+      }
+
+      if (
+        allowedOrigins.has(
+          origin
+        )
+      ) {
+        callback(
+          null,
+          true
+        );
+
+        return;
+      }
+
+      callback(
+        new Error(
+          `Origin ${origin} is not allowed by CORS.`
+        )
+      );
+    },
+
+    credentials:
+      true,
+  })
+);
 
 app.use(express.json());
 
