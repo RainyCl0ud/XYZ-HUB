@@ -12,6 +12,8 @@ import {
 
 import peopleRoutes from "./routes/people.js";
 
+import modelRoutes from "./routes/models.js";
+
 import inviteRoutes from "./routes/invites.js";
 
 import authRoutes from "./routes/auth.js";
@@ -131,6 +133,11 @@ app.use(
 app.use(
   "/api/people",
   peopleRoutes
+);
+
+app.use(
+  "/api/models",
+  modelRoutes
 );
 
 /*
