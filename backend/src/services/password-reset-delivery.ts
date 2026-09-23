@@ -1,3 +1,11 @@
+import {
+  renderEmailTemplate,
+} from "./email-template.js";
+
+import {
+  sendTransactionalEmail,
+} from "./transactional-email.js";
+
 export type PasswordResetDeliveryInput = {
   name: string;
   email: string;
@@ -21,6 +29,17 @@ function getFrontendUrl(): string {
   );
 }
 
+function getResetUrl(
+  token: string
+): string {
+  return (
+    `${getFrontendUrl()}/reset-password#token=` +
+    encodeURIComponent(
+      token
+    )
+  );
+}
+
 export async function sendPasswordReset(
   input:
     PasswordResetDeliveryInput
@@ -29,12 +48,6 @@ export async function sendPasswordReset(
     process.env
       .PASSWORD_RESET_DELIVERY_MODE;
 
-  /*
-   * Temporary LOCAL development delivery.
-   *
-   * Real email delivery belongs to a later
-   * implementation stage.
-   */
   if (
     mode ===
     "console"
@@ -48,17 +61,10 @@ export async function sendPasswordReset(
       );
     }
 
-    /*
-     * Keep the secret token in the fragment.
-     *
-     * Browser fragments are not normally
-     * included in the HTTP request sent to
-     * the frontend server.
-     */
     const resetUrl =
-      `${getFrontendUrl()}/reset-password#token=${encodeURIComponent(
+      getResetUrl(
         input.token
-      )}`;
+      );
 
     console.log("");
     console.log(
@@ -90,6 +96,54 @@ export async function sendPasswordReset(
     );
 
     console.log("");
+
+    return;
+  }
+
+  if (mode === "email") {
+    const resetUrl =
+      getResetUrl(
+        input.token
+      );
+
+    const message =
+      renderEmailTemplate({
+        eyebrow:
+          "Password reset",
+
+        title:
+          "Reset your XYZ Hub password",
+
+        greeting:
+          `Hi ${input.name},`,
+
+        paragraphs: [
+          "A password reset was requested for your XYZ Hub account.",
+          "Use the secure link below to choose a new password.",
+          `This link expires at ${input.expiresAt.toISOString()}.`,
+        ],
+
+        actionLabel:
+          "Reset password",
+
+        actionUrl:
+          resetUrl,
+
+        footer:
+          "If you did not request a password reset, you can ignore this email.",
+      });
+
+    await sendTransactionalEmail({
+      to: input.email,
+      subject:
+        "Reset your XYZ Hub password",
+      text:
+        message.text,
+      html:
+        message.html,
+      tag:
+        "password_reset",
+    });
 
     return;
   }

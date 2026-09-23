@@ -1,3 +1,11 @@
+import {
+  renderEmailTemplate,
+} from "./email-template.js";
+
+import {
+  sendTransactionalEmail,
+} from "./transactional-email.js";
+
 export type AccountInviteDeliveryInput = {
   name: string;
   email: string;
@@ -21,18 +29,23 @@ function getFrontendUrl(): string {
   );
 }
 
+function getInviteUrl(
+  token: string
+): string {
+  return (
+    `${getFrontendUrl()}/invite#token=` +
+    encodeURIComponent(
+      token
+    )
+  );
+}
+
 export async function sendAccountInvite(
   input: AccountInviteDeliveryInput
 ): Promise<void> {
   const mode =
     process.env.INVITE_DELIVERY_MODE;
 
-  /*
-   * Temporary LOCAL development delivery.
-   *
-   * Real staging/production delivery will
-   * later use the transactional email provider.
-   */
   if (mode === "console") {
     if (
       process.env.NODE_ENV ===
@@ -44,9 +57,9 @@ export async function sendAccountInvite(
     }
 
     const inviteUrl =
-      `${getFrontendUrl()}/invite#token=${encodeURIComponent(
+      getInviteUrl(
         input.token
-      )}`;
+      );
 
     console.log("");
     console.log(
@@ -78,6 +91,54 @@ export async function sendAccountInvite(
     );
 
     console.log("");
+
+    return;
+  }
+
+  if (mode === "email") {
+    const inviteUrl =
+      getInviteUrl(
+        input.token
+      );
+
+    const message =
+      renderEmailTemplate({
+        eyebrow:
+          "Account invitation",
+
+        title:
+          "You're invited to XYZ Hub",
+
+        greeting:
+          `Hi ${input.name},`,
+
+        paragraphs: [
+          "An XYZ Hub account has been prepared for you.",
+          "Use the secure link below to choose your password and finish setting up your account.",
+          `This invitation expires at ${input.expiresAt.toISOString()}.`,
+        ],
+
+        actionLabel:
+          "Set up your account",
+
+        actionUrl:
+          inviteUrl,
+
+        footer:
+          "If you were not expecting this invitation, you can ignore this email.",
+      });
+
+    await sendTransactionalEmail({
+      to: input.email,
+      subject:
+        "You're invited to XYZ Hub",
+      text:
+        message.text,
+      html:
+        message.html,
+      tag:
+        "account_invite",
+    });
 
     return;
   }
