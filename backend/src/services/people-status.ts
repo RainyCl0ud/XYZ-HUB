@@ -24,6 +24,7 @@ export type PeopleStatusErrorCode =
   | "USER_NOT_FOUND"
   | "USER_NOT_ACTIVE"
   | "USER_NOT_DEACTIVATED"
+  | "CANNOT_DEACTIVATE_SELF"
   | "ROLE_NOT_MANAGEABLE"
   | "MODEL_NOT_MANAGEABLE";
 
@@ -100,6 +101,16 @@ export async function deactivatePerson(
     throw new PeopleStatusError(
       "PEOPLE_DEACTIVATE_REQUIRED",
       "You do not have permission to deactivate people."
+    );
+  }
+
+  if (
+    userId ===
+    access.userId
+  ) {
+    throw new PeopleStatusError(
+      "CANNOT_DEACTIVATE_SELF",
+      "You cannot deactivate your own account."
     );
   }
 
