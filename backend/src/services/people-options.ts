@@ -42,11 +42,6 @@ export async function getPeopleManagementOptions(
       }),
 
       prisma.agencyModel.findMany({
-        where: {
-          isActive:
-            true,
-        },
-
         select: {
           id: true,
           name: true,
