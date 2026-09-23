@@ -29,23 +29,26 @@ function AppLayout() {
   ] =
     useState(false);
 
-  const canManageModels =
-    access?.roles.some(
-      (
-        role
-      ) =>
-        role.systemKey ===
-          "OWNER" ||
-        role.systemKey ===
-          "OPS_MANAGER"
-    ) ??
-    false;
-
   const canManagePeople =
     access?.permissions.includes(
       "people.manage"
     ) ??
     false;
+
+  const canManageModels =
+    canManagePeople &&
+    (
+      access?.roles.some(
+        (
+          role
+        ) =>
+          role.systemKey ===
+            "OWNER" ||
+          role.systemKey ===
+            "OPS_MANAGER"
+      ) ??
+      false
+    );
 
   const roleNames =
     access?.roles
