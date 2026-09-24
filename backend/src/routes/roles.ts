@@ -1,0 +1,454 @@
+import {
+  RoleDataScope,
+} from "@prisma/client";
+
+import {
+  Router,
+} from "express";
+
+import type {
+  Response,
+} from "express";
+
+import {
+  z,
+} from "zod";
+
+import {
+  type AuthenticatedRequest,
+  requireAuth,
+  requireOwner,
+  requirePermission,
+} from "../middleware/access.js";
+
+import {
+  createRole,
+  deleteRole,
+  getRoleBuilderData,
+  RoleManagementError,
+  updateRole,
+} from "../services/role-management.js";
+
+const router =
+  Router();
+
+const roleInputSchema =
+  z.object({
+    name:
+      z
+        .string()
+        .trim()
+        .min(1)
+        .max(120),
+
+    rank:
+      z
+        .number()
+        .int()
+        .min(1)
+        .max(999)
+        .nullable(),
+
+    dataScope:
+      z.nativeEnum(
+        RoleDataScope
+      ),
+
+    permissionIds:
+      z
+        .array(
+          z
+            .string()
+            .min(1)
+        )
+        .default([]),
+  });
+
+function getParam(
+  value:
+    string |
+    string[] |
+    undefined
+) {
+  return Array.isArray(
+    value
+  )
+    ? value[0]
+    : value;
+}
+
+function handleRoleError(
+  error:
+    unknown,
+  res:
+    Response
+) {
+  if (
+    !(error instanceof
+      RoleManagementError)
+  ) {
+    return false;
+  }
+
+  switch (
+    error.code
+  ) {
+    case "ROLE_MANAGEMENT_REQUIRED":
+      res.status(403).json({
+        error:
+          error.code,
+
+        message:
+          error.message,
+      });
+
+      return true;
+
+    case "ROLE_NOT_FOUND":
+      res.status(404).json({
+        error:
+          error.code,
+
+        message:
+          error.message,
+      });
+
+      return true;
+
+    case "ROLE_NAME_IN_USE":
+    case "SYSTEM_ROLE_DELETE_FORBIDDEN":
+    case "ROLE_IN_USE":
+      res.status(409).json({
+        error:
+          error.code,
+
+        message:
+          error.message,
+      });
+
+      return true;
+
+    case "INVALID_ROLE_RANK":
+    case "INVALID_PERMISSIONS":
+      res.status(400).json({
+        error:
+          error.code,
+
+        message:
+          error.message,
+      });
+
+      return true;
+  }
+}
+
+const ownerRoleBuilderGuards = [
+  requireAuth,
+
+  requireOwner,
+
+  requirePermission(
+    "roles.manage"
+  ),
+] as const;
+
+router.get(
+  "/",
+
+  ...ownerRoleBuilderGuards,
+
+  async (
+    req:
+      AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    try {
+      const data =
+        await getRoleBuilderData(
+          req.access
+        );
+
+      res.status(200).json(
+        data
+      );
+    } catch (
+      error
+    ) {
+      if (
+        handleRoleError(
+          error,
+          res
+        )
+      ) {
+        return;
+      }
+
+      console.error(
+        "Load Role Builder request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "LOAD_ROLES_FAILED",
+
+        message:
+          "Unable to load Role Builder data.",
+      });
+    }
+  }
+);
+
+router.post(
+  "/",
+
+  ...ownerRoleBuilderGuards,
+
+  async (
+    req:
+      AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const parsed =
+      roleInputSchema.safeParse(
+        req.body
+      );
+
+    if (!parsed.success) {
+      res.status(400).json({
+        error:
+          "INVALID_REQUEST",
+
+        message:
+          "A valid role name, rank, data scope and permission list are required.",
+      });
+
+      return;
+    }
+
+    try {
+      const role =
+        await createRole(
+          parsed.data,
+          req.access
+        );
+
+      res.status(201).json({
+        status:
+          "ROLE_CREATED",
+
+        role,
+      });
+    } catch (
+      error
+    ) {
+      if (
+        handleRoleError(
+          error,
+          res
+        )
+      ) {
+        return;
+      }
+
+      console.error(
+        "Create role request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "CREATE_ROLE_FAILED",
+
+        message:
+          "Unable to create the role.",
+      });
+    }
+  }
+);
+
+router.put(
+  "/:roleId",
+
+  ...ownerRoleBuilderGuards,
+
+  async (
+    req:
+      AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const roleId =
+      getParam(
+        req.params.roleId
+      );
+
+    if (!roleId) {
+      res.status(400).json({
+        error:
+          "INVALID_ROLE_ID",
+      });
+
+      return;
+    }
+
+    const parsed =
+      roleInputSchema.safeParse(
+        req.body
+      );
+
+    if (!parsed.success) {
+      res.status(400).json({
+        error:
+          "INVALID_REQUEST",
+
+        message:
+          "A valid role name, rank, data scope and permission list are required.",
+      });
+
+      return;
+    }
+
+    try {
+      const role =
+        await updateRole(
+          roleId,
+          parsed.data,
+          req.access
+        );
+
+      res.status(200).json({
+        status:
+          "ROLE_UPDATED",
+
+        role,
+      });
+    } catch (
+      error
+    ) {
+      if (
+        handleRoleError(
+          error,
+          res
+        )
+      ) {
+        return;
+      }
+
+      console.error(
+        "Update role request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "UPDATE_ROLE_FAILED",
+
+        message:
+          "Unable to update the role.",
+      });
+    }
+  }
+);
+
+router.delete(
+  "/:roleId",
+
+  ...ownerRoleBuilderGuards,
+
+  async (
+    req:
+      AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const roleId =
+      getParam(
+        req.params.roleId
+      );
+
+    if (!roleId) {
+      res.status(400).json({
+        error:
+          "INVALID_ROLE_ID",
+      });
+
+      return;
+    }
+
+    try {
+      const role =
+        await deleteRole(
+          roleId,
+          req.access
+        );
+
+      res.status(200).json({
+        status:
+          "ROLE_DELETED",
+
+        role,
+      });
+    } catch (
+      error
+    ) {
+      if (
+        handleRoleError(
+          error,
+          res
+        )
+      ) {
+        return;
+      }
+
+      console.error(
+        "Delete role request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "DELETE_ROLE_FAILED",
+
+        message:
+          "Unable to delete the role.",
+      });
+    }
+  }
+);
+
+export default router;
