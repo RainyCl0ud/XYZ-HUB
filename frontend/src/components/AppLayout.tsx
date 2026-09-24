@@ -50,6 +50,24 @@ function AppLayout() {
       false
     );
 
+  const canManageRoles =
+    (
+      access?.permissions.includes(
+        "roles.manage"
+      ) ??
+      false
+    ) &&
+    (
+      access?.roles.some(
+        (
+          role
+        ) =>
+          role.systemKey ===
+          "OWNER"
+      ) ??
+      false
+    );
+
   const roleNames =
     access?.roles
       .map(
@@ -194,6 +212,21 @@ function AppLayout() {
               }
             >
               Models
+            </NavLink>
+          )}
+
+          {canManageRoles && (
+            <NavLink
+              to="/roles"
+              className={({
+                isActive,
+              }) =>
+                isActive
+                  ? "nav-link active"
+                  : "nav-link"
+              }
+            >
+              Roles
             </NavLink>
           )}
         </nav>
