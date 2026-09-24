@@ -14,6 +14,8 @@ import peopleRoutes from "./routes/people.js";
 
 import modelRoutes from "./routes/models.js";
 
+import roleRoutes from "./routes/roles.js";
+
 import inviteRoutes from "./routes/invites.js";
 
 import authRoutes from "./routes/auth.js";
@@ -138,6 +140,11 @@ app.use(
 app.use(
   "/api/models",
   modelRoutes
+);
+
+app.use(
+  "/api/roles",
+  roleRoutes
 );
 
 /*
