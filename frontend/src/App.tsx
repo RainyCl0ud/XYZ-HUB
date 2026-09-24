@@ -25,6 +25,7 @@ import ChattersPage from "./pages/ChattersPage";
 import ConfigurationPage from "./pages/ConfigurationPage";
 import PeoplePage from "./pages/PeoplePage";
 import ModelsPage from "./pages/ModelsPage";
+import RoleBuilderPage from "./pages/RoleBuilderPage";
 
 function App() {
   return (
@@ -133,6 +134,21 @@ function App() {
                   ]}
                 >
                   <ModelsPage />
+                </RequireSystemRole>
+              </RequirePermission>
+            }
+          />
+
+          <Route
+            path="/roles"
+            element={
+              <RequirePermission permission="roles.manage">
+                <RequireSystemRole
+                  roles={[
+                    "OWNER",
+                  ]}
+                >
+                  <RoleBuilderPage />
                 </RequireSystemRole>
               </RequirePermission>
             }
