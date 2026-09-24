@@ -1,4 +1,4 @@
-import {
+﻿import {
   useCallback,
   useEffect,
   useMemo,
@@ -10,6 +10,10 @@ import type {
 } from "react";
 
 import { apiRequest } from "../lib/api";
+
+import {
+  formatCentralDateTime,
+} from "../lib/time";
 
 import {
   useToast,
@@ -67,6 +71,13 @@ type Incident = {
 
   chatterId: string;
   ruleVersionId: string;
+  modelId: string | null;
+
+  agencyModel: {
+    id: string;
+    name: string;
+    isActive: boolean;
+  } | null;
 
   ruleTitleSnapshot: string;
   ruleDefinitionSnapshot: string;
@@ -623,6 +634,8 @@ function IncidentsPage() {
           const searchable = [
             incident.chatter.name,
 
+            incident.agencyModel?.name,
+
             incident
               .ruleTitleSnapshot,
 
@@ -653,15 +666,11 @@ function IncidentsPage() {
 
             incident.occurredAt,
 
-            new Date(
-              incident.occurredAt
-            ).toLocaleString(),
+            formatCentralDateTime(incident.occurredAt),
 
             incident.expiresAt,
 
-            new Date(
-              incident.expiresAt
-            ).toLocaleString(),
+            formatCentralDateTime(incident.expiresAt),
 
             incident
               .resolutionNotes,
@@ -1350,7 +1359,7 @@ function IncidentsPage() {
       return "Expired";
     }
 
-    return "—";
+    return "â€”";
   }
 
   function formatExpiryLabel(
@@ -1663,6 +1672,10 @@ function IncidentsPage() {
                   </th>
 
                   <th>
+                    Model
+                  </th>
+
+                  <th>
                     Rule
                   </th>
 
@@ -1751,6 +1764,11 @@ function IncidentsPage() {
                         </td>
 
                         <td>
+                          {incident.agencyModel?.name ??
+                            "Legacy / unassigned"}
+                        </td>
+
+                        <td>
                           <span className="incident-rule-inline">
                             <strong>
                               {
@@ -1773,7 +1791,7 @@ function IncidentsPage() {
                         <td>
                           {incident
                             .severityNameSnapshot ??
-                            "—"}
+                            "â€”"}
                         </td>
 
                         <td>
@@ -1799,14 +1817,12 @@ function IncidentsPage() {
                               )}
                             </div>
                           ) : (
-                            "—"
+                            "â€”"
                           )}
                         </td>
 
                         <td className="incident-date-cell">
-                          {new Date(
-                            incident.occurredAt
-                          ).toLocaleString()}
+                          {formatCentralDateTime(incident.occurredAt)}
                         </td>
 
                         <td className="incident-date-cell">
@@ -1814,7 +1830,7 @@ function IncidentsPage() {
                             .strikeActivityStatus ===
                           "NOT_APPLICABLE" ? (
                             <span>
-                              —
+                              â€”
                             </span>
                           ) : (
                             <span className="incident-expiry-date">
@@ -1827,9 +1843,7 @@ function IncidentsPage() {
                               </span>
 
                               <span>
-                                {new Date(
-                                  incident.expiresAt
-                                ).toLocaleString()}
+                                {formatCentralDateTime(incident.expiresAt)}
                               </span>
                             </span>
                           )}
@@ -1852,7 +1866,7 @@ function IncidentsPage() {
                             .strikeActivityStatus ===
                           "NOT_APPLICABLE" ? (
                             <span>
-                              —
+                              â€”
                             </span>
                           ) : (
                             <span
@@ -1929,7 +1943,7 @@ function IncidentsPage() {
                   isSaving
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -2315,7 +2329,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -2409,6 +2423,17 @@ function IncidentsPage() {
                       <div className="detail-meta-grid">
                         <div>
                           <span>
+                            Model
+                          </span>
+
+                          <strong>
+                            {selectedIncident.agencyModel?.name ??
+                              "Legacy / unassigned"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
                             Rule Version
                           </span>
 
@@ -2457,9 +2482,7 @@ function IncidentsPage() {
                           </span>
 
                           <strong>
-                            {new Date(
-                              selectedIncident.occurredAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(selectedIncident.occurredAt)}
                           </strong>
                         </div>
 
@@ -2476,9 +2499,7 @@ function IncidentsPage() {
                               .strikeActivityStatus ===
                             "NOT_APPLICABLE"
                               ? "Not applicable"
-                              : new Date(
-                                  selectedIncident.expiresAt
-                                ).toLocaleString()}
+                              : formatCentralDateTime(selectedIncident.expiresAt)}
                           </strong>
                         </div>
 
@@ -2491,7 +2512,7 @@ function IncidentsPage() {
                             {selectedIncident
                               .strikeActivityStatus ===
                             "NOT_APPLICABLE"
-                              ? "—"
+                              ? "â€”"
                               : formatStrikeActivityStatus(
                                   selectedIncident
                                     .strikeActivityStatus
@@ -2584,9 +2605,7 @@ function IncidentsPage() {
                           <small>
                             Resolved{" "}
 
-                            {new Date(
-                              selectedIncident.resolvedAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(selectedIncident.resolvedAt)}
                           </small>
                         )}
                       </div>
@@ -2609,9 +2628,7 @@ function IncidentsPage() {
                           <small>
                             Voided{" "}
 
-                            {new Date(
-                              selectedIncident.voidedAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(selectedIncident.voidedAt)}
                           </small>
                         )}
                       </div>
@@ -2720,7 +2737,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -2795,7 +2812,7 @@ function IncidentsPage() {
                   <small className="form-helper">
                     {actionType ===
                     "resolve"
-                      ? `Optional · ${actionNotes.length}/2000 characters`
+                      ? `Optional Â· ${actionNotes.length}/2000 characters`
                       : `${actionNotes.length}/2000 characters`}
                   </small>
                 </label>
@@ -2895,7 +2912,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close confirmation"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -2917,7 +2934,7 @@ function IncidentsPage() {
                       <strong>
                         {selectedChatter
                           ?.name ??
-                          "—"}
+                          "â€”"}
                       </strong>
                     </div>
 
@@ -2930,7 +2947,7 @@ function IncidentsPage() {
                         {selectedRule
                           ?.currentVersion
                           ?.title ??
-                          "—"}
+                          "â€”"}
                       </strong>
                     </div>
 
@@ -2984,7 +3001,7 @@ function IncidentsPage() {
                                 ? "day"
                                 : "days"
                             }`
-                          : "—"}
+                          : "â€”"}
                       </strong>
                     </div>
 

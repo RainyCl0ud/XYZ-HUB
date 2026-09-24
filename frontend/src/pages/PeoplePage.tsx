@@ -1,4 +1,4 @@
-import {
+﻿import {
   useCallback,
   useEffect,
   useMemo,
@@ -164,7 +164,7 @@ function formatTexasDateTime(
     string | null
 ) {
   if (!value) {
-    return "—";
+    return "â€”";
   }
 
   return new Intl.DateTimeFormat(
@@ -1005,7 +1005,7 @@ function PeoplePage() {
         );
 
         toast.success(
-          "The Login Gate user was permanently deleted. Existing QA history remains preserved.",
+          "The user and tied QA history were permanently deleted.",
           "User deleted"
         );
 
@@ -1284,7 +1284,7 @@ function PeoplePage() {
         {loading ? (
           <div className="empty-state">
             <strong>
-              Loading people…
+              Loading peopleâ€¦
             </strong>
           </div>
         ) : filteredPeople.length ===
@@ -1451,14 +1451,14 @@ function PeoplePage() {
                 }
                 aria-label="Close profile"
               >
-                ×
+                Ã—
               </button>
             </div>
 
             {detailLoading ? (
               <div className="empty-state">
                 <strong>
-                  Loading profile…
+                  Loading profileâ€¦
                 </strong>
               </div>
             ) : (
@@ -1559,7 +1559,7 @@ function PeoplePage() {
                               {role.name}
                               {role.rank !==
                                 null &&
-                                ` · Rank ${role.rank}`}
+                                ` Â· Rank ${role.rank}`}
                             </span>
                           )
                         )}
@@ -1823,7 +1823,7 @@ function PeoplePage() {
                   resetInviteForm();
                 }}
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -1910,7 +1910,7 @@ function PeoplePage() {
                             null
                               ? `Rank ${role.rank}`
                               : "Unranked"}
-                            {" · "}
+                            {" Â· "}
                             {role.dataScope}
                           </small>
                         </span>
@@ -2001,7 +2001,7 @@ function PeoplePage() {
                 }
               >
                 {saving
-                  ? "Sending…"
+                  ? "Sendingâ€¦"
                   : "Send invitation"}
               </button>
             </div>
@@ -2038,7 +2038,7 @@ function PeoplePage() {
                     )
                   }
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -2085,7 +2085,7 @@ function PeoplePage() {
                               null
                                 ? `Rank ${role.rank}`
                                 : "Unranked"}
-                              {" · "}
+                              {" Â· "}
                               {role.dataScope}
                             </small>
                           </span>
@@ -2145,8 +2145,8 @@ function PeoplePage() {
                                   {model.isActive
                                     ? "Active model"
                                     : currentlySelected
-                                      ? "Inactive · existing assignment"
-                                      : "Inactive · unavailable"}
+                                      ? "Inactive Â· existing assignment"
+                                      : "Inactive Â· unavailable"}
                                 </small>
                               </span>
                             </label>
@@ -2186,7 +2186,7 @@ function PeoplePage() {
                   }
                 >
                   {saving
-                    ? "Saving…"
+                    ? "Savingâ€¦"
                     : "Save access"}
                 </button>
               </div>
@@ -2223,7 +2223,7 @@ function PeoplePage() {
                 <p>
                   {confirmAction ===
                   "delete"
-                    ? "This deletes the Login Gate identity and authentication records. Existing QA history is preserved separately."
+                    ? "This permanently deletes the Login Gate identity, authentication records, linked chatter profile, and tied QA incidents/strikes. Use deactivation when history must be preserved."
                     : confirmAction ===
                         "deactivate"
                       ? "The user will immediately lose access and all active sessions will be revoked."
@@ -2304,7 +2304,7 @@ function PeoplePage() {
                   }
                 >
                   {saving
-                    ? "Working…"
+                    ? "Workingâ€¦"
                     : "Confirm"}
                 </button>
               </div>
@@ -2316,3 +2316,4 @@ function PeoplePage() {
 }
 
 export default PeoplePage;
+

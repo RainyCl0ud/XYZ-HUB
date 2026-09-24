@@ -34,3 +34,5 @@ Thumbs.db
 
 # Railway
 .railway/
+# Local append-only audit adapter
+.local-data/

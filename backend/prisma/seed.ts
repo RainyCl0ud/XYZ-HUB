@@ -1,4 +1,4 @@
-/// <reference types="node" />
+﻿/// <reference types="node" />
 
 import {
   PrismaClient,
@@ -153,7 +153,9 @@ const defaultRolePermissions: Record<
   QC: [],
   CHATTER: [],
   TRIAL_CHATTER: [],
-  DEV: [],
+  DEV: [
+    "audit.view",
+  ],
   ACCOUNTANT: [],
   MODEL: [],
   GENERAL_STAFF: [],

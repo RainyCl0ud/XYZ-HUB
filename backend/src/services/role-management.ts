@@ -97,6 +97,16 @@ function normalizePermissionIds(
   ];
 }
 
+const rankedSystemRoleKeys =
+  new Set([
+    "OWNER",
+    "OPS_MANAGER",
+    "MANAGER",
+    "QC",
+    "CHATTER",
+    "TRIAL_CHATTER",
+  ]);
+
 function validateRank(
   role:
     {
@@ -128,6 +138,27 @@ function validateRank(
     }
 
     return;
+  }
+
+  /*
+   * The six default operational roles are the
+   * documented ranked chain. Owners may change
+   * their numeric position, scope and permissions,
+   * but they cannot remove one of these roles from
+   * the chain entirely by clearing its rank.
+   */
+  if (
+    rank ===
+      null &&
+    role.systemKey &&
+    rankedSystemRoleKeys.has(
+      role.systemKey
+    )
+  ) {
+    throw new RoleManagementError(
+      "INVALID_ROLE_RANK",
+      "This default operational role must remain in the ranked chain."
+    );
   }
 
   /*

@@ -8,11 +8,15 @@ const API_BASE_URL =
     ""
   );
 
+const MODEL_CONTEXT_STORAGE_KEY =
+  "xyz_active_model_id";
+
+export const AUTH_EXPIRED_EVENT =
+  "xyz-auth-expired";
+
 type ApiErrorResponse = {
   error?: string;
-
   message?: string;
-
   errors?: Record<
     string,
     string[]
@@ -60,13 +64,6 @@ export async function apiRequest<T>(
       options.headers
     );
 
-  /*
-   * Only add JSON Content-Type when there
-   * is actually a request body.
-   *
-   * This avoids unnecessary CORS preflight
-   * requests for simple GET requests.
-   */
   if (
     options.body &&
     !headers.has(
@@ -79,20 +76,41 @@ export async function apiRequest<T>(
     );
   }
 
+  /*
+   * Model context is centralized here so every
+   * QA request consistently carries the current
+   * model selection without individual pages
+   * having to duplicate the logic.
+   */
+  if (
+    typeof window !==
+    "undefined"
+  ) {
+    const modelId =
+      window.localStorage.getItem(
+        MODEL_CONTEXT_STORAGE_KEY
+      );
+
+    if (
+      modelId &&
+      modelId !== "ALL" &&
+      !headers.has(
+        "X-XYZ-Model-ID"
+      )
+    ) {
+      headers.set(
+        "X-XYZ-Model-ID",
+        modelId
+      );
+    }
+  }
+
   const response =
     await fetch(
       `${API_BASE_URL}${path}`,
       {
         ...options,
-
         headers,
-
-        /*
-         * Required so the browser sends and
-         * receives the HttpOnly xyz_session
-         * cookie across the frontend/API
-         * origins.
-         */
         credentials:
           "include",
       }
@@ -112,12 +130,33 @@ export async function apiRequest<T>(
       // Non-JSON response.
     }
 
+    /*
+     * Any 401 means the browser no longer has a
+     * usable authenticated session. Broadcast the
+     * condition so AuthProvider clears cached user
+     * state immediately instead of leaving a stale
+     * protected screen visible until refresh.
+     *
+     * Public login/2FA endpoints can also return 401;
+     * clearing an already-null auth state is harmless.
+     */
+    if (
+      response.status ===
+        401 &&
+      typeof window !==
+        "undefined"
+    ) {
+      window.dispatchEvent(
+        new Event(
+          AUTH_EXPIRED_EVENT
+        )
+      );
+    }
+
     throw new ApiError(
       response.status,
-
       errorData?.error ??
         null,
-
       errorData?.message ??
         `Request failed with status ${response.status}`
     );

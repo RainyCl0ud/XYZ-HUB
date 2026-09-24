@@ -203,7 +203,7 @@ async function runTests() {
     );
 
     console.log(
-      "✓ Manager cannot permanently delete users"
+      "âœ“ Manager cannot permanently delete users"
     );
 
     await expectDeleteError(
@@ -224,7 +224,7 @@ async function runTests() {
     );
 
     console.log(
-      "✓ Owner cannot permanently delete own account"
+      "âœ“ Owner cannot permanently delete own account"
     );
 
     await expectDeleteError(
@@ -245,7 +245,7 @@ async function runTests() {
     );
 
     console.log(
-      "✓ deletion requires exact target email confirmation"
+      "âœ“ deletion requires exact target email confirmation"
     );
 
     const result =
@@ -267,7 +267,7 @@ async function runTests() {
     );
 
     console.log(
-      "✓ Owner can permanently delete another user"
+      "âœ“ Owner can permanently delete another user"
     );
 
     const deletedUser =
@@ -284,10 +284,10 @@ async function runTests() {
     );
 
     console.log(
-      "✓ Login Gate user record is removed"
+      "âœ“ Login Gate user record is removed"
     );
 
-    const preservedChatter =
+    const deletedChatter =
       await prisma.chatter.findUnique({
         where: {
           id:
@@ -295,17 +295,18 @@ async function runTests() {
         },
       });
 
-    assert.ok(
-      preservedChatter
-    );
-
     assert.equal(
-      preservedChatter.userId,
+      deletedChatter,
       null
     );
 
+    assert.equal(
+      result.deletedChatterId,
+      chatter.id
+    );
+
     console.log(
-      "✓ QA Chatter record is preserved and detached"
+      "âœ“ tied QA Chatter record is removed by permanent deletion"
     );
 
     const sessions =
@@ -322,7 +323,7 @@ async function runTests() {
     );
 
     console.log(
-      "✓ deleted user's authentication sessions are removed"
+      "âœ“ deleted user's authentication sessions are removed"
     );
 
     console.log("");

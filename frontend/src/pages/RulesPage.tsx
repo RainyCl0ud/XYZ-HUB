@@ -1,4 +1,4 @@
-import {
+﻿import {
   useCallback,
   useEffect,
   useMemo,
@@ -10,6 +10,10 @@ import type {
 } from "react";
 
 import { apiRequest } from "../lib/api";
+
+import {
+  formatCentralDateTime,
+} from "../lib/time";
 
 import {
   useToast,
@@ -1103,7 +1107,7 @@ function RulesPage() {
                         <td>
                           {version
                             ?.severityNameSnapshot ??
-                            "—"}
+                            "â€”"}
                         </td>
 
                         <td>
@@ -1129,7 +1133,7 @@ function RulesPage() {
                               )}
                             </div>
                           ) : (
-                            "—"
+                            "â€”"
                           )}
                         </td>
 
@@ -1261,7 +1265,7 @@ function RulesPage() {
                 }
                 aria-label="Close archived rules"
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -1308,9 +1312,7 @@ function RulesPage() {
                           {rule.archivedAt && (
                             <time>
                               Archived{" "}
-                              {new Date(
-                                rule.archivedAt
-                              ).toLocaleString()}
+                              {formatCentralDateTime(rule.archivedAt)}
                             </time>
                           )}
                         </div>
@@ -1459,7 +1461,7 @@ function RulesPage() {
                   isSaving
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -1661,7 +1663,7 @@ function RulesPage() {
                               : ""}
 
                             {!option.isActive
-                              ? " — Archived"
+                              ? " â€” Archived"
                               : ""}
                           </option>
                         )
@@ -1755,7 +1757,7 @@ function RulesPage() {
                   historyLoading
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -1793,9 +1795,7 @@ function RulesPage() {
                         </div>
 
                         <time>
-                          {new Date(
-                            version.createdAt
-                          ).toLocaleString()}
+                          {formatCentralDateTime(version.createdAt)}
                         </time>
                       </div>
 
@@ -1888,7 +1888,7 @@ function RulesPage() {
                   }
                   aria-label="Close confirmation"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 

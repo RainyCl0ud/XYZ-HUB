@@ -1,4 +1,4 @@
-import {
+﻿import {
   useCallback,
   useEffect,
   useMemo,
@@ -11,6 +11,14 @@ import type {
 } from "react";
 
 import { apiRequest } from "../lib/api";
+
+import {
+  useAuth,
+} from "../auth/AuthContext";
+
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
 import {
   useToast,
 } from "../components/ToastProvider";
@@ -213,6 +221,15 @@ function formatPercentage(
 
 function ChattersPage() {
   const toast = useToast();
+
+  const {
+    access,
+  } = useAuth();
+
+  const canConfigureQa =
+    getPortalCapabilities(
+      access
+    ).canConfigureQa;
 
   const [
     chatters,
@@ -1190,7 +1207,7 @@ function ChattersPage() {
       return "Expired";
     }
 
-    return "—";
+    return "â€”";
   }
 
   function getStrikeStatusClass(
@@ -1258,15 +1275,17 @@ function ChattersPage() {
           </p>
         </div>
 
-        <button
-          className="primary-button"
-          type="button"
-          onClick={
-            openAddForm
-          }
-        >
-          Add Chatter
-        </button>
+        {canConfigureQa && (
+          <button
+            className="primary-button"
+            type="button"
+            onClick={
+              openAddForm
+            }
+          >
+            Add Chatter
+          </button>
+        )}
       </header>
 
       {pageError && (
@@ -1541,12 +1560,13 @@ function ChattersPage() {
                 }
                 aria-label="Close chatter profile"
               >
-                ×
+                Ã—
               </button>
             </div>
 
             <div className="chatter-profile-content">
-              <div className="chatter-profile-actions">
+              {canConfigureQa && (
+                <div className="chatter-profile-actions">
                 <button
                   type="button"
                   className="secondary-button"
@@ -1602,7 +1622,14 @@ function ChattersPage() {
                       : "Reactivate"}
                   </button>
                 )}
-              </div>
+                </div>
+              )}
+
+              {!canConfigureQa && (
+                <div className="alert alert-info">
+                  Read-only QA view. Chatter record changes require management access.
+                </div>
+              )}
 
               {detailsError && (
                 <div className="alert alert-error">
@@ -1703,7 +1730,7 @@ function ChattersPage() {
                             ? formatTexasDateTime(
                                 chatterStrikeSummary.nextExpiryAt
                               )
-                            : "—"}
+                            : "â€”"}
                         </strong>
 
                         <small>
@@ -2161,7 +2188,7 @@ function ChattersPage() {
                                       {formatTexasDateTime(
                                         incident.occurredAt
                                       )}
-                                      {" · "}
+                                      {" Â· "}
                                       {incident.strikeActivityStatus ===
                                       "EXPIRED"
                                         ? "Expired"
@@ -2256,7 +2283,7 @@ function ChattersPage() {
 
       {/* ADD / EDIT */}
 
-      {showForm && (
+      {showForm && canConfigureQa && (
         <div
           className={
             selectedChatter &&
@@ -2302,7 +2329,7 @@ function ChattersPage() {
                   isSaving
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -2430,7 +2457,7 @@ function ChattersPage() {
                   }
                   aria-label="Close confirmation"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 

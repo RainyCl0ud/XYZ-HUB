@@ -1,4 +1,4 @@
-import {
+﻿import {
   useCallback,
   useEffect,
   useRef,
@@ -11,6 +11,10 @@ import type {
 } from "react";
 
 import { apiRequest } from "../lib/api";
+
+import {
+  formatCentralDateTime,
+} from "../lib/time";
 
 import {
   useToast,
@@ -1714,7 +1718,7 @@ function ConfigurationPage() {
       );
     }
 
-    return `${current.minActiveStrikes}–${next.minActiveStrikes - 1}`;
+    return `${current.minActiveStrikes}â€“${next.minActiveStrikes - 1}`;
   }
 
   function sameLadderConfiguration(
@@ -2142,9 +2146,9 @@ function ConfigurationPage() {
 
     /*
      * The API derives minActiveStrikes from array position:
-     * index 0 → 0 strikes
-     * index 1 → 1 strike
-     * index 2 → 2 strikes
+     * index 0 â†’ 0 strikes
+     * index 1 â†’ 1 strike
+     * index 2 â†’ 2 strikes
      * and so on.
      */
     const payload:
@@ -2733,7 +2737,7 @@ function ConfigurationPage() {
                 }
               >
                 <span className="settings-item-icon">
-                  ↕
+                  â†•
                 </span>
 
                 <span>
@@ -2755,7 +2759,7 @@ function ConfigurationPage() {
                 }
               >
                 <span className="settings-item-icon">
-                  ▣
+                  â–£
                 </span>
 
                 <span>
@@ -2968,7 +2972,7 @@ function ConfigurationPage() {
                           aria-hidden="true"
                           className="drag-grip"
                         >
-                          ⋮⋮
+                          â‹®â‹®
                         </span>
                       </div>
                     ) : (
@@ -3191,7 +3195,7 @@ function ConfigurationPage() {
                           aria-hidden="true"
                           className="drag-grip"
                         >
-                          ⋮⋮
+                          â‹®â‹®
                         </span>
                       </div>
                     ) : (
@@ -3492,7 +3496,7 @@ function ConfigurationPage() {
                 }
                 aria-label="Close archive"
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -3538,9 +3542,7 @@ function ConfigurationPage() {
                           {option.archivedAt && (
                             <span className="config-meta">
                               Archived:{" "}
-                              {new Date(
-                                option.archivedAt
-                              ).toLocaleString()}
+                              {formatCentralDateTime(option.archivedAt)}
                             </span>
                           )}
                         </div>
@@ -3614,9 +3616,7 @@ function ConfigurationPage() {
                         {option.archivedAt && (
                           <span className="config-meta">
                             Archived:{" "}
-                            {new Date(
-                              option.archivedAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(option.archivedAt)}
                           </span>
                         )}
                       </div>
@@ -3702,7 +3702,7 @@ function ConfigurationPage() {
                   isSaving
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -3914,7 +3914,7 @@ function ConfigurationPage() {
                   isSavingLadder
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -4255,7 +4255,7 @@ function ConfigurationPage() {
                   ladderHistoryLoading
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -4329,9 +4329,7 @@ function ConfigurationPage() {
                           </div>
 
                           <time>
-                            {new Date(
-                              version.createdAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(version.createdAt)}
                           </time>
                         </div>
 
@@ -4428,7 +4426,7 @@ function ConfigurationPage() {
                   }
                   aria-label="Close confirmation"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -4481,3 +4479,4 @@ function ConfigurationPage() {
 }
 
 export default ConfigurationPage;
+
