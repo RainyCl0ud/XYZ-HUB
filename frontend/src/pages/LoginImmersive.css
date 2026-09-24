@@ -2871,3 +2871,235 @@
       45px;
   }
 }
+
+
+/* =========================================================
+   APPROVED ART DIRECTION — REAL EARTH + SELECTIVE GRID
+   Uses a dedicated decorative WebP for the right-side artwork.
+   The form and all authentication controls remain live HTML.
+   ========================================================= */
+
+.auth-page--immersive
+  .auth-background-grid {
+  position:
+    absolute;
+
+  inset:
+    0;
+
+  z-index:
+    -2;
+
+  pointer-events:
+    none;
+
+  background:
+    none;
+
+  opacity:
+    1;
+}
+
+.auth-page--immersive
+  .auth-background-grid::before,
+.auth-page--immersive
+  .auth-background-grid::after {
+  content:
+    "";
+
+  position:
+    absolute;
+
+  pointer-events:
+    none;
+
+  background-image:
+    linear-gradient(
+      rgba(222, 184, 98, 0.085)
+      1px,
+      transparent
+      1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(222, 184, 98, 0.085)
+      1px,
+      transparent
+      1px
+    ),
+    radial-gradient(
+      circle,
+      rgba(232, 197, 118, 0.2)
+      0
+      1px,
+      transparent
+      1.45px
+    );
+
+  background-size:
+    34px 34px,
+    34px 34px,
+    34px 34px;
+
+  -webkit-mask-image:
+    radial-gradient(
+      ellipse at center,
+      #000
+      0%,
+      rgba(0, 0, 0, 0.86)
+      36%,
+      rgba(0, 0, 0, 0.28)
+      67%,
+      transparent
+      86%
+    );
+
+  mask-image:
+    radial-gradient(
+      ellipse at center,
+      #000
+      0%,
+      rgba(0, 0, 0, 0.86)
+      36%,
+      rgba(0, 0, 0, 0.28)
+      67%,
+      transparent
+      86%
+    );
+}
+
+.auth-page--immersive
+  .auth-background-grid::before {
+  top:
+    -72px;
+
+  left:
+    56%;
+
+  width:
+    clamp(
+      330px,
+      31vw,
+      560px
+    );
+
+  height:
+    285px;
+
+  opacity:
+    0.72;
+}
+
+.auth-page--immersive
+  .auth-background-grid::after {
+  bottom:
+    -90px;
+
+  left:
+    47%;
+
+  width:
+    clamp(
+      350px,
+      34vw,
+      610px
+    );
+
+  height:
+    260px;
+
+  opacity:
+    0.58;
+}
+
+.auth-portal-visual {
+  background-image:
+    url("/xyz-login-right-visual.webp");
+
+  background-repeat:
+    no-repeat;
+
+  background-position:
+    center right;
+
+  background-size:
+    contain;
+
+  filter:
+    drop-shadow(
+      -18px 12px 38px
+      rgba(
+        198,
+        151,
+        60,
+        0.055
+      )
+    );
+}
+
+/*
+ * The approved artwork already contains the globe,
+ * network lines, cards, quote and keyword treatment.
+ * Hide the CSS approximation underneath it.
+ */
+.auth-portal-visual
+  .auth-portal-quote,
+.auth-portal-visual
+  .auth-globe-scene,
+.auth-portal-visual
+  .auth-portal-keywords {
+  display:
+    none;
+}
+
+@media (
+  max-width:
+    1180px
+) {
+  .auth-page--immersive
+    .auth-background-grid::before {
+    left:
+      63%;
+
+    opacity:
+      0.48;
+  }
+
+  .auth-page--immersive
+    .auth-background-grid::after {
+    left:
+      51%;
+
+    opacity:
+      0.4;
+  }
+}
+
+@media (
+  max-width:
+    800px
+) {
+  .auth-page--immersive
+    .auth-background-grid::before {
+    top:
+      -100px;
+
+    left:
+      46%;
+
+    width:
+      420px;
+
+    height:
+      240px;
+
+    opacity:
+      0.32;
+  }
+
+  .auth-page--immersive
+    .auth-background-grid::after {
+    display:
+      none;
+  }
+}
