@@ -326,6 +326,7 @@ function AuditPage() {
           className="search-input"
           type="search"
           placeholder="Search actor, action, target or metadata"
+          aria-label="Search audit log"
           value={
             search
           }
@@ -339,6 +340,7 @@ function AuditPage() {
         />
 
         <select
+          aria-label="Filter audit log by action"
           value={
             action
           }
@@ -375,6 +377,7 @@ function AuditPage() {
         </select>
 
         <select
+          aria-label="Filter audit log by outcome"
           value={
             successFilter
           }

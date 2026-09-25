@@ -618,6 +618,7 @@ function ModelsPage() {
             className="search-input"
             type="search"
             placeholder="Search model name"
+            aria-label="Search models"
             value={
               search
             }
@@ -859,6 +860,7 @@ function ModelsPage() {
                     ""
                   );
                 }}
+                aria-label="Close add model"
               >
                 ×
               </button>
@@ -897,11 +899,15 @@ function ModelsPage() {
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() =>
+                onClick={() => {
                   setCreateOpen(
                     false
-                  )
-                }
+                  );
+
+                  setCreateName(
+                    ""
+                  );
+                }}
                 disabled={
                   saving
                 }
@@ -948,11 +954,16 @@ function ModelsPage() {
               <button
                 type="button"
                 className="models-close"
-                onClick={() =>
+                onClick={() => {
                   setEditModel(
                     null
-                  )
-                }
+                  );
+
+                  setEditName(
+                    ""
+                  );
+                }}
+                aria-label="Close rename model"
               >
                 ×
               </button>
@@ -991,11 +1002,15 @@ function ModelsPage() {
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() =>
+                onClick={() => {
                   setEditModel(
                     null
-                  )
-                }
+                  );
+
+                  setEditName(
+                    ""
+                  );
+                }}
                 disabled={
                   saving
                 }

@@ -1222,6 +1222,7 @@ function PeoplePage() {
             className="search-input"
             type="search"
             placeholder="Search name, email, role, or model"
+            aria-label="Search people"
             value={
               search
             }
