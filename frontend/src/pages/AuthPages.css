@@ -103,40 +103,29 @@
   border-bottom: 1px solid var(--border-soft);
 }
 
-.auth-brand-mark {
-  display: flex;
-  align-items: center;
+.auth-brand-official {
+  flex-direction: column;
   justify-content: center;
+  gap: 9px;
 
-  width: 42px;
-  height: 42px;
+  text-align: center;
+}
 
-  flex: 0 0 42px;
+.auth-brand-logo {
+  width: 118px;
+  height: auto;
 
-  border: 1px solid var(--border);
-  border-radius: 10px;
-
-  background: var(--surface);
-
-  color: var(--text);
-
-  font-size: 16px;
-  font-weight: 800;
+  filter: invert(1);
+  opacity: 0.97;
 }
 
 .auth-brand-name {
   color: var(--text);
 
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 750;
-}
-
-.auth-brand-subtitle {
-  margin-top: 3px;
-
-  color: var(--text-muted);
-
-  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .auth-heading {
