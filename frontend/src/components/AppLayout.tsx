@@ -22,6 +22,8 @@ import {
   MODEL_CONTEXT_CHANGED_EVENT,
 } from "../lib/api";
 
+import xyzManagementLogo from "../assets/xyz-management-logo.svg";
+
 import "./PortalAccess.css";
 
 const MODEL_CONTEXT_STORAGE_KEY =
@@ -314,11 +316,6 @@ function AppLayout() {
     capabilities.canManageRoles ||
     capabilities.canViewAudit;
 
-  const workspaceName =
-    capabilities.canViewQa
-      ? "Quality & Incidents"
-      : "Access";
-
   return (
     <div className="app-shell portal-shell">
       <header className="portal-command-bar">
@@ -376,9 +373,11 @@ function AppLayout() {
         </div>
 
         <div className="portal-command-brand">
-          <span>
-            XYZ Hub
-          </span>
+          <img
+            src={xyzManagementLogo}
+            alt=""
+            className="portal-command-logo"
+          />
 
           <strong>
             XYZ MANAGEMENT
@@ -397,22 +396,20 @@ function AppLayout() {
       </header>
 
       <aside className="sidebar portal-sidebar">
-        <div className="sidebar-header portal-workspace-header">
-          <div className="brand-mark">
-            X
-          </div>
+        <div className="sidebar-header portal-workspace-header portal-brand-header">
+          <img
+            src={xyzManagementLogo}
+            alt=""
+            className="portal-sidebar-logo"
+          />
 
           <div className="brand-copy">
-            <p className="portal-workspace-label">
-              Current workspace
-            </p>
-
             <h1 className="brand-name">
-              {workspaceName}
+              XYZ Management
             </h1>
 
             <p className="brand-subtitle">
-              XYZ Hub
+              Management Hub
             </p>
           </div>
         </div>
