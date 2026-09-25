@@ -491,19 +491,31 @@ function DashboardPage() {
   }
 
   return (
-    <div className="page">
-      <header className="page-header">
+    <div
+      className={
+        capabilities.isOwner
+          ? "page owner-command-page"
+          : "page"
+      }
+    >
+      <header className="page-header owner-aware-page-header">
         <div>
           <p className="page-eyebrow">
-            Quality
+            {capabilities.isOwner
+              ? "Owner · Current workspace"
+              : "Quality"}
           </p>
 
           <h2>
-            QA & Incident Overview
+            {capabilities.isOwner
+              ? "Quality & Incident Tracking"
+              : "QA & Incident Overview"}
           </h2>
 
           <p className="page-description">
-            Current QA, incident, and strike activity follows the model context selected in the sidebar.
+            {capabilities.isOwner
+              ? "Agency-wide Login Gate access is active. Quality and incident tracking is the current operational workspace."
+              : "Current QA, incident, and strike activity follows the model context selected above."}
           </p>
         </div>
 
@@ -533,322 +545,456 @@ function DashboardPage() {
         </div>
       )}
 
-      <section className="dashboard-stat-grid">
-        <div className="stat-card">
-          <span className="stat-label">
-            Open Incidents
-          </span>
+      <div
+        className={
+          capabilities.isOwner
+            ? "owner-dashboard-layout"
+            : undefined
+        }
+      >
+        <div
+          className={
+            capabilities.isOwner
+              ? "owner-dashboard-main"
+              : undefined
+          }
+        >
+          <section className="dashboard-stat-grid">
+            <div className="stat-card">
+              <span className="stat-label">
+                Open Incidents
+              </span>
 
-          <strong className="stat-value">
-            {isLoading
-              ? "—"
-              : dashboard?.counts.openIncidents ?? 0}
-          </strong>
-
-          <span className="stat-help">
-            Incidents requiring review
-          </span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-label">
-            Active Chatters
-          </span>
-
-          <strong className="stat-value">
-            {isLoading
-              ? "—"
-              : dashboard?.counts.activeChatters ?? 0}
-          </strong>
-
-          <span className="stat-help">
-            Visible in the current model scope
-          </span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-label">
-            Active Rules
-          </span>
-
-          <strong className="stat-value">
-            {isLoading
-              ? "—"
-              : dashboard?.counts.activeRules ?? 0}
-          </strong>
-
-          <span className="stat-help">
-            Current strike reasons
-          </span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-label">
-            Total Incidents
-          </span>
-
-          <strong className="stat-value">
-            {isLoading
-              ? "—"
-              : dashboard?.counts.totalIncidents ?? 0}
-          </strong>
-
-          <span className="stat-help">
-            Visible historical records
-          </span>
-        </div>
-      </section>
-
-      <section className="dashboard-secondary-grid dashboard-secondary-grid-single">
-        <div className="content-card">
-          <div className="card-header">
-            <div>
-              <h3>
-                Incident Status
-              </h3>
-
-              <p>
-                Current breakdown inside your visible model scope.
-              </p>
-            </div>
-          </div>
-
-          <div className="status-summary">
-            <div className="status-summary-item">
-              <div>
-                <span className="status-dot open" />
-                <span>
-                  Open
-                </span>
-              </div>
-
-              <strong>
+              <strong className="stat-value">
                 {isLoading
                   ? "—"
                   : dashboard?.counts.openIncidents ?? 0}
               </strong>
+
+              <span className="stat-help">
+                Incidents requiring review
+              </span>
             </div>
 
-            <div className="status-summary-item">
-              <div>
-                <span className="status-dot resolved" />
-                <span>
-                  Resolved
-                </span>
-              </div>
+            <div className="stat-card">
+              <span className="stat-label">
+                Active Chatters
+              </span>
 
-              <strong>
+              <strong className="stat-value">
                 {isLoading
                   ? "—"
-                  : dashboard?.counts.resolvedIncidents ?? 0}
+                  : dashboard?.counts.activeChatters ?? 0}
               </strong>
+
+              <span className="stat-help">
+                Visible in the current model scope
+              </span>
             </div>
 
-            <div className="status-summary-item">
-              <div>
-                <span className="status-dot voided" />
-                <span>
-                  Voided
-                </span>
-              </div>
+            <div className="stat-card">
+              <span className="stat-label">
+                Active Rules
+              </span>
 
-              <strong>
+              <strong className="stat-value">
                 {isLoading
                   ? "—"
-                  : dashboard?.counts.voidedIncidents ?? 0}
+                  : dashboard?.counts.activeRules ?? 0}
               </strong>
+
+              <span className="stat-help">
+                Current strike reasons
+              </span>
             </div>
-          </div>
-        </div>
-      </section>
 
-      <section className="content-card dashboard-recent-card">
-        <div className="card-header">
-          <div>
-            <h3>
-              Recent Incident Activity
-            </h3>
+            <div className="stat-card">
+              <span className="stat-label">
+                Total Incidents
+              </span>
 
-            <p>
-              The six most recent incidents in the current model scope.
-            </p>
-          </div>
+              <strong className="stat-value">
+                {isLoading
+                  ? "—"
+                  : dashboard?.counts.totalIncidents ?? 0}
+              </strong>
 
-          <Link
-            to="/incidents"
-            className="text-button"
-          >
-            View all
-          </Link>
-        </div>
+              <span className="stat-help">
+                Visible historical records
+              </span>
+            </div>
+          </section>
 
-        {isLoading ? (
-          <div className="empty-state dashboard-empty">
-            <strong>
-              Loading recent activity...
-            </strong>
-          </div>
-        ) : !dashboard ||
-          dashboard.recentIncidents.length ===
-            0 ? (
-          <div className="empty-state dashboard-empty">
-            <strong>
-              No incident activity yet
-            </strong>
-
-            <span>
-              Recent visible records will appear here after incidents are logged.
-            </span>
-          </div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="data-table dashboard-table">
-              <thead>
-                <tr>
-                  <th>
-                    Chatter
-                  </th>
-                  <th>
-                    Model
-                  </th>
-                  <th>
-                    Rule
-                  </th>
-                  <th>
-                    Severity
-                  </th>
-                  <th>
-                    Weight
-                  </th>
-                  <th>
-                    Occurred
-                  </th>
-                  <th>
-                    Expires
-                  </th>
-                  <th>
+          <section className="dashboard-secondary-grid dashboard-secondary-grid-single">
+            <div className="content-card">
+              <div className="card-header">
+                <div>
+                  <h3>
                     Incident Status
-                  </th>
-                  <th>
-                    Strike Status
-                  </th>
-                </tr>
-              </thead>
+                  </h3>
 
-              <tbody>
-                {dashboard.recentIncidents.map(
-                  (
-                    incident
-                  ) => (
-                    <tr
-                      key={
-                        incident.id
-                      }
-                    >
-                      <td>
-                        <div className="primary-cell">
-                          {incident.chatter.name}
-                        </div>
-                      </td>
+                  <p>
+                    Current breakdown inside your visible model scope.
+                  </p>
+                </div>
+              </div>
 
-                      <td>
-                        {incident.agencyModel?.name ??
-                          "Legacy / unassigned"}
-                      </td>
+              <div className="status-summary">
+                <div className="status-summary-item">
+                  <div>
+                    <span className="status-dot open" />
+                    <span>
+                      Open
+                    </span>
+                  </div>
 
-                      <td>
-                        <div className="dashboard-rule-cell">
-                          <strong>
-                            {incident.ruleTitleSnapshot}
-                          </strong>
+                  <strong>
+                    {isLoading
+                      ? "—"
+                      : dashboard?.counts.openIncidents ?? 0}
+                  </strong>
+                </div>
 
-                          <span>
-                            v{incident.ruleVersion.versionNumber}
-                          </span>
-                        </div>
-                      </td>
+                <div className="status-summary-item">
+                  <div>
+                    <span className="status-dot resolved" />
+                    <span>
+                      Resolved
+                    </span>
+                  </div>
 
-                      <td>
-                        {incident.severityNameSnapshot ??
-                          "—"}
-                      </td>
+                  <strong>
+                    {isLoading
+                      ? "—"
+                      : dashboard?.counts.resolvedIncidents ?? 0}
+                  </strong>
+                </div>
 
-                      <td>
-                        {incident.weightNameSnapshot ? (
-                          <div className="weight-display">
-                            <span>
-                              {incident.weightNameSnapshot}
+                <div className="status-summary-item">
+                  <div>
+                    <span className="status-dot voided" />
+                    <span>
+                      Voided
+                    </span>
+                  </div>
+
+                  <strong>
+                    {isLoading
+                      ? "—"
+                      : dashboard?.counts.voidedIncidents ?? 0}
+                  </strong>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="content-card dashboard-recent-card">
+            <div className="card-header">
+              <div>
+                <h3>
+                  Recent Incident Activity
+                </h3>
+
+                <p>
+                  The six most recent incidents in the current model scope.
+                </p>
+              </div>
+
+              <Link
+                to="/incidents"
+                className="text-button"
+              >
+                View all
+              </Link>
+            </div>
+
+            {isLoading ? (
+              <div className="empty-state dashboard-empty">
+                <strong>
+                  Loading recent activity...
+                </strong>
+              </div>
+            ) : !dashboard ||
+              dashboard.recentIncidents.length === 0 ? (
+              <div className="empty-state dashboard-empty">
+                <strong>
+                  No incident activity yet
+                </strong>
+
+                <span>
+                  Recent visible records will appear here after incidents are logged.
+                </span>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table dashboard-table">
+                  <thead>
+                    <tr>
+                      <th>Chatter</th>
+                      <th>Model</th>
+                      <th>Rule</th>
+                      <th>Severity</th>
+                      <th>Weight</th>
+                      <th>Occurred</th>
+                      <th>Expires</th>
+                      <th>Incident Status</th>
+                      <th>Strike Status</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {dashboard.recentIncidents.map(
+                      (incident) => (
+                        <tr key={incident.id}>
+                          <td>
+                            <div className="primary-cell">
+                              {incident.chatter.name}
+                            </div>
+                          </td>
+
+                          <td>
+                            {incident.agencyModel?.name ??
+                              "Legacy / unassigned"}
+                          </td>
+
+                          <td>
+                            <div className="dashboard-rule-cell">
+                              <strong>
+                                {incident.ruleTitleSnapshot}
+                              </strong>
+
+                              <span>
+                                v{incident.ruleVersion.versionNumber}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td>
+                            {incident.severityNameSnapshot ??
+                              "—"}
+                          </td>
+
+                          <td>
+                            {incident.weightNameSnapshot ? (
+                              <div className="weight-display">
+                                <span>
+                                  {incident.weightNameSnapshot}
+                                </span>
+
+                                {incident.weightValueSnapshot !== null && (
+                                  <span className="weight-value">
+                                    {incident.weightValueSnapshot}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+
+                          <td>
+                            {formatCentralDateTime(
+                              incident.occurredAt
+                            )}
+                          </td>
+
+                          <td>
+                            {incident.strikeActivityStatus === "NOT_APPLICABLE"
+                              ? "—"
+                              : formatCentralDateTime(
+                                  incident.expiresAt
+                                )}
+                          </td>
+
+                          <td>
+                            <span
+                              className={
+                                getStatusClass(
+                                  incident.status
+                                )
+                              }
+                            >
+                              {formatStatus(
+                                incident.status
+                              )}
                             </span>
+                          </td>
 
-                            {incident.weightValueSnapshot !==
-                              null && (
-                              <span className="weight-value">
-                                {incident.weightValueSnapshot}
+                          <td>
+                            {incident.strikeActivityStatus === "NOT_APPLICABLE" ? (
+                              <span>
+                                —
+                              </span>
+                            ) : (
+                              <span
+                                className={
+                                  getStrikeStatusClass(
+                                    incident.strikeActivityStatus
+                                  )
+                                }
+                              >
+                                {formatStrikeStatus(
+                                  incident.strikeActivityStatus
+                                )}
                               </span>
                             )}
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
 
-                      <td>
-                        {formatCentralDateTime(
-                          incident.occurredAt
-                        )}
-                      </td>
+        {capabilities.isOwner && (
+          <aside className="owner-dashboard-rail">
+            <section className="content-card owner-rail-card">
+              <div className="card-header">
+                <div>
+                  <h3>
+                    Login Gate
+                  </h3>
 
-                      <td>
-                        {incident.strikeActivityStatus ===
-                        "NOT_APPLICABLE"
-                          ? "—"
-                          : formatCentralDateTime(
-                              incident.expiresAt
-                            )}
-                      </td>
+                  <p>
+                    Current Owner access boundary.
+                  </p>
+                </div>
+              </div>
 
-                      <td>
-                        <span
-                          className={
-                            getStatusClass(
-                              incident.status
-                            )
-                          }
-                        >
-                          {formatStatus(
-                            incident.status
-                          )}
-                        </span>
-                      </td>
+              <div className="owner-rail-list">
+                <div className="owner-rail-row">
+                  <span>
+                    Rank
+                  </span>
 
-                      <td>
-                        {incident.strikeActivityStatus ===
-                        "NOT_APPLICABLE" ? (
-                          <span>
-                            —
-                          </span>
-                        ) : (
-                          <span
-                            className={
-                              getStrikeStatusClass(
-                                incident.strikeActivityStatus
-                              )
-                            }
-                          >
-                            {formatStrikeStatus(
-                              incident.strikeActivityStatus
-                            )}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
+                  <strong>
+                    {access?.highestRank
+                      ? `Rank ${access.highestRank}`
+                      : "Unranked"}
+                  </strong>
+                </div>
+
+                <div className="owner-rail-row">
+                  <span>
+                    Data scope
+                  </span>
+
+                  <strong>
+                    {access?.effectiveDataScope ??
+                      "—"}
+                  </strong>
+                </div>
+
+                <div className="owner-rail-row">
+                  <span>
+                    Model access
+                  </span>
+
+                  <strong>
+                    {access?.canSeeAllModels
+                      ? "All models"
+                      : `${access?.assignedModelIds.length ?? 0} assigned`}
+                  </strong>
+                </div>
+
+                <div className="owner-rail-row">
+                  <span>
+                    Permissions
+                  </span>
+
+                  <strong>
+                    {access?.permissions.length ??
+                      0}
+                  </strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="content-card owner-rail-card">
+              <div className="card-header">
+                <div>
+                  <h3>
+                    Management
+                  </h3>
+
+                  <p>
+                    Login Gate administration.
+                  </p>
+                </div>
+              </div>
+
+              <div className="owner-management-links">
+                {capabilities.canManagePeople && (
+                  <Link to="/people">
+                    <span>
+                      People
+                    </span>
+
+                    <strong>
+                      Manage access
+                    </strong>
+                  </Link>
                 )}
-              </tbody>
-            </table>
-          </div>
+
+                {capabilities.canManageModels && (
+                  <Link to="/models">
+                    <span>
+                      Models
+                    </span>
+
+                    <strong>
+                      Model access
+                    </strong>
+                  </Link>
+                )}
+
+                {capabilities.canManageRoles && (
+                  <Link to="/roles">
+                    <span>
+                      Role Builder
+                    </span>
+
+                    <strong>
+                      Roles & permissions
+                    </strong>
+                  </Link>
+                )}
+
+                {capabilities.canViewAudit && (
+                  <Link to="/audit">
+                    <span>
+                      Audit Log
+                    </span>
+
+                    <strong>
+                      Security history
+                    </strong>
+                  </Link>
+                )}
+              </div>
+            </section>
+
+            <section className="content-card owner-rail-card owner-current-module-card">
+              <div className="owner-current-module">
+                <span className="stat-label">
+                  Current operational module
+                </span>
+
+                <strong>
+                  Quality & Incidents
+                </strong>
+
+                <span>
+                  Other agency systems remain hidden until they are actually commissioned and built.
+                </span>
+              </div>
+            </section>
+          </aside>
         )}
-      </section>
+      </div>
     </div>
   );
 }
