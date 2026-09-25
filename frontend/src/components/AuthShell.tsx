@@ -2,6 +2,8 @@ import type {
   ReactNode,
 } from "react";
 
+import xyzManagementLogo from "../assets/xyz-management-logo.svg";
+
 type AuthShellProps = {
   eyebrow?: string;
 
@@ -27,19 +29,15 @@ function AuthShell({
       <div className="auth-background-glow auth-background-glow-two" />
 
       <main className="auth-card">
-        <div className="auth-brand">
-          <div className="auth-brand-mark">
-            X
-          </div>
+        <div className="auth-brand auth-brand-official">
+          <img
+            src={xyzManagementLogo}
+            alt="XYZ Management"
+            className="auth-brand-logo"
+          />
 
-          <div>
-            <div className="auth-brand-name">
-              XYZ Hub
-            </div>
-
-            <div className="auth-brand-subtitle">
-              Agency Operation Management
-            </div>
+          <div className="auth-brand-name">
+            XYZ Management
           </div>
         </div>
 
