@@ -10,7 +10,9 @@
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
     "build:frontend": "npm run build --workspace=frontend",
-    "build:backend": "npm run build --workspace=backend"
+    "build:backend": "npm run build --workspace=backend",
+    "verify:static": "npm run build:backend && npm run build:frontend && npm run lint --workspace=frontend && npm audit",
+    "verify:step1": "npm run verify:static && npm run test:step1 --workspace=backend"
   },
   "overrides": {
     "typescript": "6.0.3"
