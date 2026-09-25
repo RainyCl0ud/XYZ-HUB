@@ -184,7 +184,7 @@ function DashboardPage() {
           setError(
             error instanceof Error
               ? error.message
-              : "Failed to load dashboard"
+              : "Failed to load QA overview"
           );
         } finally {
           setIsLoading(
@@ -276,9 +276,9 @@ function DashboardPage() {
             title:
               "Account setup complete",
             description:
-              "Your trial account is active. This Login Gate verifies your identity and keeps your assigned access ready for the onboarding workspace planned in a later step.",
+              "Your trial account is active. The Login Gate has verified your identity, role, and assigned access.",
             next:
-              "Model information, rules and onboarding content are intentionally outside Step 1.",
+              "No operational workspace is enabled for this role in the current build.",
           }
         : systemKeys.has(
               "CHATTER"
@@ -289,9 +289,9 @@ function DashboardPage() {
               title:
                 "Your portal access is active",
               description:
-                "Your account, roles and model assignments are active. Additional chatter workspaces are added in later portal steps.",
+                "Your account, roles and model assignments are active through the Login Gate.",
               next:
-                "Step 1 focuses on secure sign-in and access control rather than chat operations.",
+                "No chatter operations workspace is enabled in the current build.",
             }
           : systemKeys.has(
                 "ACCOUNTANT"
@@ -302,9 +302,9 @@ function DashboardPage() {
                 title:
                   "Finance role ready",
                 description:
-                  "Your finance role exists in the access system. Pay and finance records are intentionally introduced in a later portal step.",
+                  "Your finance role is active in the Login Gate access system.",
                 next:
-                  "No financial records are exposed in Step 1.",
+                  "No finance workspace is enabled in the current build.",
               }
             : systemKeys.has(
                   "MODEL"
@@ -315,9 +315,9 @@ function DashboardPage() {
                   title:
                     "Your XYZ Hub account is active",
                   description:
-                    "Your role is configured for your own data scope. Model information modules are intentionally introduced after the Login Gate.",
+                    "Your role and own-data scope are active through the Login Gate.",
                   next:
-                    "Step 1 currently provides identity and access foundations only.",
+                    "No model-facing operational workspace is enabled in the current build.",
                 }
               : systemKeys.has(
                     "GENERAL_STAFF"
@@ -328,9 +328,9 @@ function DashboardPage() {
                     title:
                       "Your staff account is active",
                     description:
-                      "Your account is ready for the shared XYZ portal. Modules appear as permissions are added to your staff role.",
+                      "Your staff account and access profile are active through the Login Gate.",
                     next:
-                      "Future modules can be granted without creating a separate portal design.",
+                      "Only workspaces enabled for this role are shown.",
                   }
                 : {
                     label:
@@ -338,9 +338,9 @@ function DashboardPage() {
                     title:
                       "Your portal access is active",
                     description:
-                      "Your current role does not expose the QA workspace. The portal will show additional modules automatically when permissions are granted.",
+                      "Your Login Gate access is active. No operational workspace is enabled for your current role in this build.",
                     next:
-                      "Custom roles inherit access through the centralized permission system.",
+                      "Access is granted through centralized roles, permissions, and model scope.",
                   };
 
     return (
@@ -495,15 +495,15 @@ function DashboardPage() {
       <header className="page-header">
         <div>
           <p className="page-eyebrow">
-            Overview
+            Quality
           </p>
 
           <h2>
-            Dashboard
+            QA & Incident Overview
           </h2>
 
           <p className="page-description">
-            QA activity follows the model context selected in the sidebar.
+            Current QA, incident, and strike activity follows the model context selected in the sidebar.
           </p>
         </div>
 
@@ -666,7 +666,7 @@ function DashboardPage() {
         <div className="card-header">
           <div>
             <h3>
-              Recent Activity
+              Recent Incident Activity
             </h3>
 
             <p>
