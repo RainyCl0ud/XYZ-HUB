@@ -13,6 +13,7 @@ import type {
 import {
   buildChatterModelWhere,
   buildIncidentModelWhere,
+  QaAccessError,
   readRequestedModelId,
   resolveQaModelScope,
 } from "../services/qa-access.js";
@@ -207,6 +208,15 @@ router.get(
     } catch (
       error
     ) {
+      if (error instanceof QaAccessError) {
+        res.status(403).json({
+          error: error.code,
+          message: error.message,
+        });
+
+        return;
+      }
+
       console.error(
         "Failed to load scoped dashboard summary:",
         error

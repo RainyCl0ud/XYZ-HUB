@@ -2,6 +2,11 @@ import {
   Router,
 } from "express";
 
+import type {
+  NextFunction,
+  Response,
+} from "express";
+
 import {
   prisma,
 } from "../lib/prisma.js";
@@ -15,6 +20,7 @@ import legacyChatterRoutes from "./chatters.js";
 import {
   buildChatterModelWhere,
   buildIncidentModelWhere,
+  QaAccessError,
   readRequestedModelId,
   resolveQaModelScope,
 } from "../services/qa-access.js";
@@ -37,6 +43,22 @@ function getRouteParam(
   )
     ? value[0]
     : value;
+}
+
+function handleScopeError(
+  error: unknown,
+  res: Response
+) {
+  if (!(error instanceof QaAccessError)) {
+    return false;
+  }
+
+  res.status(403).json({
+    error: error.code,
+    message: error.message,
+  });
+
+  return true;
 }
 
 router.get(
@@ -130,6 +152,10 @@ router.get(
     } catch (
       error
     ) {
+      if (handleScopeError(error, res)) {
+        return;
+      }
+
       console.error(
         "Failed to fetch scoped chatters:",
         error
@@ -329,6 +355,10 @@ router.get(
     } catch (
       error
     ) {
+      if (handleScopeError(error, res)) {
+        return;
+      }
+
       console.error(
         "Failed to fetch scoped chatter:",
         error
@@ -342,12 +372,79 @@ router.get(
   }
 );
 
+async function ensureChatterAccess(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  if (!req.access) {
+    res.status(401).json({
+      error: "UNAUTHENTICATED",
+    });
+
+    return;
+  }
+
+  try {
+    const scope = await resolveQaModelScope(
+      req.access,
+      readRequestedModelId(
+        req.headers["x-xyz-model-id"]
+      )
+    );
+
+    const chatterId = getRouteParam(req.params.id);
+
+    if (!chatterId) {
+      res.status(400).json({
+        error: "INVALID_CHATTER_ID",
+        message: "A valid chatter ID is required.",
+      });
+
+      return;
+    }
+
+    const chatter = await prisma.chatter.findFirst({
+      where: {
+        id: chatterId,
+        ...buildChatterModelWhere(scope),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!chatter) {
+      res.status(404).json({
+        message: "Chatter not found",
+      });
+
+      return;
+    }
+
+    next();
+  } catch (error) {
+    if (handleScopeError(error, res)) {
+      return;
+    }
+
+    console.error("Unable to verify chatter access:", error);
+
+    res.status(500).json({
+      message: "Unable to verify chatter access",
+    });
+  }
+}
+
+router.patch(
+  ["/:id", "/:id/deactivate", "/:id/reactivate"],
+  ensureChatterAccess
+);
+
 /*
- * POST/PATCH/DELETE requests are authorized by
- * the mount-level QA configuration middleware,
- * then fall through to the existing proven CRUD
- * handlers. GET routes above are replaced so
- * model scoping cannot leak other teams.
+ * Configuration permission is checked at the mount.
+ * Existing-profile writes also verify the same model
+ * scope as reads before reaching the legacy handlers.
  */
 router.use(
   legacyChatterRoutes

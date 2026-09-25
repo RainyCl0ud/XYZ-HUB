@@ -9,6 +9,7 @@ import type {
 
 import {
   canConfigureQa,
+  canManageQaIncidents,
   canViewQa,
 } from "../services/qa-access.js";
 
@@ -44,6 +45,41 @@ export function requireQaView(
         "You do not have access to the QA workspace.",
     });
 
+    return;
+  }
+
+  next();
+}
+
+export function requireQaIncidentWrites(
+  req:
+    AuthenticatedRequest,
+  res:
+    Response,
+  next:
+    NextFunction
+) {
+  if (
+    req.method === "GET" ||
+    req.method === "HEAD"
+  ) {
+    next();
+    return;
+  }
+
+  if (!req.access) {
+    res.status(401).json({
+      error: "UNAUTHENTICATED",
+    });
+    return;
+  }
+
+  if (!canManageQaIncidents(req.access)) {
+    res.status(403).json({
+      error: "QA_INCIDENT_WRITE_REQUIRED",
+      message:
+        "You do not have permission to change QA incidents.",
+    });
     return;
   }
 

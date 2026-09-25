@@ -76,6 +76,12 @@ export function getPortalCapabilities(
     isManager ||
     isDev;
 
+  const canManageQaIncidents =
+    isOwner ||
+    isOps ||
+    isManager ||
+    isDev;
+
   const canManagePeople =
     access?.permissions.includes(
       "people.manage"
@@ -114,6 +120,7 @@ export function getPortalCapabilities(
     isDev,
     canViewQa,
     canConfigureQa,
+    canManageQaIncidents,
     canManagePeople,
     canManageModels,
     canManageRoles,
