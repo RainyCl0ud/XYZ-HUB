@@ -190,17 +190,16 @@
   text-align: center;
 }
 
-.portal-command-brand span {
-  color: var(--text-muted);
+.portal-command-logo {
+  width: 64px;
+  height: auto;
 
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  filter: invert(1);
+  opacity: 0.96;
 }
 
 .portal-command-brand strong {
-  margin-top: 4px;
+  margin-top: 5px;
 
   color: #ffffff;
 
@@ -242,19 +241,22 @@
   padding-bottom: 22px;
 }
 
-.portal-workspace-header .brand-mark {
-  width: 36px;
-  height: 36px;
+.portal-brand-header {
+  align-items: center;
+}
 
-  font-size: 14px;
+.portal-sidebar-logo {
+  width: 54px;
+  height: auto;
+
+  flex: 0 0 auto;
+
+  filter: invert(1);
+  opacity: 0.96;
 }
 
 .portal-workspace-header .brand-name {
   font-size: 13px;
-}
-
-.portal-workspace-label {
-  margin-bottom: 4px;
 }
 
 .portal-shell .main-content {
