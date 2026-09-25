@@ -208,7 +208,118 @@ function AppLayout() {
 
       void loadModels();
 
-      return (
+      return () => {
+        active =
+          false;
+      };
+    },
+    [
+      capabilities.canViewQa,
+      access?.canSeeAllModels,
+    ]
+  );
+
+  const roleNames =
+    access?.roles
+      .map(
+        (
+          role
+        ) =>
+          role.name
+      )
+      .join(
+        ", "
+      ) ||
+    "XYZ Hub User";
+
+  async function handleLogout() {
+    setSigningOut(
+      true
+    );
+
+    try {
+      await logout();
+
+      localStorage.removeItem(
+        MODEL_CONTEXT_STORAGE_KEY
+      );
+
+      navigate(
+        "/login",
+        {
+          replace:
+            true,
+        }
+      );
+    } finally {
+      setSigningOut(
+        false
+      );
+    }
+  }
+
+  function changeModelContext(
+    value:
+      string
+  ) {
+    setActiveModelId(
+      value
+    );
+
+    localStorage.setItem(
+      MODEL_CONTEXT_STORAGE_KEY,
+      value
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        MODEL_CONTEXT_CHANGED_EVENT,
+        {
+          detail: {
+            modelId:
+              value,
+          },
+        }
+      )
+    );
+  }
+
+  const showModelContext =
+    capabilities.canViewQa &&
+    (
+      models.length >
+        0 ||
+      access?.canSeeAllModels
+    );
+
+  const canSwitchModelContext =
+    Boolean(
+      access?.canSeeAllModels
+    ) ||
+    models.length >
+      1;
+
+  const fixedModel =
+    !canSwitchModelContext &&
+    models.length ===
+      1
+      ? models[0]
+      : null;
+
+  const showManagementNavigation =
+    capabilities.canManagePeople ||
+    capabilities.canManageModels;
+
+  const showSystemNavigation =
+    capabilities.canManageRoles ||
+    capabilities.canViewAudit;
+
+  const workspaceName =
+    capabilities.canViewQa
+      ? "Quality & Incidents"
+      : "Access";
+
+  return (
     <div className="app-shell portal-shell">
       <header className="portal-command-bar">
         <div className="portal-command-context">
