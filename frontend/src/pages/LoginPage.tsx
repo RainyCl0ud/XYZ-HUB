@@ -174,7 +174,7 @@ function LoginPage() {
   return (
     <AuthShell
       eyebrow="Secure access"
-      title="Sign in to XYZ Hub"
+      title="Sign in to XYZ Management"
       description="Enter your agency account credentials. A verification code will be required before access is granted."
       footer={
         <>
