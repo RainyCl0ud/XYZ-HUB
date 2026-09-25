@@ -1247,7 +1247,7 @@ function ChattersPage() {
       return "Expired";
     }
 
-    return "â€”";
+    return "—";
   }
 
   function getStrikeStatusClass(
@@ -1600,7 +1600,7 @@ function ChattersPage() {
                 }
                 aria-label="Close chatter profile"
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -1770,7 +1770,7 @@ function ChattersPage() {
                             ? formatTexasDateTime(
                                 chatterStrikeSummary.nextExpiryAt
                               )
-                            : "â€”"}
+                            : "—"}
                         </strong>
 
                         <small>
@@ -2228,7 +2228,7 @@ function ChattersPage() {
                                       {formatTexasDateTime(
                                         incident.occurredAt
                                       )}
-                                      {" Â· "}
+                                      {" · "}
                                       {incident.strikeActivityStatus ===
                                       "EXPIRED"
                                         ? "Expired"
@@ -2369,7 +2369,7 @@ function ChattersPage() {
                   isSaving
                 }
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -2497,7 +2497,7 @@ function ChattersPage() {
                   }
                   aria-label="Close confirmation"
                 >
-                  Ã—
+                  ×
                 </button>
               </div>
 

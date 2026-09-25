@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -164,7 +164,7 @@ function formatTexasDateTime(
     string | null
 ) {
   if (!value) {
-    return "â€”";
+    return "—";
   }
 
   return new Intl.DateTimeFormat(
@@ -1284,7 +1284,7 @@ function PeoplePage() {
         {loading ? (
           <div className="empty-state">
             <strong>
-              Loading peopleâ€¦
+              Loading people…
             </strong>
           </div>
         ) : filteredPeople.length ===
@@ -1451,14 +1451,14 @@ function PeoplePage() {
                 }
                 aria-label="Close profile"
               >
-                Ã—
+                ×
               </button>
             </div>
 
             {detailLoading ? (
               <div className="empty-state">
                 <strong>
-                  Loading profileâ€¦
+                  Loading profile…
                 </strong>
               </div>
             ) : (
@@ -1559,7 +1559,7 @@ function PeoplePage() {
                               {role.name}
                               {role.rank !==
                                 null &&
-                                ` Â· Rank ${role.rank}`}
+                                ` · Rank ${role.rank}`}
                             </span>
                           )
                         )}
@@ -1822,8 +1822,9 @@ function PeoplePage() {
 
                   resetInviteForm();
                 }}
+                aria-label="Close invitation"
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -1910,7 +1911,7 @@ function PeoplePage() {
                             null
                               ? `Rank ${role.rank}`
                               : "Unranked"}
-                            {" Â· "}
+                            {" · "}
                             {role.dataScope}
                           </small>
                         </span>
@@ -1978,11 +1979,13 @@ function PeoplePage() {
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() =>
+                onClick={() => {
                   setShowInvite(
                     false
-                  )
-                }
+                  );
+
+                  resetInviteForm();
+                }}
                 disabled={
                   saving
                 }
@@ -2001,7 +2004,7 @@ function PeoplePage() {
                 }
               >
                 {saving
-                  ? "Sendingâ€¦"
+                  ? "Sending…"
                   : "Send invitation"}
               </button>
             </div>
@@ -2037,8 +2040,9 @@ function PeoplePage() {
                       false
                     )
                   }
+                  aria-label="Close access editor"
                 >
-                  Ã—
+                  ×
                 </button>
               </div>
 
@@ -2085,7 +2089,7 @@ function PeoplePage() {
                               null
                                 ? `Rank ${role.rank}`
                                 : "Unranked"}
-                              {" Â· "}
+                              {" · "}
                               {role.dataScope}
                             </small>
                           </span>
@@ -2145,8 +2149,8 @@ function PeoplePage() {
                                   {model.isActive
                                     ? "Active model"
                                     : currentlySelected
-                                      ? "Inactive Â· existing assignment"
-                                      : "Inactive Â· unavailable"}
+                                      ? "Inactive · existing assignment"
+                                      : "Inactive · unavailable"}
                                 </small>
                               </span>
                             </label>
@@ -2186,7 +2190,7 @@ function PeoplePage() {
                   }
                 >
                   {saving
-                    ? "Savingâ€¦"
+                    ? "Saving…"
                     : "Save access"}
                 </button>
               </div>
@@ -2304,7 +2308,7 @@ function PeoplePage() {
                   }
                 >
                   {saving
-                    ? "Workingâ€¦"
+                    ? "Working…"
                     : "Confirm"}
                 </button>
               </div>

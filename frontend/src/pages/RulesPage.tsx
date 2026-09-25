@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -1107,7 +1107,7 @@ function RulesPage() {
                         <td>
                           {version
                             ?.severityNameSnapshot ??
-                            "â€”"}
+                            "—"}
                         </td>
 
                         <td>
@@ -1133,7 +1133,7 @@ function RulesPage() {
                               )}
                             </div>
                           ) : (
-                            "â€”"
+                            "—"
                           )}
                         </td>
 
@@ -1265,7 +1265,7 @@ function RulesPage() {
                 }
                 aria-label="Close archived rules"
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -1461,7 +1461,7 @@ function RulesPage() {
                   isSaving
                 }
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -1663,7 +1663,7 @@ function RulesPage() {
                               : ""}
 
                             {!option.isActive
-                              ? " â€” Archived"
+                              ? " — Archived"
                               : ""}
                           </option>
                         )
@@ -1757,7 +1757,7 @@ function RulesPage() {
                   historyLoading
                 }
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -1888,7 +1888,7 @@ function RulesPage() {
                   }
                   aria-label="Close confirmation"
                 >
-                  Ã—
+                  ×
                 </button>
               </div>
 

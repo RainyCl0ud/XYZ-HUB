@@ -203,7 +203,7 @@ async function runTests() {
     );
 
     console.log(
-      "âœ“ Manager cannot permanently delete users"
+      "✓ Manager cannot permanently delete users"
     );
 
     await expectDeleteError(
@@ -224,7 +224,7 @@ async function runTests() {
     );
 
     console.log(
-      "âœ“ Owner cannot permanently delete own account"
+      "✓ Owner cannot permanently delete own account"
     );
 
     await expectDeleteError(
@@ -245,7 +245,7 @@ async function runTests() {
     );
 
     console.log(
-      "âœ“ deletion requires exact target email confirmation"
+      "✓ deletion requires exact target email confirmation"
     );
 
     const result =
@@ -267,7 +267,7 @@ async function runTests() {
     );
 
     console.log(
-      "âœ“ Owner can permanently delete another user"
+      "✓ Owner can permanently delete another user"
     );
 
     const deletedUser =
@@ -284,7 +284,7 @@ async function runTests() {
     );
 
     console.log(
-      "âœ“ Login Gate user record is removed"
+      "✓ Login Gate user record is removed"
     );
 
     const deletedChatter =
@@ -306,7 +306,7 @@ async function runTests() {
     );
 
     console.log(
-      "âœ“ tied QA Chatter record is removed by permanent deletion"
+      "✓ tied QA Chatter record is removed by permanent deletion"
     );
 
     const sessions =
@@ -323,7 +323,7 @@ async function runTests() {
     );
 
     console.log(
-      "âœ“ deleted user's authentication sessions are removed"
+      "✓ deleted user's authentication sessions are removed"
     );
 
     console.log("");

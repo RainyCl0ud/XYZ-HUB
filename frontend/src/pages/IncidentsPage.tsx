@@ -1405,7 +1405,7 @@ function IncidentsPage() {
       return "Expired";
     }
 
-    return "â€”";
+    return "—";
   }
 
   function formatExpiryLabel(
@@ -1837,7 +1837,7 @@ function IncidentsPage() {
                         <td>
                           {incident
                             .severityNameSnapshot ??
-                            "â€”"}
+                            "—"}
                         </td>
 
                         <td>
@@ -1863,7 +1863,7 @@ function IncidentsPage() {
                               )}
                             </div>
                           ) : (
-                            "â€”"
+                            "—"
                           )}
                         </td>
 
@@ -1876,7 +1876,7 @@ function IncidentsPage() {
                             .strikeActivityStatus ===
                           "NOT_APPLICABLE" ? (
                             <span>
-                              â€”
+                              —
                             </span>
                           ) : (
                             <span className="incident-expiry-date">
@@ -1912,7 +1912,7 @@ function IncidentsPage() {
                             .strikeActivityStatus ===
                           "NOT_APPLICABLE" ? (
                             <span>
-                              â€”
+                              —
                             </span>
                           ) : (
                             <span
@@ -1989,7 +1989,7 @@ function IncidentsPage() {
                   isSaving
                 }
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -2375,7 +2375,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close"
                 >
-                  Ã—
+                  ×
                 </button>
               </div>
 
@@ -2558,7 +2558,7 @@ function IncidentsPage() {
                             {selectedIncident
                               .strikeActivityStatus ===
                             "NOT_APPLICABLE"
-                              ? "â€”"
+                              ? "—"
                               : formatStrikeActivityStatus(
                                   selectedIncident
                                     .strikeActivityStatus
@@ -2783,7 +2783,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close"
                 >
-                  Ã—
+                  ×
                 </button>
               </div>
 
@@ -2858,7 +2858,7 @@ function IncidentsPage() {
                   <small className="form-helper">
                     {actionType ===
                     "resolve"
-                      ? `Optional Â· ${actionNotes.length}/2000 characters`
+                      ? `Optional · ${actionNotes.length}/2000 characters`
                       : `${actionNotes.length}/2000 characters`}
                   </small>
                 </label>
@@ -2958,7 +2958,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close confirmation"
                 >
-                  Ã—
+                  ×
                 </button>
               </div>
 
@@ -2980,7 +2980,7 @@ function IncidentsPage() {
                       <strong>
                         {selectedChatter
                           ?.name ??
-                          "â€”"}
+                          "—"}
                       </strong>
                     </div>
 
@@ -2993,7 +2993,7 @@ function IncidentsPage() {
                         {selectedRule
                           ?.currentVersion
                           ?.title ??
-                          "â€”"}
+                          "—"}
                       </strong>
                     </div>
 
@@ -3047,7 +3047,7 @@ function IncidentsPage() {
                                 ? "day"
                                 : "days"
                             }`
-                          : "â€”"}
+                          : "—"}
                       </strong>
                     </div>
 
