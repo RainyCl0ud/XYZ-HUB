@@ -416,71 +416,87 @@ function AppLayout() {
 
         <nav className="sidebar-nav">
           {capabilities.canViewQa ? (
-            <>
-              <div className="sidebar-nav-label">
-                Quality
+            <details className="sidebar-module" open>
+              <summary className="nav-link sidebar-module-toggle">
+                <span>Quality &amp; Incident Tracking</span>
+
+                <svg
+                  className="sidebar-module-chevron"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
+              </summary>
+
+              <div className="sidebar-module-links">
+
+                <NavLink
+                  to="/"
+                  end
+                  className={({ isActive }) =>
+                    isActive
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                >
+                  Overview
+                </NavLink>
+
+                <NavLink
+                  to="/incidents"
+                  className={({ isActive }) =>
+                    isActive
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                >
+                  Incidents
+                </NavLink>
+
+                <NavLink
+                  to="/chatters"
+                  className={({ isActive }) =>
+                    isActive
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                >
+                  Chatters
+                </NavLink>
+
+                {capabilities.canConfigureQa && (
+                  <>
+                    <NavLink
+                      to="/rules"
+                      className={({ isActive }) =>
+                        isActive
+                          ? "nav-link active"
+                          : "nav-link"
+                      }
+                    >
+                      Rules & Strike Reasons
+                    </NavLink>
+
+                    <NavLink
+                      to="/configuration"
+                      className={({ isActive }) =>
+                        isActive
+                          ? "nav-link active"
+                          : "nav-link"
+                      }
+                    >
+                      Configuration
+                    </NavLink>
+                  </>
+                )}
               </div>
-
-              <NavLink
-                to="/"
-                end
-                className={({ isActive }) =>
-                  isActive
-                    ? "nav-link active"
-                    : "nav-link"
-                }
-              >
-                Overview
-              </NavLink>
-
-              <NavLink
-                to="/incidents"
-                className={({ isActive }) =>
-                  isActive
-                    ? "nav-link active"
-                    : "nav-link"
-                }
-              >
-                Incidents
-              </NavLink>
-
-              <NavLink
-                to="/chatters"
-                className={({ isActive }) =>
-                  isActive
-                    ? "nav-link active"
-                    : "nav-link"
-                }
-              >
-                Chatters
-              </NavLink>
-
-              {capabilities.canConfigureQa && (
-                <>
-                  <NavLink
-                    to="/rules"
-                    className={({ isActive }) =>
-                      isActive
-                        ? "nav-link active"
-                        : "nav-link"
-                    }
-                  >
-                    Rules & Strike Reasons
-                  </NavLink>
-
-                  <NavLink
-                    to="/configuration"
-                    className={({ isActive }) =>
-                      isActive
-                        ? "nav-link active"
-                        : "nav-link"
-                    }
-                  >
-                    Configuration
-                  </NavLink>
-                </>
-              )}
-            </>
+            </details>
           ) : (
             <NavLink
               to="/"
