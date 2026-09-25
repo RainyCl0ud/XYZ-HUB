@@ -494,7 +494,6 @@ function IncidentsPage() {
       }
     }, [
       toast,
-      modelContextRevision,
     ]);
 
   /*
@@ -571,16 +570,21 @@ function IncidentsPage() {
       chatterFilter,
       ruleFilter,
       toast,
-      modelContextRevision,
     ]);
 
   useEffect(() => {
     void loadDependencies();
-  }, [loadDependencies]);
+  }, [
+    loadDependencies,
+    modelContextRevision,
+  ]);
 
   useEffect(() => {
     void loadIncidents();
-  }, [loadIncidents]);
+  }, [
+    loadIncidents,
+    modelContextRevision,
+  ]);
 
   useEffect(() => {
     const handleModelContextChange =

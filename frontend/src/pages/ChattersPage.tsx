@@ -458,12 +458,14 @@ function ChattersPage() {
       statusFilter,
       debouncedSearch,
       toast,
-      modelContextRevision,
     ]);
 
   useEffect(() => {
     void loadChatters();
-  }, [loadChatters]);
+  }, [
+    loadChatters,
+    modelContextRevision,
+  ]);
 
   useEffect(() => {
     const handleModelContextChange =
