@@ -17,7 +17,7 @@ type AuthShellProps = {
 };
 
 function AuthShell({
-  eyebrow = "XYZ Hub",
+  eyebrow = "XYZ Management",
   title,
   description,
   children,
