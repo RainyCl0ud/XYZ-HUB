@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -9,7 +9,10 @@ import type {
   FormEvent,
 } from "react";
 
-import { apiRequest } from "../lib/api";
+import {
+  apiRequest,
+  MODEL_CONTEXT_CHANGED_EVENT,
+} from "../lib/api";
 
 import {
   formatCentralDateTime,
@@ -287,6 +290,11 @@ function IncidentsPage() {
     setPageError,
   ] = useState("");
 
+  const [
+    modelContextRevision,
+    setModelContextRevision,
+  ] = useState(0);
+
   /*
    * =========================================================
    * LOG INCIDENT
@@ -484,7 +492,10 @@ function IncidentsPage() {
           false
         );
       }
-    }, [toast]);
+    }, [
+      toast,
+      modelContextRevision,
+    ]);
 
   /*
    * =========================================================
@@ -560,6 +571,7 @@ function IncidentsPage() {
       chatterFilter,
       ruleFilter,
       toast,
+      modelContextRevision,
     ]);
 
   useEffect(() => {
@@ -569,6 +581,40 @@ function IncidentsPage() {
   useEffect(() => {
     void loadIncidents();
   }, [loadIncidents]);
+
+  useEffect(() => {
+    const handleModelContextChange =
+      () => {
+        setChatterFilter("");
+        setChatterId("");
+        setRuleId("");
+        setFormError("");
+        setShowLogModal(false);
+        setSelectedIncident(null);
+        setActionType(null);
+        setActionIncident(null);
+        setActionNotes("");
+        setActionError("");
+        setPendingConfirmation(null);
+
+        setModelContextRevision(
+          (current) =>
+            current + 1
+        );
+      };
+
+    window.addEventListener(
+      MODEL_CONTEXT_CHANGED_EVENT,
+      handleModelContextChange
+    );
+
+    return () => {
+      window.removeEventListener(
+        MODEL_CONTEXT_CHANGED_EVENT,
+        handleModelContextChange
+      );
+    };
+  }, []);
 
   /*
    * =========================================================

@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -10,7 +10,10 @@ import type {
   KeyboardEvent,
 } from "react";
 
-import { apiRequest } from "../lib/api";
+import {
+  apiRequest,
+  MODEL_CONTEXT_CHANGED_EVENT,
+} from "../lib/api";
 
 import {
   useAuth,
@@ -328,6 +331,11 @@ function ChattersPage() {
   ] = useState("");
 
   const [
+    modelContextRevision,
+    setModelContextRevision,
+  ] = useState(0);
+
+  const [
     incidentFilter,
     setIncidentFilter,
   ] =
@@ -450,11 +458,43 @@ function ChattersPage() {
       statusFilter,
       debouncedSearch,
       toast,
+      modelContextRevision,
     ]);
 
   useEffect(() => {
     void loadChatters();
   }, [loadChatters]);
+
+  useEffect(() => {
+    const handleModelContextChange =
+      () => {
+        setSelectedChatter(null);
+        setChatterStrikeSummary(null);
+        setChatterIncidents([]);
+        setDetailsError("");
+        setIncidentFilter("ALL");
+        setStrikeFilter("ALL");
+        setExpandedIncidentId(null);
+        setPendingConfirmation(null);
+
+        setModelContextRevision(
+          (current) =>
+            current + 1
+        );
+      };
+
+    window.addEventListener(
+      MODEL_CONTEXT_CHANGED_EVENT,
+      handleModelContextChange
+    );
+
+    return () => {
+      window.removeEventListener(
+        MODEL_CONTEXT_CHANGED_EVENT,
+        handleModelContextChange
+      );
+    };
+  }, []);
 
   /*
    * Chatter profile

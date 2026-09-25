@@ -19,6 +19,7 @@ import {
 
 import {
   apiRequest,
+  MODEL_CONTEXT_CHANGED_EVENT,
 } from "../lib/api";
 
 import "./PortalAccess.css";
@@ -268,6 +269,18 @@ function AppLayout() {
     localStorage.setItem(
       MODEL_CONTEXT_STORAGE_KEY,
       value
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        MODEL_CONTEXT_CHANGED_EVENT,
+        {
+          detail: {
+            modelId:
+              value,
+          },
+        }
+      )
     );
   }
 

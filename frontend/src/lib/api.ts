@@ -8,8 +8,11 @@ const API_BASE_URL =
     ""
   );
 
-const MODEL_CONTEXT_STORAGE_KEY =
+export const MODEL_CONTEXT_STORAGE_KEY =
   "xyz_active_model_id";
+
+export const MODEL_CONTEXT_CHANGED_EVENT =
+  "xyz-model-context-changed";
 
 export const AUTH_EXPIRED_EVENT =
   "xyz-auth-expired";

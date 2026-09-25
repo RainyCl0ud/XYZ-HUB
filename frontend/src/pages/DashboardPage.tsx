@@ -18,6 +18,7 @@ import {
 
 import {
   apiRequest,
+  MODEL_CONTEXT_CHANGED_EVENT,
 } from "../lib/api";
 
 const CENTRAL_TIME_ZONE =
@@ -199,6 +200,30 @@ function DashboardPage() {
   useEffect(
     () => {
       void loadDashboard();
+    },
+    [
+      loadDashboard,
+    ]
+  );
+
+  useEffect(
+    () => {
+      const handleModelContextChange =
+        () => {
+          void loadDashboard();
+        };
+
+      window.addEventListener(
+        MODEL_CONTEXT_CHANGED_EVENT,
+        handleModelContextChange
+      );
+
+      return () => {
+        window.removeEventListener(
+          MODEL_CONTEXT_CHANGED_EVENT,
+          handleModelContextChange
+        );
+      };
     },
     [
       loadDashboard,

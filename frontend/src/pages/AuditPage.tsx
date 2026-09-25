@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
@@ -102,6 +101,14 @@ function AuditPage() {
   ] =
     useState<
       AuditEvent[]
+    >([]);
+
+  const [
+    knownActions,
+    setKnownActions,
+  ] =
+    useState<
+      string[]
     >([]);
 
   const [
@@ -210,6 +217,23 @@ function AuditPage() {
           setEvents(
             response.events
           );
+
+          setKnownActions(
+            (
+              current
+            ) =>
+              [
+                ...new Set([
+                  ...current,
+                  ...response.events.map(
+                    (
+                      event
+                    ) =>
+                      event.action
+                  ),
+                ]),
+              ].sort()
+          );
         } catch (
           error
         ) {
@@ -262,22 +286,7 @@ function AuditPage() {
   );
 
   const actionOptions =
-    useMemo(
-      () =>
-        [
-          ...new Set(
-            events.map(
-              (
-                event
-              ) =>
-                event.action
-            )
-          ),
-        ].sort(),
-      [
-        events,
-      ]
-    );
+    knownActions;
 
   return (
     <div className="page audit-page">
