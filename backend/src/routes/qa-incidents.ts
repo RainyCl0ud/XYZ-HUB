@@ -19,6 +19,10 @@ import type {
   AuthenticatedRequest,
 } from "../middleware/access.js";
 
+import {
+  requireQaIncidentWrites,
+} from "../middleware/qa-access.js";
+
 import legacyIncidentRoutes from "./incidents.js";
 
 import {
@@ -41,6 +45,9 @@ import type {
 
 const router =
   Router();
+
+// Guard both the scoped handlers and legacy workflow handlers.
+router.use(requireQaIncidentWrites);
 
 function getRouteParam(
   value:

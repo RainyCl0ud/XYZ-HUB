@@ -22,6 +22,14 @@ import {
   useToast,
 } from "../components/ToastProvider";
 
+import {
+  useAuth,
+} from "../auth/AuthContext";
+
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
+
 type IncidentStatus =
   | "OPEN"
   | "RESOLVED"
@@ -210,6 +218,11 @@ type PendingConfirmation =
 
 function IncidentsPage() {
   const toast = useToast();
+
+  const { access } = useAuth();
+
+  const { canManageQaIncidents } =
+    getPortalCapabilities(access);
 
   const [
     incidents,
@@ -761,6 +774,10 @@ function IncidentsPage() {
   }
 
   function openLogIncident() {
+    if (!canManageQaIncidents) {
+      return;
+    }
+
     resetLogForm();
 
     setPageError("");
@@ -798,6 +815,10 @@ function IncidentsPage() {
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
+    if (!canManageQaIncidents) {
+      return;
+    }
 
     if (!chatterId) {
       showLogError(
@@ -1002,6 +1023,10 @@ function IncidentsPage() {
     type: ActionType,
     incident: Incident
   ) {
+    if (!canManageQaIncidents) {
+      return;
+    }
+
     setActionType(type);
 
     setActionIncident(
@@ -1053,6 +1078,7 @@ function IncidentsPage() {
     event.preventDefault();
 
     if (
+      !canManageQaIncidents ||
       !actionIncident ||
       !actionType
     ) {
@@ -1203,6 +1229,7 @@ function IncidentsPage() {
 
   async function confirmPendingAction() {
     if (
+      !canManageQaIncidents ||
       !pendingConfirmation
     ) {
       return;
@@ -1445,7 +1472,7 @@ function IncidentsPage() {
           </h2>
 
           <p className="page-description">
-            Manage chatter
+            {canManageQaIncidents ? "Manage" : "View"} chatter
             incidents, preserve
             historical rule data,
             and track each strike
@@ -1457,24 +1484,32 @@ function IncidentsPage() {
           </p>
         </div>
 
-        <button
-          className="primary-button"
-          type="button"
-          onClick={
-            openLogIncident
-          }
-          disabled={
-            dependenciesLoading ||
-            !currentStrikeLadder ||
-            activeChatters.length ===
-              0 ||
-            activeRules.length ===
-              0
-          }
-        >
-          Log Incident
-        </button>
+        {canManageQaIncidents && (
+          <button
+            className="primary-button"
+            type="button"
+            onClick={
+              openLogIncident
+            }
+            disabled={
+              dependenciesLoading ||
+              !currentStrikeLadder ||
+              activeChatters.length ===
+                0 ||
+              activeRules.length ===
+                0
+            }
+          >
+            Log Incident
+          </button>
+        )}
       </header>
+
+      {!canManageQaIncidents && (
+        <div className="alert alert-info page-alert">
+          You have read-only access to QA incidents. You can view records and strike history.
+        </div>
+      )}
 
       {pageError && (
         <div className="alert alert-error page-alert">
@@ -1482,7 +1517,7 @@ function IncidentsPage() {
         </div>
       )}
 
-      {!dependenciesLoading &&
+      {canManageQaIncidents && !dependenciesLoading &&
         (activeChatters.length ===
           0 ||
           activeRules.length ===
@@ -1946,7 +1981,7 @@ function IncidentsPage() {
           LOG INCIDENT MODAL
           ===================================================== */}
 
-      {showLogModal && (
+      {canManageQaIncidents && showLogModal && (
         <div
           className="modal-backdrop"
           onMouseDown={
@@ -2685,7 +2720,7 @@ function IncidentsPage() {
                     )}
 
                     <div className="incident-detail-actions">
-                      {selectedIncident.status ===
+                      {canManageQaIncidents && selectedIncident.status ===
                         "OPEN" && (
                         <button
                           type="button"
@@ -2708,7 +2743,7 @@ function IncidentsPage() {
                         </button>
                       )}
 
-                      {selectedIncident.status !==
+                      {canManageQaIncidents && selectedIncident.status !==
                         "VOIDED" && (
                         <button
                           type="button"
@@ -2743,7 +2778,7 @@ function IncidentsPage() {
           RESOLVE / VOID MODAL
           ===================================================== */}
 
-      {actionType &&
+      {canManageQaIncidents && actionType &&
         actionIncident && (
           <div
             className="modal-backdrop"
@@ -2918,7 +2953,7 @@ function IncidentsPage() {
           FINAL CONFIRMATION MODAL
           ===================================================== */}
 
-      {pendingConfirmation &&
+      {canManageQaIncidents && pendingConfirmation &&
         confirmationContent && (
           <div
             className="modal-backdrop confirmation-backdrop"

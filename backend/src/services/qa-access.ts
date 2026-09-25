@@ -111,7 +111,7 @@ export function canViewQa(
 
 /*
  * QA configuration changes remain a management
- * action. QC can review/log incidents but cannot
+ * action. QC can review incidents but cannot
  * change the global chatter/rule/ladder catalog.
  */
 export function canConfigureQa(
@@ -135,6 +135,24 @@ export function canConfigureQa(
       access,
       "DEV"
     )
+  );
+}
+
+/*
+ * Incident workflow changes require an operational
+ * write role. A QC-only user remains read-only;
+ * stacked roles retain the union of their abilities.
+ */
+export function canManageQaIncidents(
+  access:
+    AccessContext
+) {
+  return access.roles.some(
+    (role) =>
+      role.systemKey === "OWNER" ||
+      role.systemKey === "OPS_MANAGER" ||
+      role.systemKey === "MANAGER" ||
+      role.systemKey === "DEV"
   );
 }
 
