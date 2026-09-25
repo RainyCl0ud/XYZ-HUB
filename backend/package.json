@@ -30,7 +30,12 @@
     "test:people-two-factor": "tsx scripts/test-people-two-factor.ts",
     "test:people-read": "tsx scripts/test-people-read.ts",
     "start": "node dist/index.js",
-    "test:model-management": "tsx scripts/test-model-management.ts"
+    "test:model-management": "tsx scripts/test-model-management.ts",
+    "test:step1:role-builder": "tsx scripts/test-step1-role-builder.ts",
+    "test:step1:qa-access": "tsx scripts/test-step1-qa-access.ts",
+    "test:step1:delete-qa": "tsx scripts/test-step1-delete-qa.ts",
+    "test:step1:audit-store": "tsx scripts/test-step1-audit-store.ts",
+    "test:step1": "npm run test:access && npm run test:middleware && npm run test:session-token && npm run test:session && npm run test:session-auth && npm run test:two-factor && npm run test:password && npm run test:password-reset && npm run test:invite-token && npm run test:invite && npm run test:invite-acceptance && npm run test:people-invite && npm run test:resend-invite && npm run test:people-status && npm run test:people-access-update && npm run test:people-delete && npm run test:people-two-factor && npm run test:people-read && npm run test:model-management && npm run test:step1:role-builder && npm run test:step1:qa-access && npm run test:step1:delete-qa && npm run test:step1:audit-store"
   },
   "keywords": [],
   "author": "",
@@ -41,6 +46,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "nodemailer": "^10.0.10",
     "prisma": "^6.12.0",
     "zod": "^4.5.4"
   },

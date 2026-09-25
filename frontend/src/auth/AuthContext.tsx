@@ -9,54 +9,41 @@ import {
 } from "react";
 
 import {
+  AUTH_EXPIRED_EVENT,
   ApiError,
   apiRequest,
 } from "../lib/api";
 
 type AuthUser = {
   id: string;
-
   name: string;
-
   email: string;
-
   status: string;
-
   lastSignInAt:
     string | null;
 };
 
 type AuthRole = {
   id: string;
-
   name: string;
-
   systemKey:
     string | null;
-
   rank:
     number | null;
-
-  dataScope:
-    string;
+  dataScope: string;
 };
 
 type AuthAccess = {
   roles:
     AuthRole[];
-
   highestRank:
     number | null;
-
   effectiveDataScope:
     string | null;
-
   permissions:
     string[];
-
   assignedModelIds:
     string[];
-
   canSeeAllModels:
     boolean;
 };
@@ -64,7 +51,6 @@ type AuthAccess = {
 type AuthMeResponse = {
   user:
     AuthUser;
-
   access:
     AuthAccess;
 };
@@ -72,16 +58,12 @@ type AuthMeResponse = {
 type AuthContextValue = {
   user:
     AuthUser | null;
-
   access:
     AuthAccess | null;
-
   loading:
     boolean;
-
   refreshAuth:
     () => Promise<boolean>;
-
   logout:
     () => Promise<void>;
 };
@@ -127,6 +109,20 @@ export function AuthProvider({
       true
     );
 
+  const clearAuth =
+    useCallback(
+      () => {
+        setUser(
+          null
+        );
+
+        setAccess(
+          null
+        );
+      },
+      []
+    );
+
   const refreshAuth =
     useCallback(
       async () => {
@@ -154,13 +150,7 @@ export function AuthProvider({
             error.status ===
               401
           ) {
-            setUser(
-              null
-            );
-
-            setAccess(
-              null
-            );
+            clearAuth();
 
             return false;
           }
@@ -168,8 +158,40 @@ export function AuthProvider({
           throw error;
         }
       },
-      []
+      [
+        clearAuth,
+      ]
     );
+
+  /*
+   * Protected API calls can discover an expired,
+   * revoked or deactivated session before /auth/me
+   * is called again. Listen for the shared API event
+   * so route guards react immediately.
+   */
+  useEffect(
+    () => {
+      const handleAuthExpired =
+        () => {
+          clearAuth();
+        };
+
+      window.addEventListener(
+        AUTH_EXPIRED_EVENT,
+        handleAuthExpired
+      );
+
+      return () => {
+        window.removeEventListener(
+          AUTH_EXPIRED_EVENT,
+          handleAuthExpired
+        );
+      };
+    },
+    [
+      clearAuth,
+    ]
+  );
 
   useEffect(
     () => {
@@ -190,13 +212,7 @@ export function AuthProvider({
           if (
             active
           ) {
-            setUser(
-              null
-            );
-
-            setAccess(
-              null
-            );
+            clearAuth();
           }
         } finally {
           if (
@@ -217,6 +233,7 @@ export function AuthProvider({
       };
     },
     [
+      clearAuth,
       refreshAuth,
     ]
   );
@@ -236,29 +253,21 @@ export function AuthProvider({
             }
           );
         } finally {
-          setUser(
-            null
-          );
-
-          setAccess(
-            null
-          );
+          clearAuth();
         }
       },
-      []
+      [
+        clearAuth,
+      ]
     );
 
   const value =
     useMemo(
       () => ({
         user,
-
         access,
-
         loading,
-
         refreshAuth,
-
         logout,
       }),
       [

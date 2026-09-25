@@ -10,6 +10,35 @@ import {
   type AccessContext,
 } from "./access-control.js";
 
+function getInviteDeliveryMode() {
+  return (
+    process.env
+      .INVITE_DELIVERY_MODE
+      ?.trim() ||
+    process.env
+      .EMAIL_DELIVERY_MODE
+      ?.trim() ||
+    ""
+  ).toLowerCase();
+}
+
+function invitationsAreAvailable() {
+  const mode =
+    getInviteDeliveryMode();
+
+  if (
+    mode === "smtp"
+  ) {
+    return true;
+  }
+
+  return (
+    mode === "console" &&
+    process.env.NODE_ENV !==
+      "production"
+  );
+}
+
 export async function getPeopleManagementOptions(
   access:
     AccessContext
@@ -120,11 +149,7 @@ export async function getPeopleManagementOptions(
         ),
 
       invitesAvailable:
-        process.env
-          .INVITE_DELIVERY_MODE ===
-          "console" &&
-        process.env.NODE_ENV !==
-          "production",
+        invitationsAreAvailable(),
     },
   };
 }

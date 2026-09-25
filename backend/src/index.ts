@@ -10,57 +10,77 @@ import {
   requireAuth,
 } from "./middleware/access.js";
 
+import {
+  auditHttpMiddleware,
+} from "./middleware/audit-http.js";
+
+import {
+  requireQaConfigurationForWrites,
+  requireQaView,
+} from "./middleware/qa-access.js";
+
+import {
+  loginRateLimit,
+  passwordResetRateLimit,
+  twoFactorRateLimit,
+} from "./middleware/rate-limit.js";
+
 import peopleRoutes from "./routes/people.js";
-
 import modelRoutes from "./routes/models.js";
-
+import roleRoutes from "./routes/roles.js";
 import inviteRoutes from "./routes/invites.js";
-
 import authRoutes from "./routes/auth.js";
+import accessRoutes from "./routes/access.js";
+import auditRoutes from "./routes/audit.js";
 
-import cookieParser from "cookie-parser";
-
-import chatterRoutes from "./routes/chatters.js";
+import chatterRoutes from "./routes/qa-chatters.js";
+import incidentRoutes from "./routes/qa-incidents.js";
+import dashboardRoutes from "./routes/qa-dashboard.js";
 
 import severityOptionRoutes from "./routes/severity-options.js";
-
 import weightOptionRoutes from "./routes/weight-options.js";
-
 import ruleRoutes from "./routes/rules.js";
-
-import incidentRoutes from "./routes/incidents.js";
-
-import dashboardRoutes from "./routes/dashboard.js";
-
 import strikeLadderRoutes from "./routes/strike-ladder.js";
 
+import cookieParser from "cookie-parser";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const app = express();
+const app =
+  express();
+
+app.set(
+  "trust proxy",
+  1
+);
 
 const PORT =
-  process.env.PORT || 3000;
+  process.env.PORT ||
+  3000;
 
 const frontendUrl =
   process.env.FRONTEND_URL
     ?.trim()
-    .replace(/\/+$/, "");
+    .replace(
+      /\/+$/,
+      ""
+    );
 
 const allowedOrigins =
   new Set(
     [
       "http://localhost:5173",
-
       frontendUrl,
     ].filter(
       (
         origin
       ): origin is string =>
-        Boolean(origin)
+        Boolean(
+          origin
+        )
     )
   );
 
@@ -70,13 +90,9 @@ app.use(
       origin,
       callback
     ) => {
-      /*
-       * Requests without an Origin header
-       * include tools such as PowerShell,
-       * curl, health checks, and server-side
-       * requests.
-       */
-      if (!origin) {
+      if (
+        !origin
+      ) {
         callback(
           null,
           true
@@ -110,7 +126,9 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(
+  express.json()
+);
 
 app.use(
   cookieParser()
@@ -118,6 +136,31 @@ app.use(
 
 app.use(
   loadSession
+);
+
+/*
+ * Security/audit event capture runs after the
+ * session loader so authenticated management
+ * actions retain their actor user ID. The audit
+ * adapter exposes no update/delete interface.
+ */
+app.use(
+  auditHttpMiddleware
+);
+
+app.use(
+  "/api/auth/login",
+  loginRateLimit
+);
+
+app.use(
+  "/api/auth/verify-2fa",
+  twoFactorRateLimit
+);
+
+app.use(
+  "/api/auth/password-reset/request",
+  passwordResetRateLimit
 );
 
 app.use(
@@ -131,6 +174,16 @@ app.use(
 );
 
 app.use(
+  "/api/access",
+  accessRoutes
+);
+
+app.use(
+  "/api/audit",
+  auditRoutes
+);
+
+app.use(
   "/api/people",
   peopleRoutes
 );
@@ -140,56 +193,71 @@ app.use(
   modelRoutes
 );
 
+app.use(
+  "/api/roles",
+  roleRoutes
+);
+
 /*
- * The QA/operations API predates Login Gate.
+ * Existing QA routes are now protected twice:
  *
- * Frontend route protection is not a security
- * boundary, so every internal API below also
- * requires a valid active XYZ Hub session.
+ * 1. valid active Login Gate session
+ * 2. centralized QA role/model policy
  *
- * Fine-grained role/model authorization can be
- * layered on top of this baseline as each
- * workflow's permission rules are finalized.
+ * Configuration writes are restricted more
+ * tightly than normal QA review/incident work.
  */
 app.use(
   "/api/chatters",
   requireAuth,
+  requireQaView,
+  requireQaConfigurationForWrites,
   chatterRoutes
 );
 
 app.use(
   "/api/severity-options",
   requireAuth,
+  requireQaView,
+  requireQaConfigurationForWrites,
   severityOptionRoutes
 );
 
 app.use(
   "/api/weight-options",
   requireAuth,
+  requireQaView,
+  requireQaConfigurationForWrites,
   weightOptionRoutes
 );
 
 app.use(
   "/api/rules",
   requireAuth,
+  requireQaView,
+  requireQaConfigurationForWrites,
   ruleRoutes
 );
 
 app.use(
   "/api/incidents",
   requireAuth,
+  requireQaView,
   incidentRoutes
 );
 
 app.use(
   "/api/dashboard",
   requireAuth,
+  requireQaView,
   dashboardRoutes
 );
 
 app.use(
   "/api/strike-ladder",
   requireAuth,
+  requireQaView,
+  requireQaConfigurationForWrites,
   strikeLadderRoutes
 );
 
@@ -197,7 +265,8 @@ app.get(
   "/health",
   (_req, res) => {
     res.status(200).json({
-      status: "ok",
+      status:
+        "ok",
 
       message:
         "XYZ Hub API is running",
@@ -208,27 +277,34 @@ app.get(
 app.get(
   "/health/db",
   requireAuth,
-  async (_req, res) => {
+  async (
+    _req,
+    res
+  ) => {
     try {
       const chatterCount =
         await prisma.chatter.count();
 
       res.status(200).json({
-        status: "ok",
+        status:
+          "ok",
 
         message:
           "Database connection is working",
 
         chatterCount,
       });
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Database health check failed:",
         error
       );
 
       res.status(500).json({
-        status: "error",
+        status:
+          "error",
 
         message:
           "Database connection failed",

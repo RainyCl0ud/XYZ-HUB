@@ -24,14 +24,9 @@ export type ValidSession = {
   expiresAt: Date;
 };
 
-/*
- * Creates a new session.
- *
- * The raw token is returned to the caller
- * so it can later go into a secure cookie.
- *
- * Only the token hash is stored in PostgreSQL.
- */
+const LAST_SEEN_WRITE_INTERVAL_MS =
+  5 * 60 * 1000;
+
 export async function createSession(
   input: CreateSessionInput
 ) {
@@ -39,21 +34,22 @@ export async function createSession(
     generateSessionToken();
 
   const tokenHash =
-    hashSessionToken(token);
+    hashSessionToken(
+      token
+    );
 
   const session =
     await prisma.session.create({
       data: {
-        userId: input.userId,
-
+        userId:
+          input.userId,
         tokenHash,
-
         userAgent:
-          input.userAgent ?? null,
-
+          input.userAgent ??
+          null,
         ipAddress:
-          input.ipAddress ?? null,
-
+          input.ipAddress ??
+          null,
         expiresAt:
           input.expiresAt,
       },
@@ -65,21 +61,13 @@ export async function createSession(
   };
 }
 
-/*
- * Validates a raw session token.
- *
- * A session is invalid when:
- *
- * - it does not exist
- * - it has been revoked
- * - it has expired
- * - the user is not ACTIVE
- */
 export async function validateSessionToken(
   token: string
 ): Promise<ValidSession | null> {
   const tokenHash =
-    hashSessionToken(token);
+    hashSessionToken(
+      token
+    );
 
   const session =
     await prisma.session.findUnique({
@@ -90,117 +78,131 @@ export async function validateSessionToken(
       include: {
         user: {
           select: {
-            status: true,
+            status:
+              true,
           },
         },
       },
     });
 
-  if (!session) {
-    return null;
-  }
-
-  if (session.revokedAt) {
-    return null;
-  }
-
   if (
+    !session ||
+    session.revokedAt ||
     session.expiresAt.getTime() <=
-    Date.now()
-  ) {
-    return null;
-  }
-
-  if (
+      Date.now() ||
     session.user.status !==
-    UserStatus.ACTIVE
+      UserStatus.ACTIVE
   ) {
     return null;
   }
 
   /*
-   * Record that the session has recently
-   * been used.
+   * lastSeenAt is useful operational metadata,
+   * but writing it on every authenticated request
+   * creates unnecessary database load. Refresh it
+   * at most once every five minutes per session.
    */
-  await prisma.session.update({
-    where: {
-      id: session.id,
-    },
+  const writeBefore =
+    new Date(
+      Date.now() -
+        LAST_SEEN_WRITE_INTERVAL_MS
+    );
 
-    data: {
-      lastSeenAt: new Date(),
-    },
-  });
+  if (
+    !session.lastSeenAt ||
+    session.lastSeenAt <
+      writeBefore
+  ) {
+    await prisma.session.updateMany({
+      where: {
+        id:
+          session.id,
+        revokedAt:
+          null,
+        OR: [
+          {
+            lastSeenAt:
+              null,
+          },
+          {
+            lastSeenAt: {
+              lt:
+                writeBefore,
+            },
+          },
+        ],
+      },
+
+      data: {
+        lastSeenAt:
+          new Date(),
+      },
+    });
+  }
 
   return {
-    id: session.id,
-    userId: session.userId,
-    expiresAt: session.expiresAt,
+    id:
+      session.id,
+    userId:
+      session.userId,
+    expiresAt:
+      session.expiresAt,
   };
 }
 
-/*
- * Revokes one specific session.
- *
- * Used for normal logout.
- */
 export async function revokeSession(
   sessionId: string
 ) {
   await prisma.session.updateMany({
     where: {
-      id: sessionId,
-      revokedAt: null,
+      id:
+        sessionId,
+      revokedAt:
+        null,
     },
 
     data: {
-      revokedAt: new Date(),
+      revokedAt:
+        new Date(),
     },
   });
 }
 
-/*
- * Revokes a session using the browser's
- * raw token.
- */
 export async function revokeSessionToken(
   token: string
 ) {
   const tokenHash =
-    hashSessionToken(token);
+    hashSessionToken(
+      token
+    );
 
   await prisma.session.updateMany({
     where: {
       tokenHash,
-      revokedAt: null,
+      revokedAt:
+        null,
     },
 
     data: {
-      revokedAt: new Date(),
+      revokedAt:
+        new Date(),
     },
   });
 }
 
-/*
- * Immediately invalidates every active
- * session belonging to a user.
- *
- * This is important when:
- *
- * - someone is deactivated
- * - security requires forced logout
- */
 export async function revokeAllUserSessions(
   userId: string
 ) {
   await prisma.session.updateMany({
     where: {
       userId,
-      revokedAt: null,
+      revokedAt:
+        null,
     },
 
     data: {
-      revokedAt: new Date(),
+      revokedAt:
+        new Date(),
     },
   });
 }

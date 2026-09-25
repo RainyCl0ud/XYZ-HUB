@@ -1,3 +1,10 @@
+import {
+  escapeEmailHtml,
+  formatEmailExpiry,
+  getEmailDeliveryMode,
+  sendTransactionalEmail,
+} from "./email-delivery.js";
+
 export type PasswordResetDeliveryInput = {
   name: string;
   email: string;
@@ -26,15 +33,15 @@ export async function sendPasswordReset(
     PasswordResetDeliveryInput
 ): Promise<void> {
   const mode =
-    process.env
-      .PASSWORD_RESET_DELIVERY_MODE;
+    getEmailDeliveryMode(
+      "PASSWORD_RESET_DELIVERY_MODE"
+    );
 
-  /*
-   * Temporary LOCAL development delivery.
-   *
-   * Real email delivery belongs to a later
-   * implementation stage.
-   */
+  const resetUrl =
+    `${getFrontendUrl()}/reset-password#token=${encodeURIComponent(
+      input.token
+    )}`;
+
   if (
     mode ===
     "console"
@@ -48,48 +55,62 @@ export async function sendPasswordReset(
       );
     }
 
-    /*
-     * Keep the secret token in the fragment.
-     *
-     * Browser fragments are not normally
-     * included in the HTTP request sent to
-     * the frontend server.
-     */
-    const resetUrl =
-      `${getFrontendUrl()}/reset-password#token=${encodeURIComponent(
-        input.token
-      )}`;
-
     console.log("");
     console.log(
       "========================================"
     );
-
     console.log(
       "XYZ HUB — DEVELOPMENT PASSWORD RESET"
     );
-
     console.log(
       `Name: ${input.name}`
     );
-
     console.log(
       `Email: ${input.email}`
     );
-
     console.log(
       `Reset URL: ${resetUrl}`
     );
-
     console.log(
       `Expires: ${input.expiresAt.toISOString()}`
     );
-
     console.log(
       "========================================"
     );
-
     console.log("");
+
+    return;
+  }
+
+  if (
+    mode ===
+    "smtp"
+  ) {
+    const safeName =
+      escapeEmailHtml(
+        input.name
+      );
+
+    const safeResetUrl =
+      escapeEmailHtml(
+        resetUrl
+      );
+
+    const expiry =
+      formatEmailExpiry(
+        input.expiresAt
+      );
+
+    await sendTransactionalEmail({
+      to:
+        input.email,
+      subject:
+        "Reset your XYZ Hub password",
+      text:
+        `Hi ${input.name},\n\nUse this one-time link to reset your XYZ Hub password:\n\n${resetUrl}\n\nThe link expires ${expiry}.\n\nIf you did not request this reset, you can ignore this email.`,
+      html:
+        `<p>Hi ${safeName},</p><p>Use the link below to reset your XYZ Hub password.</p><p><a href="${safeResetUrl}">Reset password</a></p><p>The one-time link expires ${escapeEmailHtml(expiry)}.</p><p>If you did not request this reset, you can ignore this email.</p>`,
+    });
 
     return;
   }

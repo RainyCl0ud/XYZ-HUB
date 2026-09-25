@@ -13,6 +13,10 @@ import type {
 import { apiRequest } from "../lib/api";
 
 import {
+  formatCentralDateTime,
+} from "../lib/time";
+
+import {
   useToast,
 } from "../components/ToastProvider";
 
@@ -3538,9 +3542,7 @@ function ConfigurationPage() {
                           {option.archivedAt && (
                             <span className="config-meta">
                               Archived:{" "}
-                              {new Date(
-                                option.archivedAt
-                              ).toLocaleString()}
+                              {formatCentralDateTime(option.archivedAt)}
                             </span>
                           )}
                         </div>
@@ -3614,9 +3616,7 @@ function ConfigurationPage() {
                         {option.archivedAt && (
                           <span className="config-meta">
                             Archived:{" "}
-                            {new Date(
-                              option.archivedAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(option.archivedAt)}
                           </span>
                         )}
                       </div>
@@ -4329,9 +4329,7 @@ function ConfigurationPage() {
                           </div>
 
                           <time>
-                            {new Date(
-                              version.createdAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(version.createdAt)}
                           </time>
                         </div>
 
@@ -4481,3 +4479,4 @@ function ConfigurationPage() {
 }
 
 export default ConfigurationPage;
+

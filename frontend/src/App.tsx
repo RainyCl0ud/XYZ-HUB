@@ -9,6 +9,7 @@ import "./pages/AuthPages.css";
 import RequireAuth from "./auth/RequireAuth";
 import RequirePermission from "./auth/RequirePermission";
 import RequireSystemRole from "./auth/RequireSystemRole";
+import RequirePortalModule from "./auth/RequirePortalModule";
 
 import AppLayout from "./components/AppLayout";
 
@@ -25,12 +26,12 @@ import ChattersPage from "./pages/ChattersPage";
 import ConfigurationPage from "./pages/ConfigurationPage";
 import PeoplePage from "./pages/PeoplePage";
 import ModelsPage from "./pages/ModelsPage";
+import RoleBuilderPage from "./pages/RoleBuilderPage";
+import AuditPage from "./pages/AuditPage";
 
 function App() {
   return (
     <Routes>
-      {/* Public authentication routes */}
-
       <Route
         path="/login"
         element={
@@ -66,8 +67,6 @@ function App() {
         }
       />
 
-      {/* Everything below this point requires a valid session */}
-
       <Route
         element={
           <RequireAuth />
@@ -88,28 +87,36 @@ function App() {
           <Route
             path="/incidents"
             element={
-              <IncidentsPage />
+              <RequirePortalModule module="qa">
+                <IncidentsPage />
+              </RequirePortalModule>
             }
           />
 
           <Route
             path="/rules"
             element={
-              <RulesPage />
+              <RequirePortalModule module="qa-config">
+                <RulesPage />
+              </RequirePortalModule>
             }
           />
 
           <Route
             path="/chatters"
             element={
-              <ChattersPage />
+              <RequirePortalModule module="qa">
+                <ChattersPage />
+              </RequirePortalModule>
             }
           />
 
           <Route
             path="/configuration"
             element={
-              <ConfigurationPage />
+              <RequirePortalModule module="qa-config">
+                <ConfigurationPage />
+              </RequirePortalModule>
             }
           />
 
@@ -135,6 +142,30 @@ function App() {
                   <ModelsPage />
                 </RequireSystemRole>
               </RequirePermission>
+            }
+          />
+
+          <Route
+            path="/roles"
+            element={
+              <RequirePermission permission="roles.manage">
+                <RequireSystemRole
+                  roles={[
+                    "OWNER",
+                  ]}
+                >
+                  <RoleBuilderPage />
+                </RequireSystemRole>
+              </RequirePermission>
+            }
+          />
+
+          <Route
+            path="/audit"
+            element={
+              <RequirePortalModule module="audit">
+                <AuditPage />
+              </RequirePortalModule>
             }
           />
         </Route>

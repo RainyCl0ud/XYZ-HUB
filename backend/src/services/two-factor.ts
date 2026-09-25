@@ -118,22 +118,18 @@ export async function createEmailTwoFactorChallenge(
   const now =
     new Date();
 
-  /*
-   * Invalidate any older unused email
-   * challenge for this user.
-   */
   await prisma.twoFactorChallenge.updateMany({
     where: {
       userId,
-
       methodType:
         TwoFactorMethodType.EMAIL,
-
-      consumedAt: null,
+      consumedAt:
+        null,
     },
 
     data: {
-      consumedAt: now,
+      consumedAt:
+        now,
     },
   });
 
@@ -155,22 +151,13 @@ export async function createEmailTwoFactorChallenge(
     await prisma.twoFactorChallenge.create({
       data: {
         userId,
-
         methodType:
           TwoFactorMethodType.EMAIL,
-
         codeHash,
-
         expiresAt,
       },
     });
 
-  /*
-   * The plain code is returned ONLY so the
-   * email service can send it.
-   *
-   * It is never stored in PostgreSQL.
-   */
   return {
     challenge,
     code,
@@ -185,6 +172,56 @@ export type TwoFactorVerifyResult =
   | "CONSUMED"
   | "NOT_FOUND";
 
+async function getUnavailableResult(
+  challengeId:
+    string
+): Promise<TwoFactorVerifyResult> {
+  const current =
+    await prisma.twoFactorChallenge.findUnique({
+      where: {
+        id:
+          challengeId,
+      },
+
+      select: {
+        consumedAt:
+          true,
+        expiresAt:
+          true,
+        failedAttempts:
+          true,
+      },
+    });
+
+  if (
+    !current
+  ) {
+    return "NOT_FOUND";
+  }
+
+  if (
+    current.failedAttempts >=
+    TWO_FACTOR_MAX_ATTEMPTS
+  ) {
+    return "LOCKED";
+  }
+
+  if (
+    current.expiresAt.getTime() <=
+    Date.now()
+  ) {
+    return "EXPIRED";
+  }
+
+  if (
+    current.consumedAt
+  ) {
+    return "CONSUMED";
+  }
+
+  return "CONSUMED";
+}
+
 export async function verifyTwoFactorChallenge(
   challengeId: string,
   code: string
@@ -192,7 +229,8 @@ export async function verifyTwoFactorChallenge(
   const challenge =
     await prisma.twoFactorChallenge.findUnique({
       where: {
-        id: challengeId,
+        id:
+          challengeId,
       },
     });
 
@@ -200,13 +238,18 @@ export async function verifyTwoFactorChallenge(
     return "NOT_FOUND";
   }
 
-  if (challenge.consumedAt) {
+  if (
+    challenge.consumedAt
+  ) {
     return "CONSUMED";
   }
 
+  const now =
+    new Date();
+
   if (
     challenge.expiresAt.getTime() <=
-    Date.now()
+    now.getTime()
   ) {
     return "EXPIRED";
   }
@@ -224,43 +267,125 @@ export async function verifyTwoFactorChallenge(
       challenge.codeHash
     );
 
-  if (!isValid) {
-    const nextAttempts =
-      challenge.failedAttempts + 1;
+  if (
+    isValid
+  ) {
+    /*
+     * Conditional claim prevents two concurrent
+     * requests using the same correct code from
+     * both succeeding. Only one request can move
+     * consumedAt from null to a timestamp.
+     */
+    const claimed =
+      await prisma.twoFactorChallenge.updateMany({
+        where: {
+          id:
+            challenge.id,
+          consumedAt:
+            null,
+          expiresAt: {
+            gt:
+              now,
+          },
+          failedAttempts: {
+            lt:
+              TWO_FACTOR_MAX_ATTEMPTS,
+          },
+        },
 
-    await prisma.twoFactorChallenge.update({
+        data: {
+          consumedAt:
+            now,
+        },
+      });
+
+    if (
+      claimed.count ===
+      1
+    ) {
+      return "VERIFIED";
+    }
+
+    return getUnavailableResult(
+      challenge.id
+    );
+  }
+
+  /*
+   * Invalid attempts use an atomic increment.
+   * Concurrent bad guesses therefore cannot
+   * overwrite each other's attempt counts.
+   */
+  const attempt =
+    await prisma.twoFactorChallenge.updateMany({
       where: {
-        id: challenge.id,
+        id:
+          challenge.id,
+        consumedAt:
+          null,
+        expiresAt: {
+          gt:
+            now,
+        },
+        failedAttempts: {
+          lt:
+            TWO_FACTOR_MAX_ATTEMPTS,
+        },
       },
 
       data: {
-        failedAttempts:
-          nextAttempts,
-
-        consumedAt:
-          nextAttempts >=
-          TWO_FACTOR_MAX_ATTEMPTS
-            ? new Date()
-            : null,
+        failedAttempts: {
+          increment:
+            1,
+        },
       },
     });
 
-    return nextAttempts >=
-      TWO_FACTOR_MAX_ATTEMPTS
-      ? "LOCKED"
-      : "INVALID";
+  if (
+    attempt.count ===
+    0
+  ) {
+    return getUnavailableResult(
+      challenge.id
+    );
   }
 
-  await prisma.twoFactorChallenge.update({
-    where: {
-      id: challenge.id,
-    },
+  const updated =
+    await prisma.twoFactorChallenge.findUnique({
+      where: {
+        id:
+          challenge.id,
+      },
 
-    data: {
-      consumedAt:
-        new Date(),
-    },
-  });
+      select: {
+        failedAttempts:
+          true,
+        consumedAt:
+          true,
+      },
+    });
 
-  return "VERIFIED";
+  if (
+    updated &&
+    updated.failedAttempts >=
+      TWO_FACTOR_MAX_ATTEMPTS
+  ) {
+    await prisma.twoFactorChallenge.updateMany({
+      where: {
+        id:
+          challenge.id,
+        consumedAt:
+          null,
+      },
+
+      data: {
+        consumedAt:
+          new Date(),
+      },
+    });
+
+    return "LOCKED";
+  }
+
+  return "INVALID";
 }

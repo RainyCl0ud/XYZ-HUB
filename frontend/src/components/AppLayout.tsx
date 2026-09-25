@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
 } from "react";
 
@@ -12,6 +13,37 @@ import {
   useAuth,
 } from "../auth/AuthContext";
 
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
+
+import {
+  apiRequest,
+  MODEL_CONTEXT_CHANGED_EVENT,
+} from "../lib/api";
+
+import "./PortalAccess.css";
+
+const MODEL_CONTEXT_STORAGE_KEY =
+  "xyz_active_model_id";
+
+type AccessModel = {
+  id: string;
+  name: string;
+  isActive: boolean;
+};
+
+type AccessModelsResponse = {
+  models:
+    AccessModel[];
+
+  canSeeAllModels:
+    boolean;
+
+  canConfigureQa:
+    boolean;
+};
+
 function AppLayout() {
   const navigate =
     useNavigate();
@@ -23,40 +55,181 @@ function AppLayout() {
   } =
     useAuth();
 
+  const capabilities =
+    getPortalCapabilities(
+      access
+    );
+
   const [
     signingOut,
     setSigningOut,
   ] =
     useState(false);
 
-  const canManagePeople =
-    access?.permissions.includes(
-      "people.manage"
-    ) ??
-    false;
+  const [
+    models,
+    setModels,
+  ] =
+    useState<
+      AccessModel[]
+    >([]);
 
-  const canManageModels =
-    canManagePeople &&
-    (
-      access?.roles.some(
-        (
-          role
-        ) =>
-          role.systemKey ===
-            "OWNER" ||
-          role.systemKey ===
-            "OPS_MANAGER"
-      ) ??
-      false
+  const [
+    activeModelId,
+    setActiveModelId,
+  ] =
+    useState(
+      () =>
+        localStorage.getItem(
+          MODEL_CONTEXT_STORAGE_KEY
+        ) ??
+        "ALL"
     );
+
+  const [
+    modelContextReady,
+    setModelContextReady,
+  ] =
+    useState(
+      !capabilities.canViewQa
+    );
+
+  useEffect(
+    () => {
+      let active =
+        true;
+
+      async function loadModels() {
+        setModelContextReady(
+          false
+        );
+
+        if (
+          !capabilities.canViewQa
+        ) {
+          if (
+            active
+          ) {
+            setModels([]);
+            setActiveModelId(
+              "ALL"
+            );
+          }
+
+          localStorage.removeItem(
+            MODEL_CONTEXT_STORAGE_KEY
+          );
+
+          if (
+            active
+          ) {
+            setModelContextReady(
+              true
+            );
+          }
+
+          return;
+        }
+
+        try {
+          const response =
+            await apiRequest<AccessModelsResponse>(
+              "/api/access/models"
+            );
+
+          if (
+            !active
+          ) {
+            return;
+          }
+
+          setModels(
+            response.models
+          );
+
+          const stored =
+            localStorage.getItem(
+              MODEL_CONTEXT_STORAGE_KEY
+            );
+
+          const storedExists =
+            stored &&
+            stored !== "ALL" &&
+            response.models.some(
+              (
+                model
+              ) =>
+                model.id ===
+                stored
+            );
+
+          let next =
+            "ALL";
+
+          if (
+            storedExists
+          ) {
+            next =
+              stored as string;
+          } else if (
+            !response.canSeeAllModels &&
+            response.models.length ===
+              1
+          ) {
+            next =
+              response.models[0].id;
+          }
+
+          setActiveModelId(
+            next
+          );
+
+          localStorage.setItem(
+            MODEL_CONTEXT_STORAGE_KEY,
+            next
+          );
+        } catch (
+          error
+        ) {
+          console.error(
+            "Unable to load model context:",
+            error
+          );
+        } finally {
+          if (
+            active
+          ) {
+            setModelContextReady(
+              true
+            );
+          }
+        }
+      }
+
+      void loadModels();
+
+      return () => {
+        active =
+          false;
+      };
+    },
+    [
+      capabilities.canViewQa,
+      access?.canSeeAllModels,
+    ]
+  );
 
   const roleNames =
     access?.roles
       .map(
-        (role) =>
+        (
+          role
+        ) =>
           role.name
       )
-      .join(", ") ||
+      .join(
+        ", "
+      ) ||
     "XYZ Hub User";
 
   async function handleLogout() {
@@ -66,6 +239,10 @@ function AppLayout() {
 
     try {
       await logout();
+
+      localStorage.removeItem(
+        MODEL_CONTEXT_STORAGE_KEY
+      );
 
       navigate(
         "/login",
@@ -80,6 +257,40 @@ function AppLayout() {
       );
     }
   }
+
+  function changeModelContext(
+    value:
+      string
+  ) {
+    setActiveModelId(
+      value
+    );
+
+    localStorage.setItem(
+      MODEL_CONTEXT_STORAGE_KEY,
+      value
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        MODEL_CONTEXT_CHANGED_EVENT,
+        {
+          detail: {
+            modelId:
+              value,
+          },
+        }
+      )
+    );
+  }
+
+  const showModelContext =
+    capabilities.canViewQa &&
+    (
+      models.length >
+        0 ||
+      access?.canSeeAllModels
+    );
 
   return (
     <div className="app-shell">
@@ -100,6 +311,61 @@ function AppLayout() {
           </div>
         </div>
 
+        {showModelContext && (
+          <div className="sidebar-model-context">
+            <label htmlFor="portal-model-context">
+              Model context
+            </label>
+
+            <select
+              id="portal-model-context"
+              value={
+                activeModelId
+              }
+              onChange={(
+                event
+              ) =>
+                changeModelContext(
+                  event.target.value
+                )
+              }
+            >
+              {(access?.canSeeAllModels ||
+                models.length > 1) && (
+                <option value="ALL">
+                  {access?.canSeeAllModels
+                    ? "All models"
+                    : "All assigned models"}
+                </option>
+              )}
+
+              {models.map(
+                (
+                  model
+                ) => (
+                  <option
+                    key={
+                      model.id
+                    }
+                    value={
+                      model.id
+                    }
+                  >
+                    {model.name}
+                    {model.isActive
+                      ? ""
+                      : " (Inactive)"}
+                  </option>
+                )
+              )}
+            </select>
+
+            <small>
+              QA lists and dashboard data follow this selection.
+            </small>
+          </div>
+        )}
+
         <nav className="sidebar-nav">
           <NavLink
             to="/"
@@ -115,59 +381,67 @@ function AppLayout() {
             Dashboard
           </NavLink>
 
-          <NavLink
-            to="/incidents"
-            className={({
-              isActive,
-            }) =>
-              isActive
-                ? "nav-link active"
-                : "nav-link"
-            }
-          >
-            Incidents
-          </NavLink>
+          {capabilities.canViewQa && (
+            <NavLink
+              to="/incidents"
+              className={({
+                isActive,
+              }) =>
+                isActive
+                  ? "nav-link active"
+                  : "nav-link"
+              }
+            >
+              Incidents
+            </NavLink>
+          )}
 
-          <NavLink
-            to="/rules"
-            className={({
-              isActive,
-            }) =>
-              isActive
-                ? "nav-link active"
-                : "nav-link"
-            }
-          >
-            Rules & Strike Reasons
-          </NavLink>
+          {capabilities.canViewQa && (
+            <NavLink
+              to="/chatters"
+              className={({
+                isActive,
+              }) =>
+                isActive
+                  ? "nav-link active"
+                  : "nav-link"
+              }
+            >
+              Chatters
+            </NavLink>
+          )}
 
-          <NavLink
-            to="/chatters"
-            className={({
-              isActive,
-            }) =>
-              isActive
-                ? "nav-link active"
-                : "nav-link"
-            }
-          >
-            Chatters
-          </NavLink>
+          {capabilities.canConfigureQa && (
+            <>
+              <NavLink
+                to="/rules"
+                className={({
+                  isActive,
+                }) =>
+                  isActive
+                    ? "nav-link active"
+                    : "nav-link"
+                }
+              >
+                Rules & Strike Reasons
+              </NavLink>
 
-          <NavLink
-            to="/configuration"
-            className={({
-              isActive,
-            }) =>
-              isActive
-                ? "nav-link active"
-                : "nav-link"
-            }
-          >
-            Configuration
-          </NavLink>
+              <NavLink
+                to="/configuration"
+              className={({
+                isActive,
+              }) =>
+                isActive
+                  ? "nav-link active"
+                  : "nav-link"
+              }
+              >
+                Configuration
+              </NavLink>
+            </>
+          )}
 
-          {canManagePeople && (
+          {capabilities.canManagePeople && (
             <NavLink
               to="/people"
               className={({
@@ -182,7 +456,7 @@ function AppLayout() {
             </NavLink>
           )}
 
-          {canManageModels && (
+          {capabilities.canManageModels && (
             <NavLink
               to="/models"
               className={({
@@ -194,6 +468,36 @@ function AppLayout() {
               }
             >
               Models
+            </NavLink>
+          )}
+
+          {capabilities.canManageRoles && (
+            <NavLink
+              to="/roles"
+              className={({
+                isActive,
+              }) =>
+                isActive
+                  ? "nav-link active"
+                  : "nav-link"
+              }
+            >
+              Roles
+            </NavLink>
+          )}
+
+          {capabilities.canViewAudit && (
+            <NavLink
+              to="/audit"
+              className={({
+                isActive,
+              }) =>
+                isActive
+                  ? "nav-link active"
+                  : "nav-link"
+              }
+            >
+              Audit Log
             </NavLink>
           )}
         </nav>
@@ -240,7 +544,21 @@ function AppLayout() {
       </aside>
 
       <main className="main-content">
-        <Outlet />
+        {modelContextReady ? (
+          <Outlet
+            key={
+              activeModelId
+            }
+          />
+        ) : (
+          <div className="page">
+            <div className="empty-state">
+              <strong>
+                Loading portal access…
+              </strong>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

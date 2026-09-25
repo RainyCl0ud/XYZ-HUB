@@ -12,6 +12,10 @@ import type {
 import { apiRequest } from "../lib/api";
 
 import {
+  formatCentralDateTime,
+} from "../lib/time";
+
+import {
   useToast,
 } from "../components/ToastProvider";
 
@@ -1308,9 +1312,7 @@ function RulesPage() {
                           {rule.archivedAt && (
                             <time>
                               Archived{" "}
-                              {new Date(
-                                rule.archivedAt
-                              ).toLocaleString()}
+                              {formatCentralDateTime(rule.archivedAt)}
                             </time>
                           )}
                         </div>
@@ -1793,9 +1795,7 @@ function RulesPage() {
                         </div>
 
                         <time>
-                          {new Date(
-                            version.createdAt
-                          ).toLocaleString()}
+                          {formatCentralDateTime(version.createdAt)}
                         </time>
                       </div>
 

@@ -10,7 +10,18 @@ import type {
   KeyboardEvent,
 } from "react";
 
-import { apiRequest } from "../lib/api";
+import {
+  apiRequest,
+  MODEL_CONTEXT_CHANGED_EVENT,
+} from "../lib/api";
+
+import {
+  useAuth,
+} from "../auth/AuthContext";
+
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
 import {
   useToast,
 } from "../components/ToastProvider";
@@ -214,6 +225,15 @@ function formatPercentage(
 function ChattersPage() {
   const toast = useToast();
 
+  const {
+    access,
+  } = useAuth();
+
+  const canConfigureQa =
+    getPortalCapabilities(
+      access
+    ).canConfigureQa;
+
   const [
     chatters,
     setChatters,
@@ -309,6 +329,11 @@ function ChattersPage() {
     detailsError,
     setDetailsError,
   ] = useState("");
+
+  const [
+    modelContextRevision,
+    setModelContextRevision,
+  ] = useState(0);
 
   const [
     incidentFilter,
@@ -437,7 +462,41 @@ function ChattersPage() {
 
   useEffect(() => {
     void loadChatters();
-  }, [loadChatters]);
+  }, [
+    loadChatters,
+    modelContextRevision,
+  ]);
+
+  useEffect(() => {
+    const handleModelContextChange =
+      () => {
+        setSelectedChatter(null);
+        setChatterStrikeSummary(null);
+        setChatterIncidents([]);
+        setDetailsError("");
+        setIncidentFilter("ALL");
+        setStrikeFilter("ALL");
+        setExpandedIncidentId(null);
+        setPendingConfirmation(null);
+
+        setModelContextRevision(
+          (current) =>
+            current + 1
+        );
+      };
+
+    window.addEventListener(
+      MODEL_CONTEXT_CHANGED_EVENT,
+      handleModelContextChange
+    );
+
+    return () => {
+      window.removeEventListener(
+        MODEL_CONTEXT_CHANGED_EVENT,
+        handleModelContextChange
+      );
+    };
+  }, []);
 
   /*
    * Chatter profile
@@ -1258,15 +1317,17 @@ function ChattersPage() {
           </p>
         </div>
 
-        <button
-          className="primary-button"
-          type="button"
-          onClick={
-            openAddForm
-          }
-        >
-          Add Chatter
-        </button>
+        {canConfigureQa && (
+          <button
+            className="primary-button"
+            type="button"
+            onClick={
+              openAddForm
+            }
+          >
+            Add Chatter
+          </button>
+        )}
       </header>
 
       {pageError && (
@@ -1546,7 +1607,8 @@ function ChattersPage() {
             </div>
 
             <div className="chatter-profile-content">
-              <div className="chatter-profile-actions">
+              {canConfigureQa && (
+                <div className="chatter-profile-actions">
                 <button
                   type="button"
                   className="secondary-button"
@@ -1602,7 +1664,14 @@ function ChattersPage() {
                       : "Reactivate"}
                   </button>
                 )}
-              </div>
+                </div>
+              )}
+
+              {!canConfigureQa && (
+                <div className="alert alert-info">
+                  Read-only QA view. Chatter record changes require management access.
+                </div>
+              )}
 
               {detailsError && (
                 <div className="alert alert-error">
@@ -2256,7 +2325,7 @@ function ChattersPage() {
 
       {/* ADD / EDIT */}
 
-      {showForm && (
+      {showForm && canConfigureQa && (
         <div
           className={
             selectedChatter &&

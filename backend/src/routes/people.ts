@@ -467,29 +467,22 @@ router.post(
         deliveryError
       ) {
         /*
-         * This user was created specifically
-         * for this invitation.
+         * Preserve the PENDING_SETUP user if delivery fails.
          *
-         * If delivery fails, remove the new
-         * PENDING_SETUP account so management
-         * can retry cleanly instead of being
-         * blocked by the unique email.
-         *
-         * Cascading relations remove the
-         * roles, model assignments and invite.
+         * SMTP/provider errors can be ambiguous after a message has
+         * already left the application. Deleting the user here could
+         * invalidate a link that was actually delivered. Revoke only
+         * this invite; management can safely resend from People.
          */
         try {
-          await prisma.user.delete({
-            where: {
-              id:
-                result.user.id,
-            },
-          });
+          await revokeInvite(
+            result.invite.id
+          );
         } catch (
           cleanupError
         ) {
           console.error(
-            "Failed to clean up undelivered invite:",
+            "Failed to revoke undelivered invite:",
             cleanupError
           );
         }

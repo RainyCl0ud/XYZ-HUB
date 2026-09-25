@@ -287,7 +287,7 @@ async function runTests() {
       "✓ Login Gate user record is removed"
     );
 
-    const preservedChatter =
+    const deletedChatter =
       await prisma.chatter.findUnique({
         where: {
           id:
@@ -295,17 +295,18 @@ async function runTests() {
         },
       });
 
-    assert.ok(
-      preservedChatter
-    );
-
     assert.equal(
-      preservedChatter.userId,
+      deletedChatter,
       null
     );
 
+    assert.equal(
+      result.deletedChatterId,
+      chatter.id
+    );
+
     console.log(
-      "✓ QA Chatter record is preserved and detached"
+      "✓ tied QA Chatter record is removed by permanent deletion"
     );
 
     const sessions =

@@ -9,7 +9,14 @@ import type {
   FormEvent,
 } from "react";
 
-import { apiRequest } from "../lib/api";
+import {
+  apiRequest,
+  MODEL_CONTEXT_CHANGED_EVENT,
+} from "../lib/api";
+
+import {
+  formatCentralDateTime,
+} from "../lib/time";
 
 import {
   useToast,
@@ -67,6 +74,13 @@ type Incident = {
 
   chatterId: string;
   ruleVersionId: string;
+  modelId: string | null;
+
+  agencyModel: {
+    id: string;
+    name: string;
+    isActive: boolean;
+  } | null;
 
   ruleTitleSnapshot: string;
   ruleDefinitionSnapshot: string;
@@ -276,6 +290,11 @@ function IncidentsPage() {
     setPageError,
   ] = useState("");
 
+  const [
+    modelContextRevision,
+    setModelContextRevision,
+  ] = useState(0);
+
   /*
    * =========================================================
    * LOG INCIDENT
@@ -473,7 +492,9 @@ function IncidentsPage() {
           false
         );
       }
-    }, [toast]);
+    }, [
+      toast,
+    ]);
 
   /*
    * =========================================================
@@ -553,11 +574,51 @@ function IncidentsPage() {
 
   useEffect(() => {
     void loadDependencies();
-  }, [loadDependencies]);
+  }, [
+    loadDependencies,
+    modelContextRevision,
+  ]);
 
   useEffect(() => {
     void loadIncidents();
-  }, [loadIncidents]);
+  }, [
+    loadIncidents,
+    modelContextRevision,
+  ]);
+
+  useEffect(() => {
+    const handleModelContextChange =
+      () => {
+        setChatterFilter("");
+        setChatterId("");
+        setRuleId("");
+        setFormError("");
+        setShowLogModal(false);
+        setSelectedIncident(null);
+        setActionType(null);
+        setActionIncident(null);
+        setActionNotes("");
+        setActionError("");
+        setPendingConfirmation(null);
+
+        setModelContextRevision(
+          (current) =>
+            current + 1
+        );
+      };
+
+    window.addEventListener(
+      MODEL_CONTEXT_CHANGED_EVENT,
+      handleModelContextChange
+    );
+
+    return () => {
+      window.removeEventListener(
+        MODEL_CONTEXT_CHANGED_EVENT,
+        handleModelContextChange
+      );
+    };
+  }, []);
 
   /*
    * =========================================================
@@ -623,6 +684,8 @@ function IncidentsPage() {
           const searchable = [
             incident.chatter.name,
 
+            incident.agencyModel?.name,
+
             incident
               .ruleTitleSnapshot,
 
@@ -653,15 +716,11 @@ function IncidentsPage() {
 
             incident.occurredAt,
 
-            new Date(
-              incident.occurredAt
-            ).toLocaleString(),
+            formatCentralDateTime(incident.occurredAt),
 
             incident.expiresAt,
 
-            new Date(
-              incident.expiresAt
-            ).toLocaleString(),
+            formatCentralDateTime(incident.expiresAt),
 
             incident
               .resolutionNotes,
@@ -1663,6 +1722,10 @@ function IncidentsPage() {
                   </th>
 
                   <th>
+                    Model
+                  </th>
+
+                  <th>
                     Rule
                   </th>
 
@@ -1751,6 +1814,11 @@ function IncidentsPage() {
                         </td>
 
                         <td>
+                          {incident.agencyModel?.name ??
+                            "Legacy / unassigned"}
+                        </td>
+
+                        <td>
                           <span className="incident-rule-inline">
                             <strong>
                               {
@@ -1804,9 +1872,7 @@ function IncidentsPage() {
                         </td>
 
                         <td className="incident-date-cell">
-                          {new Date(
-                            incident.occurredAt
-                          ).toLocaleString()}
+                          {formatCentralDateTime(incident.occurredAt)}
                         </td>
 
                         <td className="incident-date-cell">
@@ -1827,9 +1893,7 @@ function IncidentsPage() {
                               </span>
 
                               <span>
-                                {new Date(
-                                  incident.expiresAt
-                                ).toLocaleString()}
+                                {formatCentralDateTime(incident.expiresAt)}
                               </span>
                             </span>
                           )}
@@ -2409,6 +2473,17 @@ function IncidentsPage() {
                       <div className="detail-meta-grid">
                         <div>
                           <span>
+                            Model
+                          </span>
+
+                          <strong>
+                            {selectedIncident.agencyModel?.name ??
+                              "Legacy / unassigned"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
                             Rule Version
                           </span>
 
@@ -2457,9 +2532,7 @@ function IncidentsPage() {
                           </span>
 
                           <strong>
-                            {new Date(
-                              selectedIncident.occurredAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(selectedIncident.occurredAt)}
                           </strong>
                         </div>
 
@@ -2476,9 +2549,7 @@ function IncidentsPage() {
                               .strikeActivityStatus ===
                             "NOT_APPLICABLE"
                               ? "Not applicable"
-                              : new Date(
-                                  selectedIncident.expiresAt
-                                ).toLocaleString()}
+                              : formatCentralDateTime(selectedIncident.expiresAt)}
                           </strong>
                         </div>
 
@@ -2584,9 +2655,7 @@ function IncidentsPage() {
                           <small>
                             Resolved{" "}
 
-                            {new Date(
-                              selectedIncident.resolvedAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(selectedIncident.resolvedAt)}
                           </small>
                         )}
                       </div>
@@ -2609,9 +2678,7 @@ function IncidentsPage() {
                           <small>
                             Voided{" "}
 
-                            {new Date(
-                              selectedIncident.voidedAt
-                            ).toLocaleString()}
+                            {formatCentralDateTime(selectedIncident.voidedAt)}
                           </small>
                         )}
                       </div>

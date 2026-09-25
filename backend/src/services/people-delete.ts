@@ -16,8 +16,8 @@ export type DeletePersonInput = {
 export type PeopleDeleteErrorCode =
   | "OWNER_REQUIRED"
   | "PEOPLE_DELETE_REQUIRED"
-  | "USER_NOT_FOUND"
   | "CANNOT_DELETE_SELF"
+  | "USER_NOT_FOUND"
   | "CONFIRMATION_MISMATCH";
 
 export class PeopleDeleteError extends Error {
@@ -30,7 +30,9 @@ export class PeopleDeleteError extends Error {
     message:
       string
   ) {
-    super(message);
+    super(
+      message
+    );
 
     this.name =
       "PeopleDeleteError";
@@ -87,20 +89,27 @@ export async function deletePerson(
       },
 
       select: {
-        id: true,
-        name: true,
-        email: true,
-        status: true,
+        id:
+          true,
+        name:
+          true,
+        email:
+          true,
+        status:
+          true,
 
         chatterProfile: {
           select: {
-            id: true,
+            id:
+              true,
           },
         },
       },
     });
 
-  if (!user) {
+  if (
+    !user
+  ) {
     throw new PeopleDeleteError(
       "USER_NOT_FOUND",
       "The user does not exist."
@@ -122,70 +131,70 @@ export async function deletePerson(
     );
   }
 
-  const preservedChatterId =
+  const chatterId =
     user.chatterProfile?.id ??
     null;
 
-  await prisma.$transaction(
-    async (
-      tx
-    ) => {
-      /*
-       * Existing QA history belongs to the
-       * Chatter record, not to Login Gate.
-       *
-       * Detach the Login Gate identity first
-       * so historical QA/incidents remain.
-       */
-      if (
-        preservedChatterId
-      ) {
-        await tx.chatter.update({
+  const result =
+    await prisma.$transaction(
+      async (
+        tx
+      ) => {
+        let deletedIncidents =
+          0;
+
+        /*
+         * Clarified Step 1 behavior:
+         * permanent deletion removes the employee
+         * and QA records tied to that employee.
+         * Deactivation is the preservation path.
+         */
+        if (
+          chatterId
+        ) {
+          const incidentDelete =
+            await tx.incident.deleteMany({
+              where: {
+                chatterId,
+              },
+            });
+
+          deletedIncidents =
+            incidentDelete.count;
+
+          await tx.chatter.delete({
+            where: {
+              id:
+                chatterId,
+            },
+          });
+        }
+
+        await tx.user.delete({
           where: {
             id:
-              preservedChatterId,
-          },
-
-          data: {
-            userId:
-              null,
+              user.id,
           },
         });
-      }
 
-      /*
-       * Related authentication records,
-       * memberships, invites, sessions,
-       * password-reset records and 2FA
-       * records cascade according to the
-       * Prisma schema.
-       *
-       * Historical records where this user
-       * was merely the assigner/creator use
-       * SetNull and therefore remain.
-       */
-      await tx.user.delete({
-        where: {
-          id:
-            user.id,
-        },
-      });
-    }
-  );
+        return {
+          deletedIncidents,
+        };
+      }
+    );
 
   return {
     id:
       user.id,
-
     name:
       user.name,
-
     email:
       user.email,
-
     previousStatus:
       user.status,
-
-    preservedChatterId,
+    deletedChatterId:
+      chatterId,
+    deletedIncidentCount:
+      result.deletedIncidents,
   };
 }

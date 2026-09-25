@@ -1005,7 +1005,7 @@ function PeoplePage() {
         );
 
         toast.success(
-          "The Login Gate user was permanently deleted. Existing QA history remains preserved.",
+          "The user and tied QA history were permanently deleted.",
           "User deleted"
         );
 
@@ -1222,6 +1222,7 @@ function PeoplePage() {
             className="search-input"
             type="search"
             placeholder="Search name, email, role, or model"
+            aria-label="Search people"
             value={
               search
             }
@@ -1822,6 +1823,7 @@ function PeoplePage() {
 
                   resetInviteForm();
                 }}
+                aria-label="Close invitation"
               >
                 ×
               </button>
@@ -1978,11 +1980,13 @@ function PeoplePage() {
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() =>
+                onClick={() => {
                   setShowInvite(
                     false
-                  )
-                }
+                  );
+
+                  resetInviteForm();
+                }}
                 disabled={
                   saving
                 }
@@ -2037,6 +2041,7 @@ function PeoplePage() {
                       false
                     )
                   }
+                  aria-label="Close access editor"
                 >
                   ×
                 </button>
@@ -2223,7 +2228,7 @@ function PeoplePage() {
                 <p>
                   {confirmAction ===
                   "delete"
-                    ? "This deletes the Login Gate identity and authentication records. Existing QA history is preserved separately."
+                    ? "This permanently deletes the Login Gate identity, authentication records, linked chatter profile, and tied QA incidents/strikes. Use deactivation when history must be preserved."
                     : confirmAction ===
                         "deactivate"
                       ? "The user will immediately lose access and all active sessions will be revoked."
@@ -2316,3 +2321,4 @@ function PeoplePage() {
 }
 
 export default PeoplePage;
+
