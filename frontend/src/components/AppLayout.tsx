@@ -292,6 +292,26 @@ function AppLayout() {
       access?.canSeeAllModels
     );
 
+  const canSwitchModelContext =
+    Boolean(
+      access?.canSeeAllModels
+    ) ||
+    models.length >
+      1;
+
+  const fixedModel =
+    !canSwitchModelContext &&
+    models.length ===
+      1
+      ? models[0]
+      : null;
+
+  const showSystemNavigation =
+    capabilities.canManagePeople ||
+    capabilities.canManageModels ||
+    capabilities.canManageRoles ||
+    capabilities.canViewAudit;
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -306,115 +326,93 @@ function AppLayout() {
             </h1>
 
             <p className="brand-subtitle">
-              Agency Operation Management
+              Agency Operations Hub
             </p>
           </div>
         </div>
 
         {showModelContext && (
           <div className="sidebar-model-context">
-            <label htmlFor="portal-model-context">
+            <span className="sidebar-model-context-label">
               Model context
-            </label>
+            </span>
 
-            <select
-              id="portal-model-context"
-              value={
-                activeModelId
-              }
-              onChange={(
-                event
-              ) =>
-                changeModelContext(
-                  event.target.value
-                )
-              }
-            >
-              {(access?.canSeeAllModels ||
-                models.length > 1) && (
-                <option value="ALL">
-                  {access?.canSeeAllModels
-                    ? "All models"
-                    : "All assigned models"}
-                </option>
-              )}
-
-              {models.map(
-                (
-                  model
-                ) => (
-                  <option
-                    key={
-                      model.id
-                    }
-                    value={
-                      model.id
-                    }
-                  >
-                    {model.name}
-                    {model.isActive
-                      ? ""
-                      : " (Inactive)"}
+            {canSwitchModelContext ? (
+              <select
+                id="portal-model-context"
+                aria-label="Model context"
+                value={
+                  activeModelId
+                }
+                onChange={(
+                  event
+                ) =>
+                  changeModelContext(
+                    event.target.value
+                  )
+                }
+              >
+                {(access?.canSeeAllModels ||
+                  models.length > 1) && (
+                  <option value="ALL">
+                    {access?.canSeeAllModels
+                      ? "All models"
+                      : "All assigned models"}
                   </option>
-                )
-              )}
-            </select>
+                )}
+
+                {models.map(
+                  (
+                    model
+                  ) => (
+                    <option
+                      key={
+                        model.id
+                      }
+                      value={
+                        model.id
+                      }
+                    >
+                      {model.name}
+                      {model.isActive
+                        ? ""
+                        : " (Inactive)"}
+                    </option>
+                  )
+                )}
+              </select>
+            ) : fixedModel ? (
+              <div
+                className="sidebar-model-context-static"
+                aria-label={
+                  `Current model: ${fixedModel.name}`
+                }
+              >
+                {fixedModel.name}
+                {fixedModel.isActive
+                  ? ""
+                  : " (Inactive)"}
+              </div>
+            ) : null}
 
             <small>
-              QA lists and dashboard data follow this selection.
+              {canSwitchModelContext
+                ? "Model-scoped workspace data follows this selection."
+                : "Your current access is scoped to this model."}
             </small>
           </div>
         )}
 
         <nav className="sidebar-nav">
-          <NavLink
-            to="/"
-            end
-            className={({
-              isActive,
-            }) =>
-              isActive
-                ? "nav-link active"
-                : "nav-link"
-            }
-          >
-            Dashboard
-          </NavLink>
-
-          {capabilities.canViewQa && (
-            <NavLink
-              to="/incidents"
-              className={({
-                isActive,
-              }) =>
-                isActive
-                  ? "nav-link active"
-                  : "nav-link"
-              }
-            >
-              Incidents
-            </NavLink>
-          )}
-
-          {capabilities.canViewQa && (
-            <NavLink
-              to="/chatters"
-              className={({
-                isActive,
-              }) =>
-                isActive
-                  ? "nav-link active"
-                  : "nav-link"
-              }
-            >
-              Chatters
-            </NavLink>
-          )}
-
-          {capabilities.canConfigureQa && (
+          {capabilities.canViewQa ? (
             <>
+              <div className="sidebar-nav-label">
+                Quality
+              </div>
+
               <NavLink
-                to="/rules"
+                to="/"
+                end
                 className={({
                   isActive,
                 }) =>
@@ -423,27 +421,69 @@ function AppLayout() {
                     : "nav-link"
                 }
               >
-                Rules & Strike Reasons
+                Overview
               </NavLink>
 
               <NavLink
-                to="/configuration"
-              className={({
-                isActive,
-              }) =>
-                isActive
-                  ? "nav-link active"
-                  : "nav-link"
-              }
+                to="/incidents"
+                className={({
+                  isActive,
+                }) =>
+                  isActive
+                    ? "nav-link active"
+                    : "nav-link"
+                }
               >
-                Configuration
+                Incidents
               </NavLink>
+
+              <NavLink
+                to="/chatters"
+                className={({
+                  isActive,
+                }) =>
+                  isActive
+                    ? "nav-link active"
+                    : "nav-link"
+                }
+              >
+                Chatters
+              </NavLink>
+
+              {capabilities.canConfigureQa && (
+                <>
+                  <NavLink
+                    to="/rules"
+                    className={({
+                      isActive,
+                    }) =>
+                      isActive
+                        ? "nav-link active"
+                        : "nav-link"
+                    }
+                  >
+                    Rules & Strike Reasons
+                  </NavLink>
+
+                  <NavLink
+                    to="/configuration"
+                    className={({
+                      isActive,
+                    }) =>
+                      isActive
+                        ? "nav-link active"
+                        : "nav-link"
+                    }
+                  >
+                    Configuration
+                  </NavLink>
+                </>
+              )}
             </>
-          )}
-
-          {capabilities.canManagePeople && (
+          ) : (
             <NavLink
-              to="/people"
+              to="/"
+              end
               className={({
                 isActive,
               }) =>
@@ -452,53 +492,76 @@ function AppLayout() {
                   : "nav-link"
               }
             >
-              People
+              Home
             </NavLink>
           )}
 
-          {capabilities.canManageModels && (
-            <NavLink
-              to="/models"
-              className={({
-                isActive,
-              }) =>
-                isActive
-                  ? "nav-link active"
-                  : "nav-link"
-              }
-            >
-              Models
-            </NavLink>
-          )}
+          {showSystemNavigation && (
+            <>
+              <div className="sidebar-nav-label sidebar-nav-label-system">
+                System
+              </div>
 
-          {capabilities.canManageRoles && (
-            <NavLink
-              to="/roles"
-              className={({
-                isActive,
-              }) =>
-                isActive
-                  ? "nav-link active"
-                  : "nav-link"
-              }
-            >
-              Roles
-            </NavLink>
-          )}
+              {capabilities.canManagePeople && (
+                <NavLink
+                  to="/people"
+                  className={({
+                    isActive,
+                  }) =>
+                    isActive
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                >
+                  People
+                </NavLink>
+              )}
 
-          {capabilities.canViewAudit && (
-            <NavLink
-              to="/audit"
-              className={({
-                isActive,
-              }) =>
-                isActive
-                  ? "nav-link active"
-                  : "nav-link"
-              }
-            >
-              Audit Log
-            </NavLink>
+              {capabilities.canManageModels && (
+                <NavLink
+                  to="/models"
+                  className={({
+                    isActive,
+                  }) =>
+                    isActive
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                >
+                  Models
+                </NavLink>
+              )}
+
+              {capabilities.canManageRoles && (
+                <NavLink
+                  to="/roles"
+                  className={({
+                    isActive,
+                  }) =>
+                    isActive
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                >
+                  Role Builder
+                </NavLink>
+              )}
+
+              {capabilities.canViewAudit && (
+                <NavLink
+                  to="/audit"
+                  className={({
+                    isActive,
+                  }) =>
+                    isActive
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                >
+                  Audit Log
+                </NavLink>
+              )}
+            </>
           )}
         </nav>
 
