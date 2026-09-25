@@ -208,145 +208,21 @@ function AppLayout() {
 
       void loadModels();
 
-      return () => {
-        active =
-          false;
-      };
-    },
-    [
-      capabilities.canViewQa,
-      access?.canSeeAllModels,
-    ]
-  );
+      return (
+    <div className="app-shell portal-shell">
+      <header className="portal-command-bar">
+        <div className="portal-command-context">
+          <span className="portal-command-label">
+            Model context
+          </span>
 
-  const roleNames =
-    access?.roles
-      .map(
-        (
-          role
-        ) =>
-          role.name
-      )
-      .join(
-        ", "
-      ) ||
-    "XYZ Hub User";
-
-  async function handleLogout() {
-    setSigningOut(
-      true
-    );
-
-    try {
-      await logout();
-
-      localStorage.removeItem(
-        MODEL_CONTEXT_STORAGE_KEY
-      );
-
-      navigate(
-        "/login",
-        {
-          replace:
-            true,
-        }
-      );
-    } finally {
-      setSigningOut(
-        false
-      );
-    }
-  }
-
-  function changeModelContext(
-    value:
-      string
-  ) {
-    setActiveModelId(
-      value
-    );
-
-    localStorage.setItem(
-      MODEL_CONTEXT_STORAGE_KEY,
-      value
-    );
-
-    window.dispatchEvent(
-      new CustomEvent(
-        MODEL_CONTEXT_CHANGED_EVENT,
-        {
-          detail: {
-            modelId:
-              value,
-          },
-        }
-      )
-    );
-  }
-
-  const showModelContext =
-    capabilities.canViewQa &&
-    (
-      models.length >
-        0 ||
-      access?.canSeeAllModels
-    );
-
-  const canSwitchModelContext =
-    Boolean(
-      access?.canSeeAllModels
-    ) ||
-    models.length >
-      1;
-
-  const fixedModel =
-    !canSwitchModelContext &&
-    models.length ===
-      1
-      ? models[0]
-      : null;
-
-  const showSystemNavigation =
-    capabilities.canManagePeople ||
-    capabilities.canManageModels ||
-    capabilities.canManageRoles ||
-    capabilities.canViewAudit;
-
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="brand-mark">
-            X
-          </div>
-
-          <div className="brand-copy">
-            <h1 className="brand-name">
-              XYZ Hub
-            </h1>
-
-            <p className="brand-subtitle">
-              Agency Operations Hub
-            </p>
-          </div>
-        </div>
-
-        {showModelContext && (
-          <div className="sidebar-model-context">
-            <span className="sidebar-model-context-label">
-              Model context
-            </span>
-
-            {canSwitchModelContext ? (
+          {showModelContext ? (
+            canSwitchModelContext ? (
               <select
                 id="portal-model-context"
                 aria-label="Model context"
-                value={
-                  activeModelId
-                }
-                onChange={(
-                  event
-                ) =>
+                value={activeModelId}
+                onChange={(event) =>
                   changeModelContext(
                     event.target.value
                   )
@@ -361,47 +237,74 @@ function AppLayout() {
                   </option>
                 )}
 
-                {models.map(
-                  (
-                    model
-                  ) => (
-                    <option
-                      key={
-                        model.id
-                      }
-                      value={
-                        model.id
-                      }
-                    >
-                      {model.name}
-                      {model.isActive
-                        ? ""
-                        : " (Inactive)"}
-                    </option>
-                  )
-                )}
+                {models.map((model) => (
+                  <option
+                    key={model.id}
+                    value={model.id}
+                  >
+                    {model.name}
+                    {model.isActive
+                      ? ""
+                      : " (Inactive)"}
+                  </option>
+                ))}
               </select>
             ) : fixedModel ? (
-              <div
-                className="sidebar-model-context-static"
-                aria-label={
-                  `Current model: ${fixedModel.name}`
-                }
-              >
+              <div className="portal-command-context-static">
                 {fixedModel.name}
                 {fixedModel.isActive
                   ? ""
                   : " (Inactive)"}
               </div>
-            ) : null}
+            ) : null
+          ) : (
+            <div className="portal-command-context-static">
+              No model context
+            </div>
+          )}
+        </div>
 
-            <small>
-              {canSwitchModelContext
-                ? "Model-scoped workspace data follows this selection."
-                : "Your current access is scoped to this model."}
-            </small>
+        <div className="portal-command-brand">
+          <span>
+            XYZ Hub
+          </span>
+
+          <strong>
+            XYZ MANAGEMENT
+          </strong>
+        </div>
+
+        <div className="portal-command-user">
+          <span className="portal-command-label">
+            Signed in
+          </span>
+
+          <strong>
+            {roleNames}
+          </strong>
+        </div>
+      </header>
+
+      <aside className="sidebar portal-sidebar">
+        <div className="sidebar-header portal-workspace-header">
+          <div className="brand-mark">
+            X
           </div>
-        )}
+
+          <div className="brand-copy">
+            <p className="portal-workspace-label">
+              Current workspace
+            </p>
+
+            <h1 className="brand-name">
+              {workspaceName}
+            </h1>
+
+            <p className="brand-subtitle">
+              XYZ Hub
+            </p>
+          </div>
+        </div>
 
         <nav className="sidebar-nav">
           {capabilities.canViewQa ? (
@@ -413,9 +316,7 @@ function AppLayout() {
               <NavLink
                 to="/"
                 end
-                className={({
-                  isActive,
-                }) =>
+                className={({ isActive }) =>
                   isActive
                     ? "nav-link active"
                     : "nav-link"
@@ -426,9 +327,7 @@ function AppLayout() {
 
               <NavLink
                 to="/incidents"
-                className={({
-                  isActive,
-                }) =>
+                className={({ isActive }) =>
                   isActive
                     ? "nav-link active"
                     : "nav-link"
@@ -439,9 +338,7 @@ function AppLayout() {
 
               <NavLink
                 to="/chatters"
-                className={({
-                  isActive,
-                }) =>
+                className={({ isActive }) =>
                   isActive
                     ? "nav-link active"
                     : "nav-link"
@@ -454,9 +351,7 @@ function AppLayout() {
                 <>
                   <NavLink
                     to="/rules"
-                    className={({
-                      isActive,
-                    }) =>
+                    className={({ isActive }) =>
                       isActive
                         ? "nav-link active"
                         : "nav-link"
@@ -467,9 +362,7 @@ function AppLayout() {
 
                   <NavLink
                     to="/configuration"
-                    className={({
-                      isActive,
-                    }) =>
+                    className={({ isActive }) =>
                       isActive
                         ? "nav-link active"
                         : "nav-link"
@@ -484,9 +377,7 @@ function AppLayout() {
             <NavLink
               to="/"
               end
-              className={({
-                isActive,
-              }) =>
+              className={({ isActive }) =>
                 isActive
                   ? "nav-link active"
                   : "nav-link"
@@ -496,18 +387,16 @@ function AppLayout() {
             </NavLink>
           )}
 
-          {showSystemNavigation && (
+          {showManagementNavigation && (
             <>
               <div className="sidebar-nav-label sidebar-nav-label-system">
-                System
+                Management
               </div>
 
               {capabilities.canManagePeople && (
                 <NavLink
                   to="/people"
-                  className={({
-                    isActive,
-                  }) =>
+                  className={({ isActive }) =>
                     isActive
                       ? "nav-link active"
                       : "nav-link"
@@ -520,9 +409,7 @@ function AppLayout() {
               {capabilities.canManageModels && (
                 <NavLink
                   to="/models"
-                  className={({
-                    isActive,
-                  }) =>
+                  className={({ isActive }) =>
                     isActive
                       ? "nav-link active"
                       : "nav-link"
@@ -531,13 +418,19 @@ function AppLayout() {
                   Models
                 </NavLink>
               )}
+            </>
+          )}
+
+          {showSystemNavigation && (
+            <>
+              <div className="sidebar-nav-label sidebar-nav-label-system">
+                System
+              </div>
 
               {capabilities.canManageRoles && (
                 <NavLink
                   to="/roles"
-                  className={({
-                    isActive,
-                  }) =>
+                  className={({ isActive }) =>
                     isActive
                       ? "nav-link active"
                       : "nav-link"
@@ -550,9 +443,7 @@ function AppLayout() {
               {capabilities.canViewAudit && (
                 <NavLink
                   to="/audit"
-                  className={({
-                    isActive,
-                  }) =>
+                  className={({ isActive }) =>
                     isActive
                       ? "nav-link active"
                       : "nav-link"
@@ -585,9 +476,7 @@ function AppLayout() {
             onClick={() => {
               void handleLogout();
             }}
-            disabled={
-              signingOut
-            }
+            disabled={signingOut}
           >
             {signingOut
               ? "Signing out..."
@@ -609,9 +498,7 @@ function AppLayout() {
       <main className="main-content">
         {modelContextReady ? (
           <Outlet
-            key={
-              activeModelId
-            }
+            key={activeModelId}
           />
         ) : (
           <div className="page">
