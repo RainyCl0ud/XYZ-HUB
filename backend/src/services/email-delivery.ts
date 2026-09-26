@@ -1,5 +1,9 @@
 import nodemailer from "nodemailer";
 
+import {
+  JWT,
+} from "google-auth-library";
+
 export type TransactionalEmail = {
   to: string;
   subject: string;
@@ -7,25 +11,16 @@ export type TransactionalEmail = {
   html?: string;
 };
 
-let cachedTransporter:
-  ReturnType<
-    typeof nodemailer.createTransport
-  > |
-  null =
-  null;
+const GMAIL_SEND_SCOPE =
+  "https://www.googleapis.com/auth/gmail.send";
 
 function requiredEnv(
-  key:
-    string
-) {
+  key: string
+): string {
   const value =
-    process.env[
-      key
-    ]?.trim();
+    process.env[key]?.trim();
 
-  if (
-    !value
-  ) {
+  if (!value) {
     throw new Error(
       `${key} is not configured.`
     );
@@ -34,103 +29,213 @@ function requiredEnv(
   return value;
 }
 
-function getSmtpPort() {
-  const raw =
-    process.env.SMTP_PORT
-      ?.trim() ??
-    "587";
-
-  const port =
-    Number(
-      raw
-    );
-
-  if (
-    !Number.isInteger(
-      port
-    ) ||
-    port < 1 ||
-    port > 65535
-  ) {
-    throw new Error(
-      "SMTP_PORT must be a valid TCP port."
-    );
-  }
-
-  return port;
+function normalizePrivateKey(
+  value: string
+): string {
+  return value.replace(
+    /\\n/g,
+    "\n"
+  );
 }
 
-function getTransporter() {
+function encodeBase64Url(
+  value: Buffer
+): string {
+  return value
+    .toString("base64")
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/g, "");
+}
+
+function assertSafeHeaderValue(
+  value: string,
+  name: string
+): void {
   if (
-    cachedTransporter
-  ) {
-    return cachedTransporter;
-  }
-
-  const host =
-    requiredEnv(
-      "SMTP_HOST"
-    );
-
-  const port =
-    getSmtpPort();
-
-  const secure =
-    process.env.SMTP_SECURE ===
-    "true";
-
-  const user =
-    process.env.SMTP_USER
-      ?.trim();
-
-  const pass =
-    process.env.SMTP_PASSWORD;
-
-  if (
-    Boolean(
-      user
-    ) !==
-    Boolean(
-      pass
-    )
+    value.includes("\r") ||
+    value.includes("\n")
   ) {
     throw new Error(
-      "SMTP_USER and SMTP_PASSWORD must either both be configured or both be omitted."
+      `${name} contains invalid characters.`
+    );
+  }
+}
+
+async function createRawMessage(
+  email: TransactionalEmail,
+  from: string
+): Promise<string> {
+  assertSafeHeaderValue(
+    from,
+    "EMAIL_FROM"
+  );
+
+  assertSafeHeaderValue(
+    email.to,
+    "Recipient"
+  );
+
+  assertSafeHeaderValue(
+    email.subject,
+    "Subject"
+  );
+
+  /*
+   * Nodemailer is only used here to construct
+   * a standards-compliant MIME message.
+   *
+   * It does not connect to an SMTP server.
+   */
+  const transport =
+    nodemailer.createTransport({
+      streamTransport: true,
+      buffer: true,
+      newline: "windows",
+    });
+
+  const result =
+    await transport.sendMail({
+      from,
+      to:
+        email.to,
+      subject:
+        email.subject,
+      text:
+        email.text,
+      html:
+        email.html,
+
+      disableFileAccess:
+        true,
+      disableUrlAccess:
+        true,
+    });
+
+  const message =
+    Buffer.isBuffer(
+      result.message
+    )
+      ? result.message
+      : Buffer.from(
+          String(
+            result.message
+          ),
+          "utf8"
+        );
+
+  return encodeBase64Url(
+    message
+  );
+}
+
+async function getGmailAccessToken(): Promise<string> {
+  const serviceAccountEmail =
+    requiredEnv(
+      "GOOGLE_SERVICE_ACCOUNT_EMAIL"
+    );
+
+  const privateKey =
+    normalizePrivateKey(
+      requiredEnv(
+        "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY"
+      )
+    );
+
+  const workspaceUser =
+    requiredEnv(
+      "GOOGLE_WORKSPACE_USER"
+    );
+
+  const client =
+    new JWT({
+      email:
+        serviceAccountEmail,
+
+      key:
+        privateKey,
+
+      scopes: [
+        GMAIL_SEND_SCOPE,
+      ],
+
+      subject:
+        workspaceUser,
+    });
+
+  const tokenResult =
+    await client.getAccessToken();
+
+  const token =
+    typeof tokenResult ===
+    "string"
+      ? tokenResult
+      : tokenResult?.token;
+
+  if (!token) {
+    throw new Error(
+      "Google Workspace access token could not be created."
     );
   }
 
-  cachedTransporter =
-    nodemailer.createTransport({
-      host,
-      port,
-      secure,
+  return token;
+}
 
-      requireTLS:
-        !secure,
+async function sendWithGmailApi(
+  email: TransactionalEmail
+): Promise<void> {
+  const from =
+    requiredEnv(
+      "EMAIL_FROM"
+    );
 
-      tls: {
-        minVersion:
-          "TLSv1.2",
-      },
+  const raw =
+    await createRawMessage(
+      email,
+      from
+    );
 
-      ...(user &&
-      pass
-        ? {
-            auth: {
-              user,
-              pass,
-            },
-          }
-        : {}),
-    });
+  const accessToken =
+    await getGmailAccessToken();
 
-  return cachedTransporter;
+  const response =
+    await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+      {
+        method:
+          "POST",
+
+        headers: {
+          Authorization:
+            `Bearer ${accessToken}`,
+
+          "Content-Type":
+            "application/json",
+        },
+
+        body:
+          JSON.stringify({
+            raw,
+          }),
+      }
+    );
+
+  if (!response.ok) {
+    const responseText =
+      await response.text();
+
+    throw new Error(
+      `Gmail API rejected the message (${response.status}): ${responseText.slice(
+        0,
+        500
+      )}`
+    );
+  }
 }
 
 export function getEmailDeliveryMode(
-  specificVariable:
-    string
-) {
+  specificVariable: string
+): string {
   return (
     process.env[
       specificVariable
@@ -143,9 +248,8 @@ export function getEmailDeliveryMode(
 }
 
 export function escapeEmailHtml(
-  value:
-    string
-) {
+  value: string
+): string {
   return value
     .replaceAll(
       "&",
@@ -170,24 +274,29 @@ export function escapeEmailHtml(
 }
 
 export function formatEmailExpiry(
-  value:
-    Date
-) {
+  value: Date
+): string {
   return new Intl.DateTimeFormat(
     "en-US",
     {
       timeZone:
         "America/Chicago",
+
       month:
         "short",
+
       day:
         "numeric",
+
       year:
         "numeric",
+
       hour:
         "numeric",
+
       minute:
         "2-digit",
+
       timeZoneName:
         "short",
     }
@@ -197,37 +306,9 @@ export function formatEmailExpiry(
 }
 
 export async function sendTransactionalEmail(
-  email:
-    TransactionalEmail
-) {
-  const from =
-    requiredEnv(
-      "SMTP_FROM"
-    );
-
-  const transporter =
-    getTransporter();
-
-  await transporter.sendMail({
-    from,
-    to:
-      email.to,
-    subject:
-      email.subject,
-    text:
-      email.text,
-    html:
-      email.html,
-
-    /*
-     * XYZ Hub generates all message content itself.
-     * These guards prevent future template changes
-     * from accidentally reading files or remote URLs
-     * through Nodemailer content nodes.
-     */
-    disableFileAccess:
-      true,
-    disableUrlAccess:
-      true,
-  });
+  email: TransactionalEmail
+): Promise<void> {
+  await sendWithGmailApi(
+    email
+  );
 }

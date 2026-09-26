@@ -84,7 +84,7 @@ export async function sendPasswordReset(
 
   if (
     mode ===
-    "smtp"
+    "gmail_api"
   ) {
     const safeName =
       escapeEmailHtml(

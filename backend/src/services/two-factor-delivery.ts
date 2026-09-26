@@ -59,7 +59,7 @@ export async function sendEmailTwoFactorCode(
 
   if (
     mode ===
-    "smtp"
+    "gmail_api"
   ) {
     const expiry =
       formatEmailExpiry(
