@@ -738,7 +738,7 @@ function PeoplePage() {
         .invitesAvailable
     ) {
       toast.warning(
-        "Real invitation email delivery is not connected yet. The form is ready, but sending remains disabled until the email provider is configured.",
+        "Invitation email delivery is not available in the current environment.",
         "Email setup pending"
       );
 
@@ -1130,7 +1130,7 @@ function PeoplePage() {
               ?.capabilities
               .invitesAvailable
               ? "Invite a person"
-              : "Invitation email delivery will be enabled after the agency sender domain is connected."
+              : "Invitation email delivery is not configured for this environment."
           }
         >
           Invite person
@@ -1147,7 +1147,7 @@ function PeoplePage() {
             </strong>
 
             <span>
-              The People interface is ready, but real invitation emails will stay unavailable until the agency Cloudflare/transactional-email setup is connected.
+              Invitation email delivery is not configured for the current environment.
             </span>
           </div>
         )}

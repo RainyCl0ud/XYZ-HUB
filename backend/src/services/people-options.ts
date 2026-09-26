@@ -26,11 +26,12 @@ function invitationsAreAvailable() {
   const mode =
     getInviteDeliveryMode();
 
-  if (
-    mode === "smtp"
-  ) {
-    return true;
-  }
+if (
+  mode === "smtp" ||
+  mode === "gmail_api"
+) {
+  return true;
+}
 
   return (
     mode === "console" &&
