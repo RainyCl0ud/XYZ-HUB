@@ -1,3 +1,4 @@
+import { useNavigationFilter } from "../lib/useNavigationFilter";
 import {
   useCallback,
   useEffect,
@@ -118,15 +119,9 @@ function ModelsPage() {
       ""
     );
 
-  const [
-    statusFilter,
-    setStatusFilter,
-  ] =
-    useState<
-      StatusFilter
-    >(
-      "ALL"
-    );
+  const [statusFilter, setStatusFilter] = useNavigationFilter<StatusFilter>(
+    "status", ["ALL","ACTIVE","INACTIVE"], "ALL",
+  );
 
   const [
     createOpen,

@@ -1,3 +1,4 @@
+import { useNavigationFilter } from "../lib/useNavigationFilter";
 import {
   useCallback,
   useEffect,
@@ -295,16 +296,9 @@ function PeoplePage() {
       ""
     );
 
-  const [
-    statusFilter,
-    setStatusFilter,
-  ] =
-    useState<
-      "ALL" |
-      PersonStatus
-    >(
-      "ALL"
-    );
+  const [statusFilter, setStatusFilter] = useNavigationFilter<"ALL" | PersonStatus>(
+    "status", ["ALL","ACTIVE","PENDING_SETUP","DEACTIVATED"], "ALL",
+  );
 
   const [
     showInvite,

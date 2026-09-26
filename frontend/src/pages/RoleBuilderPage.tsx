@@ -1,3 +1,4 @@
+import { useNavigationFilter } from "../lib/useNavigationFilter";
 import {
   useCallback,
   useEffect,
@@ -170,6 +171,9 @@ function draftFromRole(
 }
 
 function RoleBuilderPage() {
+  const [roleType, setRoleType] = useNavigationFilter<"ALL" | "SYSTEM" | "CUSTOM">(
+    "type", ["ALL", "SYSTEM", "CUSTOM"], "ALL",
+  );
   const toast =
     useToast();
 
@@ -382,6 +386,10 @@ function RoleBuilderPage() {
     ]
   );
 
+  const visibleRoles = roles.filter((role) =>
+    roleType === "ALL" || (roleType === "SYSTEM" ? role.isSystem : !role.isSystem)
+  );
+
   const selectedRole =
     useMemo(
       () =>
@@ -390,12 +398,15 @@ function RoleBuilderPage() {
             role
           ) =>
             role.id ===
-            selectedRoleId
+            selectedRoleId &&
+            (roleType === "ALL" ||
+              (roleType === "SYSTEM" ? role.isSystem : !role.isSystem))
         ) ??
         null,
       [
         roles,
         selectedRoleId,
+        roleType,
       ]
     );
 
@@ -652,6 +663,10 @@ function RoleBuilderPage() {
         response.role.id
       );
 
+      if (creating && roleType === "SYSTEM") {
+        setRoleType("CUSTOM");
+      }
+
       await refreshAuth();
 
       await loadBuilder(
@@ -866,8 +881,16 @@ function RoleBuilderPage() {
             </div>
 
             <span className="role-list-count">
-              {roles.length}
+              {visibleRoles.length}
             </span>
+          </div>
+
+          <div className="role-catalog-filter" role="group" aria-label="Role type">
+            {(["ALL", "SYSTEM", "CUSTOM"] as const).map((type) => (
+              <button key={type} type="button" aria-pressed={roleType === type} onClick={() => setRoleType(type)}>
+                {type === "ALL" ? "All" : type === "SYSTEM" ? "System" : "Custom"}
+              </button>
+            ))}
           </div>
 
           <div className="role-list">
@@ -875,13 +898,13 @@ function RoleBuilderPage() {
               <div className="role-builder-empty">
                 Loading roles…
               </div>
-            ) : roles.length ===
+            ) : visibleRoles.length ===
               0 ? (
               <div className="role-builder-empty">
-                No roles found.
+                No {roleType === "ALL" ? "" : roleType.toLowerCase() + " "}roles found.
               </div>
             ) : (
-              roles.map(
+              visibleRoles.map(
                 (
                   role
                 ) => (
@@ -1320,10 +1343,10 @@ function RoleBuilderPage() {
                         );
 
                         if (
-                          roles[0]
+                          visibleRoles[0]
                         ) {
                           selectRole(
-                            roles[0]
+                            visibleRoles[0]
                           );
                         }
                       }}
@@ -1375,7 +1398,7 @@ function RoleBuilderPage() {
                 </p>
 
                 <div className="role-delete-warning">
-                  The role and its permission mapping will be removed. Historical audit coverage will be added with the Audit Log phase.
+                  The role and its permission mapping will be removed. The deletion is recorded in the audit log; existing audit entries are preserved.
                 </div>
               </div>
 

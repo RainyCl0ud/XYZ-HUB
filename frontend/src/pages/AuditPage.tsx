@@ -1,3 +1,4 @@
+import { useNavigationFilter } from "../lib/useNavigationFilter";
 import {
   useCallback,
   useEffect,
@@ -135,13 +136,9 @@ function AuditPage() {
       ""
     );
 
-  const [
-    successFilter,
-    setSuccessFilter,
-  ] =
-    useState<SuccessFilter>(
-      "ALL"
-    );
+  const [successFilter, setSuccessFilter] = useNavigationFilter<SuccessFilter>(
+    "result", ["ALL","SUCCESS","FAILED"], "ALL",
+  );
 
   const [
     error,

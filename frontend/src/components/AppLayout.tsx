@@ -4,7 +4,6 @@ import {
 } from "react";
 
 import {
-  NavLink,
   Outlet,
   useNavigate,
 } from "react-router-dom";
@@ -25,6 +24,7 @@ import {
 import xyzManagementLogo from "../assets/xyz-management-logo.svg";
 
 import "./PortalAccess.css";
+import SidebarNavigation from "./SidebarNavigation";
 
 const MODEL_CONTEXT_STORAGE_KEY =
   "xyz_active_model_id";
@@ -308,14 +308,6 @@ function AppLayout() {
       ? models[0]
       : null;
 
-  const showManagementNavigation =
-    capabilities.canManagePeople ||
-    capabilities.canManageModels;
-
-  const showSystemNavigation =
-    capabilities.canManageRoles ||
-    capabilities.canViewAudit;
-
   return (
     <div className="app-shell portal-shell">
       <header className="portal-command-bar">
@@ -414,171 +406,7 @@ function AppLayout() {
           </div>
         </div>
 
-        <nav className="sidebar-nav">
-          {capabilities.canViewQa ? (
-            <details className="sidebar-module" open>
-              <summary className="nav-link sidebar-module-toggle">
-                <span>Quality &amp; Incident Tracking</span>
-
-                <svg
-                  className="sidebar-module-chevron"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  aria-hidden="true"
-                >
-                  <path d="m9 6 6 6-6 6" />
-                </svg>
-              </summary>
-
-              <div className="sidebar-module-links">
-
-                <NavLink
-                  to="/"
-                  end
-                  className={({ isActive }) =>
-                    isActive
-                      ? "nav-link active"
-                      : "nav-link"
-                  }
-                >
-                  Overview
-                </NavLink>
-
-                <NavLink
-                  to="/incidents"
-                  className={({ isActive }) =>
-                    isActive
-                      ? "nav-link active"
-                      : "nav-link"
-                  }
-                >
-                  Incidents
-                </NavLink>
-
-                <NavLink
-                  to="/chatters"
-                  className={({ isActive }) =>
-                    isActive
-                      ? "nav-link active"
-                      : "nav-link"
-                  }
-                >
-                  Chatters
-                </NavLink>
-
-                {capabilities.canConfigureQa && (
-                  <>
-                    <NavLink
-                      to="/rules"
-                      className={({ isActive }) =>
-                        isActive
-                          ? "nav-link active"
-                          : "nav-link"
-                      }
-                    >
-                      Rules & Strike Reasons
-                    </NavLink>
-
-                    <NavLink
-                      to="/configuration"
-                      className={({ isActive }) =>
-                        isActive
-                          ? "nav-link active"
-                          : "nav-link"
-                      }
-                    >
-                      Configuration
-                    </NavLink>
-                  </>
-                )}
-              </div>
-            </details>
-          ) : (
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                isActive
-                  ? "nav-link active"
-                  : "nav-link"
-              }
-            >
-              Home
-            </NavLink>
-          )}
-
-          {showManagementNavigation && (
-            <>
-              <div className="sidebar-nav-label sidebar-nav-label-system">
-                Management
-              </div>
-
-              {capabilities.canManagePeople && (
-                <NavLink
-                  to="/people"
-                  className={({ isActive }) =>
-                    isActive
-                      ? "nav-link active"
-                      : "nav-link"
-                  }
-                >
-                  People
-                </NavLink>
-              )}
-
-              {capabilities.canManageModels && (
-                <NavLink
-                  to="/models"
-                  className={({ isActive }) =>
-                    isActive
-                      ? "nav-link active"
-                      : "nav-link"
-                  }
-                >
-                  Models
-                </NavLink>
-              )}
-            </>
-          )}
-
-          {showSystemNavigation && (
-            <>
-              <div className="sidebar-nav-label sidebar-nav-label-system">
-                System
-              </div>
-
-              {capabilities.canManageRoles && (
-                <NavLink
-                  to="/roles"
-                  className={({ isActive }) =>
-                    isActive
-                      ? "nav-link active"
-                      : "nav-link"
-                  }
-                >
-                  Role Builder
-                </NavLink>
-              )}
-
-              {capabilities.canViewAudit && (
-                <NavLink
-                  to="/audit"
-                  className={({ isActive }) =>
-                    isActive
-                      ? "nav-link active"
-                      : "nav-link"
-                  }
-                >
-                  Audit Log
-                </NavLink>
-              )}
-            </>
-          )}
-        </nav>
+        <SidebarNavigation access={access} />
 
         <div className="sidebar-account">
           <div className="sidebar-account-name">
