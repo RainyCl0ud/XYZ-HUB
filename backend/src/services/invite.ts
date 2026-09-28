@@ -16,6 +16,10 @@ import {
   hashInviteToken,
 } from "./invite-token.js";
 
+import {
+  publishLiveUpdate,
+} from "./live-updates.js";
+
 export const INVITE_TTL_MS =
   7 * 24 * 60 * 60 * 1000;
 
@@ -274,8 +278,9 @@ export async function acceptInviteToken(
     new Date();
 
   try {
-    return await prisma.$transaction(
-      async (tx) => {
+    const result =
+      await prisma.$transaction(
+        async (tx) => {
         const invite =
           await tx.invite.findUnique({
             where: {
@@ -452,8 +457,22 @@ export async function acceptInviteToken(
               UserStatus.ACTIVE,
           },
         };
-      }
-    );
+        }
+      );
+
+    if (
+      result.status ===
+      "ACCEPTED"
+    ) {
+      publishLiveUpdate({
+        type:
+          "people.changed",
+        userId:
+          result.user.id,
+      });
+    }
+
+    return result;
   } catch (error) {
     console.error(
       "Invite acceptance failed:",
