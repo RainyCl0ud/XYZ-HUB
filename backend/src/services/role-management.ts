@@ -12,6 +12,10 @@ import {
   type AccessContext,
 } from "./access-control.js";
 
+import {
+  publishLiveUpdate,
+} from "./live-updates.js";
+
 export type RoleBuilderInput = {
   name: string;
 
@@ -737,6 +741,18 @@ export async function updateRole(
         });
       }
     );
+
+  publishLiveUpdate({
+    type:
+      "access.changed",
+    roleId:
+      role.id,
+  });
+
+  publishLiveUpdate({
+    type:
+      "people.changed",
+  });
 
   return serializeRole(
     role
