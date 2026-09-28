@@ -105,12 +105,15 @@ export function getPortalCapabilities(
     );
 
   /*
-   * Build Brief clarification: Audit Log is
-   * read-only for Owner and Dev.
+   * Audit visibility follows the effective permission
+   * set returned by /auth/me so Role Builder edits are
+   * authoritative for already-assigned roles.
    */
   const canViewAudit =
-    isOwner ||
-    isDev;
+    access?.permissions.includes(
+      "audit.view"
+    ) ??
+    false;
 
   return {
     isOwner,
