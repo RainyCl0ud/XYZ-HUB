@@ -32,6 +32,7 @@ import inviteRoutes from "./routes/invites.js";
 import authRoutes from "./routes/auth.js";
 import accessRoutes from "./routes/access.js";
 import auditRoutes from "./routes/audit.js";
+import liveRoutes from "./routes/live.js";
 
 import chatterRoutes from "./routes/qa-chatters.js";
 import incidentRoutes from "./routes/qa-incidents.js";
@@ -176,6 +177,11 @@ app.use(
 app.use(
   "/api/access",
   accessRoutes
+);
+
+app.use(
+  "/api/live",
+  liveRoutes
 );
 
 app.use(
