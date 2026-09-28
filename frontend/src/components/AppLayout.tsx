@@ -5,7 +5,6 @@ import {
 
 import {
   Outlet,
-  useLocation,
   useNavigate,
 } from "react-router-dom";
 
@@ -50,9 +49,6 @@ type AccessModelsResponse = {
 function AppLayout() {
   const navigate =
     useNavigate();
-
-  const location =
-    useLocation();
 
   const {
     user,
@@ -246,20 +242,10 @@ function AppLayout() {
 
   /*
    * Mobile navigation behaves as an off-canvas drawer.
-   * Close it after navigation and whenever the viewport
-   * leaves the mobile breakpoint.
+   * Route links close the drawer from the click event;
+   * viewport changes are handled by the media-query
+   * subscription below.
    */
-  useEffect(
-    () => {
-      setMobileNavOpen(
-        false
-      );
-    },
-    [
-      location.pathname,
-      location.search,
-    ]
-  );
 
   useEffect(
     () => {
@@ -546,6 +532,22 @@ function AppLayout() {
             ? " mobile-open"
             : ""}`
         }
+        onClick={(event) => {
+          const target =
+            event.target;
+
+          if (
+            target instanceof
+              Element &&
+            target.closest(
+              "a"
+            )
+          ) {
+            setMobileNavOpen(
+              false
+            );
+          }
+        }}
       >
         <div className="sidebar-header portal-workspace-header portal-brand-header">
           <img
