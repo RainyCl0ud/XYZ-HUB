@@ -278,9 +278,14 @@ export async function acceptInviteToken(
     new Date();
 
   try {
-    const result =
+    const result:
+      AcceptInviteResult =
       await prisma.$transaction(
-        async (tx) => {
+        async (
+          tx
+        ): Promise<
+          AcceptInviteResult
+        > => {
         const invite =
           await tx.invite.findUnique({
             where: {
