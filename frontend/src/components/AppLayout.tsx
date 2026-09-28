@@ -5,6 +5,7 @@ import {
 
 import {
   Outlet,
+  useLocation,
   useNavigate,
 } from "react-router-dom";
 
@@ -50,6 +51,9 @@ function AppLayout() {
   const navigate =
     useNavigate();
 
+  const location =
+    useLocation();
+
   const {
     user,
     access,
@@ -65,6 +69,12 @@ function AppLayout() {
   const [
     signingOut,
     setSigningOut,
+  ] =
+    useState(false);
+
+  const [
+    mobileNavOpen,
+    setMobileNavOpen,
   ] =
     useState(false);
 
@@ -234,6 +244,111 @@ function AppLayout() {
       ) ||
     "XYZ Hub User";
 
+  /*
+   * Mobile navigation behaves as an off-canvas drawer.
+   * Close it after navigation and whenever the viewport
+   * leaves the mobile breakpoint.
+   */
+  useEffect(
+    () => {
+      setMobileNavOpen(
+        false
+      );
+    },
+    [
+      location.pathname,
+      location.search,
+    ]
+  );
+
+  useEffect(
+    () => {
+      const mediaQuery =
+        window.matchMedia(
+          "(max-width: 720px)"
+        );
+
+      const handleViewportChange =
+        (
+          event:
+            MediaQueryListEvent
+        ) => {
+          if (
+            !event.matches
+          ) {
+            setMobileNavOpen(
+              false
+            );
+          }
+        };
+
+      mediaQuery.addEventListener(
+        "change",
+        handleViewportChange
+      );
+
+      return () => {
+        mediaQuery.removeEventListener(
+          "change",
+          handleViewportChange
+        );
+      };
+    },
+    []
+  );
+
+  useEffect(
+    () => {
+      if (
+        !mobileNavOpen
+      ) {
+        return;
+      }
+
+      const previousOverflow =
+        document.body.style
+          .overflow;
+
+      document.body.style
+        .overflow =
+        "hidden";
+
+      const handleKeyDown =
+        (
+          event:
+            KeyboardEvent
+        ) => {
+          if (
+            event.key ===
+            "Escape"
+          ) {
+            setMobileNavOpen(
+              false
+            );
+          }
+        };
+
+      window.addEventListener(
+        "keydown",
+        handleKeyDown
+      );
+
+      return () => {
+        document.body.style
+          .overflow =
+          previousOverflow;
+
+        window.removeEventListener(
+          "keydown",
+          handleKeyDown
+        );
+      };
+    },
+    [
+      mobileNavOpen,
+    ]
+  );
+
   async function handleLogout() {
     setSigningOut(
       true
@@ -376,6 +491,30 @@ function AppLayout() {
           </strong>
         </div>
 
+        <button
+          type="button"
+          className="portal-mobile-menu-button"
+          aria-label="Open navigation"
+          aria-controls="portal-mobile-navigation"
+          aria-expanded={
+            mobileNavOpen
+          }
+          onClick={() =>
+            setMobileNavOpen(
+              true
+            )
+          }
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 7h16M4 12h16M4 17h16"
+            />
+          </svg>
+        </button>
+
         <div className="portal-command-user">
           <span className="portal-command-label">
             Signed in
@@ -387,7 +526,27 @@ function AppLayout() {
         </div>
       </header>
 
-      <aside className="sidebar portal-sidebar">
+      {mobileNavOpen && (
+        <button
+          type="button"
+          className="portal-mobile-backdrop"
+          aria-label="Close navigation"
+          onClick={() =>
+            setMobileNavOpen(
+              false
+            )
+          }
+        />
+      )}
+
+      <aside
+        id="portal-mobile-navigation"
+        className={
+          `sidebar portal-sidebar${mobileNavOpen
+            ? " mobile-open"
+            : ""}`
+        }
+      >
         <div className="sidebar-header portal-workspace-header portal-brand-header">
           <img
             src={xyzManagementLogo}
@@ -404,6 +563,26 @@ function AppLayout() {
               Management Hub
             </p>
           </div>
+
+          <button
+            type="button"
+            className="portal-mobile-drawer-close"
+            aria-label="Close navigation"
+            onClick={() =>
+              setMobileNavOpen(
+                false
+              )
+            }
+          >
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                d="M6 6l12 12M18 6 6 18"
+              />
+            </svg>
+          </button>
         </div>
 
         <SidebarNavigation access={access} />
