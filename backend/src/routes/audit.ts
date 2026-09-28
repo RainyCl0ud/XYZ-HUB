@@ -9,6 +9,7 @@ import {
 import {
   type AuthenticatedRequest,
   requireAuth,
+  requirePermission,
 } from "../middleware/access.js";
 
 import {
@@ -17,24 +18,6 @@ import {
 
 const router =
   Router();
-
-function canReadAudit(
-  req:
-    AuthenticatedRequest
-) {
-  return (
-    req.access?.roles.some(
-      (
-        role
-      ) =>
-        role.systemKey ===
-          "OWNER" ||
-        role.systemKey ===
-          "DEV"
-    ) ??
-    false
-  );
-}
 
 const querySchema =
   z.object({
@@ -86,27 +69,15 @@ router.get(
 
   requireAuth,
 
+  requirePermission(
+    "audit.view"
+  ),
+
   async (
     req:
       AuthenticatedRequest,
     res
   ) => {
-    if (
-      !canReadAudit(
-        req
-      )
-    ) {
-      res.status(403).json({
-        error:
-          "AUDIT_VIEW_REQUIRED",
-
-        message:
-          "Audit Log access is limited to Owner and Dev.",
-      });
-
-      return;
-    }
-
     const parsed =
       querySchema.safeParse(
         req.query
