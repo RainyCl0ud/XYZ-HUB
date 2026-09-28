@@ -9,7 +9,9 @@ import {
 } from "react";
 
 import {
+  API_BASE_URL,
   AUTH_EXPIRED_EVENT,
+  PEOPLE_CHANGED_EVENT,
   ApiError,
   apiRequest,
 } from "../lib/api";
@@ -235,6 +237,156 @@ export function AuthProvider({
     [
       clearAuth,
       refreshAuth,
+    ]
+  );
+
+  /*
+   * Keep effective access synchronized across open
+   * sessions. Role Builder changes are pushed by the
+   * backend and /auth/me remains the source of truth.
+   *
+   * The same stream forwards People Management changes
+   * as a browser event so open management screens can
+   * refresh without a hard reload.
+   */
+  useEffect(
+    () => {
+      const currentUserId =
+        user?.id;
+
+      if (
+        !currentUserId
+      ) {
+        return;
+      }
+
+      const source =
+        new EventSource(
+          `${API_BASE_URL}/api/live`,
+          {
+            withCredentials:
+              true,
+          }
+        );
+
+      const handleAccessChanged =
+        (
+          event:
+            Event
+        ) => {
+          let targetUserId:
+            string | null =
+            null;
+
+          if (
+            event instanceof
+              MessageEvent &&
+            typeof event.data ===
+              "string" &&
+            event.data
+          ) {
+            try {
+              const payload =
+                JSON.parse(
+                  event.data
+                ) as {
+                  userId?:
+                    string;
+                };
+
+              targetUserId =
+                payload.userId ??
+                null;
+            } catch {
+              // Ignore malformed optional event metadata.
+            }
+          }
+
+          if (
+            targetUserId &&
+            targetUserId !==
+              currentUserId
+          ) {
+            return;
+          }
+
+          void refreshAuth()
+            .catch(
+              (
+                error
+              ) => {
+                console.error(
+                  "Unable to refresh live access:",
+                  error
+                );
+              }
+            );
+        };
+
+      const handlePeopleChanged =
+        (
+          event:
+            Event
+        ) => {
+          let detail:
+            unknown =
+            null;
+
+          if (
+            event instanceof
+              MessageEvent &&
+            typeof event.data ===
+              "string" &&
+            event.data
+          ) {
+            try {
+              detail =
+                JSON.parse(
+                  event.data
+                );
+            } catch {
+              detail =
+                null;
+            }
+          }
+
+          window.dispatchEvent(
+            new CustomEvent(
+              PEOPLE_CHANGED_EVENT,
+              {
+                detail,
+              }
+            )
+          );
+        };
+
+      source.addEventListener(
+        "access.changed",
+        handleAccessChanged
+      );
+
+      source.addEventListener(
+        "people.changed",
+        handlePeopleChanged
+      );
+
+      return () => {
+        source.removeEventListener(
+          "access.changed",
+          handleAccessChanged
+        );
+
+        source.removeEventListener(
+          "people.changed",
+          handlePeopleChanged
+        );
+
+        source.close();
+      };
+    },
+    [
+      refreshAuth,
+      user?.id,
     ]
   );
 
