@@ -1,4 +1,4 @@
-const API_BASE_URL =
+export const API_BASE_URL =
   (
     import.meta.env
       .VITE_API_URL ??
@@ -16,6 +16,9 @@ export const MODEL_CONTEXT_CHANGED_EVENT =
 
 export const AUTH_EXPIRED_EVENT =
   "xyz-auth-expired";
+
+export const PEOPLE_CHANGED_EVENT =
+  "xyz-people-changed";
 
 type ApiErrorResponse = {
   error?: string;
