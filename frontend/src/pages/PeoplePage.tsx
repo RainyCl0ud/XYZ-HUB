@@ -11,6 +11,7 @@ import type {
 } from "react";
 
 import {
+  PEOPLE_CHANGED_EVENT,
   apiRequest,
 } from "../lib/api";
 
@@ -477,6 +478,73 @@ function PeoplePage() {
     },
     [
       loadPage,
+    ]
+  );
+
+  /*
+   * Invite acceptance may happen in another browser or
+   * device. Keep the table and any open profile synchronized
+   * when the backend reports that People data changed.
+   */
+  useEffect(
+    () => {
+      const handlePeopleChanged =
+        () => {
+          void loadPeople()
+            .then(
+              (
+                refreshedPeople
+              ) => {
+                setSelectedPerson(
+                  (
+                    current
+                  ) => {
+                    if (
+                      !current
+                    ) {
+                      return current;
+                    }
+
+                    return (
+                      refreshedPeople.find(
+                        (
+                          person
+                        ) =>
+                          person.id ===
+                          current.id
+                      ) ??
+                      current
+                    );
+                  }
+                );
+              }
+            )
+            .catch(
+              (
+                error
+              ) => {
+                console.error(
+                  "Unable to refresh People Management after live update:",
+                  error
+                );
+              }
+            );
+        };
+
+      window.addEventListener(
+        PEOPLE_CHANGED_EVENT,
+        handlePeopleChanged
+      );
+
+      return () => {
+        window.removeEventListener(
+          PEOPLE_CHANGED_EVENT,
+          handlePeopleChanged
+        );
+      };
+    },
+    [
+      loadPeople,
     ]
   );
 
