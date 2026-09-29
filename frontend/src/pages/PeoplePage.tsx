@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -33,100 +34,95 @@ type PersonStatus =
 type PersonRole = {
   id: string;
   name: string;
-  systemKey:
-    string | null;
-  rank:
-    number | null;
-  dataScope:
-    string;
-  assignedAt:
-    string;
-  assignedByUserId:
-    string | null;
+  systemKey: string | null;
+  rank: number | null;
+  dataScope: string;
+  assignedAt: string;
+  assignedByUserId: string | null;
 };
 
 type PersonModel = {
   id: string;
   name: string;
   isActive: boolean;
-  assignedAt:
-    string;
-  assignedByUserId:
-    string | null;
+  assignedAt: string;
+  assignedByUserId: string | null;
+};
+
+type TeamGroup = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  isRoot: boolean;
+  memberCount: number;
+  childCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type PersonTeamGroup = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  isRoot: boolean;
 };
 
 type PersonSecurity = {
-  lastSignInAt:
-    string | null;
+  lastSignInAt: string | null;
 };
 
 type Person = {
   id: string;
   name: string;
   email: string;
-  status:
-    PersonStatus;
-  createdAt:
-    string;
-  emailVerifiedAt:
-    string | null;
-  deactivatedAt:
-    string | null;
-  roles:
-    PersonRole[];
-  models:
-    PersonModel[];
-  security?:
-    PersonSecurity;
+  status: PersonStatus;
+  createdAt: string;
+  emailVerifiedAt: string | null;
+  deactivatedAt: string | null;
+  teamGroup: PersonTeamGroup | null;
+  roles: PersonRole[];
+  models: PersonModel[];
+  security?: PersonSecurity;
 };
 
 type AssignableRole = {
   id: string;
   name: string;
-  systemKey:
-    string | null;
-  rank:
-    number | null;
-  dataScope:
-    string;
+  systemKey: string | null;
+  rank: number | null;
+  dataScope: string;
 };
 
 type AssignableModel = {
   id: string;
   name: string;
-  isActive:
-    boolean;
+  isActive: boolean;
 };
 
 type PeopleOptions = {
-  roles:
-    AssignableRole[];
-  models:
-    AssignableModel[];
+  roles: AssignableRole[];
+  models: AssignableModel[];
+  organization: {
+    rootGroupId: string;
+    groups: TeamGroup[];
+  };
   capabilities: {
-    isOwner:
-      boolean;
-    canManagePeople:
-      boolean;
-    canDeactivate:
-      boolean;
-    canDelete:
-      boolean;
-    canResetTwoFactor:
-      boolean;
-    invitesAvailable:
-      boolean;
+    isOwner: boolean;
+    canManagePeople: boolean;
+    canManageOrganization: boolean;
+    canDeactivate: boolean;
+    canDelete: boolean;
+    canResetTwoFactor: boolean;
+    invitesAvailable: boolean;
   };
 };
 
 type PeopleResponse = {
-  people:
-    Person[];
+  people: Person[];
 };
 
 type PersonResponse = {
-  person:
-    Person;
+  person: Person;
 };
 
 type ConfirmAction =
@@ -136,12 +132,80 @@ type ConfirmAction =
   | "delete"
   | null;
 
+type BatchAction =
+  | "group"
+  | "role"
+  | null;
+
+type GroupModalAction =
+  | "create"
+  | "rename"
+  | "delete"
+  | null;
+
 const TEXAS_TIME_ZONE =
   "America/Chicago";
 
+const EMPTY_TEAM_GROUPS: TeamGroup[] =
+  [];
+
+function collectDescendantGroupIds(
+  groupChildren: Map<
+    string | null,
+    TeamGroup[]
+  >,
+  rootGroupId: string
+) {
+  const ids =
+    new Set<string>([
+      rootGroupId,
+    ]);
+
+  const stack = [
+    rootGroupId,
+  ];
+
+  while (
+    stack.length >
+    0
+  ) {
+    const current =
+      stack.pop();
+
+    if (
+      !current
+    ) {
+      continue;
+    }
+
+    for (
+      const child
+      of groupChildren.get(
+        current
+      ) ??
+      []
+    ) {
+      if (
+        !ids.has(
+          child.id
+        )
+      ) {
+        ids.add(
+          child.id
+        );
+
+        stack.push(
+          child.id
+        );
+      }
+    }
+  }
+
+  return ids;
+}
+
 function formatTexasDateTime(
-  value:
-    string | null
+  value: string | null
 ) {
   if (!value) {
     return "—";
@@ -150,20 +214,13 @@ function formatTexasDateTime(
   return new Intl.DateTimeFormat(
     "en-US",
     {
-      timeZone:
-        TEXAS_TIME_ZONE,
-      month:
-        "short",
-      day:
-        "numeric",
-      year:
-        "numeric",
-      hour:
-        "numeric",
-      minute:
-        "2-digit",
-      timeZoneName:
-        "short",
+      timeZone: TEXAS_TIME_ZONE,
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
     }
   ).format(
     new Date(value)
@@ -171,8 +228,7 @@ function formatTexasDateTime(
 }
 
 function formatStatus(
-  status:
-    PersonStatus
+  status: PersonStatus
 ) {
   switch (status) {
     case "PENDING_SETUP":
@@ -184,6 +240,26 @@ function formatStatus(
     case "ACTIVE":
     default:
       return "Active";
+  }
+}
+
+function formatDataScope(
+  value: string
+) {
+  switch (value) {
+    case "ALL":
+      return "All data";
+
+    case "SELF_AND_TEAM":
+      return "Self + subordinates";
+
+    case "SELF":
+      return "Self only";
+
+    default:
+      return value
+        .toLowerCase()
+        .replaceAll("_", " ");
   }
 }
 
@@ -200,17 +276,13 @@ function PeoplePage() {
     people,
     setPeople,
   ] =
-    useState<
-      Person[]
-    >([]);
+    useState<Person[]>([]);
 
   const [
     options,
     setOptions,
   ] =
-    useState<
-      PeopleOptions | null
-    >(
+    useState<PeopleOptions | null>(
       null
     );
 
@@ -218,9 +290,15 @@ function PeoplePage() {
     selectedPerson,
     setSelectedPerson,
   ] =
-    useState<
-      Person | null
-    >(
+    useState<Person | null>(
+      null
+    );
+
+  const [
+    actionPerson,
+    setActionPerson,
+  ] =
+    useState<Person | null>(
       null
     );
 
@@ -256,9 +334,52 @@ function PeoplePage() {
       ""
     );
 
-  const [statusFilter, setStatusFilter] = useNavigationFilter<"ALL" | PersonStatus>(
-    "status", ["ALL","ACTIVE","PENDING_SETUP","DEACTIVATED"], "ALL",
-  );
+  const [
+    creatorFilter,
+    setCreatorFilter,
+  ] =
+    useState(
+      "ALL"
+    );
+
+  const [
+    selectedGroupId,
+    setSelectedGroupId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] =
+    useNavigationFilter<"ALL" | PersonStatus>(
+      "status",
+      [
+        "ALL",
+        "ACTIVE",
+        "PENDING_SETUP",
+        "DEACTIVATED",
+      ],
+      "ALL"
+    );
+
+  const [
+    selectedPersonIds,
+    setSelectedPersonIds,
+  ] =
+    useState<string[]>(
+      []
+    );
+
+  const [
+    openMoreId,
+    setOpenMoreId,
+  ] =
+    useState<string | null>(
+      null
+    );
 
   const [
     showInvite,
@@ -288,17 +409,25 @@ function PeoplePage() {
     inviteRoleIds,
     setInviteRoleIds,
   ] =
-    useState<
-      string[]
-    >([]);
+    useState<string[]>(
+      []
+    );
 
   const [
     inviteModelIds,
     setInviteModelIds,
   ] =
-    useState<
-      string[]
-    >([]);
+    useState<string[]>(
+      []
+    );
+
+  const [
+    inviteTeamGroupId,
+    setInviteTeamGroupId,
+  ] =
+    useState(
+      ""
+    );
 
   const [
     showAccessEditor,
@@ -312,31 +441,77 @@ function PeoplePage() {
     accessRoleIds,
     setAccessRoleIds,
   ] =
-    useState<
-      string[]
-    >([]);
+    useState<string[]>(
+      []
+    );
 
   const [
     accessModelIds,
     setAccessModelIds,
   ] =
-    useState<
-      string[]
-    >([]);
+    useState<string[]>(
+      []
+    );
+
+  const [
+    accessTeamGroupId,
+    setAccessTeamGroupId,
+  ] =
+    useState(
+      ""
+    );
 
   const [
     confirmAction,
     setConfirmAction,
   ] =
-    useState<
-      ConfirmAction
-    >(
+    useState<ConfirmAction>(
       null
     );
 
   const [
     deleteConfirmation,
     setDeleteConfirmation,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    batchAction,
+    setBatchAction,
+  ] =
+    useState<BatchAction>(
+      null
+    );
+
+  const [
+    batchGroupId,
+    setBatchGroupId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    batchRoleId,
+    setBatchRoleId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    groupModalAction,
+    setGroupModalAction,
+  ] =
+    useState<GroupModalAction>(
+      null
+    );
+
+  const [
+    groupName,
+    setGroupName,
   ] =
     useState(
       ""
@@ -350,13 +525,16 @@ function PeoplePage() {
       false
     );
 
+  const headerCheckboxRef =
+    useRef<HTMLInputElement | null>(
+      null
+    );
+
   const loadPeople =
     useCallback(
       async () => {
         const response =
-          await apiRequest<
-            PeopleResponse
-          >(
+          await apiRequest<PeopleResponse>(
             "/api/people"
           );
 
@@ -373,15 +551,15 @@ function PeoplePage() {
     useCallback(
       async () => {
         const response =
-          await apiRequest<
-            PeopleOptions
-          >(
+          await apiRequest<PeopleOptions>(
             "/api/people/options"
           );
 
         setOptions(
           response
         );
+
+        return response;
       },
       []
     );
@@ -440,20 +618,18 @@ function PeoplePage() {
     ]
   );
 
-  /*
-   * Invite acceptance may happen in another browser or
-   * device. Keep the table and any open profile synchronized
-   * when the backend reports that People data changed.
-   */
   useEffect(
     () => {
       const handlePeopleChanged =
         () => {
-          void loadPeople()
+          void Promise.all([
+            loadPeople(),
+            loadOptions(),
+          ])
             .then(
-              (
-                refreshedPeople
-              ) => {
+              ([
+                refreshedPeople,
+              ]) => {
                 setSelectedPerson(
                   (
                     current
@@ -503,67 +679,203 @@ function PeoplePage() {
       };
     },
     [
+      loadOptions,
       loadPeople,
     ]
   );
 
-  const filteredPeople =
+  useEffect(
+    () => {
+      const closeMenus =
+        () => {
+          setOpenMoreId(
+            null
+          );
+        };
+
+      document.addEventListener(
+        "click",
+        closeMenus
+      );
+
+      return () => {
+        document.removeEventListener(
+          "click",
+          closeMenus
+        );
+      };
+    },
+    []
+  );
+
+  const organizationGroups =
+    options?.organization.groups ??
+    EMPTY_TEAM_GROUPS;
+
+  const groupById =
+    useMemo(
+      () =>
+        new Map(
+          organizationGroups.map(
+            (
+              group
+            ) => [
+              group.id,
+              group,
+            ]
+          )
+        ),
+      [
+        organizationGroups,
+      ]
+    );
+
+  const groupChildren =
     useMemo(
       () => {
-        const query =
-          search
-            .trim()
-            .toLowerCase();
+        const map =
+          new Map<string | null, TeamGroup[]>();
 
-        return people.filter(
-          (
-            person
-          ) => {
-            if (
-              statusFilter !==
-                "ALL" &&
-              person.status !==
-                statusFilter
-            ) {
-              return false;
-            }
+        for (
+          const group
+          of organizationGroups
+        ) {
+          const parentKey =
+            group.parentId &&
+            groupById.has(
+              group.parentId
+            )
+              ? group.parentId
+              : null;
 
-            if (!query) {
-              return true;
-            }
+          const children =
+            map.get(
+              parentKey
+            ) ??
+            [];
 
-            const searchable = [
-              person.name,
-              person.email,
-              person.status,
-              ...person.roles.map(
-                (
-                  role
-                ) =>
-                  role.name
-              ),
-              ...person.models.map(
-                (
-                  model
-                ) =>
-                  model.name
-              ),
-            ]
-              .join(
-                " "
+          children.push(
+            group
+          );
+
+          map.set(
+            parentKey,
+            children
+          );
+        }
+
+        for (
+          const children
+          of map.values()
+        ) {
+          children.sort(
+            (
+              left,
+              right
+            ) =>
+              left.name.localeCompare(
+                right.name
               )
-              .toLowerCase();
+          );
+        }
 
-            return searchable.includes(
-              query
-            );
-          }
+        return map;
+      },
+      [
+        groupById,
+        organizationGroups,
+      ]
+    );
+
+  const defaultGroupId =
+    useMemo(
+      () => {
+        const rootId =
+          options?.organization
+            .rootGroupId;
+
+        if (
+          rootId &&
+          groupById.has(
+            rootId
+          )
+        ) {
+          return rootId;
+        }
+
+        return (
+          groupChildren.get(
+            null
+          )?.[0]?.id ??
+          organizationGroups[0]?.id ??
+          null
         );
       },
       [
-        people,
-        search,
-        statusFilter,
+        groupById,
+        groupChildren,
+        options,
+        organizationGroups,
+      ]
+    );
+
+  useEffect(
+    () => {
+      if (
+        organizationGroups.length ===
+        0
+      ) {
+        setSelectedGroupId(
+          null
+        );
+
+        return;
+      }
+
+      if (
+        !selectedGroupId ||
+        !groupById.has(
+          selectedGroupId
+        )
+      ) {
+        setSelectedGroupId(
+          defaultGroupId
+        );
+      }
+    },
+    [
+      defaultGroupId,
+      groupById,
+      organizationGroups.length,
+      selectedGroupId,
+    ]
+  );
+
+  const selectedGroupScopeIds =
+    useMemo(
+      () => {
+        if (
+          !selectedGroupId
+        ) {
+          return new Set(
+            organizationGroups.map(
+              (
+                group
+              ) =>
+                group.id
+            )
+          );
+        }
+
+        return collectDescendantGroupIds(
+          groupChildren,
+          selectedGroupId
+        );
+      },
+      [
+        groupChildren,
+        organizationGroups,
+        selectedGroupId,
       ]
     );
 
@@ -616,6 +928,276 @@ function PeoplePage() {
       ]
     );
 
+  const canManagePerson =
+    useCallback(
+      (
+        person: Person
+      ) => {
+        if (
+          person.id ===
+          user?.id
+        ) {
+          return false;
+        }
+
+        return (
+          person.roles.every(
+            (
+              role
+            ) =>
+              assignableRoleIds.has(
+                role.id
+              )
+          ) &&
+          person.models.every(
+            (
+              model
+            ) =>
+              assignableModelIds.has(
+                model.id
+              )
+          )
+        );
+      },
+      [
+        assignableModelIds,
+        assignableRoleIds,
+        user?.id,
+      ]
+    );
+
+  const filteredPeople =
+    useMemo(
+      () => {
+        const query =
+          search
+            .trim()
+            .toLowerCase();
+
+        return people.filter(
+          (
+            person
+          ) => {
+            if (
+              person.teamGroup &&
+              !selectedGroupScopeIds.has(
+                person.teamGroup.id
+              )
+            ) {
+              return false;
+            }
+
+            if (
+              !person.teamGroup &&
+              selectedGroupId
+            ) {
+              return false;
+            }
+
+            if (
+              statusFilter !==
+                "ALL" &&
+              person.status !==
+                statusFilter
+            ) {
+              return false;
+            }
+
+            if (
+              creatorFilter !==
+                "ALL" &&
+              !person.models.some(
+                (
+                  model
+                ) =>
+                  model.id ===
+                  creatorFilter
+              )
+            ) {
+              return false;
+            }
+
+            if (
+              !query
+            ) {
+              return true;
+            }
+
+            const searchable = [
+              person.name,
+              person.email,
+              person.status,
+              person.teamGroup?.name ??
+                "",
+              ...person.roles.map(
+                (
+                  role
+                ) =>
+                  role.name
+              ),
+              ...person.models.map(
+                (
+                  model
+                ) =>
+                  model.name
+              ),
+            ]
+              .join(
+                " "
+              )
+              .toLowerCase();
+
+            return searchable.includes(
+              query
+            );
+          }
+        );
+      },
+      [
+        creatorFilter,
+        people,
+        search,
+        selectedGroupId,
+        selectedGroupScopeIds,
+        statusFilter,
+      ]
+    );
+
+  const visibleSelectableIds =
+    useMemo(
+      () =>
+        filteredPeople
+          .filter(
+            canManagePerson
+          )
+          .map(
+            (
+              person
+            ) =>
+              person.id
+          ),
+      [
+        canManagePerson,
+        filteredPeople,
+      ]
+    );
+
+  const allVisibleSelected =
+    visibleSelectableIds.length >
+      0 &&
+    visibleSelectableIds.every(
+      (
+        id
+      ) =>
+        selectedPersonIds.includes(
+          id
+        )
+    );
+
+  const someVisibleSelected =
+    visibleSelectableIds.some(
+      (
+        id
+      ) =>
+        selectedPersonIds.includes(
+          id
+        )
+    );
+
+  useEffect(
+    () => {
+      if (
+        headerCheckboxRef.current
+      ) {
+        headerCheckboxRef.current.indeterminate =
+          someVisibleSelected &&
+          !allVisibleSelected;
+      }
+    },
+    [
+      allVisibleSelected,
+      someVisibleSelected,
+    ]
+  );
+
+  useEffect(
+    () => {
+      const existingIds =
+        new Set(
+          people.map(
+            (
+              person
+            ) =>
+              person.id
+          )
+        );
+
+      setSelectedPersonIds(
+        (
+          current
+        ) =>
+          current.filter(
+            (
+              id
+            ) =>
+              existingIds.has(
+                id
+              )
+          )
+      );
+    },
+    [
+      people,
+    ]
+  );
+
+  const selectedGroup =
+    selectedGroupId
+      ? groupById.get(
+          selectedGroupId
+        ) ??
+        null
+      : null;
+
+  const groupPeopleCounts =
+    useMemo(
+      () => {
+        const result =
+          new Map<string, number>();
+
+        for (
+          const group
+          of organizationGroups
+        ) {
+          const ids =
+            collectDescendantGroupIds(
+              groupChildren,
+              group.id
+            );
+
+          result.set(
+            group.id,
+            people.filter(
+              (
+                person
+              ) =>
+                person.teamGroup &&
+                ids.has(
+                  person.teamGroup.id
+                )
+            ).length
+          );
+        }
+
+        return result;
+      },
+      [
+        groupChildren,
+        organizationGroups,
+        people,
+      ]
+    );
+
   const isSelectedSelf =
     selectedPerson?.id ===
     user?.id;
@@ -623,22 +1205,8 @@ function PeoplePage() {
   const canManageSelected =
     Boolean(
       selectedPerson &&
-      !isSelectedSelf &&
-      selectedPerson.roles.every(
-        (
-          role
-        ) =>
-          assignableRoleIds.has(
-            role.id
-          )
-      ) &&
-      selectedPerson.models.every(
-        (
-          model
-        ) =>
-          assignableModelIds.has(
-            model.id
-          )
+      canManagePerson(
+        selectedPerson
       )
     );
 
@@ -674,6 +1242,27 @@ function PeoplePage() {
         accessModelIds.includes(
           modelId
         )
+    );
+
+  const selectedManageablePeople =
+    useMemo(
+      () =>
+        people.filter(
+          (
+            person
+          ) =>
+            selectedPersonIds.includes(
+              person.id
+            ) &&
+            canManagePerson(
+              person
+            )
+        ),
+      [
+        canManagePerson,
+        people,
+        selectedPersonIds,
+      ]
     );
 
   function toggleAllAccessCreators() {
@@ -717,8 +1306,7 @@ function PeoplePage() {
   }
 
   async function openPerson(
-    person:
-      Person
+    person: Person
   ) {
     try {
       setSelectedPerson(
@@ -730,10 +1318,9 @@ function PeoplePage() {
       );
 
       const response =
-        await apiRequest<
-          PersonResponse
-        >(
-          `/api/people/${person.id}`
+        await apiRequest<PersonResponse>(
+          "/api/people/" +
+            person.id
         );
 
       setSelectedPerson(
@@ -759,37 +1346,38 @@ function PeoplePage() {
   }
 
   async function refreshPerson(
-    userId:
-      string
+    userId: string
   ) {
     const [
       response,
+      refreshedPeople,
+      refreshedOptions,
     ] =
       await Promise.all([
-        apiRequest<
-          PersonResponse
-        >(
-          `/api/people/${userId}`
+        apiRequest<PersonResponse>(
+          "/api/people/" +
+            userId
         ),
-
         loadPeople(),
+        loadOptions(),
       ]);
 
     setSelectedPerson(
       response.person
     );
+
+    return {
+      refreshedPeople,
+      refreshedOptions,
+    };
   }
 
   function toggleSelection(
-    current:
-      string[],
-    value:
-      string,
-    setter:
-      (
-        value:
-          string[]
-      ) => void
+    current: string[],
+    value: string,
+    setter: (
+      value: string[]
+    ) => void
   ) {
     setter(
       current.includes(
@@ -809,6 +1397,80 @@ function PeoplePage() {
     );
   }
 
+  function togglePersonSelection(
+    personId: string
+  ) {
+    setSelectedPersonIds(
+      (
+        current
+      ) =>
+        current.includes(
+          personId
+        )
+          ? current.filter(
+              (
+                id
+              ) =>
+                id !==
+                personId
+            )
+          : [
+              ...current,
+              personId,
+            ]
+    );
+  }
+
+  function toggleAllVisiblePeople() {
+    setSelectedPersonIds(
+      (
+        current
+      ) => {
+        if (
+          allVisibleSelected
+        ) {
+          return current.filter(
+            (
+              id
+            ) =>
+              !visibleSelectableIds.includes(
+                id
+              )
+          );
+        }
+
+        return [
+          ...new Set([
+            ...current,
+            ...visibleSelectableIds,
+          ]),
+        ];
+      }
+    );
+  }
+
+  function resetFilters() {
+    setSearch(
+      ""
+    );
+
+    setCreatorFilter(
+      "ALL"
+    );
+
+    setStatusFilter(
+      "ALL"
+    );
+
+    setSelectedGroupId(
+      defaultGroupId
+    );
+
+    setSelectedPersonIds(
+      []
+    );
+  }
+
   function resetInviteForm() {
     setInviteName(
       ""
@@ -825,11 +1487,30 @@ function PeoplePage() {
     setInviteModelIds(
       []
     );
+
+    setInviteTeamGroupId(
+      selectedGroupId ??
+        defaultGroupId ??
+        ""
+    );
+  }
+
+  function openInviteForm() {
+    resetInviteForm();
+
+    setInviteTeamGroupId(
+      selectedGroupId ??
+        defaultGroupId ??
+        ""
+    );
+
+    setShowInvite(
+      true
+    );
   }
 
   async function submitInvite(
-    event:
-      FormEvent
+    event: FormEvent
   ) {
     event.preventDefault();
 
@@ -850,10 +1531,11 @@ function PeoplePage() {
       !inviteName.trim() ||
       !inviteEmail.trim() ||
       inviteRoleIds.length ===
-        0
+        0 ||
+      !inviteTeamGroupId
     ) {
       toast.warning(
-        "Name, email, and at least one role are required.",
+        "Name, email, team group, and at least one role are required.",
         "Check invitation"
       );
 
@@ -868,8 +1550,7 @@ function PeoplePage() {
       await apiRequest(
         "/api/people/invite",
         {
-          method:
-            "POST",
+          method: "POST",
 
           body:
             JSON.stringify({
@@ -884,6 +1565,9 @@ function PeoplePage() {
 
               modelIds:
                 inviteModelIds,
+
+              teamGroupId:
+                inviteTeamGroupId,
             }),
         }
       );
@@ -899,7 +1583,10 @@ function PeoplePage() {
 
       resetInviteForm();
 
-      await loadPeople();
+      await Promise.all([
+        loadPeople(),
+        loadOptions(),
+      ]);
     } catch (
       error
     ) {
@@ -942,14 +1629,20 @@ function PeoplePage() {
       )
     );
 
+    setAccessTeamGroupId(
+      selectedPerson.teamGroup?.id ??
+        selectedGroupId ??
+        defaultGroupId ??
+        ""
+    );
+
     setShowAccessEditor(
       true
     );
   }
 
   async function saveAccess(
-    event:
-      FormEvent
+    event: FormEvent
   ) {
     event.preventDefault();
 
@@ -971,16 +1664,28 @@ function PeoplePage() {
       return;
     }
 
+    if (
+      !accessTeamGroupId
+    ) {
+      toast.warning(
+        "A team group is required.",
+        "Group required"
+      );
+
+      return;
+    }
+
     try {
       setSaving(
         true
       );
 
       await apiRequest(
-        `/api/people/${selectedPerson.id}/access`,
+        "/api/people/" +
+          selectedPerson.id +
+          "/access",
         {
-          method:
-            "PUT",
+          method: "PUT",
 
           body:
             JSON.stringify({
@@ -989,6 +1694,9 @@ function PeoplePage() {
 
               modelIds:
                 accessModelIds,
+
+              teamGroupId:
+                accessTeamGroupId,
             }),
         }
       );
@@ -1002,7 +1710,7 @@ function PeoplePage() {
       );
 
       toast.success(
-        "Roles and creator assignments were updated.",
+        "Role, creator, and team access were updated.",
         "Access updated"
       );
     } catch (
@@ -1021,9 +1729,10 @@ function PeoplePage() {
     }
   }
 
-  async function resendInvite() {
+  async function resendInvite(
+    person: Person
+  ) {
     if (
-      !selectedPerson ||
       !options
         ?.capabilities
         .invitesAvailable
@@ -1037,16 +1746,38 @@ function PeoplePage() {
       );
 
       await apiRequest(
-        `/api/people/${selectedPerson.id}/resend-invite`,
+        "/api/people/" +
+          person.id +
+          "/resend-invite",
         {
-          method:
-            "POST",
+          method: "POST",
         }
       );
 
-      await refreshPerson(
-        selectedPerson.id
-      );
+      const refreshedPeople =
+        await loadPeople();
+
+      if (
+        selectedPerson?.id ===
+        person.id
+      ) {
+        const refreshed =
+          refreshedPeople.find(
+            (
+              item
+            ) =>
+              item.id ===
+              person.id
+          );
+
+        if (
+          refreshed
+        ) {
+          await openPerson(
+            refreshed
+          );
+        }
+      }
 
       toast.success(
         "A fresh invitation was sent.",
@@ -1068,9 +1799,33 @@ function PeoplePage() {
     }
   }
 
+  function requestConfirmedAction(
+    person: Person,
+    action: Exclude<
+      ConfirmAction,
+      null
+    >
+  ) {
+    setActionPerson(
+      person
+    );
+
+    setConfirmAction(
+      action
+    );
+
+    setDeleteConfirmation(
+      ""
+    );
+
+    setOpenMoreId(
+      null
+    );
+  }
+
   async function runConfirmedAction() {
     if (
-      !selectedPerson ||
+      !actionPerson ||
       !confirmAction
     ) {
       return;
@@ -1086,10 +1841,10 @@ function PeoplePage() {
         "delete"
       ) {
         await apiRequest(
-          `/api/people/${selectedPerson.id}`,
+          "/api/people/" +
+            actionPerson.id,
           {
-            method:
-              "DELETE",
+            method: "DELETE",
 
             body:
               JSON.stringify({
@@ -1104,11 +1859,32 @@ function PeoplePage() {
           "User deleted"
         );
 
-        setSelectedPerson(
-          null
+        if (
+          selectedPerson?.id ===
+          actionPerson.id
+        ) {
+          setSelectedPerson(
+            null
+          );
+        }
+
+        setSelectedPersonIds(
+          (
+            current
+          ) =>
+            current.filter(
+              (
+                id
+              ) =>
+                id !==
+                actionPerson.id
+            )
         );
 
-        await loadPeople();
+        await Promise.all([
+          loadPeople(),
+          loadOptions(),
+        ]);
       } else {
         const endpoint =
           confirmAction ===
@@ -1120,16 +1896,39 @@ function PeoplePage() {
               : "reset-2fa";
 
         await apiRequest(
-          `/api/people/${selectedPerson.id}/${endpoint}`,
+          "/api/people/" +
+            actionPerson.id +
+            "/" +
+            endpoint,
           {
-            method:
-              "POST",
+            method: "POST",
           }
         );
 
-        await refreshPerson(
-          selectedPerson.id
-        );
+        const refreshedPeople =
+          await loadPeople();
+
+        if (
+          selectedPerson?.id ===
+          actionPerson.id
+        ) {
+          const refreshed =
+            refreshedPeople.find(
+              (
+                person
+              ) =>
+                person.id ===
+                actionPerson.id
+            );
+
+          if (
+            refreshed
+          ) {
+            await openPerson(
+              refreshed
+            );
+          }
+        }
 
         const message =
           confirmAction ===
@@ -1147,6 +1946,10 @@ function PeoplePage() {
       }
 
       setConfirmAction(
+        null
+      );
+
+      setActionPerson(
         null
       );
 
@@ -1169,36 +1972,577 @@ function PeoplePage() {
     }
   }
 
-  const activeCount =
-    people.filter(
-      (
-        person
-      ) =>
-        person.status ===
-        "ACTIVE"
-    ).length;
+  function openBatchAction(
+    action: Exclude<
+      BatchAction,
+      null
+    >
+  ) {
+    if (
+      selectedManageablePeople.length ===
+      0
+    ) {
+      return;
+    }
 
-  const pendingCount =
-    people.filter(
-      (
-        person
-      ) =>
-        person.status ===
-        "PENDING_SETUP"
-    ).length;
+    if (
+      action ===
+      "group"
+    ) {
+      setBatchGroupId(
+        selectedGroupId ??
+          defaultGroupId ??
+          ""
+      );
+    } else {
+      setBatchRoleId(
+        options?.roles[0]?.id ??
+          ""
+      );
+    }
 
-  const deactivatedCount =
-    people.filter(
-      (
-        person
-      ) =>
-        person.status ===
-        "DEACTIVATED"
-    ).length;
+    setBatchAction(
+      action
+    );
+  }
+
+  async function runBatchAction() {
+    if (
+      !batchAction ||
+      selectedManageablePeople.length ===
+        0
+    ) {
+      return;
+    }
+
+    if (
+      batchAction ===
+        "group" &&
+      !batchGroupId
+    ) {
+      toast.warning(
+        "Choose a team group first.",
+        "Group required"
+      );
+
+      return;
+    }
+
+    if (
+      batchAction ===
+        "role" &&
+      !batchRoleId
+    ) {
+      toast.warning(
+        "Choose a role first.",
+        "Role required"
+      );
+
+      return;
+    }
+
+    try {
+      setSaving(
+        true
+      );
+
+      const results =
+        await Promise.allSettled(
+          selectedManageablePeople.map(
+            async (
+              person
+            ) => {
+              if (
+                batchAction ===
+                "group"
+              ) {
+                await apiRequest(
+                  "/api/team-groups/members/" +
+                    person.id,
+                  {
+                    method: "PUT",
+
+                    body:
+                      JSON.stringify({
+                        groupId:
+                          batchGroupId,
+                      }),
+                  }
+                );
+
+                return person.id;
+              }
+
+              await apiRequest(
+                "/api/people/" +
+                  person.id +
+                  "/access",
+                {
+                  method: "PUT",
+
+                  body:
+                    JSON.stringify({
+                      roleIds: [
+                        batchRoleId,
+                      ],
+
+                      modelIds:
+                        person.models.map(
+                          (
+                            model
+                          ) =>
+                            model.id
+                        ),
+                    }),
+                }
+              );
+
+              return person.id;
+            }
+          )
+        );
+
+      const successfulIds =
+        results.flatMap(
+          (
+            result
+          ) =>
+            result.status ===
+            "fulfilled"
+              ? [
+                  result.value,
+                ]
+              : []
+        );
+
+      const failedCount =
+        results.length -
+        successfulIds.length;
+
+      setSelectedPersonIds(
+        (
+          current
+        ) =>
+          current.filter(
+            (
+              id
+            ) =>
+              !successfulIds.includes(
+                id
+              )
+          )
+      );
+
+      await Promise.all([
+        loadPeople(),
+        loadOptions(),
+      ]);
+
+      if (
+        failedCount ===
+        0
+      ) {
+        toast.success(
+          batchAction ===
+            "group"
+            ? "The selected people were moved to the new group."
+            : "The selected people's roles were updated.",
+          "Batch update complete"
+        );
+
+        setBatchAction(
+          null
+        );
+      } else {
+        toast.warning(
+          String(
+            successfulIds.length
+          ) +
+            " updated, " +
+            String(
+              failedCount
+            ) +
+            " could not be updated. Failed rows remain selected.",
+          "Batch update partially completed"
+        );
+      }
+    } catch (
+      error
+    ) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to complete the batch update.",
+        "Batch update failed"
+      );
+    } finally {
+      setSaving(
+        false
+      );
+    }
+  }
+
+  function openGroupModal(
+    action: Exclude<
+      GroupModalAction,
+      null
+    >
+  ) {
+    if (
+      !selectedGroup
+    ) {
+      return;
+    }
+
+    setGroupModalAction(
+      action
+    );
+
+    setGroupName(
+      action ===
+        "rename"
+        ? selectedGroup.name
+        : ""
+    );
+  }
+
+  async function submitGroupMutation(
+    event: FormEvent
+  ) {
+    event.preventDefault();
+
+    if (
+      !selectedGroup ||
+      !groupModalAction
+    ) {
+      return;
+    }
+
+    if (
+      groupModalAction !==
+        "delete" &&
+      !groupName.trim()
+    ) {
+      toast.warning(
+        "Enter a group name.",
+        "Group name required"
+      );
+
+      return;
+    }
+
+    try {
+      setSaving(
+        true
+      );
+
+      if (
+        groupModalAction ===
+        "create"
+      ) {
+        await apiRequest(
+          "/api/team-groups",
+          {
+            method: "POST",
+
+            body:
+              JSON.stringify({
+                name:
+                  groupName.trim(),
+
+                parentGroupId:
+                  selectedGroup.id,
+              }),
+          }
+        );
+      } else if (
+        groupModalAction ===
+        "rename"
+      ) {
+        await apiRequest(
+          "/api/team-groups/" +
+            selectedGroup.id,
+          {
+            method: "PUT",
+
+            body:
+              JSON.stringify({
+                name:
+                  groupName.trim(),
+              }),
+          }
+        );
+      } else {
+        const nextSelection =
+          selectedGroup.parentId;
+
+        await apiRequest(
+          "/api/team-groups/" +
+            selectedGroup.id,
+          {
+            method: "DELETE",
+          }
+        );
+
+        setSelectedGroupId(
+          nextSelection
+        );
+      }
+
+      const refreshed =
+        await loadOptions();
+
+      if (
+        groupModalAction !==
+        "delete"
+      ) {
+        const stillExists =
+          refreshed.organization.groups.some(
+            (
+              group
+            ) =>
+              group.id ===
+              selectedGroup.id
+          );
+
+        if (
+          !stillExists
+        ) {
+          setSelectedGroupId(
+            refreshed.organization
+              .rootGroupId
+          );
+        }
+      }
+
+      await loadPeople();
+
+      toast.success(
+        groupModalAction ===
+          "create"
+          ? "Subgroup created."
+          : groupModalAction ===
+              "rename"
+            ? "Group renamed."
+            : "Group deleted.",
+        "Organization updated"
+      );
+
+      setGroupModalAction(
+        null
+      );
+
+      setGroupName(
+        ""
+      );
+    } catch (
+      error
+    ) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to update the organization.",
+        "Organization not updated"
+      );
+    } finally {
+      setSaving(
+        false
+      );
+    }
+  }
+
+  function compactRoleText(
+    roles: PersonRole[]
+  ) {
+    if (
+      roles.length ===
+      0
+    ) {
+      return "No role";
+    }
+
+    if (
+      roles.length ===
+      1
+    ) {
+      return roles[0].name;
+    }
+
+    return (
+      roles[0].name +
+      " +" +
+      String(
+        roles.length -
+        1
+      )
+    );
+  }
+
+  function renderCreatorNames(
+    models: PersonModel[]
+  ) {
+    if (
+      models.length ===
+      0
+    ) {
+      return (
+        <span className="people-muted-cell">
+          No creator assignment
+        </span>
+      );
+    }
+
+    const visible =
+      models.slice(
+        0,
+        2
+      );
+
+    const remainder =
+      models.length -
+      visible.length;
+
+    return (
+      <div className="people-creator-summary">
+        {visible.map(
+          (
+            model
+          ) => (
+            <span
+              key={
+                model.id
+              }
+              className="people-creator-name"
+            >
+              {model.name}
+            </span>
+          )
+        )}
+
+        {remainder >
+          0 && (
+          <span className="people-creator-more">
+            +
+            {remainder}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  function renderGroupNode(
+    group: TeamGroup,
+    depth = 0
+  ) {
+    const children =
+      groupChildren.get(
+        group.id
+      ) ??
+      [];
+
+    const selected =
+      selectedGroupId ===
+      group.id;
+
+    return (
+      <div
+        key={
+          group.id
+        }
+        className="people-org-node"
+      >
+        <button
+          type="button"
+          className={
+            "people-org-item" +
+            (
+              selected
+                ? " active"
+                : ""
+            )
+          }
+          style={{
+            paddingLeft:
+              String(
+                12 +
+                depth *
+                  16
+              ) +
+              "px",
+          }}
+          onClick={() =>
+            setSelectedGroupId(
+              group.id
+            )
+          }
+        >
+          <span className="people-org-branch">
+            <span
+              className={
+                "people-org-icon" +
+                (
+                  group.isRoot
+                    ? " root"
+                    : ""
+                )
+              }
+              aria-hidden="true"
+            >
+              {group.isRoot
+                ? "◆"
+                : "•"}
+            </span>
+
+            <span className="people-org-name">
+              {group.name}
+            </span>
+          </span>
+
+          <span className="people-org-count">
+            {groupPeopleCounts.get(
+              group.id
+            ) ??
+              0}
+          </span>
+        </button>
+
+        {children.map(
+          (
+            child
+          ) =>
+            renderGroupNode(
+              child,
+              depth +
+                1
+            )
+        )}
+      </div>
+    );
+  }
+
+  const rootGroups =
+    groupChildren.get(
+      null
+    ) ??
+    [];
+
+  const selectedCount =
+    selectedManageablePeople.length;
+
+  const filtersActive =
+    Boolean(
+      search.trim() ||
+      creatorFilter !==
+        "ALL" ||
+      statusFilter !==
+        "ALL" ||
+      selectedGroupId !==
+        defaultGroupId
+    );
 
   return (
     <div className="page people-page">
-      <header className="page-header">
+      <header className="page-header people-page-header">
         <div>
           <p className="page-eyebrow">
             Team management
@@ -1209,17 +2553,15 @@ function PeoplePage() {
           </h2>
 
           <p className="page-description">
-            Review portal users, their roles, creator access, setup state, and account security controls.
+            Organize employees by group, manage role and creator access, and control account status.
           </p>
         </div>
 
         <button
           type="button"
           className="primary-button"
-          onClick={() =>
-            setShowInvite(
-              true
-            )
+          onClick={
+            openInviteForm
           }
           disabled={
             !options
@@ -1253,240 +2595,621 @@ function PeoplePage() {
           </div>
         )}
 
-      <section className="people-summary-grid">
-        <div className="stat-card">
-          <span className="stat-label">
-            Visible people
-          </span>
+      <section className="people-management-shell">
+        <aside className="people-organization-panel">
+          <div className="people-org-header">
+            <div>
+              <span className="people-section-label">
+                Organization
+              </span>
 
-          <strong className="stat-value">
-            {people.length}
-          </strong>
+              <strong>
+                Team groups
+              </strong>
+            </div>
 
-          <span className="stat-help">
-            Based on your current role and creator scope.
-          </span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-label">
-            Active
-          </span>
-
-          <strong className="stat-value">
-            {activeCount}
-          </strong>
-
-          <span className="stat-help">
-            Accounts currently allowed to sign in.
-          </span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-label">
-            Pending setup
-          </span>
-
-          <strong className="stat-value">
-            {pendingCount}
-          </strong>
-
-          <span className="stat-help">
-            Invited accounts that have not completed setup.
-          </span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-label">
-            Deactivated
-          </span>
-
-          <strong className="stat-value">
-            {deactivatedCount}
-          </strong>
-
-          <span className="stat-help">
-            Access is blocked while history remains preserved.
-          </span>
-        </div>
-      </section>
-
-      <section className="content-card">
-        <div className="people-toolbar">
-          <input
-            className="search-input"
-            type="search"
-            placeholder="Search name, email, role, or creator"
-            aria-label="Search people"
-            value={
-              search
-            }
-            onChange={(
-              event
-            ) =>
-              setSearch(
-                event.target.value
-              )
-            }
-          />
-
-          <div className="filter-group">
-            {[
-              "ALL",
-              "ACTIVE",
-              "PENDING_SETUP",
-              "DEACTIVATED",
-            ].map(
-              (
-                value
-              ) => (
+            {options
+              ?.capabilities
+              .canManageOrganization &&
+              selectedGroup && (
                 <button
-                  key={
-                    value
-                  }
                   type="button"
-                  className={
-                    statusFilter ===
-                    value
-                      ? "filter-button active"
-                      : "filter-button"
-                  }
+                  className="people-org-add"
                   onClick={() =>
-                    setStatusFilter(
-                      value as
-                        | "ALL"
-                        | PersonStatus
+                    openGroupModal(
+                      "create"
+                    )
+                  }
+                  aria-label={
+                    "Add subgroup under " +
+                    selectedGroup.name
+                  }
+                  title="Add subgroup"
+                >
+                  +
+                </button>
+              )}
+          </div>
+
+          <div className="people-org-tree">
+            {rootGroups.length >
+            0 ? (
+              rootGroups.map(
+                (
+                  group
+                ) =>
+                  renderGroupNode(
+                    group
+                  )
+              )
+            ) : (
+              <span className="people-empty-inline">
+                No visible team groups.
+              </span>
+            )}
+          </div>
+
+          {options
+            ?.capabilities
+            .canManageOrganization &&
+            selectedGroup && (
+              <div className="people-org-actions">
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() =>
+                    openGroupModal(
+                      "create"
                     )
                   }
                 >
-                  {value ===
-                  "ALL"
-                    ? "All"
-                    : formatStatus(
-                        value as PersonStatus
-                      )}
+                  Add subgroup
                 </button>
-              )
+
+                {!selectedGroup.isRoot && (
+                  <>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() =>
+                        openGroupModal(
+                          "rename"
+                        )
+                      }
+                    >
+                      Rename
+                    </button>
+
+                    <button
+                      type="button"
+                      className="text-button danger-text"
+                      onClick={() =>
+                        openGroupModal(
+                          "delete"
+                        )
+                      }
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
             )}
-          </div>
-        </div>
+        </aside>
 
-        {pageError && (
-          <div className="people-inline-error">
-            {pageError}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="empty-state">
-            <strong>
-              Loading people…
-            </strong>
-          </div>
-        ) : filteredPeople.length ===
-          0 ? (
-          <div className="empty-state">
-            <strong>
-              No matching people
-            </strong>
-
-            <span>
-              Try changing the search or status filter.
-            </span>
-          </div>
-        ) : (
-          <div className="people-table-wrap">
-            <div className="people-table people-table-head">
-              <span>
-                Person
+        <div className="people-directory">
+          <div className="people-directory-header">
+            <div>
+              <span className="people-section-label">
+                Employees
               </span>
 
+              <div className="people-directory-title-row">
+                <h3>
+                  {selectedGroup?.name ??
+                    "Visible people"}
+                </h3>
+
+                <span className="people-result-count">
+                  {filteredPeople.length}
+                  {" "}
+                  result
+                  {filteredPeople.length ===
+                  1
+                    ? ""
+                    : "s"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="people-filter-toolbar">
+            <label className="people-search-field">
+              <span className="sr-only">
+                Search employees
+              </span>
+
+              <input
+                className="search-input"
+                type="search"
+                placeholder="Search employee"
+                value={
+                  search
+                }
+                onChange={(
+                  event
+                ) =>
+                  setSearch(
+                    event.target.value
+                  )
+                }
+              />
+            </label>
+
+            <label className="people-filter-field">
+              <span>
+                Creator
+              </span>
+
+              <select
+                value={
+                  creatorFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setCreatorFilter(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="ALL">
+                  All creators
+                </option>
+
+                {activeAssignableCreators.map(
+                  (
+                    model
+                  ) => (
+                    <option
+                      key={
+                        model.id
+                      }
+                      value={
+                        model.id
+                      }
+                    >
+                      {model.name}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
+
+            <label className="people-filter-field">
               <span>
                 Status
               </span>
 
-              <span>
-                Roles
-              </span>
+              <select
+                value={
+                  statusFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setStatusFilter(
+                    event.target
+                      .value as
+                      | "ALL"
+                      | PersonStatus
+                  )
+                }
+              >
+                <option value="ALL">
+                  All statuses
+                </option>
+
+                <option value="ACTIVE">
+                  Active
+                </option>
+
+                <option value="PENDING_SETUP">
+                  Pending setup
+                </option>
+
+                <option value="DEACTIVATED">
+                  Deactivated
+                </option>
+              </select>
+            </label>
+
+            <button
+              type="button"
+              className="people-reset-filters"
+              onClick={
+                resetFilters
+              }
+              disabled={
+                !filtersActive
+              }
+            >
+              Reset filters
+            </button>
+          </div>
+
+          {selectedCount >
+            0 && (
+            <div className="people-batch-bar">
+              <div>
+                <strong>
+                  {selectedCount}
+                  {" "}
+                  selected
+                </strong>
+
+                <span>
+                  Apply one change to the selected employees.
+                </span>
+              </div>
+
+              <div className="people-batch-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() =>
+                    openBatchAction(
+                      "group"
+                    )
+                  }
+                >
+                  Change group
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() =>
+                    openBatchAction(
+                      "role"
+                    )
+                  }
+                >
+                  Change role
+                </button>
+
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() =>
+                    setSelectedPersonIds(
+                      []
+                    )
+                  }
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
+          {pageError && (
+            <div className="people-inline-error">
+              {pageError}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="empty-state">
+              <strong>
+                Loading people…
+              </strong>
+            </div>
+          ) : filteredPeople.length ===
+            0 ? (
+            <div className="empty-state">
+              <strong>
+                No matching employees
+              </strong>
 
               <span>
-                Creators
+                Try changing the group or filters.
               </span>
             </div>
+          ) : (
+            <div className="people-table-wrap">
+              <div className="people-table people-table-head">
+                <span className="people-select-cell">
+                  <input
+                    ref={
+                      headerCheckboxRef
+                    }
+                    type="checkbox"
+                    aria-label="Select visible employees"
+                    checked={
+                      allVisibleSelected
+                    }
+                    onChange={
+                      toggleAllVisiblePeople
+                    }
+                    disabled={
+                      visibleSelectableIds.length ===
+                      0
+                    }
+                  />
+                </span>
 
-            {filteredPeople.map(
-              (
-                person
-              ) => (
-                <button
-                  key={
-                    person.id
-                  }
-                  type="button"
-                  className="people-table people-table-row"
-                  onClick={() => {
-                    void openPerson(
+                <span>
+                  Employee
+                </span>
+
+                <span>
+                  Assigned creators
+                </span>
+
+                <span>
+                  Role
+                </span>
+
+                <span>
+                  Status
+                </span>
+
+                <span className="people-actions-heading">
+                  Actions
+                </span>
+              </div>
+
+              {filteredPeople.map(
+                (
+                  person
+                ) => {
+                  const manageable =
+                    canManagePerson(
                       person
                     );
-                  }}
-                >
-                  <span className="people-person-cell">
-                    <strong>
-                      {person.name}
-                    </strong>
 
-                    <small>
-                      {person.email}
-                    </small>
-                  </span>
-
-                  <span>
-                    <span
-                      className={`people-status-badge ${person.status.toLowerCase()}`}
+                  return (
+                    <div
+                      key={
+                        person.id
+                      }
+                      className="people-table people-table-row"
                     >
-                      {formatStatus(
-                        person.status
-                      )}
-                    </span>
-                  </span>
-
-                  <span className="people-chip-list">
-                    {person.roles.map(
-                      (
-                        role
-                      ) => (
-                        <span
-                          key={
-                            role.id
+                      <span className="people-select-cell">
+                        <input
+                          type="checkbox"
+                          aria-label={
+                            "Select " +
+                            person.name
                           }
-                          className="people-chip"
-                        >
-                          {role.name}
-                        </span>
-                      )
-                    )}
-                  </span>
+                          checked={
+                            selectedPersonIds.includes(
+                              person.id
+                            )
+                          }
+                          disabled={
+                            !manageable
+                          }
+                          onChange={() =>
+                            togglePersonSelection(
+                              person.id
+                            )
+                          }
+                        />
+                      </span>
 
-                  <span className="people-muted-cell">
-                    {person.models.length >
-                    0
-                      ? person.models
-                          .map(
-                            (
-                              model
-                            ) =>
-                              model.name
-                          )
-                          .join(
-                            ", "
-                          )
-                      : "No creator assignment"}
-                  </span>
-                </button>
-              )
-            )}
-          </div>
-        )}
+                      <button
+                        type="button"
+                        className="people-person-cell people-person-link"
+                        onClick={() => {
+                          void openPerson(
+                            person
+                          );
+                        }}
+                      >
+                        <strong>
+                          {person.name}
+                        </strong>
+
+                        <small>
+                          {person.email}
+                        </small>
+                      </button>
+
+                      <span>
+                        {renderCreatorNames(
+                          person.models
+                        )}
+                      </span>
+
+                      <span className="people-role-cell">
+                        {compactRoleText(
+                          person.roles
+                        )}
+                      </span>
+
+                      <span>
+                        <span
+                          className={
+                            "people-status-badge " +
+                            person.status.toLowerCase()
+                          }
+                        >
+                          {formatStatus(
+                            person.status
+                          )}
+                        </span>
+                      </span>
+
+                      <span className="people-row-actions">
+                        <button
+                          type="button"
+                          className="people-edit-button"
+                          onClick={() => {
+                            void openPerson(
+                              person
+                            );
+                          }}
+                        >
+                          Edit
+                        </button>
+
+                        <span className="people-more-wrap">
+                          <button
+                            type="button"
+                            className="people-more-button"
+                            aria-label={
+                              "More actions for " +
+                              person.name
+                            }
+                            aria-expanded={
+                              openMoreId ===
+                              person.id
+                            }
+                            onClick={(
+                              event
+                            ) => {
+                              event.stopPropagation();
+
+                              setOpenMoreId(
+                                (
+                                  current
+                                ) =>
+                                  current ===
+                                  person.id
+                                    ? null
+                                    : person.id
+                              );
+                            }}
+                          >
+                            •••
+                          </button>
+
+                          {openMoreId ===
+                            person.id && (
+                            <div
+                              className="people-more-menu"
+                              onClick={(
+                                event
+                              ) =>
+                                event.stopPropagation()
+                              }
+                            >
+                              {person.status ===
+                                "PENDING_SETUP" &&
+                                options
+                                  ?.capabilities
+                                  .invitesAvailable &&
+                                manageable && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenMoreId(
+                                        null
+                                      );
+
+                                      void resendInvite(
+                                        person
+                                      );
+                                    }}
+                                  >
+                                    Resend invitation
+                                  </button>
+                                )}
+
+                              {options
+                                ?.capabilities
+                                .canResetTwoFactor && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      requestConfirmedAction(
+                                        person,
+                                        "reset-2fa"
+                                      )
+                                    }
+                                  >
+                                    Reset 2FA
+                                  </button>
+                                )}
+
+                              {person.status ===
+                                "ACTIVE" &&
+                                options
+                                  ?.capabilities
+                                  .canDeactivate &&
+                                manageable && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      requestConfirmedAction(
+                                        person,
+                                        "deactivate"
+                                      )
+                                    }
+                                  >
+                                    Deactivate account
+                                  </button>
+                                )}
+
+                              {person.status ===
+                                "DEACTIVATED" &&
+                                options
+                                  ?.capabilities
+                                  .isOwner && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      requestConfirmedAction(
+                                        person,
+                                        "reactivate"
+                                      )
+                                    }
+                                  >
+                                    Reactivate account
+                                  </button>
+                                )}
+
+                              {options
+                                ?.capabilities
+                                .canDelete && (
+                                  <button
+                                    type="button"
+                                    className="danger"
+                                    onClick={() =>
+                                      requestConfirmedAction(
+                                        person,
+                                        "delete"
+                                      )
+                                    }
+                                  >
+                                    Permanently delete
+                                  </button>
+                                )}
+
+                              {!manageable &&
+                                !options
+                                  ?.capabilities
+                                  .canResetTwoFactor &&
+                                !options
+                                  ?.capabilities
+                                  .canDelete && (
+                                  <span className="people-more-empty">
+                                    No available actions
+                                  </span>
+                                )}
+                            </div>
+                          )}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                }
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       {selectedPerson && (
@@ -1549,7 +3272,8 @@ function PeoplePage() {
               <div className="people-profile-header-actions">
                 <div
                   className={
-                    `people-profile-status ${selectedPerson.status.toLowerCase()}`
+                    "people-profile-status " +
+                    selectedPerson.status.toLowerCase()
                   }
                 >
                   <span>
@@ -1587,6 +3311,17 @@ function PeoplePage() {
             ) : (
               <div className="people-detail-body">
                 <div className="people-account-facts">
+                  <div className="people-account-fact">
+                    <span>
+                      Team group
+                    </span>
+
+                    <strong>
+                      {selectedPerson.teamGroup?.name ??
+                        "Not assigned"}
+                    </strong>
+                  </div>
+
                   <div className="people-account-fact">
                     <span>
                       Created
@@ -1636,7 +3371,7 @@ function PeoplePage() {
                       </h4>
 
                       <p>
-                        Effective access is calculated from all assigned roles and visible creators.
+                        Effective access is calculated from assigned roles, organization scope, and visible creators.
                       </p>
                     </div>
 
@@ -1672,9 +3407,10 @@ function PeoplePage() {
                               className="people-chip"
                             >
                               {role.name}
-                              {role.rank !==
-                                null &&
-                                ` · Rank ${role.rank}`}
+                              {" · "}
+                              {formatDataScope(
+                                role.dataScope
+                              )}
                             </span>
                           )
                         )}
@@ -1716,7 +3452,7 @@ function PeoplePage() {
                     <p className="people-scope-note">
                       {isSelectedSelf
                         ? "Your own role and creator assignments cannot be changed from People Management. This prevents accidental self-lockout."
-                        : "This profile is visible to you, but one or more of its current roles or creator assignments are outside the access you are allowed to change."}
+                        : "This profile is visible to you, but one or more of its current assignments are outside the access you are allowed to change."}
                     </p>
                   )}
                 </div>
@@ -1752,7 +3488,9 @@ function PeoplePage() {
                           type="button"
                           className="secondary-button"
                           onClick={() => {
-                            void resendInvite();
+                            void resendInvite(
+                              selectedPerson
+                            );
                           }}
                           disabled={
                             saving ||
@@ -1763,6 +3501,38 @@ function PeoplePage() {
                           }
                         >
                           Resend invitation
+                        </button>
+                      </div>
+                    )}
+
+                    {options
+                      ?.capabilities
+                      .canResetTwoFactor && (
+                      <div className="people-account-action-card">
+                        <div>
+                          <strong>
+                            Reset two-factor authentication
+                          </strong>
+
+                          <span>
+                            Use this when the user can no longer complete their current verification method.
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() =>
+                            requestConfirmedAction(
+                              selectedPerson,
+                              "reset-2fa"
+                            )
+                          }
+                          disabled={
+                            saving
+                          }
+                        >
+                          Reset 2FA
                         </button>
                       </div>
                     )}
@@ -1788,7 +3558,8 @@ function PeoplePage() {
                             type="button"
                             className="danger-button"
                             onClick={() =>
-                              setConfirmAction(
+                              requestConfirmedAction(
+                                selectedPerson,
                                 "deactivate"
                               )
                             }
@@ -1822,7 +3593,8 @@ function PeoplePage() {
                             type="button"
                             className="primary-button"
                             onClick={() =>
-                              setConfirmAction(
+                              requestConfirmedAction(
+                                selectedPerson,
                                 "reactivate"
                               )
                             }
@@ -1834,37 +3606,6 @@ function PeoplePage() {
                           </button>
                         </div>
                       )}
-
-                    {options
-                      ?.capabilities
-                      .canResetTwoFactor && (
-                      <div className="people-account-action-card">
-                        <div>
-                          <strong>
-                            Reset two-factor authentication
-                          </strong>
-
-                          <span>
-                            Use this when the user can no longer complete their current verification method.
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() =>
-                            setConfirmAction(
-                              "reset-2fa"
-                            )
-                          }
-                          disabled={
-                            saving
-                          }
-                        >
-                          Reset 2FA
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1901,7 +3642,8 @@ function PeoplePage() {
                         type="button"
                         className="danger-button"
                         onClick={() =>
-                          setConfirmAction(
+                          requestConfirmedAction(
+                            selectedPerson,
                             "delete"
                           )
                         }
@@ -1996,6 +3738,42 @@ function PeoplePage() {
                 />
               </label>
 
+              <label className="form-field">
+                <span>
+                  Team group
+                </span>
+
+                <select
+                  value={
+                    inviteTeamGroupId
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setInviteTeamGroupId(
+                      event.target.value
+                    )
+                  }
+                >
+                  {organizationGroups.map(
+                    (
+                      group
+                    ) => (
+                      <option
+                        key={
+                          group.id
+                        }
+                        value={
+                          group.id
+                        }
+                      >
+                        {group.name}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
               <div className="people-option-section">
                 <span className="people-section-label">
                   Roles
@@ -2034,12 +3812,9 @@ function PeoplePage() {
                           </strong>
 
                           <small>
-                            {role.rank !==
-                            null
-                              ? `Rank ${role.rank}`
-                              : "Unranked"}
-                            {" · "}
-                            {role.dataScope}
+                            {formatDataScope(
+                              role.dataScope
+                            )}
                           </small>
                         </span>
                       </label>
@@ -2174,6 +3949,42 @@ function PeoplePage() {
               </div>
 
               <div className="people-form-body">
+                <label className="form-field">
+                  <span>
+                    Team group
+                  </span>
+
+                  <select
+                    value={
+                      accessTeamGroupId
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setAccessTeamGroupId(
+                        event.target.value
+                      )
+                    }
+                  >
+                    {organizationGroups.map(
+                      (
+                        group
+                      ) => (
+                        <option
+                          key={
+                            group.id
+                          }
+                          value={
+                            group.id
+                          }
+                        >
+                          {group.name}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
                 <div className="people-option-section">
                   <span className="people-section-label">
                     Roles
@@ -2212,12 +4023,9 @@ function PeoplePage() {
                             </strong>
 
                             <small>
-                              {role.rank !==
-                              null
-                                ? `Rank ${role.rank}`
-                                : "Unranked"}
-                              {" · "}
-                              {role.dataScope}
+                              {formatDataScope(
+                                role.dataScope
+                              )}
                             </small>
                           </span>
                         </label>
@@ -2348,8 +4156,312 @@ function PeoplePage() {
           </div>
         )}
 
+      {batchAction && (
+        <div className="people-overlay">
+          <section className="people-confirm-modal">
+            <div className="people-modal-header">
+              <div>
+                <span className="page-eyebrow">
+                  Batch action
+                </span>
+
+                <h3>
+                  {batchAction ===
+                  "group"
+                    ? "Change group"
+                    : "Change role"}
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                className="people-close"
+                onClick={() =>
+                  setBatchAction(
+                    null
+                  )
+                }
+                aria-label="Close batch action"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="people-confirm-body">
+              <p>
+                This will update
+                {" "}
+                <strong>
+                  {selectedCount}
+                </strong>
+                {" "}
+                selected employee
+                {selectedCount ===
+                1
+                  ? ""
+                  : "s"}.
+              </p>
+
+              {batchAction ===
+              "group" ? (
+                <label className="form-field">
+                  <span>
+                    New team group
+                  </span>
+
+                  <select
+                    value={
+                      batchGroupId
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBatchGroupId(
+                        event.target.value
+                      )
+                    }
+                  >
+                    {organizationGroups.map(
+                      (
+                        group
+                      ) => (
+                        <option
+                          key={
+                            group.id
+                          }
+                          value={
+                            group.id
+                          }
+                        >
+                          {group.name}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+              ) : (
+                <>
+                  <label className="form-field">
+                    <span>
+                      New role
+                    </span>
+
+                    <select
+                      value={
+                        batchRoleId
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setBatchRoleId(
+                          event.target.value
+                        )
+                      }
+                    >
+                      {options?.roles.map(
+                        (
+                          role
+                        ) => (
+                          <option
+                            key={
+                              role.id
+                            }
+                            value={
+                              role.id
+                            }
+                          >
+                            {role.name}
+                            {" · "}
+                            {formatDataScope(
+                              role.dataScope
+                            )}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </label>
+
+                  <div className="people-confirm-impact">
+                    <strong>
+                      Existing role assignments will be replaced.
+                    </strong>
+
+                    <p>
+                      Creator assignments and team groups will stay unchanged. This batch action sets the selected employees to the chosen role.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="people-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setBatchAction(
+                    null
+                  )
+                }
+                disabled={
+                  saving
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  void runBatchAction();
+                }}
+                disabled={
+                  saving
+                }
+              >
+                {saving
+                  ? "Updating…"
+                  : "Apply change"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {groupModalAction &&
+        selectedGroup && (
+          <div className="people-overlay">
+            <form
+              className="people-confirm-modal"
+              onSubmit={
+                submitGroupMutation
+              }
+            >
+              <div className="people-modal-header">
+                <div>
+                  <span className="page-eyebrow">
+                    Organization
+                  </span>
+
+                  <h3>
+                    {groupModalAction ===
+                    "create"
+                      ? "Add subgroup"
+                      : groupModalAction ===
+                          "rename"
+                        ? "Rename group"
+                        : "Delete group"}
+                  </h3>
+                </div>
+
+                <button
+                  type="button"
+                  className="people-close"
+                  onClick={() =>
+                    setGroupModalAction(
+                      null
+                    )
+                  }
+                  aria-label="Close group editor"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="people-confirm-body">
+                {groupModalAction ===
+                "delete" ? (
+                  <div className="people-confirm-impact delete">
+                    <strong>
+                      Delete {selectedGroup.name}?
+                    </strong>
+
+                    <p>
+                      A group can only be deleted when it has no members and no child groups. The XYZ Management root cannot be deleted.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {groupModalAction ===
+                      "create" && (
+                      <p>
+                        The new subgroup will be created under
+                        {" "}
+                        <strong>
+                          {selectedGroup.name}
+                        </strong>.
+                      </p>
+                    )}
+
+                    <label className="form-field">
+                      <span>
+                        Group name
+                      </span>
+
+                      <input
+                        value={
+                          groupName
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setGroupName(
+                            event.target.value
+                          )
+                        }
+                        autoFocus
+                      />
+                    </label>
+                  </>
+                )}
+              </div>
+
+              <div className="people-modal-footer">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() =>
+                    setGroupModalAction(
+                      null
+                    )
+                  }
+                  disabled={
+                    saving
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className={
+                    groupModalAction ===
+                    "delete"
+                      ? "danger-button"
+                      : "primary-button"
+                  }
+                  disabled={
+                    saving
+                  }
+                >
+                  {saving
+                    ? "Working…"
+                    : groupModalAction ===
+                        "create"
+                      ? "Create subgroup"
+                      : groupModalAction ===
+                          "rename"
+                        ? "Save name"
+                        : "Delete group"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
       {confirmAction &&
-        selectedPerson && (
+        actionPerson && (
           <div className="people-overlay">
             <section className="people-confirm-modal">
               <div className="people-modal-header">
@@ -2367,14 +4479,22 @@ function PeoplePage() {
                   <h3>
                     {confirmAction ===
                     "delete"
-                      ? `Permanently delete ${selectedPerson.name}?`
+                      ? "Permanently delete " +
+                        actionPerson.name +
+                        "?"
                       : confirmAction ===
                           "deactivate"
-                        ? `Deactivate ${selectedPerson.name}?`
+                        ? "Deactivate " +
+                          actionPerson.name +
+                          "?"
                         : confirmAction ===
                             "reactivate"
-                          ? `Reactivate ${selectedPerson.name}?`
-                          : `Reset 2FA for ${selectedPerson.name}?`}
+                          ? "Reactivate " +
+                            actionPerson.name +
+                            "?"
+                          : "Reset 2FA for " +
+                            actionPerson.name +
+                            "?"}
                   </h3>
                 </div>
               </div>
@@ -2382,7 +4502,8 @@ function PeoplePage() {
               <div className="people-confirm-body">
                 <div
                   className={
-                    `people-confirm-impact ${confirmAction}`
+                    "people-confirm-impact " +
+                    confirmAction
                   }
                 >
                   <strong>
@@ -2416,7 +4537,7 @@ function PeoplePage() {
                   "delete" && (
                   <label className="form-field">
                     <span>
-                      Type {selectedPerson.email} to confirm
+                      Type {actionPerson.email} to confirm
                     </span>
 
                     <input
@@ -2445,6 +4566,10 @@ function PeoplePage() {
                       null
                     );
 
+                    setActionPerson(
+                      null
+                    );
+
                     setDeleteConfirmation(
                       ""
                     );
@@ -2460,9 +4585,9 @@ function PeoplePage() {
                   type="button"
                   className={
                     confirmAction ===
-                    "delete" ||
+                      "delete" ||
                     confirmAction ===
-                    "deactivate"
+                      "deactivate"
                       ? "danger-button"
                       : "primary-button"
                   }
@@ -2477,7 +4602,7 @@ function PeoplePage() {
                       deleteConfirmation
                         .trim()
                         .toLowerCase() !==
-                        selectedPerson.email
+                        actionPerson.email
                           .toLowerCase()
                     )
                   }
@@ -2504,4 +4629,3 @@ function PeoplePage() {
 }
 
 export default PeoplePage;
-
