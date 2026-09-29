@@ -2227,9 +2227,32 @@ function PeoplePage() {
                 </div>
 
                 <div className="people-option-section">
-                  <span className="people-section-label">
-                    Creators
-                  </span>
+                  <div className="people-option-heading">
+                    <div>
+                      <span className="people-section-label">
+                        Creators
+                      </span>
+
+                      <small>
+                        {accessModelIds.length} selected
+                      </small>
+                    </div>
+
+                    {activeAccessCreatorIds.length >
+                      0 && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={
+                          toggleAllAccessCreators
+                        }
+                      >
+                        {allActiveCreatorsSelected
+                          ? "Clear all"
+                          : "Select all creators"}
+                      </button>
+                    )}
+                  </div>
 
                   <div className="people-option-grid">
                     {options?.models.length ? (
