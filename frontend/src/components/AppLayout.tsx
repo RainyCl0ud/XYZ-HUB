@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -85,7 +86,58 @@ const PAGE_TITLES:
     "Role Builder",
   "/audit":
     "Audit Log",
+  "/account":
+    "My Account",
 };
+
+function getInitials(
+  name:
+    string |
+    undefined
+) {
+  if (
+    !name
+  ) {
+    return "U";
+  }
+
+  const parts =
+    name
+      .trim()
+      .split(
+        /\s+/
+      )
+      .filter(
+        Boolean
+      );
+
+  if (
+    parts.length ===
+      0
+  ) {
+    return "U";
+  }
+
+  if (
+    parts.length ===
+      1
+  ) {
+    return parts[0]
+      .slice(
+        0,
+        2
+      )
+      .toUpperCase();
+  }
+
+  return (
+    parts[0][0] +
+    parts[
+      parts.length -
+        1
+    ][0]
+  ).toUpperCase();
+}
 
 function formatCentralClock(
   value:
@@ -177,6 +229,26 @@ function AppLayout() {
     setSigningOut,
   ] =
     useState(false);
+
+  const [
+    accountMenuOpen,
+    setAccountMenuOpen,
+  ] =
+    useState(false);
+
+  const [
+    logoutConfirmOpen,
+    setLogoutConfirmOpen,
+  ] =
+    useState(false);
+
+  const accountMenuRef =
+    useRef<
+      HTMLDivElement |
+      null
+    >(
+      null
+    );
 
   const [
     mobileNavOpen,
@@ -390,6 +462,89 @@ function AppLayout() {
         ", "
       ) ||
     "XYZ Management";
+
+  useEffect(
+    () => {
+      setAccountMenuOpen(
+        false
+      );
+    },
+    [
+      location.pathname,
+    ]
+  );
+
+  useEffect(
+    () => {
+      if (
+        !accountMenuOpen
+      ) {
+        return;
+      }
+
+      const handlePointerDown =
+        (
+          event:
+            MouseEvent
+        ) => {
+          const target =
+            event.target;
+
+          if (
+            target instanceof
+              Node &&
+            accountMenuRef.current &&
+            !accountMenuRef.current.contains(
+              target
+            )
+          ) {
+            setAccountMenuOpen(
+              false
+            );
+          }
+        };
+
+      const handleKeyDown =
+        (
+          event:
+            KeyboardEvent
+        ) => {
+          if (
+            event.key ===
+              "Escape"
+          ) {
+            setAccountMenuOpen(
+              false
+            );
+          }
+        };
+
+      document.addEventListener(
+        "mousedown",
+        handlePointerDown
+      );
+
+      window.addEventListener(
+        "keydown",
+        handleKeyDown
+      );
+
+      return () => {
+        document.removeEventListener(
+          "mousedown",
+          handlePointerDown
+        );
+
+        window.removeEventListener(
+          "keydown",
+          handleKeyDown
+        );
+      };
+    },
+    [
+      accountMenuOpen,
+    ]
+  );
 
   useEffect(
     () => {
@@ -704,9 +859,123 @@ function AppLayout() {
           </div>
 
           <div
-            className="portal-account-slot"
-            aria-hidden="true"
-          />
+            className="portal-account-menu"
+            ref={
+              accountMenuRef
+            }
+          >
+            <button
+              type="button"
+              className="portal-account-avatar-button"
+              aria-label="Open account menu"
+              aria-haspopup="menu"
+              aria-expanded={
+                accountMenuOpen
+              }
+              onClick={() =>
+                setAccountMenuOpen(
+                  (
+                    current
+                  ) =>
+                    !current
+                )
+              }
+            >
+              <span className="portal-account-avatar">
+                {getInitials(
+                  user?.name
+                )}
+              </span>
+            </button>
+
+            {accountMenuOpen && (
+              <div
+                className="portal-account-dropdown"
+                role="menu"
+              >
+                <div className="portal-account-dropdown-profile">
+                  <span className="portal-account-dropdown-avatar">
+                    {getInitials(
+                      user?.name
+                    )}
+                  </span>
+
+                  <div>
+                    <strong>
+                      {user?.name ??
+                        "Account"}
+                    </strong>
+
+                    <small>
+                      {user?.email}
+                    </small>
+
+                    <span>
+                      {roleNames}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="portal-account-dropdown-divider" />
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="portal-account-dropdown-item"
+                  onClick={() => {
+                    setAccountMenuOpen(
+                      false
+                    );
+
+                    navigate(
+                      "/account"
+                    );
+                  }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"
+                    />
+                  </svg>
+
+                  <span>
+                    Manage profile
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="portal-account-dropdown-item danger"
+                  onClick={() => {
+                    setAccountMenuOpen(
+                      false
+                    );
+
+                    setLogoutConfirmOpen(
+                      true
+                    );
+                  }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M10 17l5-5-5-5M15 12H3m9-9h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"
+                    />
+                  </svg>
+
+                  <span>
+                    Sign out
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -795,38 +1064,81 @@ function AppLayout() {
           }
         />
 
-        <div className="sidebar-account">
-          <div className="sidebar-account-name">
-            {user?.name ??
-              "Signed in"}
-          </div>
-
-          <div className="sidebar-account-email">
-            {user?.email}
-          </div>
-
-          <div className="sidebar-account-role">
-            {roleNames}
-          </div>
-
-          <button
-            className="sidebar-signout-button"
-            type="button"
-            onClick={() => {
-              void handleLogout();
-            }}
-            disabled={
-              signingOut
-            }
-          >
-            {signingOut
-              ? "Signing out..."
-              : "Sign out"}
-          </button>
-        </div>
-
-
       </aside>
+
+      {logoutConfirmOpen && (
+        <div
+          className="portal-account-confirm-overlay"
+          role="presentation"
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setLogoutConfirmOpen(
+                false
+              );
+            }
+          }}
+        >
+          <section
+            className="portal-account-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm sign out"
+          >
+            <span className="page-eyebrow">
+              Account
+            </span>
+
+            <h3>
+              Sign out?
+            </h3>
+
+            <p>
+              You will need to sign in again to access XYZ Management.
+            </p>
+
+            <div className="portal-account-confirm-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setLogoutConfirmOpen(
+                    false
+                  )
+                }
+                disabled={
+                  signingOut
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="danger-button"
+                onClick={() => {
+                  setLogoutConfirmOpen(
+                    false
+                  );
+
+                  void handleLogout();
+                }}
+                disabled={
+                  signingOut
+                }
+              >
+                {signingOut
+                  ? "Signing out…"
+                  : "Sign out"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       <main className="main-content">
         {modelContextReady ? (
