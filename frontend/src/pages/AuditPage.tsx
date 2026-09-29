@@ -31,6 +31,8 @@ type AuditChange = {
   label: string;
   before: string | null;
   after: string | null;
+  added: string[];
+  removed: string[];
 };
 
 type AuditEvent = {
@@ -46,7 +48,7 @@ type AuditEvent = {
   changes: AuditChange[];
   source: {
     ipAddress: string | null;
-    userAgent: string | null;
+    deviceLabel: string | null;
   };
 };
 
@@ -839,34 +841,103 @@ function AuditPage() {
                             {change.label}
                           </strong>
 
-                          <div className="audit-change-values">
-                            <span>
-                              <small>
-                                Before
-                              </small>
+                          {change.added.length >
+                            0 ||
+                          change.removed.length >
+                            0 ? (
+                            <div className="audit-change-delta">
+                              {change.removed.length >
+                                0 && (
+                                <div className="audit-delta-group removed">
+                                  <span className="audit-delta-label">
+                                    <span className="audit-delta-symbol">
+                                      −
+                                    </span>
+                                    Removed
+                                  </span>
 
-                              {change.before ??
-                                "—"}
-                            </span>
+                                  <div className="audit-delta-chips">
+                                    {change.removed.map(
+                                      (
+                                        item
+                                      ) => (
+                                        <span
+                                          key={
+                                            item
+                                          }
+                                          className="audit-delta-chip removed"
+                                        >
+                                          {item}
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              )}
 
-                            <svg
-                              viewBox="0 0 24 24"
-                              aria-hidden="true"
-                            >
-                              <path
-                                d="M5 12h14m-5-5 5 5-5 5"
-                              />
-                            </svg>
+                              {change.added.length >
+                                0 && (
+                                <div className="audit-delta-group added">
+                                  <span className="audit-delta-label">
+                                    <span className="audit-delta-symbol">
+                                      +
+                                    </span>
+                                    Added
+                                  </span>
 
-                            <span>
-                              <small>
-                                After
-                              </small>
+                                  <div className="audit-delta-chips">
+                                    {change.added.map(
+                                      (
+                                        item
+                                      ) => (
+                                        <span
+                                          key={
+                                            item
+                                          }
+                                          className="audit-delta-chip added"
+                                        >
+                                          {item}
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="audit-change-values">
+                              <span className="audit-change-value before">
+                                <small>
+                                  Before
+                                </small>
 
-                              {change.after ??
-                                "—"}
-                            </span>
-                          </div>
+                                <strong>
+                                  {change.before ??
+                                    "—"}
+                                </strong>
+                              </span>
+
+                              <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  d="M5 12h14m-5-5 5 5-5 5"
+                                />
+                              </svg>
+
+                              <span className="audit-change-value after">
+                                <small>
+                                  After
+                                </small>
+
+                                <strong>
+                                  {change.after ??
+                                    "—"}
+                                </strong>
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )
                     )}
@@ -909,7 +980,7 @@ function AuditPage() {
                     </span>
 
                     <strong>
-                      {selectedEvent.source.userAgent ??
+                      {selectedEvent.source.deviceLabel ??
                         "Not available"}
                     </strong>
                   </div>
