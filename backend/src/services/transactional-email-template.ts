@@ -119,7 +119,6 @@ export function renderBrandedTransactionalEmail(
               <div class="xyz-verification-code" dir="ltr" style="-webkit-user-select:all;user-select:all;white-space:nowrap;color:#e8d8b2;font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:7px;line-height:1.2;">${escapeEmailHtml(
                 input.code
               )}</div>
-              <div style="margin:9px 0 0;color:#777780;font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.45;">Tap and hold the code to copy it.</div>
             </td>
           </tr>
         </table>`
@@ -181,10 +180,10 @@ export function renderBrandedTransactionalEmail(
       }
     </style>
   </head>
-  <body style="margin:0;padding:0;background:#ffffff;">
+  <body style="margin:0;padding:0;background:#e7e5e1;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div>
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="width:100%;background:#ffffff;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#e7e5e1" style="width:100%;background:#e7e5e1;">
       <tr>
         <td class="xyz-email-outer" align="center" style="padding:34px 14px;">
           <table class="xyz-email-card" role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px;border:1px solid #303034;border-radius:14px;background:#1b1b1e;overflow:hidden;">

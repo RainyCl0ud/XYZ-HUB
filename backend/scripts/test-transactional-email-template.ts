@@ -91,20 +91,21 @@ function main() {
 
   assert.ok(
     html.includes(
-      'bgcolor="#ffffff"'
+      'bgcolor="#e7e5e1"'
     )
   );
 
   assert.ok(
     html.includes(
-      'background:#ffffff'
+      'background:#e7e5e1'
     )
   );
 
-  assert.ok(
+  assert.equal(
     html.includes(
       "Tap and hold the code to copy it."
-    )
+    ),
+    false
   );
 
   assert.ok(
@@ -120,7 +121,7 @@ function main() {
   );
 
   console.log(
-    "✓ white outer background and mobile copy-ready verification code render"
+    "✓ soft neutral outer background and mobile copy-ready verification code render"
   );
 
   assert.ok(
