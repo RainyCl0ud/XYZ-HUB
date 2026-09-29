@@ -116,6 +116,7 @@ function handleRoleError(
       return true;
 
     case "ROLE_NAME_IN_USE":
+    case "OWNER_ROLE_IMMUTABLE":
     case "SYSTEM_ROLE_DELETE_FORBIDDEN":
     case "ROLE_IN_USE":
       res.status(409).json({
