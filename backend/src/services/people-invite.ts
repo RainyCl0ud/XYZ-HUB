@@ -257,7 +257,7 @@ export async function invitePerson(
   ) {
     throw new PeopleInviteError(
       "INVALID_MODEL",
-      "One or more selected models do not exist."
+      "One or more selected creators do not exist."
     );
   }
 
@@ -267,7 +267,7 @@ export async function invitePerson(
     if (!model.isActive) {
       throw new PeopleInviteError(
         "INVALID_MODEL",
-        `The model "${model.name}" is inactive and cannot be assigned.`
+        `The creator "${model.name}" is inactive and cannot be assigned.`
       );
     }
 
@@ -279,7 +279,7 @@ export async function invitePerson(
     ) {
       throw new PeopleInviteError(
         "MODEL_NOT_ASSIGNABLE",
-        `You do not have access to assign the model "${model.name}".`
+        `You do not have access to assign the creator "${model.name}".`
       );
     }
   }

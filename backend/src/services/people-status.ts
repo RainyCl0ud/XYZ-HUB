@@ -173,7 +173,7 @@ export async function deactivatePerson(
     ) {
       throw new PeopleStatusError(
         "MODEL_NOT_MANAGEABLE",
-        `You are not allowed to manage the model "${assignment.model.name}".`
+        `You are not allowed to manage the creator "${assignment.model.name}".`
       );
     }
   }

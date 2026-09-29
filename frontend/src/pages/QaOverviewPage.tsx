@@ -326,7 +326,7 @@ function QaOverviewPage() {
           </strong>
 
           <span className="stat-help">
-            In the selected model scope
+            In the selected creator scope
           </span>
         </div>
 
@@ -371,7 +371,7 @@ function QaOverviewPage() {
             </h3>
 
             <p>
-              Latest incidents for the model context selected in the header.
+              Latest incidents for the creator context selected in the header.
             </p>
           </div>
 
@@ -421,7 +421,7 @@ function QaOverviewPage() {
 
                     <span>
                       {incident.agencyModel?.name ??
-                        "Unassigned model"}
+                        "Unassigned creator"}
                     </span>
                   </div>
 

@@ -290,7 +290,7 @@ function AuditPage() {
       <header className="page-header">
         <div>
           <p className="page-eyebrow">
-            Login Gate
+            Security history
           </p>
 
           <h2>
@@ -406,7 +406,7 @@ function AuditPage() {
         </strong>
 
         <span>
-          XYZ Hub exposes no edit or delete action for audit entries.
+          Audit records are read-only and cannot be edited or deleted.
         </span>
       </div>
 

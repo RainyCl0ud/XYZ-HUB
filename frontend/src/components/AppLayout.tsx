@@ -80,14 +80,14 @@ const PAGE_TITLES:
   "/people":
     "People",
   "/models":
-    "Models",
+    "Creators",
   "/roles":
     "Role Builder",
   "/audit":
     "Audit Log",
 };
 
-function formatCentralTime(
+function formatCentralClock(
   value:
     Date
 ) {
@@ -96,22 +96,61 @@ function formatCentralTime(
     {
       timeZone:
         CENTRAL_TIME_ZONE,
-      month:
-        "short",
-      day:
-        "numeric",
-      year:
-        "numeric",
       hour:
         "numeric",
       minute:
         "2-digit",
-      timeZoneName:
-        "short",
     }
   ).format(
     value
   );
+}
+
+function formatCentralDateZone(
+  value:
+    Date
+) {
+  const date =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          CENTRAL_TIME_ZONE,
+        month:
+          "short",
+        day:
+          "numeric",
+        year:
+          "numeric",
+      }
+    ).format(
+      value
+    );
+
+  const zone =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          CENTRAL_TIME_ZONE,
+        timeZoneName:
+          "short",
+      }
+    )
+      .formatToParts(
+        value
+      )
+      .find(
+        (
+          part
+        ) =>
+          part.type ===
+          "timeZoneName"
+      )
+      ?.value ??
+    "CT";
+
+  return `${date} · ${zone}`;
 }
 
 function AppLayout() {
@@ -493,7 +532,6 @@ function AppLayout() {
   }
 
   const showModelContext =
-    isQaPage &&
     capabilities.canViewQa &&
     (
       models.length >
@@ -515,10 +553,21 @@ function AppLayout() {
       ? models[0]
       : null;
 
-  const centralTime =
+  const centralClock =
     useMemo(
       () =>
-        formatCentralTime(
+        formatCentralClock(
+          now
+        ),
+      [
+        now,
+      ]
+    );
+
+  const centralDateZone =
+    useMemo(
+      () =>
+        formatCentralDateZone(
           now
         ),
       [
@@ -529,8 +578,8 @@ function AppLayout() {
   return (
     <div
       className={
-        `app-shell portal-shell${isQaPage
-          ? " portal-shell-qa"
+        `app-shell portal-shell${showModelContext
+          ? " portal-shell-context"
           : ""}`
       }
     >
@@ -572,13 +621,13 @@ function AppLayout() {
         {showModelContext ? (
           <div className="portal-command-context portal-command-context-v2">
             <span className="portal-command-label">
-              Model context
+              Creator context
             </span>
 
             {canSwitchModelContext ? (
               <select
                 id="portal-model-context"
-                aria-label="Model context"
+                aria-label="Creator context"
                 value={
                   activeModelId
                 }
@@ -595,8 +644,8 @@ function AppLayout() {
                     1) && (
                   <option value="ALL">
                     {access?.canSeeAllModels
-                      ? "All models"
-                      : "All assigned models"}
+                      ? "All creators"
+                      : "All assigned creators"}
                   </option>
                 )}
 
@@ -639,25 +688,19 @@ function AppLayout() {
               US Central
             </span>
 
-            <strong>
-              {centralTime}
-            </strong>
-          </div>
-
-          <div className="portal-command-user">
-            <span className="portal-command-label">
-              Signed in
-            </span>
-
-            <strong>
-              {user?.name ??
-                roleNames}
+            <strong className="portal-clock-time">
+              {centralClock}
             </strong>
 
-            <small>
-              {roleNames}
+            <small className="portal-clock-date">
+              {centralDateZone}
             </small>
           </div>
+
+          <div
+            className="portal-account-slot"
+            aria-hidden="true"
+          />
         </div>
       </header>
 
@@ -776,15 +819,7 @@ function AppLayout() {
           </button>
         </div>
 
-        <div className="sidebar-footer">
-          <span className="environment-dot" />
 
-          <span>
-            {import.meta.env
-              .VITE_APP_ENV ??
-              "Development"}
-          </span>
-        </div>
       </aside>
 
       <main className="main-content">

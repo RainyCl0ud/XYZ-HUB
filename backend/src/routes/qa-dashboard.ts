@@ -65,6 +65,9 @@ router.get(
           scope
         );
 
+      const now =
+        new Date();
+
       const [
         openIncidents,
         resolvedIncidents,
@@ -73,6 +76,7 @@ router.get(
         activeChatters,
         activeRules,
         recentIncidents,
+        attentionIncidents,
       ] =
         await prisma.$transaction([
           prisma.incident.count({
@@ -177,6 +181,86 @@ router.get(
               },
             },
           }),
+
+          prisma.incident.findMany({
+            where: {
+              ...incidentWhere,
+
+              OR: [
+                {
+                  status:
+                    "OPEN",
+                },
+                {
+                  status: {
+                    not:
+                      "VOIDED",
+                  },
+
+                  expiresAt: {
+                    gt:
+                      now,
+                  },
+                },
+              ],
+            },
+
+            take:
+              6,
+
+            orderBy: [
+              {
+                occurredAt:
+                  "desc",
+              },
+            ],
+
+            select: {
+              id:
+                true,
+              modelId:
+                true,
+              ruleTitleSnapshot:
+                true,
+              severityNameSnapshot:
+                true,
+              weightNameSnapshot:
+                true,
+              weightValueSnapshot:
+                true,
+              occurredAt:
+                true,
+              expiresAt:
+                true,
+              status:
+                true,
+
+              chatter: {
+                select: {
+                  id:
+                    true,
+                  name:
+                    true,
+                },
+              },
+
+              ruleVersion: {
+                select: {
+                  versionNumber:
+                    true,
+                },
+              },
+
+              agencyModel: {
+                select: {
+                  id:
+                    true,
+                  name:
+                    true,
+                },
+              },
+            },
+          }),
         ]);
 
       res.status(200).json({
@@ -200,6 +284,21 @@ router.get(
                 strikeActivityStatus:
                   getStrikeActivityStatus(
                     incident
+                  ),
+              })
+            ),
+
+          attentionIncidents:
+            attentionIncidents.map(
+              (
+                incident
+              ) => ({
+                ...incident,
+
+                strikeActivityStatus:
+                  getStrikeActivityStatus(
+                    incident,
+                    now
                   ),
               })
             ),

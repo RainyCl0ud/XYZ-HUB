@@ -126,21 +126,6 @@ function NavigationLink({
       <span>
         {item.label}
       </span>
-
-      <svg
-        className="hub-nav-link-arrow"
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        aria-hidden="true"
-      >
-        <path
-          d="m9 6 6 6-6 6"
-        />
-      </svg>
     </Link>
   );
 }

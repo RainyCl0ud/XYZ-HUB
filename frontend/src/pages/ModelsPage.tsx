@@ -195,7 +195,7 @@ function ModelsPage() {
           const message =
             error instanceof Error
               ? error.message
-              : "Unable to load models.";
+              : "Unable to load creators.";
 
           setPageError(
             message
@@ -203,7 +203,7 @@ function ModelsPage() {
 
           toast.error(
             message,
-            "Unable to load models"
+            "Unable to load creators"
           );
         } finally {
           setLoading(
@@ -309,8 +309,8 @@ function ModelsPage() {
 
     if (!name) {
       toast.warning(
-        "Enter a model name.",
-        "Model name required"
+        "Enter a creator name.",
+        "Creator name required"
       );
 
       return;
@@ -355,8 +355,8 @@ function ModelsPage() {
       );
 
       toast.success(
-        "The model was created and is ready for assignment.",
-        "Model created"
+        "The creator was added and is ready for assignment.",
+        "Creator added"
       );
 
       await loadModels();
@@ -366,8 +366,8 @@ function ModelsPage() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Unable to create the model.",
-        "Model not created"
+          : "Unable to create the creator.",
+        "Creator not added"
       );
     } finally {
       setSaving(
@@ -406,8 +406,8 @@ function ModelsPage() {
 
     if (!name) {
       toast.warning(
-        "Enter a model name.",
-        "Model name required"
+        "Enter a creator name.",
+        "Creator name required"
       );
 
       return;
@@ -442,8 +442,8 @@ function ModelsPage() {
       await loadModels();
 
       toast.success(
-        "The model name was updated.",
-        "Model updated"
+        "The creator name was updated.",
+        "Creator updated"
       );
     } catch (
       error
@@ -451,8 +451,8 @@ function ModelsPage() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Unable to update the model.",
-        "Model not updated"
+          : "Unable to update the creator.",
+        "Creator not updated"
       );
     } finally {
       setSaving(
@@ -497,11 +497,11 @@ function ModelsPage() {
 
       toast.success(
         wasActive
-          ? "The model is inactive. Existing assignments and history were preserved."
-          : "The model is active again and can be assigned.",
+          ? "The creator is inactive. Existing assignments and history were preserved."
+          : "The creator is active again and can be assigned.",
         wasActive
-          ? "Model deactivated"
-          : "Model reactivated"
+          ? "Creator deactivated"
+          : "Creator reactivated"
       );
     } catch (
       error
@@ -509,7 +509,7 @@ function ModelsPage() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Unable to update the model.",
+          : "Unable to update the creator.",
         "Status not changed"
       );
     } finally {
@@ -524,15 +524,15 @@ function ModelsPage() {
       <header className="page-header">
         <div>
           <p className="page-eyebrow">
-            Login Gate
+            Agency operations
           </p>
 
           <h2>
-            Model Management
+            Creator Management
           </h2>
 
           <p className="page-description">
-            Maintain the agency model catalog used by People Management and model-scoped access control.
+            Maintain the agency creator catalog used by People Management and creator-scoped access control.
           </p>
         </div>
 
@@ -545,14 +545,14 @@ function ModelsPage() {
             )
           }
         >
-          Add model
+          Add creator
         </button>
       </header>
 
       <section className="models-summary-grid">
         <div className="stat-card">
           <span className="stat-label">
-            Total models
+            Total creators
           </span>
 
           <strong className="stat-value">
@@ -602,7 +602,7 @@ function ModelsPage() {
           </strong>
 
           <span className="stat-help">
-            Current person-to-model assignment records.
+            Current person-to-creator assignment records.
           </span>
         </div>
       </section>
@@ -612,8 +612,8 @@ function ModelsPage() {
           <input
             className="search-input"
             type="search"
-            placeholder="Search model name"
-            aria-label="Search models"
+            placeholder="Search creator name"
+            aria-label="Search creators"
             value={
               search
             }
@@ -684,14 +684,14 @@ function ModelsPage() {
         {loading ? (
           <div className="empty-state">
             <strong>
-              Loading models…
+              Loading creators…
             </strong>
           </div>
         ) : filteredModels.length ===
           0 ? (
           <div className="empty-state">
             <strong>
-              No matching models
+              No matching creators
             </strong>
 
             <span>
@@ -702,7 +702,7 @@ function ModelsPage() {
           <div className="models-table-wrap">
             <div className="models-table models-table-head">
               <span>
-                Model
+                Creator
               </span>
 
               <span>
@@ -816,11 +816,11 @@ function ModelsPage() {
 
       <div className="models-policy-note">
         <strong>
-          No permanent model deletion
+          No permanent creator deletion
         </strong>
 
         <span>
-          Deactivating a model keeps existing user assignments and historical incident relationships intact. Inactive models cannot be newly assigned until they are reactivated.
+          Deactivating a creator keeps existing user assignments and historical incident relationships intact. Inactive creators cannot be newly assigned until they are reactivated.
         </span>
       </div>
 
@@ -835,11 +835,11 @@ function ModelsPage() {
             <div className="models-modal-header">
               <div>
                 <span className="page-eyebrow">
-                  Model catalog
+                  Creator catalog
                 </span>
 
                 <h3>
-                  Add model
+                  Add creator
                 </h3>
               </div>
 
@@ -855,7 +855,7 @@ function ModelsPage() {
                     ""
                   );
                 }}
-                aria-label="Close add model"
+                aria-label="Close add creator"
               >
                 ×
               </button>
@@ -864,7 +864,7 @@ function ModelsPage() {
             <div className="models-modal-body">
               <label className="form-field">
                 <span>
-                  Model name
+                  Creator name
                 </span>
 
                 <input
@@ -886,7 +886,7 @@ function ModelsPage() {
               </label>
 
               <p className="models-help">
-                New models are active immediately and can be assigned through People Management.
+                New creators are active immediately and can be assigned through People Management.
               </p>
             </div>
 
@@ -920,7 +920,7 @@ function ModelsPage() {
               >
                 {saving
                   ? "Creating…"
-                  : "Create model"}
+                  : "Create creator"}
               </button>
             </div>
           </form>
@@ -938,11 +938,11 @@ function ModelsPage() {
             <div className="models-modal-header">
               <div>
                 <span className="page-eyebrow">
-                  Model catalog
+                  Creator catalog
                 </span>
 
                 <h3>
-                  Rename model
+                  Rename creator
                 </h3>
               </div>
 
@@ -958,7 +958,7 @@ function ModelsPage() {
                     ""
                   );
                 }}
-                aria-label="Close rename model"
+                aria-label="Close rename creator"
               >
                 ×
               </button>
@@ -967,7 +967,7 @@ function ModelsPage() {
             <div className="models-modal-body">
               <label className="form-field">
                 <span>
-                  Model name
+                  Creator name
                 </span>
 
                 <input
@@ -989,7 +989,7 @@ function ModelsPage() {
               </label>
 
               <p className="models-help">
-                Renaming keeps the same model identity, assignments, and incident relationships.
+                Renaming keeps the same creator identity, assignments, and incident relationships.
               </p>
             </div>
 
@@ -1041,8 +1041,8 @@ function ModelsPage() {
 
                 <h3>
                   {statusModel.isActive
-                    ? "Deactivate model?"
-                    : "Reactivate model?"}
+                    ? "Deactivate creator?"
+                    : "Reactivate creator?"}
                 </h3>
               </div>
             </div>
