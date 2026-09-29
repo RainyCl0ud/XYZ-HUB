@@ -97,6 +97,29 @@ type QaDashboardResponse = {
         name: string;
       } | null;
     }[];
+
+    attentionIncidents: {
+      id: string;
+      occurredAt: string;
+      ruleTitleSnapshot: string;
+      severityNameSnapshot: string | null;
+      status:
+        "OPEN" |
+        "RESOLVED" |
+        "VOIDED";
+      strikeActivityStatus:
+        "ACTIVE" |
+        "EXPIRED" |
+        "NOT_APPLICABLE";
+      chatter: {
+        id: string;
+        name: string;
+      };
+      agencyModel: {
+        id: string;
+        name: string;
+      } | null;
+    }[];
   };
 };
 
@@ -371,27 +394,8 @@ function DashboardPage() {
     );
 
   const currentIncidents =
-    useMemo(
-      () =>
-        qa?.recentIncidents
-          .filter(
-            (
-              incident
-            ) =>
-              incident.status ===
-                "OPEN" ||
-              incident.strikeActivityStatus ===
-                "ACTIVE"
-          )
-          .slice(
-            0,
-            6
-          ) ??
-        [],
-      [
-        qa,
-      ]
-    );
+    qa?.attentionIncidents ??
+    [];
 
   const recentPeople =
     useMemo(
