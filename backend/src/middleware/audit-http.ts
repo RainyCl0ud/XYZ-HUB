@@ -15,6 +15,10 @@ import {
   appendAuditEvent,
 } from "../services/audit-store.js";
 
+import {
+  hashInviteToken,
+} from "../services/invite-token.js";
+
 type RoleSnapshot = {
   id: string;
   name: string;
@@ -479,12 +483,60 @@ async function prepareAudit(
     method ===
       "POST"
   ) {
+    const token =
+      typeof req.body
+        ?.token ===
+        "string"
+        ? req.body.token
+        : "";
+
+    const invite =
+      token
+        ? await prisma.invite.findUnique({
+            where: {
+              tokenHash:
+                hashInviteToken(
+                  token
+                ),
+            },
+            select: {
+              userId:
+                true,
+            },
+          })
+        : null;
+
+    const userId =
+      invite?.userId ??
+      null;
+
+    const before =
+      userId
+        ? await getPersonAccessSnapshot(
+            userId
+          )
+        : null;
+
     return {
       ...base,
       action:
         "invite.accepted",
       targetType:
-        "invite",
+        "user",
+      targetId:
+        userId,
+      metadata: {
+        before,
+      },
+      ...(userId
+        ? {
+            loadAfter:
+              () =>
+                getPersonAccessSnapshot(
+                  userId
+                ),
+          }
+        : {}),
     };
   }
 
