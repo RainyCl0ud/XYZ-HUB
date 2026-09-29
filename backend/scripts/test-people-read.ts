@@ -426,7 +426,13 @@ const ownerVisibleIds =
 
 for (
   const userId of
-  createdUserIds
+  createdUserIds.filter(
+    (
+      id
+    ) =>
+      id !==
+      owner.id
+  )
 ) {
   assert.equal(
     ownerVisibleIds.has(
@@ -436,8 +442,15 @@ for (
   );
 }
 
+assert.equal(
+  ownerVisibleIds.has(
+    owner.id
+  ),
+  false
+);
+
     console.log(
-      "✓ Owner can see agency-wide People list"
+      "✓ Owner can see agency-wide non-Owner People list"
     );
 
     const ownerView =
@@ -509,7 +522,13 @@ const opsVisibleIds =
 
 for (
   const userId of
-  createdUserIds
+  createdUserIds.filter(
+    (
+      id
+    ) =>
+      id !==
+      owner.id
+  )
 ) {
   assert.equal(
     opsVisibleIds.has(
@@ -518,6 +537,13 @@ for (
     true
   );
 }
+
+assert.equal(
+  opsVisibleIds.has(
+    owner.id
+  ),
+  false
+);
 
     assert.equal(
       opsPeople
@@ -533,7 +559,7 @@ for (
     );
 
     console.log(
-      "✓ Ops Manager sees agency-wide People without Owner-only security data"
+      "✓ Ops Manager sees agency-wide non-Owner People without Owner-only security data"
     );
 
     const managerPeople =
