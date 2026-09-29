@@ -49,8 +49,7 @@
 
   grid-template-columns:
     20px
-    minmax(0, 1fr)
-    15px;
+    minmax(0, 1fr);
 
   align-items: center;
 
@@ -166,27 +165,6 @@
     var(--accent);
 }
 
-.hub-nav-link-arrow {
-  color:
-    #73737b;
-
-  transition:
-    transform 150ms ease,
-    color 150ms ease;
-}
-
-.hub-nav-link:hover
-.hub-nav-link-arrow,
-.hub-nav-link.active
-.hub-nav-link-arrow {
-  color:
-    #bdbdc4;
-
-  transform:
-    translateX(
-      2px
-    );
-}
 
 .hub-nav-link:focus-visible {
   outline:
