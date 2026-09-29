@@ -36,7 +36,9 @@ type PersonAccessSnapshot = {
   email: string;
   status: string;
   roleIds: string[];
+  roleNames: string[];
   modelIds: string[];
+  modelNames: string[];
 };
 
 type ModelSnapshot = {
@@ -195,6 +197,13 @@ async function getPersonAccessSnapshot(
           select: {
             roleId:
               true,
+
+            role: {
+              select: {
+                name:
+                  true,
+              },
+            },
           },
         },
 
@@ -202,6 +211,13 @@ async function getPersonAccessSnapshot(
           select: {
             modelId:
               true,
+
+            model: {
+              select: {
+                name:
+                  true,
+              },
+            },
           },
         },
       },
@@ -231,6 +247,15 @@ async function getPersonAccessSnapshot(
             item.roleId
         )
         .sort(),
+    roleNames:
+      user.roleMemberships
+        .map(
+          (
+            item
+          ) =>
+            item.role.name
+        )
+        .sort(),
     modelIds:
       user.modelAssignments
         .map(
@@ -238,6 +263,15 @@ async function getPersonAccessSnapshot(
             item
           ) =>
             item.modelId
+        )
+        .sort(),
+    modelNames:
+      user.modelAssignments
+        .map(
+          (
+            item
+          ) =>
+            item.model.name
         )
         .sort(),
   };
