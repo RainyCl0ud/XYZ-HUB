@@ -116,9 +116,10 @@ export function renderBrandedTransactionalEmail(
           <tr>
             <td align="center" style="padding:18px;border:1px solid #3b3933;border-radius:10px;background:#161618;">
               <div style="margin:0 0 7px;color:#8d8d96;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;">Verification code</div>
-              <div style="color:#e8d8b2;font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:700;letter-spacing:8px;line-height:1.2;">${escapeEmailHtml(
+              <div class="email-verification-code" dir="ltr" style="-webkit-user-select:all;user-select:all;color:#e8d8b2;font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:700;letter-spacing:6px;line-height:1.2;white-space:nowrap;">${escapeEmailHtml(
                 input.code
               )}</div>
+              <div style="margin-top:10px;color:#73737b;font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.45;">On mobile, tap and hold the code to copy it.</div>
             </td>
           </tr>
         </table>`
@@ -151,19 +152,39 @@ export function renderBrandedTransactionalEmail(
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="color-scheme" content="dark">
-    <meta name="supported-color-schemes" content="dark">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
     <title>${title}</title>
+    <style>
+      @media only screen and (max-width: 600px) {
+        .email-outer-cell {
+          padding: 20px 10px !important;
+        }
+
+        .email-card-header {
+          padding: 24px 20px 19px !important;
+        }
+
+        .email-card-body {
+          padding: 25px 20px 24px !important;
+        }
+
+        .email-verification-code {
+          font-size: 29px !important;
+          letter-spacing: 4px !important;
+        }
+      }
+    </style>
   </head>
-  <body style="margin:0;padding:0;background:#101012;">
+  <body style="margin:0;padding:0;background:#ffffff;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div>
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#101012" style="width:100%;background:#101012;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="width:100%;background:#ffffff;">
       <tr>
-        <td align="center" style="padding:34px 14px;">
+        <td class="email-outer-cell" align="center" bgcolor="#ffffff" style="padding:34px 14px;background:#ffffff;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px;border:1px solid #303034;border-radius:14px;background:#1b1b1e;overflow:hidden;">
             <tr>
-              <td align="center" style="padding:28px 28px 22px;border-bottom:1px solid #303034;">
+              <td class="email-card-header" align="center" style="padding:28px 28px 22px;border-bottom:1px solid #303034;">
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                   <tr>
                     <td align="center" valign="middle" style="width:48px;height:48px;border:1px solid #49463e;border-radius:999px;background:#232326;color:#e8d8b2;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:800;letter-spacing:1px;">
@@ -178,7 +199,7 @@ export function renderBrandedTransactionalEmail(
             </tr>
 
             <tr>
-              <td style="padding:30px 30px 28px;">
+              <td class="email-card-body" style="padding:30px 30px 28px;">
                 <div style="margin:0 0 9px;color:#e8d8b2;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;">${eyebrow}</div>
                 <h1 style="margin:0;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.4px;line-height:1.25;">${title}</h1>
 
