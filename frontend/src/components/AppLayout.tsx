@@ -527,7 +527,13 @@ function AppLayout() {
     );
 
   return (
-    <div className="app-shell portal-shell">
+    <div
+      className={
+        `app-shell portal-shell${isQaPage
+          ? " portal-shell-qa"
+          : ""}`
+      }
+    >
       <header className="portal-command-bar portal-command-bar-v2">
         <button
           type="button"
