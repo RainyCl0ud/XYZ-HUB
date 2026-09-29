@@ -3,15 +3,23 @@ import {
 } from "node:crypto";
 
 import {
+  appendFile,
   mkdir,
   readFile,
-  appendFile,
 } from "node:fs/promises";
 
 import {
   dirname,
   resolve,
 } from "node:path";
+
+import {
+  Prisma,
+} from "@prisma/client";
+
+import {
+  prisma,
+} from "../lib/prisma.js";
 
 export type AuditEvent = {
   id: string;
@@ -46,8 +54,78 @@ export type AuditQuery = {
   limit?: number;
 };
 
+type AuditStoreMode =
+  | "file"
+  | "database";
+
+type DatabaseAuditEvent = {
+  id: string;
+  occurredAt: Date;
+  action: string;
+  success: boolean;
+  statusCode: number;
+  actorUserId: string | null;
+  actorLabel: string | null;
+  targetType: string | null;
+  targetId: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  metadata: Prisma.JsonValue | null;
+};
+
 let appendQueue =
   Promise.resolve();
+
+function getAuditStoreMode():
+  AuditStoreMode {
+  const configured =
+    process.env
+      .AUDIT_STORE_MODE
+      ?.trim()
+      .toLowerCase();
+
+  if (
+    !configured ||
+    configured ===
+      "file"
+  ) {
+    return "file";
+  }
+
+  if (
+    configured ===
+      "database" ||
+    configured ===
+      "postgres" ||
+    configured ===
+      "postgresql"
+  ) {
+    return "database";
+  }
+
+  throw new Error(
+    `Unsupported audit store mode: ${configured}`
+  );
+}
+
+function assertFileAuditAllowed() {
+  /*
+   * Local file storage remains available for development and
+   * isolated adapter tests. Railway/production must use the
+   * durable PostgreSQL adapter.
+   */
+  if (
+    process.env.NODE_ENV ===
+      "production" &&
+    process.env
+      .ALLOW_FILE_AUDIT_IN_PRODUCTION !==
+      "true"
+  ) {
+    throw new Error(
+      "File audit storage is disabled in production. Configure AUDIT_STORE_MODE=database."
+    );
+  }
+}
 
 function getAuditFilePath() {
   const configured =
@@ -70,49 +148,370 @@ function getAuditFilePath() {
   );
 }
 
-function assertAuditMode() {
-  const mode =
-    process.env
-      .AUDIT_STORE_MODE
-      ?.trim()
-      .toLowerCase() ??
-    "file";
+function normalizeMetadata(
+  value:
+    Prisma.JsonValue |
+    null
+):
+  Record<
+    string,
+    unknown
+  > |
+  null {
+  if (
+    value &&
+    typeof value ===
+      "object" &&
+    !Array.isArray(
+      value
+    )
+  ) {
+    return value as Record<
+      string,
+      unknown
+    >;
+  }
+
+  return null;
+}
+
+function toDatabaseAuditEvent(
+  row:
+    DatabaseAuditEvent
+):
+  AuditEvent {
+  return {
+    id:
+      row.id,
+
+    occurredAt:
+      row.occurredAt.toISOString(),
+
+    action:
+      row.action,
+
+    success:
+      row.success,
+
+    statusCode:
+      row.statusCode,
+
+    actorUserId:
+      row.actorUserId,
+
+    actorLabel:
+      row.actorLabel,
+
+    targetType:
+      row.targetType,
+
+    targetId:
+      row.targetId,
+
+    ipAddress:
+      row.ipAddress,
+
+    userAgent:
+      row.userAgent,
+
+    metadata:
+      normalizeMetadata(
+        row.metadata
+      ),
+  };
+}
+
+function getLimit(
+  query:
+    AuditQuery
+) {
+  return Math.min(
+    Math.max(
+      query.limit ??
+        200,
+      1
+    ),
+    500
+  );
+}
+
+function matchesSearch(
+  event:
+    AuditEvent,
+  search:
+    string
+) {
+  const haystack =
+    [
+      event.action,
+      event.actorUserId,
+      event.actorLabel,
+      event.targetType,
+      event.targetId,
+      event.metadata
+        ? JSON.stringify(
+            event.metadata
+          )
+        : null,
+    ]
+      .filter(
+        Boolean
+      )
+      .join(
+        " "
+      )
+      .toLocaleLowerCase();
+
+  return haystack.includes(
+    search
+  );
+}
+
+async function appendDatabaseAuditEvent(
+  input:
+    AuditEventInput
+) {
+  const metadata =
+    input.metadata ===
+      null
+      ? Prisma.DbNull
+      : JSON.parse(
+          JSON.stringify(
+            input.metadata
+          )
+        ) as Prisma.InputJsonValue;
+
+  const created =
+    await prisma.auditEvent.create({
+      data: {
+        occurredAt:
+          input.occurredAt ??
+          new Date(),
+
+        action:
+          input.action,
+
+        success:
+          input.success,
+
+        statusCode:
+          input.statusCode,
+
+        actorUserId:
+          input.actorUserId,
+
+        actorLabel:
+          input.actorLabel,
+
+        targetType:
+          input.targetType,
+
+        targetId:
+          input.targetId,
+
+        ipAddress:
+          input.ipAddress,
+
+        userAgent:
+          input.userAgent,
+
+        metadata,
+      },
+    });
+
+  return toDatabaseAuditEvent(
+    created
+  );
+}
+
+async function readDatabaseAuditEvents(
+  query:
+    AuditQuery
+) {
+  const where:
+    Prisma.AuditEventWhereInput = {};
 
   if (
-    mode !==
-    "file"
+    query.action
   ) {
-    throw new Error(
-      `Unsupported audit store mode: ${mode}`
+    where.action =
+      query.action;
+  }
+
+  if (
+    query.success !==
+      undefined
+  ) {
+    where.success =
+      query.success;
+  }
+
+  if (
+    query.from ||
+    query.to
+  ) {
+    where.occurredAt = {
+      ...(query.from
+        ? {
+            gte:
+              query.from,
+          }
+        : {}),
+
+      ...(query.to
+        ? {
+            lte:
+              query.to,
+          }
+        : {}),
+    };
+  }
+
+  const limit =
+    getLimit(
+      query
+    );
+
+  const search =
+    query.search
+      ?.trim()
+      .toLocaleLowerCase();
+
+  if (
+    !search
+  ) {
+    const rows =
+      await prisma.auditEvent.findMany({
+        where,
+
+        orderBy: [
+          {
+            occurredAt:
+              "desc",
+          },
+          {
+            id:
+              "desc",
+          },
+        ],
+
+        take:
+          limit,
+      });
+
+    return rows.map(
+      toDatabaseAuditEvent
     );
   }
 
   /*
-   * Local file storage is intentionally a
-   * development/staging adapter only. Railway's
-   * ephemeral filesystem is not an acceptable
-   * production audit archive. A durable external
-   * append-only adapter must replace this before
-   * production rollout.
+   * Metadata is JSON and the existing audit search intentionally
+   * searches arbitrary metadata content. To preserve that behavior
+   * without unsafe raw SQL, scan immutable rows in deterministic
+   * batches until enough matches are found.
    */
-  if (
-    process.env.NODE_ENV ===
-      "production" &&
-    process.env
-      .ALLOW_FILE_AUDIT_IN_PRODUCTION !==
-      "true"
+  const events:
+    AuditEvent[] = [];
+
+  const batchSize =
+    500;
+
+  let cursor:
+    string |
+    undefined;
+
+  while (
+    events.length <
+      limit
   ) {
-    throw new Error(
-      "File audit storage is disabled in production. Configure the durable append-only audit adapter before release."
-    );
+    const rows =
+      await prisma.auditEvent.findMany({
+        where,
+
+        orderBy: [
+          {
+            occurredAt:
+              "desc",
+          },
+          {
+            id:
+              "desc",
+          },
+        ],
+
+        take:
+          batchSize,
+
+        ...(cursor
+          ? {
+              cursor: {
+                id:
+                  cursor,
+              },
+
+              skip:
+                1,
+            }
+          : {}),
+      });
+
+    if (
+      rows.length ===
+      0
+    ) {
+      break;
+    }
+
+    for (
+      const row
+      of rows
+    ) {
+      const event =
+        toDatabaseAuditEvent(
+          row
+        );
+
+      if (
+        matchesSearch(
+          event,
+          search
+        )
+      ) {
+        events.push(
+          event
+        );
+
+        if (
+          events.length >=
+            limit
+        ) {
+          break;
+        }
+      }
+    }
+
+    if (
+      rows.length <
+        batchSize
+    ) {
+      break;
+    }
+
+    cursor =
+      rows[
+        rows.length -
+          1
+      ].id;
   }
+
+  return events;
 }
 
-export async function appendAuditEvent(
+async function appendFileAuditEvent(
   input:
     AuditEventInput
 ) {
-  assertAuditMode();
+  assertFileAuditAllowed();
 
   const event:
     AuditEvent = {
@@ -197,11 +596,11 @@ export async function appendAuditEvent(
   return event;
 }
 
-export async function readAuditEvents(
+async function readFileAuditEvents(
   query:
-    AuditQuery = {}
+    AuditQuery
 ) {
-  assertAuditMode();
+  assertFileAuditAllowed();
 
   const filePath =
     getAuditFilePath();
@@ -223,7 +622,7 @@ export async function readAuditEvents(
 
     if (
       nodeError.code ===
-      "ENOENT"
+        "ENOENT"
     ) {
       return [];
     }
@@ -237,13 +636,8 @@ export async function readAuditEvents(
       .toLocaleLowerCase();
 
   const limit =
-    Math.min(
-      Math.max(
-        query.limit ??
-          200,
-        1
-      ),
-      500
+    getLimit(
+      query
     );
 
   const events:
@@ -314,36 +708,13 @@ export async function readAuditEvents(
     }
 
     if (
-      search
+      search &&
+      !matchesSearch(
+        event,
+        search
+      )
     ) {
-      const haystack =
-        [
-          event.action,
-          event.actorUserId,
-          event.actorLabel,
-          event.targetType,
-          event.targetId,
-          event.metadata
-            ? JSON.stringify(
-                event.metadata
-              )
-            : null,
-        ]
-          .filter(
-            Boolean
-          )
-          .join(
-            " "
-          )
-          .toLocaleLowerCase();
-
-      if (
-        !haystack.includes(
-          search
-        )
-      ) {
-        continue;
-      }
+      continue;
     }
 
     events.push(
@@ -352,11 +723,53 @@ export async function readAuditEvents(
 
     if (
       events.length >=
-      limit
+        limit
     ) {
       break;
     }
   }
 
   return events;
+}
+
+export async function appendAuditEvent(
+  input:
+    AuditEventInput
+) {
+  const mode =
+    getAuditStoreMode();
+
+  if (
+    mode ===
+      "database"
+  ) {
+    return appendDatabaseAuditEvent(
+      input
+    );
+  }
+
+  return appendFileAuditEvent(
+    input
+  );
+}
+
+export async function readAuditEvents(
+  query:
+    AuditQuery = {}
+) {
+  const mode =
+    getAuditStoreMode();
+
+  if (
+    mode ===
+      "database"
+  ) {
+    return readDatabaseAuditEvents(
+      query
+    );
+  }
+
+  return readFileAuditEvents(
+    query
+  );
 }
