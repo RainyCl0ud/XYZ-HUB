@@ -15,6 +15,10 @@ import {
   appendAuditEvent,
 } from "../services/audit-store.js";
 
+import {
+  hashInviteToken,
+} from "../services/invite-token.js";
+
 type RoleSnapshot = {
   id: string;
   name: string;
@@ -32,7 +36,9 @@ type PersonAccessSnapshot = {
   email: string;
   status: string;
   roleIds: string[];
+  roleNames: string[];
   modelIds: string[];
+  modelNames: string[];
 };
 
 type ModelSnapshot = {
@@ -191,6 +197,13 @@ async function getPersonAccessSnapshot(
           select: {
             roleId:
               true,
+
+            role: {
+              select: {
+                name:
+                  true,
+              },
+            },
           },
         },
 
@@ -198,6 +211,13 @@ async function getPersonAccessSnapshot(
           select: {
             modelId:
               true,
+
+            model: {
+              select: {
+                name:
+                  true,
+              },
+            },
           },
         },
       },
@@ -227,6 +247,15 @@ async function getPersonAccessSnapshot(
             item.roleId
         )
         .sort(),
+    roleNames:
+      user.roleMemberships
+        .map(
+          (
+            item
+          ) =>
+            item.role.name
+        )
+        .sort(),
     modelIds:
       user.modelAssignments
         .map(
@@ -234,6 +263,15 @@ async function getPersonAccessSnapshot(
             item
           ) =>
             item.modelId
+        )
+        .sort(),
+    modelNames:
+      user.modelAssignments
+        .map(
+          (
+            item
+          ) =>
+            item.model.name
         )
         .sort(),
   };
@@ -479,12 +517,60 @@ async function prepareAudit(
     method ===
       "POST"
   ) {
+    const token =
+      typeof req.body
+        ?.token ===
+        "string"
+        ? req.body.token
+        : "";
+
+    const invite =
+      token
+        ? await prisma.invite.findUnique({
+            where: {
+              tokenHash:
+                hashInviteToken(
+                  token
+                ),
+            },
+            select: {
+              userId:
+                true,
+            },
+          })
+        : null;
+
+    const userId =
+      invite?.userId ??
+      null;
+
+    const before =
+      userId
+        ? await getPersonAccessSnapshot(
+            userId
+          )
+        : null;
+
     return {
       ...base,
       action:
         "invite.accepted",
       targetType:
-        "invite",
+        "user",
+      targetId:
+        userId,
+      metadata: {
+        before,
+      },
+      ...(userId
+        ? {
+            loadAfter:
+              () =>
+                getPersonAccessSnapshot(
+                  userId
+                ),
+          }
+        : {}),
     };
   }
 

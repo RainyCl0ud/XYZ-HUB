@@ -1,4 +1,7 @@
-import { useNavigationFilter } from "../lib/useNavigationFilter";
+import {
+  useNavigationFilter,
+} from "../lib/useNavigationFilter";
+
 import {
   useCallback,
   useEffect,
@@ -18,19 +21,33 @@ import "./AuditPage.css";
 const CENTRAL_TIME_ZONE =
   "America/Chicago";
 
+type AuditParty = {
+  label: string;
+  secondary: string | null;
+  kind: string | null;
+};
+
+type AuditChange = {
+  label: string;
+  before: string | null;
+  after: string | null;
+};
+
 type AuditEvent = {
   id: string;
   occurredAt: string;
   action: string;
+  actionLabel: string;
   success: boolean;
   statusCode: number;
-  actorUserId: string | null;
-  actorLabel: string | null;
-  targetType: string | null;
-  targetId: string | null;
-  ipAddress: string | null;
-  userAgent: string | null;
-  metadata: Record<string, unknown> | null;
+  actor: AuditParty;
+  target: AuditParty;
+  summary: string;
+  changes: AuditChange[];
+  source: {
+    ipAddress: string | null;
+    userAgent: string | null;
+  };
 };
 
 type AuditResponse = {
@@ -74,22 +91,25 @@ function formatCentralDateTime(
   );
 }
 
-function formatAction(
-  value:
-    string
-) {
-  return value
-    .replace(
-      /[._]/g,
-      " "
-    )
-    .replace(
-      /\b\w/g,
-      (
-        character
-      ) =>
-        character.toUpperCase()
-    );
+function AuditPartyDisplay({
+  party,
+}: {
+  party:
+    AuditParty;
+}) {
+  return (
+    <span className="audit-party">
+      <strong>
+        {party.label}
+      </strong>
+
+      {party.secondary && (
+        <small>
+          {party.secondary}
+        </small>
+      )}
+    </span>
+  );
 }
 
 function AuditPage() {
@@ -105,11 +125,27 @@ function AuditPage() {
     >([]);
 
   const [
+    selectedEvent,
+    setSelectedEvent,
+  ] =
+    useState<
+      AuditEvent |
+      null
+    >(
+      null
+    );
+
+  const [
     knownActions,
     setKnownActions,
   ] =
     useState<
-      string[]
+      {
+        value:
+          string;
+        label:
+          string;
+      }[]
     >([]);
 
   const [
@@ -136,9 +172,21 @@ function AuditPage() {
       ""
     );
 
-  const [successFilter, setSuccessFilter] = useNavigationFilter<SuccessFilter>(
-    "result", ["ALL","SUCCESS","FAILED"], "ALL",
-  );
+  const [
+    successFilter,
+    setSuccessFilter,
+  ] =
+    useNavigationFilter<
+      SuccessFilter
+    >(
+      "result",
+      [
+        "ALL",
+        "SUCCESS",
+        "FAILED",
+      ],
+      "ALL"
+    );
 
   const [
     error,
@@ -207,8 +255,11 @@ function AuditPage() {
           );
 
           const response =
-            await apiRequest<AuditResponse>(
-              `/api/audit?${params.toString()}`
+            await apiRequest<
+              AuditResponse
+            >(
+              "/api/audit?" +
+                params.toString()
             );
 
           setEvents(
@@ -218,18 +269,69 @@ function AuditPage() {
           setKnownActions(
             (
               current
+            ) => {
+              const map =
+                new Map(
+                  current.map(
+                    (
+                      item
+                    ) => [
+                      item.value,
+                      item.label,
+                    ]
+                  )
+                );
+
+              for (
+                const event
+                of response.events
+              ) {
+                map.set(
+                  event.action,
+                  event.actionLabel
+                );
+              }
+
+              return [
+                ...map.entries(),
+              ]
+                .map(
+                  (
+                    [
+                      value,
+                      label,
+                    ]
+                  ) => ({
+                    value,
+                    label,
+                  })
+                )
+                .sort(
+                  (
+                    first,
+                    second
+                  ) =>
+                    first.label.localeCompare(
+                      second.label
+                    )
+                );
+            }
+          );
+
+          setSelectedEvent(
+            (
+              current
             ) =>
-              [
-                ...new Set([
-                  ...current,
-                  ...response.events.map(
+              current
+                ? response.events.find(
                     (
                       event
                     ) =>
-                      event.action
-                  ),
-                ]),
-              ].sort()
+                      event.id ===
+                      current.id
+                  ) ??
+                  current
+                : null
           );
         } catch (
           error
@@ -282,8 +384,57 @@ function AuditPage() {
     ]
   );
 
-  const actionOptions =
-    knownActions;
+  useEffect(
+    () => {
+      if (
+        !selectedEvent
+      ) {
+        return;
+      }
+
+      const previousOverflow =
+        document.body.style
+          .overflow;
+
+      document.body.style
+        .overflow =
+        "hidden";
+
+      const handleKeyDown =
+        (
+          event:
+            KeyboardEvent
+        ) => {
+          if (
+            event.key ===
+            "Escape"
+          ) {
+            setSelectedEvent(
+              null
+            );
+          }
+        };
+
+      window.addEventListener(
+        "keydown",
+        handleKeyDown
+      );
+
+      return () => {
+        document.body.style
+          .overflow =
+          previousOverflow;
+
+        window.removeEventListener(
+          "keydown",
+          handleKeyDown
+        );
+      };
+    },
+    [
+      selectedEvent,
+    ]
+  );
 
   return (
     <div className="page audit-page">
@@ -298,7 +449,7 @@ function AuditPage() {
           </h2>
 
           <p className="page-description">
-            Read-only security and access history. Times are displayed in US Central time.
+            Review account, access, role, and creator changes across the agency. Times are shown in US Central time.
           </p>
         </div>
 
@@ -322,7 +473,7 @@ function AuditPage() {
         <input
           className="search-input"
           type="search"
-          placeholder="Search actor, action, target or metadata"
+          placeholder="Search people, creators, roles or actions"
           aria-label="Search audit log"
           value={
             search
@@ -353,21 +504,19 @@ function AuditPage() {
             All actions
           </option>
 
-          {actionOptions.map(
+          {knownActions.map(
             (
               item
             ) => (
               <option
                 key={
-                  item
+                  item.value
                 }
                 value={
-                  item
+                  item.value
                 }
               >
-                {formatAction(
-                  item
-                )}
+                {item.label}
               </option>
             )
           )}
@@ -402,11 +551,11 @@ function AuditPage() {
 
       <div className="audit-readonly-note">
         <strong>
-          Append-only
+          Read-only history
         </strong>
 
         <span>
-          Audit records are read-only and cannot be edited or deleted.
+          Audit records cannot be edited or deleted.
         </span>
       </div>
 
@@ -440,20 +589,21 @@ function AuditPage() {
               <span>
                 Time
               </span>
+
               <span>
                 Action
               </span>
+
               <span>
-                Actor
+                Performed by
               </span>
+
               <span>
-                Target
+                Affected
               </span>
+
               <span>
                 Result
-              </span>
-              <span>
-                Details
               </span>
             </div>
 
@@ -461,11 +611,21 @@ function AuditPage() {
               (
                 event
               ) => (
-                <div
+                <button
                   key={
                     event.id
                   }
+                  type="button"
                   className="audit-table audit-table-row"
+                  onClick={() =>
+                    setSelectedEvent(
+                      event
+                    )
+                  }
+                  aria-label={
+                    "View details for " +
+                    event.actionLabel
+                  }
                 >
                   <span className="audit-time">
                     {formatCentralDateTime(
@@ -475,33 +635,27 @@ function AuditPage() {
 
                   <span>
                     <strong className="audit-action">
-                      {formatAction(
-                        event.action
-                      )}
+                      {event.actionLabel}
                     </strong>
 
-                    <small className="audit-code">
-                      {event.action}
+                    <small className="audit-summary">
+                      {event.summary}
                     </small>
                   </span>
 
-                  <span className="audit-muted">
-                    {event.actorLabel ??
-                      event.actorUserId ??
-                      "System / unknown"}
-                  </span>
+                  <AuditPartyDisplay
+                    party={
+                      event.actor
+                    }
+                  />
 
-                  <span className="audit-muted">
-                    {event.targetType
-                      ? `${event.targetType}${
-                          event.targetId
-                            ? ` · ${event.targetId}`
-                            : ""
-                        }`
-                      : "—"}
-                  </span>
+                  <AuditPartyDisplay
+                    party={
+                      event.target
+                    }
+                  />
 
-                  <span>
+                  <span className="audit-result-cell">
                     <span
                       className={
                         event.success
@@ -511,37 +665,260 @@ function AuditPage() {
                     >
                       {event.success
                         ? "Success"
-                        : `Failed (${event.statusCode})`}
+                        : "Failed"}
                     </span>
-                  </span>
 
-                  <span>
-                    {event.metadata ? (
-                      <details className="audit-details">
-                        <summary>
-                          View
-                        </summary>
-
-                        <pre>
-                          {JSON.stringify(
-                            event.metadata,
-                            null,
-                            2
-                          )}
-                        </pre>
-                      </details>
-                    ) : (
-                      <span className="audit-muted">
-                        —
-                      </span>
-                    )}
+                    <svg
+                      className="audit-row-arrow"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="m9 6 6 6-6 6"
+                      />
+                    </svg>
                   </span>
-                </div>
+                </button>
               )
             )}
           </div>
         )}
       </section>
+
+      {selectedEvent && (
+        <div
+          className="audit-overlay"
+          role="presentation"
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setSelectedEvent(
+                null
+              );
+            }
+          }}
+        >
+          <section
+            className="audit-detail-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              selectedEvent.actionLabel +
+              " details"
+            }
+          >
+            <div className="audit-detail-header">
+              <div>
+                <span className="page-eyebrow">
+                  Audit details
+                </span>
+
+                <h3>
+                  {selectedEvent.actionLabel}
+                </h3>
+
+                <p>
+                  {selectedEvent.summary}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="audit-close"
+                onClick={() =>
+                  setSelectedEvent(
+                    null
+                  )
+                }
+                aria-label="Close audit details"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="audit-detail-body">
+              <div className="audit-detail-facts">
+                <div>
+                  <span>
+                    Performed by
+                  </span>
+
+                  <strong>
+                    {selectedEvent.actor.label}
+                  </strong>
+
+                  {selectedEvent.actor.secondary && (
+                    <small>
+                      {selectedEvent.actor.secondary}
+                    </small>
+                  )}
+                </div>
+
+                <div>
+                  <span>
+                    Affected
+                  </span>
+
+                  <strong>
+                    {selectedEvent.target.label}
+                  </strong>
+
+                  {selectedEvent.target.secondary && (
+                    <small>
+                      {selectedEvent.target.secondary}
+                    </small>
+                  )}
+                </div>
+
+                <div>
+                  <span>
+                    When
+                  </span>
+
+                  <strong>
+                    {formatCentralDateTime(
+                      selectedEvent.occurredAt
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Result
+                  </span>
+
+                  <strong
+                    className={
+                      selectedEvent.success
+                        ? "audit-detail-result success"
+                        : "audit-detail-result failed"
+                    }
+                  >
+                    {selectedEvent.success
+                      ? "Successful"
+                      : "Failed"}
+                  </strong>
+
+                  {!selectedEvent.success && (
+                    <small>
+                      Status {selectedEvent.statusCode}
+                    </small>
+                  )}
+                </div>
+              </div>
+
+              <section className="audit-detail-section">
+                <div className="audit-detail-section-heading">
+                  <h4>
+                    What changed
+                  </h4>
+
+                  <p>
+                    Human-readable before and after values recorded for this action.
+                  </p>
+                </div>
+
+                {selectedEvent.changes.length >
+                0 ? (
+                  <div className="audit-change-list">
+                    {selectedEvent.changes.map(
+                      (
+                        change
+                      ) => (
+                        <div
+                          key={
+                            change.label
+                          }
+                          className="audit-change-row"
+                        >
+                          <strong>
+                            {change.label}
+                          </strong>
+
+                          <div className="audit-change-values">
+                            <span>
+                              <small>
+                                Before
+                              </small>
+
+                              {change.before ??
+                                "—"}
+                            </span>
+
+                            <svg
+                              viewBox="0 0 24 24"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d="M5 12h14m-5-5 5 5-5 5"
+                              />
+                            </svg>
+
+                            <span>
+                              <small>
+                                After
+                              </small>
+
+                              {change.after ??
+                                "—"}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div className="audit-detail-empty">
+                    {selectedEvent.success
+                      ? "This event did not record a before-and-after data change."
+                      : "The requested action failed, so no data change was applied."}
+                  </div>
+                )}
+              </section>
+
+              <section className="audit-detail-section">
+                <div className="audit-detail-section-heading">
+                  <h4>
+                    Request source
+                  </h4>
+
+                  <p>
+                    Connection information captured with the audit event.
+                  </p>
+                </div>
+
+                <div className="audit-source-grid">
+                  <div>
+                    <span>
+                      IP address
+                    </span>
+
+                    <strong>
+                      {selectedEvent.source.ipAddress ??
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Browser / device
+                    </span>
+
+                    <strong>
+                      {selectedEvent.source.userAgent ??
+                        "Not available"}
+                    </strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

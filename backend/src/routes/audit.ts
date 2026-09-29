@@ -16,6 +16,10 @@ import {
   readAuditEvents,
 } from "../services/audit-store.js";
 
+import {
+  presentAuditEvents,
+} from "../services/audit-presentation.js";
+
 const router =
   Router();
 
@@ -98,11 +102,12 @@ router.get(
     }
 
     try {
-      const events =
-        await readAuditEvents({
-          search:
-            parsed.data.search,
+      const requestedLimit =
+        parsed.data.limit ??
+        200;
 
+      const rawEvents =
+        await readAuditEvents({
           action:
             parsed.data.action,
 
@@ -129,8 +134,66 @@ router.get(
               : undefined,
 
           limit:
-            parsed.data.limit,
+            parsed.data.search
+              ? 500
+              : requestedLimit,
         });
+
+      let events =
+        await presentAuditEvents(
+          rawEvents
+        );
+
+      const search =
+        parsed.data.search
+          ?.trim()
+          .toLocaleLowerCase();
+
+      if (
+        search
+      ) {
+        events =
+          events
+            .filter(
+              (
+                event
+              ) => {
+                const haystack = [
+                  event.action,
+                  event.actionLabel,
+                  event.actor.label,
+                  event.actor.secondary,
+                  event.target.label,
+                  event.target.secondary,
+                  event.summary,
+                  ...event.changes.flatMap(
+                    (
+                      change
+                    ) => [
+                      change.label,
+                      change.before,
+                      change.after,
+                    ]
+                  ),
+                ]
+                  .filter(
+                    Boolean
+                  )
+                  .join(
+                    " "
+                  )
+                  .toLocaleLowerCase();
+
+                return haystack.includes(
+                  search
+                );
+              }
+            )
+            .slice(
+              0,
+              requestedLimit
+            );
+      }
 
       res.status(200).json({
         events,
