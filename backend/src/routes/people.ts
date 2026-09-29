@@ -706,6 +706,7 @@ router.post(
           case "PEOPLE_MANAGE_REQUIRED":
           case "ROLE_NOT_ASSIGNABLE":
           case "MODEL_NOT_ASSIGNABLE":
+          case "TEAM_GROUP_NOT_ASSIGNABLE":
             res.status(403).json({
               error:
                 error.code,
@@ -824,6 +825,7 @@ router.post(
           case "PEOPLE_DEACTIVATE_REQUIRED":
           case "ROLE_NOT_MANAGEABLE":
           case "MODEL_NOT_MANAGEABLE":
+          case "TEAM_GROUP_NOT_MANAGEABLE":
           case "OWNER_REQUIRED":
             res.status(403).json({
               error:
@@ -945,6 +947,7 @@ router.post(
           case "PEOPLE_DEACTIVATE_REQUIRED":
           case "ROLE_NOT_MANAGEABLE":
           case "MODEL_NOT_MANAGEABLE":
+          case "TEAM_GROUP_NOT_MANAGEABLE":
             res.status(403).json({
               error:
                 error.code,
