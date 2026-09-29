@@ -195,7 +195,7 @@ function ModelsPage() {
           const message =
             error instanceof Error
               ? error.message
-              : "Unable to load models.";
+              : "Unable to load creators.";
 
           setPageError(
             message
@@ -203,7 +203,7 @@ function ModelsPage() {
 
           toast.error(
             message,
-            "Unable to load models"
+            "Unable to load creators"
           );
         } finally {
           setLoading(
@@ -367,7 +367,7 @@ function ModelsPage() {
         error instanceof Error
           ? error.message
           : "Unable to create the creator.",
-        "Model not created"
+        "Creator not added"
       );
     } finally {
       setSaving(
@@ -452,7 +452,7 @@ function ModelsPage() {
         error instanceof Error
           ? error.message
           : "Unable to update the creator.",
-        "Model not updated"
+        "Creator not updated"
       );
     } finally {
       setSaving(
@@ -602,7 +602,7 @@ function ModelsPage() {
           </strong>
 
           <span className="stat-help">
-            Current person-to-model assignment records.
+            Current person-to-creator assignment records.
           </span>
         </div>
       </section>
@@ -613,7 +613,7 @@ function ModelsPage() {
             className="search-input"
             type="search"
             placeholder="Search creator name"
-            aria-label="Search models"
+            aria-label="Search creators"
             value={
               search
             }
@@ -684,7 +684,7 @@ function ModelsPage() {
         {loading ? (
           <div className="empty-state">
             <strong>
-              Loading models…
+              Loading creators…
             </strong>
           </div>
         ) : filteredModels.length ===
@@ -855,7 +855,7 @@ function ModelsPage() {
                     ""
                   );
                 }}
-                aria-label="Close add model"
+                aria-label="Close add creator"
               >
                 ×
               </button>
@@ -958,7 +958,7 @@ function ModelsPage() {
                     ""
                   );
                 }}
-                aria-label="Close rename model"
+                aria-label="Close rename creator"
               >
                 ×
               </button>
