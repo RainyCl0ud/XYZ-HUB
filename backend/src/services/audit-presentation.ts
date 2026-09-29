@@ -301,109 +301,6 @@ function collectSnapshotIds(
   }
 }
 
-function displayList(
-  ids:
-    string[],
-  names:
-    Map<
-      string,
-      string
-    >
-) {
-  if (
-    ids.length ===
-    0
-  ) {
-    return "None";
-  }
-
-  return ids
-    .map(
-      (
-        id
-      ) =>
-        names.get(
-          id
-        ) ??
-        "Unavailable"
-    )
-    .join(
-      ", "
-    );
-}
-
-function displaySnapshotList(
-  record:
-    JsonRecord |
-    null,
-  idKey:
-    string,
-  nameKey:
-    string,
-  names:
-    Map<
-      string,
-      string
-    >
-) {
-  if (
-    !record
-  ) {
-    return "None";
-  }
-
-  const snapshotNames =
-    asStringArray(
-      record[
-        nameKey
-      ]
-    );
-
-  if (
-    snapshotNames.length >
-      0
-  ) {
-    return snapshotNames.join(
-      ", "
-    );
-  }
-
-  return displayList(
-    asStringArray(
-      record[
-        idKey
-      ]
-    ),
-    names
-  );
-}
-
-
-function permissionList(
-  value:
-    unknown
-) {
-  const permissions =
-    asStringArray(
-      value
-    );
-
-  if (
-    permissions.length ===
-    0
-  ) {
-    return "None";
-  }
-
-  return permissions
-    .map(
-      humanize
-    )
-    .join(
-      ", "
-    );
-}
-
 function pushChange(
   changes:
     AuditDisplayChange[],
@@ -755,16 +652,16 @@ function buildChanges(
         )
       );
 
-      pushChange(
+      pushListChange(
         changes,
         "Roles",
-        displaySnapshotList(
+        snapshotItems(
           before,
           "roleIds",
           "roleNames",
           roleNames
         ),
-        displaySnapshotList(
+        snapshotItems(
           after,
           "roleIds",
           "roleNames",
@@ -772,16 +669,16 @@ function buildChanges(
         )
       );
 
-      pushChange(
+      pushListChange(
         changes,
         "Creators",
-        displaySnapshotList(
+        snapshotItems(
           before,
           "modelIds",
           "modelNames",
           modelNames
         ),
-        displaySnapshotList(
+        snapshotItems(
           after,
           "modelIds",
           "modelNames",
@@ -801,11 +698,11 @@ function buildChanges(
         )
       );
 
-      pushChange(
+      pushListChange(
         changes,
         "Roles",
-        null,
-        displaySnapshotList(
+        [],
+        snapshotItems(
           after,
           "roleIds",
           "roleNames",
@@ -813,11 +710,11 @@ function buildChanges(
         )
       );
 
-      pushChange(
+      pushListChange(
         changes,
         "Creators",
-        null,
-        displaySnapshotList(
+        [],
+        snapshotItems(
           after,
           "modelIds",
           "modelNames",
@@ -941,19 +838,19 @@ function buildChanges(
       )
     );
 
-    pushChange(
+    pushListChange(
       changes,
       "Permissions",
       before
-        ? permissionList(
+        ? permissionItems(
             before.permissions
           )
-        : null,
+        : [],
       after
-        ? permissionList(
+        ? permissionItems(
             after.permissions
           )
-        : null
+        : []
     );
 
     return changes;
@@ -1566,8 +1463,10 @@ export async function presentAuditEvents(
         source: {
           ipAddress:
             event.ipAddress,
-          userAgent:
-            event.userAgent,
+          deviceLabel:
+            formatDeviceLabel(
+              event.userAgent
+            ),
         },
       };
     }
