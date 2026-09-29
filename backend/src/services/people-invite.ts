@@ -223,6 +223,8 @@ export async function invitePerson(
     const role of roles
   ) {
     if (
+      role.systemKey ===
+        "OWNER" ||
       !canAssignRole(
         access,
         role
