@@ -2060,9 +2060,31 @@ function PeoplePage() {
               </div>
 
               <div className="people-option-section">
-                <span className="people-section-label">
-                  Creator assignments
-                </span>
+                <div className="people-option-heading-row">
+                  <span className="people-section-label">
+                    Creator assignments
+                  </span>
+
+                  <label className="people-select-all-control">
+                    <input
+                      type="checkbox"
+                      checked={
+                        allInviteCreatorsSelected
+                      }
+                      disabled={
+                        activeAssignableCreatorIds.length ===
+                        0
+                      }
+                      onChange={
+                        toggleAllInviteCreators
+                      }
+                    />
+
+                    <span>
+                      Select all creators
+                    </span>
+                  </label>
+                </div>
 
                 <div className="people-option-grid">
                   {activeAssignableCreators.length ? (
@@ -2238,9 +2260,31 @@ function PeoplePage() {
                 </div>
 
                 <div className="people-option-section">
-                  <span className="people-section-label">
-                    Creators
-                  </span>
+                  <div className="people-option-heading-row">
+                    <span className="people-section-label">
+                      Creators
+                    </span>
+
+                    <label className="people-select-all-control">
+                      <input
+                        type="checkbox"
+                        checked={
+                          allAccessCreatorsSelected
+                        }
+                        disabled={
+                          activeAssignableCreatorIds.length ===
+                          0
+                        }
+                        onChange={
+                          toggleAllAccessCreators
+                        }
+                      />
+
+                      <span>
+                        Select all creators
+                      </span>
+                    </label>
+                  </div>
 
                   <div className="people-option-grid">
                     {options?.models.length ? (
