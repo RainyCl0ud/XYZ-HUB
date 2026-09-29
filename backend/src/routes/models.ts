@@ -153,7 +153,7 @@ router.get(
           "LIST_MODELS_FAILED",
 
         message:
-          "Unable to load models.",
+          "Unable to load creators.",
       });
     }
   }
@@ -189,7 +189,7 @@ router.post(
           "INVALID_REQUEST",
 
         message:
-          "A model name between 1 and 120 characters is required.",
+          "A creator name between 1 and 120 characters is required.",
       });
 
       return;
@@ -230,7 +230,7 @@ router.post(
           "CREATE_MODEL_FAILED",
 
         message:
-          "Unable to create the model.",
+          "Unable to create the creator.",
       });
     }
   }
@@ -280,7 +280,7 @@ router.put(
           "INVALID_REQUEST",
 
         message:
-          "A model name between 1 and 120 characters is required.",
+          "A creator name between 1 and 120 characters is required.",
       });
 
       return;
@@ -322,7 +322,7 @@ router.put(
           "UPDATE_MODEL_FAILED",
 
         message:
-          "Unable to update the model.",
+          "Unable to update the creator.",
       });
     }
   }
@@ -396,7 +396,7 @@ router.post(
           "DEACTIVATE_MODEL_FAILED",
 
         message:
-          "Unable to deactivate the model.",
+          "Unable to deactivate the creator.",
       });
     }
   }
@@ -470,7 +470,7 @@ router.post(
           "REACTIVATE_MODEL_FAILED",
 
         message:
-          "Unable to reactivate the model.",
+          "Unable to reactivate the creator.",
       });
     }
   }
