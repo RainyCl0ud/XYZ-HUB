@@ -55,31 +55,9 @@ type PersonModel = {
     string | null;
 };
 
-type PersonSetup = {
-  status: string;
-  expiresAt:
-    string | null;
-  sentAt:
-    string | null;
-};
-
 type PersonSecurity = {
   lastSignInAt:
     string | null;
-  twoFactor: {
-    email: {
-      enabled:
-        boolean;
-      verifiedAt:
-        string | null;
-    };
-    authenticator: {
-      enabled:
-        boolean;
-      verifiedAt:
-        string | null;
-    };
-  };
 };
 
 type Person = {
@@ -90,14 +68,14 @@ type Person = {
     PersonStatus;
   createdAt:
     string;
+  emailVerifiedAt:
+    string | null;
   deactivatedAt:
     string | null;
   roles:
     PersonRole[];
   models:
     PersonModel[];
-  setup:
-    PersonSetup;
   security?:
     PersonSecurity;
 };
@@ -207,25 +185,6 @@ function formatStatus(
     default:
       return "Active";
   }
-}
-
-function formatSetupStatus(
-  value:
-    string
-) {
-  return value
-    .replaceAll(
-      "_",
-      " "
-    )
-    .toLowerCase()
-    .replace(
-      /\b\w/g,
-      (
-        letter
-      ) =>
-        letter.toUpperCase()
-    );
 }
 
 function PeoplePage() {
