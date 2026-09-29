@@ -608,7 +608,7 @@ function PeoplePage() {
       ]
     );
 
-  const activeAssignableModels =
+  const activeAssignableCreators =
     useMemo(
       () =>
         options?.models.filter(
@@ -969,7 +969,7 @@ function PeoplePage() {
       );
 
       toast.success(
-        "Roles and model assignments were updated.",
+        "Roles and creator assignments were updated.",
         "Access updated"
       );
     } catch (
@@ -1168,7 +1168,7 @@ function PeoplePage() {
       <header className="page-header">
         <div>
           <p className="page-eyebrow">
-            Login Gate
+            Team management
           </p>
 
           <h2>
@@ -1176,7 +1176,7 @@ function PeoplePage() {
           </h2>
 
           <p className="page-description">
-            Review portal users, their roles, model access, setup state, and account security controls.
+            Review portal users, their roles, creator access, setup state, and account security controls.
           </p>
         </div>
 
@@ -1231,7 +1231,7 @@ function PeoplePage() {
           </strong>
 
           <span className="stat-help">
-            Based on your current role and model scope.
+            Based on your current role and creator scope.
           </span>
         </div>
 
@@ -1377,7 +1377,7 @@ function PeoplePage() {
               </span>
 
               <span>
-                Models
+                Creators
               </span>
 
               <span>
@@ -1580,7 +1580,7 @@ function PeoplePage() {
                   <div className="people-detail-section-heading">
                     <div>
                       <h4>
-                        Roles & model access
+                        Roles & creator access
                       </h4>
 
                       <p>
@@ -1631,7 +1631,7 @@ function PeoplePage() {
 
                     <div>
                       <span className="people-section-label">
-                        Models
+                        Creators
                       </span>
 
                       <div className="people-chip-list">
@@ -1653,7 +1653,7 @@ function PeoplePage() {
                           )
                         ) : (
                           <span className="people-empty-inline">
-                            No model assignments
+                            No creator assignments
                           </span>
                         )}
                       </div>
@@ -1663,7 +1663,7 @@ function PeoplePage() {
                   {!canManageSelected && (
                     <p className="people-scope-note">
                       {isSelectedSelf
-                        ? "Your own role and model assignments cannot be changed from People Management. This prevents accidental self-lockout."
+                        ? "Your own role and creator assignments cannot be changed from People Management. This prevents accidental self-lockout."
                         : "This profile is visible to you, but one or more of its current roles/models are outside the assignments you are allowed to change."}
                     </p>
                   )}
@@ -1986,12 +1986,12 @@ function PeoplePage() {
 
               <div className="people-option-section">
                 <span className="people-section-label">
-                  Model assignments
+                  Creator assignments
                 </span>
 
                 <div className="people-option-grid">
-                  {activeAssignableModels.length ? (
-                    activeAssignableModels.map(
+                  {activeAssignableCreators.length ? (
+                    activeAssignableCreators.map(
                       (
                         model
                       ) => (
@@ -2023,7 +2023,7 @@ function PeoplePage() {
                             </strong>
 
                             <small>
-                              Active model
+                              Active creator
                             </small>
                           </span>
                         </label>
@@ -2031,7 +2031,7 @@ function PeoplePage() {
                     )
                   ) : (
                     <span className="people-empty-inline">
-                      No assignable models are currently available.
+                      No assignable creators are currently available.
                     </span>
                   )}
                 </div>
@@ -2164,7 +2164,7 @@ function PeoplePage() {
 
                 <div className="people-option-section">
                   <span className="people-section-label">
-                    Models
+                    Creators
                   </span>
 
                   <div className="people-option-grid">
@@ -2210,10 +2210,10 @@ function PeoplePage() {
 
                                 <small>
                                   {model.isActive
-                                    ? "Active model"
+                                    ? "Active creator"
                                     : currentlySelected
-                                      ? "Inactive · existing assignment"
-                                      : "Inactive · unavailable"}
+                                      ? "Inactive creator · existing assignment"
+                                      : "Inactive creator · unavailable"}
                                 </small>
                               </span>
                             </label>
@@ -2222,7 +2222,7 @@ function PeoplePage() {
                       )
                     ) : (
                       <span className="people-empty-inline">
-                        No assignable models are available.
+                        No assignable creators are available.
                       </span>
                     )}
                   </div>
@@ -2290,7 +2290,7 @@ function PeoplePage() {
                 <p>
                   {confirmAction ===
                   "delete"
-                    ? "This permanently deletes the Login Gate identity, authentication records, linked chatter profile, and tied QA incidents/strikes. Use deactivation when history must be preserved."
+                    ? "This permanently deletes the account identity, authentication records, linked chatter profile, and tied QA incidents/strikes. Use deactivation when history must be preserved."
                     : confirmAction ===
                         "deactivate"
                       ? "The user will immediately lose access and all active sessions will be revoked."
