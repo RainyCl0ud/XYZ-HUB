@@ -572,9 +572,34 @@ model StrikeLadderStep {
  * AUDIT LOG
  * =========================================================
  *
- * Intentionally not stored in the main Prisma/PostgreSQL
- * schema.
- *
- * The audit log will use a separate append-only logging
- * adapter/service.
+ * Durable append-only audit history. Application code only
+ * exposes create/read operations; no edit or delete route is
+ * provided.
  */
+
+model AuditEvent {
+  id String @id @default(cuid())
+
+  occurredAt DateTime @default(now())
+
+  action     String
+  success    Boolean
+  statusCode Int
+
+  actorUserId String?
+  actorLabel  String?
+
+  targetType String?
+  targetId   String?
+
+  ipAddress String?
+  userAgent String?
+
+  metadata Json?
+
+  @@index([occurredAt])
+  @@index([action])
+  @@index([success])
+  @@index([actorUserId])
+  @@index([targetType, targetId])
+}
