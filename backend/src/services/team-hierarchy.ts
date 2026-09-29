@@ -250,14 +250,10 @@ function collectDescendantGroupIds(
   return result;
 }
 
-export async function getVisibleTeamGroupIds(
+async function getScopedTeamGroupIds(
   access:
     AccessContext
 ) {
-  assertPeopleManagementAccess(
-    access
-  );
-
   const groups =
     await prisma.teamGroup.findMany({
       select: {
@@ -304,6 +300,43 @@ export async function getVisibleTeamGroupIds(
   return collectDescendantGroupIds(
     groups,
     access.teamGroupId
+  );
+}
+
+export async function getVisibleTeamGroupIds(
+  access:
+    AccessContext
+) {
+  assertPeopleManagementAccess(
+    access
+  );
+
+  return getScopedTeamGroupIds(
+    access
+  );
+}
+
+export async function canAccessTeamGroup(
+  access:
+    AccessContext,
+  teamGroupId:
+    string | null
+) {
+  if (
+    !teamGroupId
+  ) {
+    return isOwner(
+      access
+    );
+  }
+
+  const visibleIds =
+    await getScopedTeamGroupIds(
+      access
+    );
+
+  return visibleIds.has(
+    teamGroupId
   );
 }
 
