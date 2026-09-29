@@ -384,6 +384,58 @@ function AuditPage() {
     ]
   );
 
+  useEffect(
+    () => {
+      if (
+        !selectedEvent
+      ) {
+        return;
+      }
+
+      const previousOverflow =
+        document.body.style
+          .overflow;
+
+      document.body.style
+        .overflow =
+        "hidden";
+
+      const handleKeyDown =
+        (
+          event:
+            KeyboardEvent
+        ) => {
+          if (
+            event.key ===
+            "Escape"
+          ) {
+            setSelectedEvent(
+              null
+            );
+          }
+        };
+
+      window.addEventListener(
+        "keydown",
+        handleKeyDown
+      );
+
+      return () => {
+        document.body.style
+          .overflow =
+          previousOverflow;
+
+        window.removeEventListener(
+          "keydown",
+          handleKeyDown
+        );
+      };
+    },
+    [
+      selectedEvent,
+    ]
+  );
+
   return (
     <div className="page audit-page">
       <header className="page-header">
