@@ -483,8 +483,19 @@ async function main() {
       false
     );
 
+    assert.equal(
+      options.roles.some(
+        (
+          role
+        ) =>
+          role.systemKey ===
+          "OWNER"
+      ),
+      false
+    );
+
     console.log(
-      "✓ People options expose only organization groups inside the caller's data scope"
+      "✓ People options expose only scoped groups and never offer the Owner role"
     );
 
     const invited =
@@ -548,6 +559,50 @@ async function main() {
         ),
       PeopleInviteError,
       "TEAM_GROUP_NOT_ASSIGNABLE"
+    );
+
+    await expectCode(
+      () =>
+        invitePerson(
+          {
+            name:
+              "Invalid Owner Invite",
+            email:
+              `hierarchy-owner-invite-${suffix}@example.test`,
+            roleIds: [
+              ownerRole.id,
+            ],
+            modelIds: [],
+            teamGroupId:
+              ROOT_TEAM_GROUP_ID,
+          },
+          ownerAccess
+        ),
+      PeopleInviteError,
+      "ROLE_NOT_ASSIGNABLE"
+    );
+
+    await expectCode(
+      () =>
+        updatePersonAccess(
+          {
+            userId:
+              visibleChatter.id,
+            roleIds: [
+              ownerRole.id,
+            ],
+            modelIds: [
+              modelA.id,
+            ],
+          },
+          ownerAccess
+        ),
+      PeopleAccessUpdateError,
+      "ROLE_NOT_ASSIGNABLE"
+    );
+
+    console.log(
+      "✓ ordinary People APIs cannot create or promote an employee to Owner"
     );
 
     console.log(
