@@ -110,23 +110,47 @@ function formatCentralDateZone(
   value:
     Date
 ) {
-  return new Intl.DateTimeFormat(
-    "en-US",
-    {
-      timeZone:
-        CENTRAL_TIME_ZONE,
-      month:
-        "short",
-      day:
-        "numeric",
-      year:
-        "numeric",
-      timeZoneName:
-        "short",
-    }
-  ).format(
-    value
-  );
+  const date =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          CENTRAL_TIME_ZONE,
+        month:
+          "short",
+        day:
+          "numeric",
+        year:
+          "numeric",
+      }
+    ).format(
+      value
+    );
+
+  const zone =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          CENTRAL_TIME_ZONE,
+        timeZoneName:
+          "short",
+      }
+    )
+      .formatToParts(
+        value
+      )
+      .find(
+        (
+          part
+        ) =>
+          part.type ===
+          "timeZoneName"
+      )
+      ?.value ??
+    "CT";
+
+  return `${date} · ${zone}`;
 }
 
 function AppLayout() {
