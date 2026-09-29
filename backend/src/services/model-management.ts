@@ -73,7 +73,7 @@ function assertCanManageModels(
   ) {
     throw new ModelManagementError(
       "MODEL_MANAGEMENT_REQUIRED",
-      "Only an Owner or Ops Manager may manage the model catalog."
+      "Only an Owner or Ops Manager may manage the creator catalog."
     );
   }
 }
@@ -211,7 +211,7 @@ export async function createManagedModel(
   if (conflict) {
     throw new ModelManagementError(
       "MODEL_NAME_IN_USE",
-      "A model with this name already exists."
+      "A creator with this name already exists."
     );
   }
 
@@ -257,7 +257,7 @@ export async function renameManagedModel(
   if (!existing) {
     throw new ModelManagementError(
       "MODEL_NOT_FOUND",
-      "The model does not exist."
+      "The creator does not exist."
     );
   }
 
@@ -273,7 +273,7 @@ export async function renameManagedModel(
   if (conflict) {
     throw new ModelManagementError(
       "MODEL_NAME_IN_USE",
-      "A model with this name already exists."
+      "A creator with this name already exists."
     );
   }
 
@@ -323,7 +323,7 @@ export async function deactivateManagedModel(
   if (!existing) {
     throw new ModelManagementError(
       "MODEL_NOT_FOUND",
-      "The model does not exist."
+      "The creator does not exist."
     );
   }
 
@@ -332,7 +332,7 @@ export async function deactivateManagedModel(
   ) {
     throw new ModelManagementError(
       "MODEL_ALREADY_INACTIVE",
-      "The model is already inactive."
+      "The creator is already inactive."
     );
   }
 
@@ -382,7 +382,7 @@ export async function reactivateManagedModel(
   if (!existing) {
     throw new ModelManagementError(
       "MODEL_NOT_FOUND",
-      "The model does not exist."
+      "The creator does not exist."
     );
   }
 
@@ -391,7 +391,7 @@ export async function reactivateManagedModel(
   ) {
     throw new ModelManagementError(
       "MODEL_ALREADY_ACTIVE",
-      "The model is already active."
+      "The creator is already active."
     );
   }
 
