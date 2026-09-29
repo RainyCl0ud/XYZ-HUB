@@ -1795,12 +1795,20 @@ function PeoplePage() {
 
                 {!isSelectedSelf &&
                   (
-                    options
-                      ?.capabilities
-                      .canDeactivate ||
-                    options
-                      ?.capabilities
-                      .isOwner ||
+                    (
+                      selectedPerson.status ===
+                        "ACTIVE" &&
+                      options
+                        ?.capabilities
+                        .canDeactivate
+                    ) ||
+                    (
+                      selectedPerson.status ===
+                        "DEACTIVATED" &&
+                      options
+                        ?.capabilities
+                        .isOwner
+                    ) ||
                     options
                       ?.capabilities
                       .canDelete
