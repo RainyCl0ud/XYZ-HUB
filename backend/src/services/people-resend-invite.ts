@@ -17,12 +17,17 @@ import {
   createInvite,
 } from "./invite.js";
 
+import {
+  canAccessTeamGroup,
+} from "./team-hierarchy.js";
+
 export type ResendInviteErrorCode =
   | "PEOPLE_MANAGE_REQUIRED"
   | "USER_NOT_FOUND"
   | "USER_NOT_PENDING"
   | "ROLE_NOT_ASSIGNABLE"
-  | "MODEL_NOT_ASSIGNABLE";
+  | "MODEL_NOT_ASSIGNABLE"
+  | "TEAM_GROUP_NOT_ASSIGNABLE";
 
 export class ResendInviteError extends Error {
   readonly code: ResendInviteErrorCode;
@@ -69,6 +74,7 @@ export async function resendPersonInvite(
         name: true,
         email: true,
         status: true,
+        teamGroupId: true,
 
         roleMemberships: {
           select: {
@@ -101,6 +107,34 @@ export async function resendPersonInvite(
     throw new ResendInviteError(
       "USER_NOT_FOUND",
       "The user does not exist."
+    );
+  }
+
+  if (
+    user.roleMemberships.some(
+      (
+        membership
+      ) =>
+        membership.role
+          .systemKey ===
+        "OWNER"
+    )
+  ) {
+    throw new ResendInviteError(
+      "USER_NOT_FOUND",
+      "The user does not exist."
+    );
+  }
+
+  if (
+    !await canAccessTeamGroup(
+      access,
+      user.teamGroupId
+    )
+  ) {
+    throw new ResendInviteError(
+      "TEAM_GROUP_NOT_ASSIGNABLE",
+      "You are not allowed to manage an invitation outside your organization scope."
     );
   }
 
