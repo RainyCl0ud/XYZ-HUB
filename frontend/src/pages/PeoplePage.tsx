@@ -1729,30 +1729,42 @@ function PeoplePage() {
                       </h4>
 
                       <p>
-                        Available actions follow your effective permissions and role hierarchy.
+                        Actions here can affect sign-in access or security for this account.
                       </p>
                     </div>
                   </div>
 
-                  <div className="people-action-grid">
+                  <div className="people-account-action-stack">
                     {selectedPerson.status ===
                       "PENDING_SETUP" && (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => {
-                          void resendInvite();
-                        }}
-                        disabled={
-                          saving ||
-                          !canManageSelected ||
-                          !options
-                            ?.capabilities
-                            .invitesAvailable
-                        }
-                      >
-                        Resend invite
-                      </button>
+                      <div className="people-account-action-card">
+                        <div>
+                          <strong>
+                            Invitation pending
+                          </strong>
+
+                          <span>
+                            Send a fresh invitation if the original email was missed or is no longer usable.
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => {
+                            void resendInvite();
+                          }}
+                          disabled={
+                            saving ||
+                            !canManageSelected ||
+                            !options
+                              ?.capabilities
+                              .invitesAvailable
+                          }
+                        >
+                          Resend invitation
+                        </button>
+                      </div>
                     )}
 
                     {selectedPerson.status ===
@@ -1761,21 +1773,33 @@ function PeoplePage() {
                       options
                         ?.capabilities
                         .canDeactivate && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() =>
-                            setConfirmAction(
-                              "deactivate"
-                            )
-                          }
-                          disabled={
-                            saving ||
-                            !canManageSelected
-                          }
-                        >
-                          Deactivate
-                        </button>
+                        <div className="people-account-action-card warning">
+                          <div>
+                            <strong>
+                              Deactivate account
+                            </strong>
+
+                            <span>
+                              Blocks new sign-ins immediately and revokes active sessions while preserving roles, creator assignments, and history.
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="danger-button"
+                            onClick={() =>
+                              setConfirmAction(
+                                "deactivate"
+                              )
+                            }
+                            disabled={
+                              saving ||
+                              !canManageSelected
+                            }
+                          >
+                            Deactivate account
+                          </button>
+                        </div>
                       )}
 
                     {selectedPerson.status ===
@@ -1783,46 +1807,96 @@ function PeoplePage() {
                       options
                         ?.capabilities
                         .isOwner && (
+                        <div className="people-account-action-card restore">
+                          <div>
+                            <strong>
+                              Restore account access
+                            </strong>
+
+                            <span>
+                              Allows the user to sign in again. Previously revoked sessions remain revoked and a fresh sign-in is required.
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() =>
+                              setConfirmAction(
+                                "reactivate"
+                              )
+                            }
+                            disabled={
+                              saving
+                            }
+                          >
+                            Reactivate account
+                          </button>
+                        </div>
+                      )}
+
+                    {options
+                      ?.capabilities
+                      .canResetTwoFactor && (
+                      <div className="people-account-action-card">
+                        <div>
+                          <strong>
+                            Reset two-factor authentication
+                          </strong>
+
+                          <span>
+                            Use this when the user can no longer complete their current verification method.
+                          </span>
+                        </div>
+
                         <button
                           type="button"
                           className="secondary-button"
                           onClick={() =>
                             setConfirmAction(
-                              "reactivate"
+                              "reset-2fa"
                             )
                           }
                           disabled={
                             saving
                           }
                         >
-                          Reactivate
+                          Reset 2FA
                         </button>
-                      )}
-
-                    {options
-                      ?.capabilities
-                      .canResetTwoFactor && (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() =>
-                          setConfirmAction(
-                            "reset-2fa"
-                          )
-                        }
-                        disabled={
-                          saving
-                        }
-                      >
-                        Reset 2FA
-                      </button>
+                      </div>
                     )}
+                  </div>
+                </div>
 
-                    {options
-                      ?.capabilities
-                      .canDelete &&
-                      selectedPerson.id !==
-                        user?.id && (
+                {options
+                  ?.capabilities
+                  .canDelete &&
+                  selectedPerson.id !==
+                    user?.id && (
+                  <div className="people-detail-section people-danger-zone">
+                    <div className="people-detail-section-heading">
+                      <div>
+                        <h4>
+                          Danger zone
+                        </h4>
+
+                        <p>
+                          Permanent deletion removes the account and tied QA history. Use deactivation whenever history must be preserved.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="people-danger-action">
+                      <div>
+                        <strong>
+                          Permanently delete account
+                        </strong>
+
+                        <span>
+                          This cannot be undone and requires the account email as confirmation.
+                        </span>
+                      </div>
+
                       <button
                         type="button"
                         className="danger-button"
@@ -1837,16 +1911,9 @@ function PeoplePage() {
                       >
                         Permanently delete
                       </button>
-                    )}
+                    </div>
                   </div>
-
-                  {options
-                    ?.capabilities
-                    .canDelete && (
-                    <p className="people-scope-note">
-                      Permanent deletion cannot be undone. Use deactivation when access should be blocked while account and operational history are preserved.
-                    </p>
-                  )}
+                )}
                 </div>
               </div>
             )}
