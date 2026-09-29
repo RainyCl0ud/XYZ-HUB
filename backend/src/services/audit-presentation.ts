@@ -1141,29 +1141,6 @@ export async function presentAuditEvents(
         );
       } else if (
         event.targetType ===
-          "team_group"
-      ) {
-        target = {
-          label:
-            (
-              event.targetId
-                ? teamGroupMap.get(
-                    event.targetId
-                  )
-                : null
-            ) ??
-            snapshotName(
-              after ??
-              before
-            ) ??
-            "Team group",
-          secondary:
-            null,
-          kind:
-            "team group",
-        };
-      } else if (
-        event.targetType ===
           "chatter"
       ) {
         chatterIds.add(
@@ -1560,6 +1537,29 @@ export async function presentAuditEvents(
             null,
           kind:
             "role",
+        };
+      } else if (
+        event.targetType ===
+          "team_group"
+      ) {
+        target = {
+          label:
+            (
+              event.targetId
+                ? teamGroupMap.get(
+                    event.targetId
+                  )
+                : null
+            ) ??
+            snapshotName(
+              after ??
+              before
+            ) ??
+            "Team group",
+          secondary:
+            null,
+          kind:
+            "team group",
         };
       } else if (
         event.targetType ===
