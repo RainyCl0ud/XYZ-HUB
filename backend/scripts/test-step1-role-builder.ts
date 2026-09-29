@@ -166,11 +166,45 @@ async function main() {
 
     assert.ok(
       builder.roles.length >=
-        10
+        9
+    );
+
+    assert.equal(
+      builder.roles.some(
+        (
+          role
+        ) =>
+          role.systemKey ===
+          "OWNER"
+      ),
+      false
     );
 
     console.log(
-      "✓ Owner can load default roles and permission catalog"
+      "✓ Owner can load Role Builder without exposing the immutable Owner role"
+    );
+
+    await expectRoleError(
+      () =>
+        updateRole(
+          ownerRole.id,
+          {
+            name:
+              ownerRole.name,
+            rank:
+              1,
+            dataScope:
+              ownerRole.dataScope,
+            permissionIds:
+              [],
+          },
+          ownerAccess
+        ),
+      "OWNER_ROLE_IMMUTABLE"
+    );
+
+    console.log(
+      "✓ Owner super-admin role cannot be edited through Role Builder"
     );
 
     const customRole =
