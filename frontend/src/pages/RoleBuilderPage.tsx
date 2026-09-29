@@ -289,7 +289,13 @@ function RoleBuilderPage() {
 
           const sortedRoles =
             sortRoles(
-              response.roles
+              response.roles.filter(
+                (
+                  role
+                ) =>
+                  role.systemKey !==
+                  "OWNER"
+              )
             );
 
           setRoles(
@@ -539,15 +545,6 @@ function RoleBuilderPage() {
     permission:
       Permission
   ) {
-    if (
-      selectedRole?.systemKey ===
-        "OWNER" &&
-      permission.key ===
-        "roles.manage"
-    ) {
-      return;
-    }
-
     setDraft(
       (
         current
