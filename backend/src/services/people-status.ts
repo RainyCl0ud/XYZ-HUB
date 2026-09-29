@@ -18,6 +18,10 @@ import {
   revokeAllUserSessions,
 } from "./session.js";
 
+import {
+  canAccessTeamGroup,
+} from "./team-hierarchy.js";
+
 export type PeopleStatusErrorCode =
   | "PEOPLE_DEACTIVATE_REQUIRED"
   | "OWNER_REQUIRED"
@@ -26,7 +30,8 @@ export type PeopleStatusErrorCode =
   | "USER_NOT_DEACTIVATED"
   | "CANNOT_DEACTIVATE_SELF"
   | "ROLE_NOT_MANAGEABLE"
-  | "MODEL_NOT_MANAGEABLE";
+  | "MODEL_NOT_MANAGEABLE"
+  | "TEAM_GROUP_NOT_MANAGEABLE";
 
 export class PeopleStatusError extends Error {
   readonly code: PeopleStatusErrorCode;
@@ -59,6 +64,7 @@ async function getTargetUser(
       email: true,
       status: true,
       deactivatedAt: true,
+      teamGroupId: true,
 
       roleMemberships: {
         select: {
@@ -123,6 +129,34 @@ export async function deactivatePerson(
     throw new PeopleStatusError(
       "USER_NOT_FOUND",
       "The user does not exist."
+    );
+  }
+
+  if (
+    user.roleMemberships.some(
+      (
+        membership
+      ) =>
+        membership.role
+          .systemKey ===
+        "OWNER"
+    )
+  ) {
+    throw new PeopleStatusError(
+      "USER_NOT_FOUND",
+      "The user does not exist."
+    );
+  }
+
+  if (
+    !await canAccessTeamGroup(
+      access,
+      user.teamGroupId
+    )
+  ) {
+    throw new PeopleStatusError(
+      "TEAM_GROUP_NOT_MANAGEABLE",
+      "You are not allowed to manage a person outside your organization scope."
     );
   }
 
@@ -244,6 +278,34 @@ export async function reactivatePerson(
     throw new PeopleStatusError(
       "USER_NOT_FOUND",
       "The user does not exist."
+    );
+  }
+
+  if (
+    user.roleMemberships.some(
+      (
+        membership
+      ) =>
+        membership.role
+          .systemKey ===
+        "OWNER"
+    )
+  ) {
+    throw new PeopleStatusError(
+      "USER_NOT_FOUND",
+      "The user does not exist."
+    );
+  }
+
+  if (
+    !await canAccessTeamGroup(
+      access,
+      user.teamGroupId
+    )
+  ) {
+    throw new PeopleStatusError(
+      "TEAM_GROUP_NOT_MANAGEABLE",
+      "You are not allowed to manage a person outside your organization scope."
     );
   }
 
