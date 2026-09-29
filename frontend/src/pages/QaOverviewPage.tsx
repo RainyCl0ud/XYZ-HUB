@@ -9,10 +9,6 @@ import {
 } from "react-router-dom";
 
 import {
-  getPortalCapabilities,
-} from "../auth/portalAccess";
-
-import {
   apiRequest,
   MODEL_CONTEXT_CHANGED_EVENT,
 } from "../lib/api";
