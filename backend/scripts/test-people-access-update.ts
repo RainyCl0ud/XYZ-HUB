@@ -17,6 +17,10 @@ import {
 } from "../src/services/access-control.js";
 
 import {
+  ROOT_TEAM_GROUP_ID,
+} from "../src/services/team-hierarchy.js";
+
+import {
   updatePersonAccess,
   PeopleAccessUpdateError,
 } from "../src/services/people-access-update.js";
@@ -132,6 +136,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -160,6 +166,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -188,6 +196,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -216,6 +226,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -244,6 +256,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -272,6 +286,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
