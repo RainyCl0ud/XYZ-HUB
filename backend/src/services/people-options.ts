@@ -10,6 +10,10 @@ import {
   type AccessContext,
 } from "./access-control.js";
 
+import {
+  listTeamGroups,
+} from "./team-hierarchy.js";
+
 function getInviteDeliveryMode() {
   return (
     process.env
@@ -47,6 +51,7 @@ export async function getPeopleManagementOptions(
   const [
     roles,
     models,
+    organization,
   ] =
     await Promise.all([
       prisma.role.findMany({
@@ -83,6 +88,10 @@ export async function getPeopleManagementOptions(
             "asc",
         },
       }),
+
+      listTeamGroups(
+        access
+      ),
     ]);
 
   const assignableRoles =
@@ -119,6 +128,8 @@ export async function getPeopleManagementOptions(
     models:
       assignableModels,
 
+    organization,
+
     capabilities: {
       isOwner:
         isOwnerUser,
@@ -128,6 +139,9 @@ export async function getPeopleManagementOptions(
           access,
           "people.manage"
         ),
+
+      canManageOrganization:
+        isOwnerUser,
 
       canDeactivate:
         hasPermission(
