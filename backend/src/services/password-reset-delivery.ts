@@ -98,15 +98,15 @@ export async function sendPasswordReset(
       to:
         input.email,
       subject:
-        "Reset your XYZ Management password",
+        "Password reset for XYZ Management",
       text:
         `Hi ${input.name},\n\nWe received a request to reset your XYZ Management password. Use the secure one-time link below to choose a new password.\n\nReset your password:\n${resetUrl}\n\nExpires: ${expiry}\n\nIf you did not request this reset, you can ignore this email. Your current password will remain unchanged unless the reset link is completed.`,
       html:
         renderBrandedTransactionalEmail({
           preheader:
-            "Reset your XYZ Management password.",
+            "Password reset for your XYZ Management account.",
           eyebrow:
-            "Account recovery",
+            "Password reset",
           title:
             "Reset your password",
           greeting:
