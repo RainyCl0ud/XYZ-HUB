@@ -2355,37 +2355,62 @@ function PeoplePage() {
               <div className="people-modal-header">
                 <div>
                   <span className="page-eyebrow">
-                    Confirmation
+                    {confirmAction ===
+                    "delete"
+                      ? "Danger zone"
+                      : confirmAction ===
+                          "reset-2fa"
+                        ? "Account security"
+                        : "Account access"}
                   </span>
 
                   <h3>
                     {confirmAction ===
                     "delete"
-                      ? "Permanently delete user?"
+                      ? `Permanently delete ${selectedPerson.name}?`
                       : confirmAction ===
                           "deactivate"
-                        ? "Deactivate user?"
+                        ? `Deactivate ${selectedPerson.name}?`
                         : confirmAction ===
                             "reactivate"
-                          ? "Reactivate user?"
-                          : "Reset two-factor authentication?"}
+                          ? `Reactivate ${selectedPerson.name}?`
+                          : `Reset 2FA for ${selectedPerson.name}?`}
                   </h3>
                 </div>
               </div>
 
               <div className="people-confirm-body">
-                <p>
-                  {confirmAction ===
-                  "delete"
-                    ? "This permanently deletes the account identity, authentication records, linked chatter profile, and tied QA incidents/strikes. Use deactivation when history must be preserved."
-                    : confirmAction ===
-                        "deactivate"
-                      ? "The user will immediately lose access and all active sessions will be revoked."
+                <div
+                  className={
+                    `people-confirm-impact ${confirmAction}`
+                  }
+                >
+                  <strong>
+                    {confirmAction ===
+                    "delete"
+                      ? "This action cannot be undone."
                       : confirmAction ===
-                          "reactivate"
-                        ? "The user will be allowed to authenticate again."
-                        : "Existing sessions and outstanding verification challenges will be invalidated."}
-                </p>
+                          "deactivate"
+                        ? "This action takes effect immediately."
+                        : confirmAction ===
+                            "reactivate"
+                          ? "This restores sign-in access."
+                          : "The user will need to set up verification again."}
+                  </strong>
+
+                  <p>
+                    {confirmAction ===
+                    "delete"
+                      ? "The account identity, authentication records, linked chatter profile, and tied QA incidents or strikes will be permanently removed."
+                      : confirmAction ===
+                          "deactivate"
+                        ? "New sign-ins will be blocked and every active session will be revoked. Roles, creator assignments, and operational history will remain intact."
+                        : confirmAction ===
+                            "reactivate"
+                          ? "The account can authenticate again, but previously revoked sessions will not return. The user must complete a fresh sign-in."
+                          : "Existing sessions and outstanding verification challenges will be invalidated as part of the reset."}
+                  </p>
+                </div>
 
                 {confirmAction ===
                   "delete" && (
@@ -2459,7 +2484,16 @@ function PeoplePage() {
                 >
                   {saving
                     ? "Working…"
-                    : "Confirm"}
+                    : confirmAction ===
+                        "delete"
+                      ? "Permanently delete"
+                      : confirmAction ===
+                          "deactivate"
+                        ? "Deactivate account"
+                        : confirmAction ===
+                            "reactivate"
+                          ? "Reactivate account"
+                          : "Reset 2FA"}
                 </button>
               </div>
             </section>
