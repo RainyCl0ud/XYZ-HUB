@@ -50,6 +50,7 @@ const personReadArgs =
       status: true,
 
       createdAt: true,
+      emailVerifiedAt: true,
       deactivatedAt: true,
       lastSignInAt: true,
 
@@ -378,6 +379,9 @@ function formatPerson(
 
     createdAt:
       person.createdAt,
+
+    emailVerifiedAt:
+      person.emailVerifiedAt,
 
     deactivatedAt:
       person.deactivatedAt,

@@ -62,11 +62,10 @@
     minmax(220px, 1.35fr)
     130px
     minmax(180px, 1fr)
-    minmax(180px, 1fr)
-    140px;
+    minmax(220px, 1.2fr);
   align-items: center;
   gap: 14px;
-  min-width: 930px;
+  min-width: 790px;
   padding: 12px 18px;
 }
 
@@ -457,5 +456,399 @@
 
   .filter-group {
     overflow-x: auto;
+  }
+}
+
+
+/* =========================================================
+   CLIENT READINESS — PEOPLE PROFILE
+   ========================================================= */
+
+.people-profile-header {
+  align-items: center;
+}
+
+.people-profile-identity {
+  min-width: 0;
+}
+
+.people-profile-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+
+  margin-top: 3px;
+}
+
+.people-profile-title-row h3 {
+  margin: 0;
+}
+
+.people-profile-role-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.people-profile-role-badge {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 24px;
+
+  padding: 0 9px;
+
+  border: 1px solid rgba(232, 216, 178, 0.2);
+  border-radius: 999px;
+
+  background: var(--accent-soft);
+  color: var(--accent);
+
+  font-size: 8.5px;
+  font-weight: 750;
+}
+
+.people-profile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  flex: 0 0 auto;
+}
+
+.people-profile-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+
+  min-width: 126px;
+
+  padding: 9px 11px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+
+  background: var(--surface-deep);
+}
+
+.people-profile-status span {
+  color: var(--text-soft);
+
+  font-size: 7.5px;
+  font-weight: 700;
+
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.people-profile-status strong {
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.people-profile-status.active {
+  border-color: rgba(157, 213, 168, 0.18);
+  background: var(--success-bg);
+}
+
+.people-profile-status.active strong {
+  color: var(--success);
+}
+
+.people-profile-status.pending_setup {
+  border-color: rgba(225, 189, 119, 0.2);
+  background: var(--warning-bg);
+}
+
+.people-profile-status.pending_setup strong {
+  color: var(--warning);
+}
+
+.people-profile-status.deactivated {
+  border-color: rgba(229, 141, 135, 0.2);
+  background: var(--danger-bg);
+}
+
+.people-profile-status.deactivated strong {
+  color: var(--danger);
+}
+
+.people-account-facts {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  overflow: hidden;
+
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+
+  background: var(--surface-deep);
+}
+
+.people-account-fact {
+  min-width: 0;
+
+  padding: 12px 14px;
+
+  border-right: 1px solid var(--border-soft);
+}
+
+.people-account-fact:last-child {
+  border-right: 0;
+}
+
+.people-account-fact span {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 7.5px;
+  font-weight: 700;
+
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.people-account-fact strong {
+  display: block;
+
+  overflow: hidden;
+
+  margin-top: 6px;
+
+  color: var(--text-secondary);
+
+  font-size: 9.5px;
+  font-weight: 650;
+  line-height: 1.45;
+
+  text-overflow: ellipsis;
+}
+
+.people-account-action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.people-account-action-card,
+.people-danger-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 18px;
+
+  padding: 13px 14px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+
+  background: var(--surface-deep);
+}
+
+.people-account-action-card > div,
+.people-danger-action > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  min-width: 0;
+}
+
+.people-account-action-card strong,
+.people-danger-action strong {
+  color: var(--text);
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.people-account-action-card span,
+.people-danger-action span {
+  color: var(--text-muted);
+
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.people-account-action-card.warning {
+  border-color: rgba(229, 141, 135, 0.2);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(229, 141, 135, 0.055),
+      transparent
+    ),
+    var(--surface-deep);
+}
+
+.people-account-action-card.restore {
+  border-color: rgba(157, 213, 168, 0.18);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(157, 213, 168, 0.045),
+      transparent
+    ),
+    var(--surface-deep);
+}
+
+.people-danger-zone {
+  padding: 16px;
+
+  border: 1px solid rgba(229, 141, 135, 0.22);
+  border-radius: var(--radius-sm);
+
+  background: rgba(229, 141, 135, 0.035);
+}
+
+.people-danger-zone .people-detail-section-heading {
+  margin-bottom: 12px;
+}
+
+.people-danger-zone .people-detail-section-heading h4 {
+  color: var(--danger);
+}
+
+.people-danger-action {
+  border-color: rgba(229, 141, 135, 0.18);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.people-option-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 14px;
+
+  margin-bottom: 9px;
+}
+
+.people-option-heading .people-section-label {
+  margin-bottom: 3px;
+}
+
+.people-option-heading small {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 8px;
+}
+
+.people-confirm-impact {
+  margin-bottom: 16px;
+
+  padding: 13px 14px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+
+  background: var(--surface-deep);
+}
+
+.people-confirm-impact strong {
+  display: block;
+
+  margin-bottom: 6px;
+
+  color: var(--text);
+
+  font-size: 10px;
+}
+
+.people-confirm-impact p {
+  margin: 0;
+
+  color: var(--text-secondary);
+
+  font-size: 9.5px;
+  line-height: 1.6;
+}
+
+.people-confirm-impact.deactivate,
+.people-confirm-impact.delete {
+  border-color: rgba(229, 141, 135, 0.22);
+  background: var(--danger-bg);
+}
+
+.people-confirm-impact.deactivate strong,
+.people-confirm-impact.delete strong {
+  color: var(--danger);
+}
+
+.people-confirm-impact.reactivate {
+  border-color: rgba(157, 213, 168, 0.2);
+  background: var(--success-bg);
+}
+
+.people-confirm-impact.reactivate strong {
+  color: var(--success);
+}
+
+@media (max-width: 760px) {
+  .people-profile-header {
+    align-items: flex-start;
+  }
+
+  .people-profile-header-actions {
+    align-items: flex-end;
+  }
+
+  .people-account-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .people-account-fact {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .people-account-fact:last-child {
+    border-bottom: 0;
+  }
+
+  .people-account-action-card,
+  .people-danger-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .people-account-action-card button,
+  .people-danger-action button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .people-profile-header {
+    flex-direction: column;
+  }
+
+  .people-profile-header-actions {
+    width: 100%;
+
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .people-profile-status {
+    align-items: flex-start;
+
+    min-width: 0;
+
+    flex: 1;
+  }
+
+  .people-option-heading {
+    align-items: flex-start;
   }
 }

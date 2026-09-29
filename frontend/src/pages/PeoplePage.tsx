@@ -55,31 +55,9 @@ type PersonModel = {
     string | null;
 };
 
-type PersonSetup = {
-  status: string;
-  expiresAt:
-    string | null;
-  sentAt:
-    string | null;
-};
-
 type PersonSecurity = {
   lastSignInAt:
     string | null;
-  twoFactor: {
-    email: {
-      enabled:
-        boolean;
-      verifiedAt:
-        string | null;
-    };
-    authenticator: {
-      enabled:
-        boolean;
-      verifiedAt:
-        string | null;
-    };
-  };
 };
 
 type Person = {
@@ -90,14 +68,14 @@ type Person = {
     PersonStatus;
   createdAt:
     string;
+  emailVerifiedAt:
+    string | null;
   deactivatedAt:
     string | null;
   roles:
     PersonRole[];
   models:
     PersonModel[];
-  setup:
-    PersonSetup;
   security?:
     PersonSecurity;
 };
@@ -207,25 +185,6 @@ function formatStatus(
     default:
       return "Active";
   }
-}
-
-function formatSetupStatus(
-  value:
-    string
-) {
-  return value
-    .replaceAll(
-      "_",
-      " "
-    )
-    .toLowerCase()
-    .replace(
-      /\b\w/g,
-      (
-        letter
-      ) =>
-        letter.toUpperCase()
-    );
 }
 
 function PeoplePage() {
@@ -682,6 +641,80 @@ function PeoplePage() {
           )
       )
     );
+
+  const activeAccessCreatorIds =
+    useMemo(
+      () =>
+        options?.models
+          .filter(
+            (
+              model
+            ) =>
+              model.isActive
+          )
+          .map(
+            (
+              model
+            ) =>
+              model.id
+          ) ??
+        [],
+      [
+        options,
+      ]
+    );
+
+  const allActiveCreatorsSelected =
+    activeAccessCreatorIds.length >
+      0 &&
+    activeAccessCreatorIds.every(
+      (
+        modelId
+      ) =>
+        accessModelIds.includes(
+          modelId
+        )
+    );
+
+  function toggleAllAccessCreators() {
+    if (
+      allActiveCreatorsSelected
+    ) {
+      setAccessModelIds(
+        []
+      );
+
+      return;
+    }
+
+    const inactiveExistingIds =
+      accessModelIds.filter(
+        (
+          modelId
+        ) => {
+          const model =
+            options?.models.find(
+              (
+                item
+              ) =>
+                item.id ===
+                modelId
+            );
+
+          return Boolean(
+            model &&
+            !model.isActive
+          );
+        }
+      );
+
+    setAccessModelIds([
+      ...new Set([
+        ...activeAccessCreatorIds,
+        ...inactiveExistingIds,
+      ]),
+    ]);
+  }
 
   async function openPerson(
     person:
@@ -1379,10 +1412,6 @@ function PeoplePage() {
               <span>
                 Creators
               </span>
-
-              <span>
-                Setup
-              </span>
             </div>
 
             {filteredPeople.map(
@@ -1453,12 +1482,6 @@ function PeoplePage() {
                           )
                       : "No creator assignment"}
                   </span>
-
-                  <span className="people-muted-cell">
-                    {formatSetupStatus(
-                      person.setup.status
-                    )}
-                  </span>
                 </button>
               )
             )}
@@ -1489,33 +1512,70 @@ function PeoplePage() {
             aria-modal="true"
             aria-label="Person details"
           >
-            <div className="people-detail-header">
-              <div>
+            <div className="people-detail-header people-profile-header">
+              <div className="people-profile-identity">
                 <span className="page-eyebrow">
-                  User profile
+                  Profile
                 </span>
 
-                <h3>
-                  {selectedPerson.name}
-                </h3>
+                <div className="people-profile-title-row">
+                  <h3>
+                    {selectedPerson.name}
+                  </h3>
+
+                  <div className="people-profile-role-badges">
+                    {selectedPerson.roles.map(
+                      (
+                        role
+                      ) => (
+                        <span
+                          key={
+                            role.id
+                          }
+                          className="people-profile-role-badge"
+                        >
+                          {role.name}
+                        </span>
+                      )
+                    )}
+                  </div>
+                </div>
 
                 <p>
                   {selectedPerson.email}
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="people-close"
-                onClick={() =>
-                  setSelectedPerson(
-                    null
-                  )
-                }
-                aria-label="Close profile"
-              >
-                ×
-              </button>
+              <div className="people-profile-header-actions">
+                <div
+                  className={
+                    `people-profile-status ${selectedPerson.status.toLowerCase()}`
+                  }
+                >
+                  <span>
+                    Account status
+                  </span>
+
+                  <strong>
+                    {formatStatus(
+                      selectedPerson.status
+                    )}
+                  </strong>
+                </div>
+
+                <button
+                  type="button"
+                  className="people-close"
+                  onClick={() =>
+                    setSelectedPerson(
+                      null
+                    )
+                  }
+                  aria-label="Close profile"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             {detailLoading ? (
@@ -1526,20 +1586,8 @@ function PeoplePage() {
               </div>
             ) : (
               <div className="people-detail-body">
-                <div className="people-detail-meta">
-                  <div>
-                    <span>
-                      Account status
-                    </span>
-
-                    <strong>
-                      {formatStatus(
-                        selectedPerson.status
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
+                <div className="people-account-facts">
+                  <div className="people-account-fact">
                     <span>
                       Created
                     </span>
@@ -1551,29 +1599,33 @@ function PeoplePage() {
                     </strong>
                   </div>
 
-                  <div>
+                  <div className="people-account-fact">
                     <span>
-                      Setup status
+                      Email verified
                     </span>
 
                     <strong>
-                      {formatSetupStatus(
-                        selectedPerson.setup.status
-                      )}
+                      {selectedPerson.emailVerifiedAt
+                        ? formatTexasDateTime(
+                            selectedPerson.emailVerifiedAt
+                          )
+                        : "Not verified"}
                     </strong>
                   </div>
 
-                  <div>
-                    <span>
-                      Invite expires
-                    </span>
+                  {selectedPerson.security && (
+                    <div className="people-account-fact">
+                      <span>
+                        Last sign-in
+                      </span>
 
-                    <strong>
-                      {formatTexasDateTime(
-                        selectedPerson.setup.expiresAt
-                      )}
-                    </strong>
-                  </div>
+                      <strong>
+                        {formatTexasDateTime(
+                          selectedPerson.security.lastSignInAt
+                        )}
+                      </strong>
+                    </div>
+                  )}
                 </div>
 
                 <div className="people-detail-section">
@@ -1584,7 +1636,7 @@ function PeoplePage() {
                       </h4>
 
                       <p>
-                        Effective access is calculated from all assigned roles and visible models.
+                        Effective access is calculated from all assigned roles and visible creators.
                       </p>
                     </div>
 
@@ -1669,92 +1721,50 @@ function PeoplePage() {
                   )}
                 </div>
 
-                {selectedPerson.security && (
-                  <div className="people-detail-section">
-                    <div className="people-detail-section-heading">
-                      <div>
-                        <h4>
-                          Account security
-                        </h4>
-
-                        <p>
-                          Owner-only authentication status and last sign-in information.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="people-detail-meta">
-                      <div>
-                        <span>
-                          Last sign-in
-                        </span>
-
-                        <strong>
-                          {formatTexasDateTime(
-                            selectedPerson.security.lastSignInAt
-                          )}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Email 2FA
-                        </span>
-
-                        <strong>
-                          {selectedPerson.security.twoFactor.email.enabled
-                            ? "Enabled"
-                            : "Disabled"}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Email verified
-                        </span>
-
-                        <strong>
-                          {formatTexasDateTime(
-                            selectedPerson.security.twoFactor.email.verifiedAt
-                          )}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="people-detail-section">
+                <div className="people-detail-section people-account-actions-section">
                   <div className="people-detail-section-heading">
                     <div>
                       <h4>
-                        Account actions
+                        Account access
                       </h4>
 
                       <p>
-                        Available actions follow your effective permissions and role hierarchy.
+                        Actions here can affect sign-in access or security for this account.
                       </p>
                     </div>
                   </div>
 
-                  <div className="people-action-grid">
+                  <div className="people-account-action-stack">
                     {selectedPerson.status ===
                       "PENDING_SETUP" && (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => {
-                          void resendInvite();
-                        }}
-                        disabled={
-                          saving ||
-                          !canManageSelected ||
-                          !options
-                            ?.capabilities
-                            .invitesAvailable
-                        }
-                      >
-                        Resend invite
-                      </button>
+                      <div className="people-account-action-card">
+                        <div>
+                          <strong>
+                            Invitation pending
+                          </strong>
+
+                          <span>
+                            Send a fresh invitation if the original email was missed or is no longer usable.
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => {
+                            void resendInvite();
+                          }}
+                          disabled={
+                            saving ||
+                            !canManageSelected ||
+                            !options
+                              ?.capabilities
+                              .invitesAvailable
+                          }
+                        >
+                          Resend invitation
+                        </button>
+                      </div>
                     )}
 
                     {selectedPerson.status ===
@@ -1763,21 +1773,33 @@ function PeoplePage() {
                       options
                         ?.capabilities
                         .canDeactivate && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() =>
-                            setConfirmAction(
-                              "deactivate"
-                            )
-                          }
-                          disabled={
-                            saving ||
-                            !canManageSelected
-                          }
-                        >
-                          Deactivate
-                        </button>
+                        <div className="people-account-action-card warning">
+                          <div>
+                            <strong>
+                              Deactivate account
+                            </strong>
+
+                            <span>
+                              Blocks new sign-ins immediately and revokes active sessions while preserving roles, creator assignments, and history.
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="danger-button"
+                            onClick={() =>
+                              setConfirmAction(
+                                "deactivate"
+                              )
+                            }
+                            disabled={
+                              saving ||
+                              !canManageSelected
+                            }
+                          >
+                            Deactivate account
+                          </button>
+                        </div>
                       )}
 
                     {selectedPerson.status ===
@@ -1785,46 +1807,96 @@ function PeoplePage() {
                       options
                         ?.capabilities
                         .isOwner && (
+                        <div className="people-account-action-card restore">
+                          <div>
+                            <strong>
+                              Restore account access
+                            </strong>
+
+                            <span>
+                              Allows the user to sign in again. Previously revoked sessions remain revoked and a fresh sign-in is required.
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() =>
+                              setConfirmAction(
+                                "reactivate"
+                              )
+                            }
+                            disabled={
+                              saving
+                            }
+                          >
+                            Reactivate account
+                          </button>
+                        </div>
+                      )}
+
+                    {options
+                      ?.capabilities
+                      .canResetTwoFactor && (
+                      <div className="people-account-action-card">
+                        <div>
+                          <strong>
+                            Reset two-factor authentication
+                          </strong>
+
+                          <span>
+                            Use this when the user can no longer complete their current verification method.
+                          </span>
+                        </div>
+
                         <button
                           type="button"
                           className="secondary-button"
                           onClick={() =>
                             setConfirmAction(
-                              "reactivate"
+                              "reset-2fa"
                             )
                           }
                           disabled={
                             saving
                           }
                         >
-                          Reactivate
+                          Reset 2FA
                         </button>
-                      )}
-
-                    {options
-                      ?.capabilities
-                      .canResetTwoFactor && (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() =>
-                          setConfirmAction(
-                            "reset-2fa"
-                          )
-                        }
-                        disabled={
-                          saving
-                        }
-                      >
-                        Reset 2FA
-                      </button>
+                      </div>
                     )}
+                  </div>
+                </div>
 
-                    {options
-                      ?.capabilities
-                      .canDelete &&
-                      selectedPerson.id !==
-                        user?.id && (
+                {options
+                  ?.capabilities
+                  .canDelete &&
+                  selectedPerson.id !==
+                    user?.id && (
+                  <div className="people-detail-section people-danger-zone">
+                    <div className="people-detail-section-heading">
+                      <div>
+                        <h4>
+                          Danger zone
+                        </h4>
+
+                        <p>
+                          Permanent deletion removes the account and tied QA history. Use deactivation whenever history must be preserved.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="people-danger-action">
+                      <div>
+                        <strong>
+                          Permanently delete account
+                        </strong>
+
+                        <span>
+                          This cannot be undone and requires the account email as confirmation.
+                        </span>
+                      </div>
+
                       <button
                         type="button"
                         className="danger-button"
@@ -1839,17 +1911,9 @@ function PeoplePage() {
                       >
                         Permanently delete
                       </button>
-                    )}
+                    </div>
                   </div>
-
-                  {options
-                    ?.capabilities
-                    .canDelete && (
-                    <p className="people-scope-note">
-                      Permanent deletion cannot be undone. Use deactivation when access should be blocked while account and operational history are preserved.
-                    </p>
-                  )}
-                </div>
+                )}
               </div>
             )}
           </section>
@@ -2163,9 +2227,32 @@ function PeoplePage() {
                 </div>
 
                 <div className="people-option-section">
-                  <span className="people-section-label">
-                    Creators
-                  </span>
+                  <div className="people-option-heading">
+                    <div>
+                      <span className="people-section-label">
+                        Creators
+                      </span>
+
+                      <small>
+                        {accessModelIds.length} selected
+                      </small>
+                    </div>
+
+                    {activeAccessCreatorIds.length >
+                      0 && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={
+                          toggleAllAccessCreators
+                        }
+                      >
+                        {allActiveCreatorsSelected
+                          ? "Clear all"
+                          : "Select all creators"}
+                      </button>
+                    )}
+                  </div>
 
                   <div className="people-option-grid">
                     {options?.models.length ? (
@@ -2268,37 +2355,62 @@ function PeoplePage() {
               <div className="people-modal-header">
                 <div>
                   <span className="page-eyebrow">
-                    Confirmation
+                    {confirmAction ===
+                    "delete"
+                      ? "Danger zone"
+                      : confirmAction ===
+                          "reset-2fa"
+                        ? "Account security"
+                        : "Account access"}
                   </span>
 
                   <h3>
                     {confirmAction ===
                     "delete"
-                      ? "Permanently delete user?"
+                      ? `Permanently delete ${selectedPerson.name}?`
                       : confirmAction ===
                           "deactivate"
-                        ? "Deactivate user?"
+                        ? `Deactivate ${selectedPerson.name}?`
                         : confirmAction ===
                             "reactivate"
-                          ? "Reactivate user?"
-                          : "Reset two-factor authentication?"}
+                          ? `Reactivate ${selectedPerson.name}?`
+                          : `Reset 2FA for ${selectedPerson.name}?`}
                   </h3>
                 </div>
               </div>
 
               <div className="people-confirm-body">
-                <p>
-                  {confirmAction ===
-                  "delete"
-                    ? "This permanently deletes the account identity, authentication records, linked chatter profile, and tied QA incidents/strikes. Use deactivation when history must be preserved."
-                    : confirmAction ===
-                        "deactivate"
-                      ? "The user will immediately lose access and all active sessions will be revoked."
+                <div
+                  className={
+                    `people-confirm-impact ${confirmAction}`
+                  }
+                >
+                  <strong>
+                    {confirmAction ===
+                    "delete"
+                      ? "This action cannot be undone."
                       : confirmAction ===
-                          "reactivate"
-                        ? "The user will be allowed to authenticate again."
-                        : "Existing sessions and outstanding verification challenges will be invalidated."}
-                </p>
+                          "deactivate"
+                        ? "This action takes effect immediately."
+                        : confirmAction ===
+                            "reactivate"
+                          ? "This restores sign-in access."
+                          : "The user will need to set up verification again."}
+                  </strong>
+
+                  <p>
+                    {confirmAction ===
+                    "delete"
+                      ? "The account identity, authentication records, linked chatter profile, and tied QA incidents or strikes will be permanently removed."
+                      : confirmAction ===
+                          "deactivate"
+                        ? "New sign-ins will be blocked and every active session will be revoked. Roles, creator assignments, and operational history will remain intact."
+                        : confirmAction ===
+                            "reactivate"
+                          ? "The account can authenticate again, but previously revoked sessions will not return. The user must complete a fresh sign-in."
+                          : "Existing sessions and outstanding verification challenges will be invalidated as part of the reset."}
+                  </p>
+                </div>
 
                 {confirmAction ===
                   "delete" && (
@@ -2372,7 +2484,16 @@ function PeoplePage() {
                 >
                   {saving
                     ? "Working…"
-                    : "Confirm"}
+                    : confirmAction ===
+                        "delete"
+                      ? "Permanently delete"
+                      : confirmAction ===
+                          "deactivate"
+                        ? "Deactivate account"
+                        : confirmAction ===
+                            "reactivate"
+                          ? "Reactivate account"
+                          : "Reset 2FA"}
                 </button>
               </div>
             </section>
