@@ -1502,3 +1502,158 @@
     width: 100%;
   }
 }
+
+
+/* =========================================================
+   MOBILE HEADER — KEEP TIME, DATE, AND ACCOUNT AVATAR VISIBLE
+   ========================================================= */
+
+@media (max-width: 720px) {
+  .portal-command-bar-v2 {
+    grid-template-columns:
+      42px
+      minmax(0, 1fr)
+      minmax(112px, auto);
+
+    column-gap: 8px;
+  }
+
+  .portal-page-context {
+    min-width: 0;
+  }
+
+  .portal-page-context strong {
+    overflow: hidden;
+
+    font-size: 12px;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .portal-command-meta {
+    display: grid;
+
+    grid-template-columns:
+      minmax(64px, 1fr)
+      34px;
+
+    align-items: center;
+
+    gap: 6px;
+
+    min-width: 0;
+  }
+
+  .portal-command-time {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+
+    min-width: 0;
+
+    text-align: right;
+  }
+
+  .portal-clock-time {
+    display: block !important;
+
+    max-width: none !important;
+
+    overflow: visible !important;
+
+    color: #ffffff !important;
+
+    font-size: 10px !important;
+    font-variant-numeric: tabular-nums;
+    font-weight: 750;
+    line-height: 1.05 !important;
+
+    text-overflow: clip !important;
+    white-space: nowrap;
+  }
+
+  .portal-clock-date {
+    display: block !important;
+
+    margin-top: 2px;
+
+    color: var(--text-muted);
+
+    font-size: 6.2px;
+    font-weight: 650;
+    line-height: 1.05;
+
+    white-space: nowrap;
+  }
+
+  .portal-account-menu {
+    display: block;
+
+    width: 34px;
+    height: 34px;
+  }
+
+  .portal-account-avatar-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .portal-account-avatar {
+    width: 27px;
+    height: 27px;
+
+    font-size: 8px;
+  }
+
+  .portal-account-dropdown {
+    top: 58px;
+    right: 8px;
+  }
+}
+
+@media (max-width: 430px) {
+  .portal-command-bar-v2 {
+    grid-template-columns:
+      40px
+      minmax(0, 1fr)
+      106px;
+
+    column-gap: 7px;
+  }
+
+  .portal-command-meta {
+    grid-template-columns:
+      minmax(62px, 1fr)
+      32px;
+
+    gap: 5px;
+  }
+
+  .portal-clock-time {
+    font-size: 9.5px !important;
+  }
+
+  .portal-clock-date {
+    display: block !important;
+
+    font-size: 5.9px;
+  }
+
+  .portal-account-menu {
+    width: 32px;
+    height: 32px;
+  }
+
+  .portal-account-avatar-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .portal-account-avatar {
+    width: 25px;
+    height: 25px;
+
+    font-size: 7.5px;
+  }
+}
