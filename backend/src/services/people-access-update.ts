@@ -73,7 +73,7 @@ export async function updatePersonAccess(
   ) {
     throw new PeopleAccessUpdateError(
       "CANNOT_UPDATE_SELF_ACCESS",
-      "You cannot change your own role or model assignments."
+      "You cannot change your own role or creator assignments."
     );
   }
 
@@ -203,7 +203,7 @@ export async function updatePersonAccess(
     ) {
       throw new PeopleAccessUpdateError(
         "CURRENT_MODEL_NOT_MANAGEABLE",
-        `You are not allowed to manage the current model "${assignment.model.name}".`
+        `You are not allowed to manage the current creator "${assignment.model.name}".`
       );
     }
   }
@@ -289,7 +289,7 @@ export async function updatePersonAccess(
   ) {
     throw new PeopleAccessUpdateError(
       "INVALID_MODEL",
-      "One or more selected models do not exist."
+      "One or more selected creators do not exist."
     );
   }
 
@@ -312,7 +312,7 @@ export async function updatePersonAccess(
     ) {
       throw new PeopleAccessUpdateError(
         "INVALID_MODEL",
-        `The model "${model.name}" is inactive and cannot be newly assigned.`
+        `The creator "${model.name}" is inactive and cannot be newly assigned.`
       );
     }
 
@@ -324,7 +324,7 @@ export async function updatePersonAccess(
     ) {
       throw new PeopleAccessUpdateError(
         "MODEL_NOT_ASSIGNABLE",
-        `You do not have access to assign the model "${model.name}".`
+        `You do not have access to assign the creator "${model.name}".`
       );
     }
   }
