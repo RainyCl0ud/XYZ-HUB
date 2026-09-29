@@ -330,6 +330,53 @@ function displayList(
     );
 }
 
+function displaySnapshotList(
+  record:
+    JsonRecord |
+    null,
+  idKey:
+    string,
+  nameKey:
+    string,
+  names:
+    Map<
+      string,
+      string
+    >
+) {
+  if (
+    !record
+  ) {
+    return "None";
+  }
+
+  const snapshotNames =
+    asStringArray(
+      record[
+        nameKey
+      ]
+    );
+
+  if (
+    snapshotNames.length >
+      0
+  ) {
+    return snapshotNames.join(
+      ", "
+    );
+  }
+
+  return displayList(
+    asStringArray(
+      record[
+        idKey
+      ]
+    ),
+    names
+  );
+}
+
+
 function permissionList(
   value:
     unknown
@@ -456,16 +503,16 @@ function buildChanges(
       pushChange(
         changes,
         "Roles",
-        displayList(
-          asStringArray(
-            before.roleIds
-          ),
+        displaySnapshotList(
+          before,
+          "roleIds",
+          "roleNames",
           roleNames
         ),
-        displayList(
-          asStringArray(
-            after.roleIds
-          ),
+        displaySnapshotList(
+          after,
+          "roleIds",
+          "roleNames",
           roleNames
         )
       );
@@ -473,16 +520,16 @@ function buildChanges(
       pushChange(
         changes,
         "Creators",
-        displayList(
-          asStringArray(
-            before.modelIds
-          ),
+        displaySnapshotList(
+          before,
+          "modelIds",
+          "modelNames",
           modelNames
         ),
-        displayList(
-          asStringArray(
-            after.modelIds
-          ),
+        displaySnapshotList(
+          after,
+          "modelIds",
+          "modelNames",
           modelNames
         )
       );
@@ -503,10 +550,10 @@ function buildChanges(
         changes,
         "Roles",
         null,
-        displayList(
-          asStringArray(
-            after.roleIds
-          ),
+        displaySnapshotList(
+          after,
+          "roleIds",
+          "roleNames",
           roleNames
         )
       );
@@ -515,10 +562,10 @@ function buildChanges(
         changes,
         "Creators",
         null,
-        displayList(
-          asStringArray(
-            after.modelIds
-          ),
+        displaySnapshotList(
+          after,
+          "modelIds",
+          "modelNames",
           modelNames
         )
       );
