@@ -766,7 +766,7 @@ function RoleBuilderPage() {
       <header className="page-header">
         <div>
           <p className="page-eyebrow">
-            Login Gate
+            Access control
           </p>
 
           <h2>
@@ -856,7 +856,7 @@ function RoleBuilderPage() {
           </strong>
 
           <span className="stat-help">
-            Registered Step 1 capabilities.
+            Available management permissions.
           </span>
         </div>
       </section>
