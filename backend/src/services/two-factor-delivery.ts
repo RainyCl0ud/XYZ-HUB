@@ -79,7 +79,7 @@ export async function sendEmailTwoFactorCode(
       html:
         renderBrandedTransactionalEmail({
           preheader:
-            `Your XYZ Management verification code is ${input.code}.`,
+            "Use your verification code to finish signing in to XYZ Management.",
           eyebrow:
             "Two-factor authentication",
           title:
