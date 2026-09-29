@@ -18,6 +18,10 @@ import {
 } from "../src/services/access-control.js";
 
 import {
+  ROOT_TEAM_GROUP_ID,
+} from "../src/services/team-hierarchy.js";
+
+import {
   getPersonDetail,
   listPeople,
   PeopleReadError,
@@ -134,6 +138,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -155,6 +161,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -176,6 +184,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -204,6 +214,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -235,6 +247,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         lastSignInAt:
           new Date(),
@@ -295,6 +309,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -323,6 +339,8 @@ async function runTests() {
 
         status:
           UserStatus.PENDING_SETUP,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
