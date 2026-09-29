@@ -96,6 +96,13 @@ const invitePersonSchema =
           z.string().min(1)
         )
         .default([]),
+
+    teamGroupId:
+      z
+        .string()
+        .trim()
+        .min(1)
+        .optional(),
   });
 
   const updatePersonAccessSchema =
@@ -113,6 +120,13 @@ const invitePersonSchema =
           z.string().min(1)
         )
         .default([]),
+
+    teamGroupId:
+      z
+        .string()
+        .trim()
+        .min(1)
+        .optional(),
   });
 
   const deletePersonSchema =
@@ -438,6 +452,9 @@ router.post(
 
             modelIds:
               parsed.data.modelIds,
+
+            teamGroupId:
+              parsed.data.teamGroupId,
           },
 
           req.access
@@ -524,6 +541,7 @@ router.post(
           case "PEOPLE_MANAGE_REQUIRED":
           case "ROLE_NOT_ASSIGNABLE":
           case "MODEL_NOT_ASSIGNABLE":
+          case "TEAM_GROUP_NOT_ASSIGNABLE":
             res.status(403).json({
               error:
                 error.code,
@@ -548,6 +566,7 @@ router.post(
           case "ROLE_REQUIRED":
           case "INVALID_ROLE":
           case "INVALID_MODEL":
+          case "INVALID_TEAM_GROUP":
             res.status(400).json({
               error:
                 error.code,
@@ -1051,6 +1070,9 @@ router.put(
 
             modelIds:
               parsed.data.modelIds,
+
+            teamGroupId:
+              parsed.data.teamGroupId,
           },
 
           req.access
@@ -1075,6 +1097,8 @@ router.put(
           case "CURRENT_ROLE_NOT_MANAGEABLE":
           case "MODEL_NOT_ASSIGNABLE":
           case "CURRENT_MODEL_NOT_MANAGEABLE":
+          case "CURRENT_TEAM_GROUP_NOT_MANAGEABLE":
+          case "TEAM_GROUP_NOT_ASSIGNABLE":
             res.status(403).json({
               error:
                 error.code,
@@ -1110,6 +1134,7 @@ router.put(
           case "ROLE_REQUIRED":
           case "INVALID_ROLE":
           case "INVALID_MODEL":
+          case "INVALID_TEAM_GROUP":
             res.status(400).json({
               error:
                 error.code,
