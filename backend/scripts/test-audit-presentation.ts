@@ -262,6 +262,81 @@ async function main() {
     );
 
     const [
+      roleChange,
+    ] =
+      await presentAuditEvents([
+        {
+          ...event,
+          id:
+            "role-permission-presentation-test",
+          action:
+            "role.updated",
+          targetType:
+            "role",
+          targetId:
+            managerRole.id,
+          metadata: {
+            before: {
+              id:
+                managerRole.id,
+              name:
+                managerRole.name,
+              rank:
+                managerRole.rank,
+              dataScope:
+                managerRole.dataScope,
+              permissions:
+                [],
+            },
+            after: {
+              id:
+                managerRole.id,
+              name:
+                managerRole.name,
+              rank:
+                managerRole.rank,
+              dataScope:
+                managerRole.dataScope,
+              permissions: [
+                "audit.view",
+                "people.manage",
+              ],
+            },
+          },
+        },
+      ]);
+
+    const permissionChange =
+      roleChange.changes.find(
+        (
+          change
+        ) =>
+          change.label ===
+          "Permissions"
+      );
+
+    assert.ok(
+      permissionChange
+    );
+
+    assert.deepEqual(
+      permissionChange.removed,
+      []
+    );
+
+    assert.deepEqual(
+      permissionChange.added,
+      [
+        "Audit View",
+        "People Manage",
+      ]
+    );
+
+    console.log(
+      "✓ permission changes are separated into added and removed items"
+    );
+
+    const [
       deleted,
     ] =
       await presentAuditEvents([
