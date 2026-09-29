@@ -117,7 +117,7 @@ function ForgotPasswordPage() {
     <AuthShell
       eyebrow="Account recovery"
       title="Reset your password"
-      description="Enter the email address attached to your XYZ Hub account."
+      description="Enter the email address attached to your XYZ Management account."
       footer={
         <>
           Remembered your password?{" "}
