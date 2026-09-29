@@ -37,6 +37,7 @@ export class RoleManagementError
     | "ROLE_NAME_IN_USE"
     | "INVALID_ROLE_RANK"
     | "INVALID_PERMISSIONS"
+    | "OWNER_ROLE_IMMUTABLE"
     | "SYSTEM_ROLE_DELETE_FORBIDDEN"
     | "ROLE_IN_USE";
 
@@ -282,30 +283,6 @@ async function validatePermissionIds(
   return normalized;
 }
 
-function ensureOwnerBuilderPermission(
-  systemKey:
-    string | null,
-  permissionIds:
-    string[],
-  roleManagePermissionId:
-    string | undefined
-) {
-  if (
-    systemKey !==
-      "OWNER" ||
-    !roleManagePermissionId
-  ) {
-    return permissionIds;
-  }
-
-  return [
-    ...new Set([
-      ...permissionIds,
-      roleManagePermissionId,
-    ]),
-  ];
-}
-
 const roleSelect = {
   id:
     true,
@@ -463,6 +440,13 @@ export async function getRoleBuilderData(
   ] =
     await Promise.all([
       prisma.role.findMany({
+        where: {
+          systemKey: {
+            not:
+              "OWNER",
+          },
+        },
+
         select:
           roleSelect,
 
@@ -658,6 +642,16 @@ export async function updateRole(
     );
   }
 
+  if (
+    existingRole.systemKey ===
+    "OWNER"
+  ) {
+    throw new RoleManagementError(
+      "OWNER_ROLE_IMMUTABLE",
+      "The Owner role is managed by the system and cannot be edited."
+    );
+  }
+
   const name =
     normalizeName(
       input.name
@@ -673,29 +667,9 @@ export async function updateRole(
     input.rank
   );
 
-  let permissionIds =
+  const permissionIds =
     await validatePermissionIds(
       input.permissionIds
-    );
-
-  const roleManagePermission =
-    await prisma.permission.findUnique({
-      where: {
-        key:
-          "roles.manage",
-      },
-
-      select: {
-        id:
-          true,
-      },
-    });
-
-  permissionIds =
-    ensureOwnerBuilderPermission(
-      existingRole.systemKey,
-      permissionIds,
-      roleManagePermission?.id
     );
 
   const role =
