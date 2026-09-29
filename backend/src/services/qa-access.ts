@@ -264,7 +264,7 @@ export async function resolveQaModelScope(
   ) {
     throw new QaAccessError(
       "MODEL_NOT_ACCESSIBLE",
-      "You do not have access to the selected model."
+      "You do not have access to the selected creator."
     );
   }
 
@@ -520,7 +520,7 @@ export async function resolveIncidentCreationModel(
     ) {
       throw new QaAccessError(
         "MODEL_NOT_FOUND",
-        "The selected model no longer exists."
+        "The selected creator no longer exists."
       );
     }
 
@@ -529,7 +529,7 @@ export async function resolveIncidentCreationModel(
     ) {
       throw new QaAccessError(
         "MODEL_INACTIVE",
-        "New incidents cannot be logged against an inactive model."
+        "New incidents cannot be logged against an inactive creator."
       );
     }
 
@@ -545,7 +545,7 @@ export async function resolveIncidentCreationModel(
     ) {
       throw new QaAccessError(
         "CHATTER_MODEL_MISMATCH",
-        "The selected chatter is not assigned to the selected model."
+        "The selected chatter is not assigned to the selected creator."
       );
     }
 
@@ -597,13 +597,13 @@ export async function resolveIncidentCreationModel(
     throw new QaAccessError(
       "MODEL_CONTEXT_REQUIRED",
       chatter.userId
-        ? "This chatter does not have an active model assignment available in your current access scope."
-        : "Select a model before logging an incident for this legacy chatter record."
+        ? "This chatter does not have an active creator assignment available in your current access scope."
+        : "Select a creator before logging an incident for this legacy chatter record."
     );
   }
 
   throw new QaAccessError(
     "MODEL_CONTEXT_REQUIRED",
-    "Select a model before logging an incident for a chatter assigned to multiple models."
+    "Select a creator before logging an incident for a chatter assigned to multiple creators."
   );
 }
