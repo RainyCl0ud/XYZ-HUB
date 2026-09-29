@@ -54,6 +54,15 @@ const personReadArgs =
       deactivatedAt: true,
       lastSignInAt: true,
 
+      teamGroup: {
+        select: {
+          id: true,
+          name: true,
+          parentId: true,
+          isRoot: true,
+        },
+      },
+
       roleMemberships: {
         orderBy: {
           assignedAt:
@@ -385,6 +394,9 @@ function formatPerson(
 
     deactivatedAt:
       person.deactivatedAt,
+
+    teamGroup:
+      person.teamGroup,
 
     roles:
       person
