@@ -194,7 +194,7 @@ export default function SidebarNavigation({
       id:
         "models",
       label:
-        "Models",
+        "Creators",
       to:
         "/models",
     });
