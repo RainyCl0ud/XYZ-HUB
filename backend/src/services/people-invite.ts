@@ -19,6 +19,10 @@ import {
 } from "./invite.js";
 
 import {
+  ROOT_TEAM_GROUP_ID,
+} from "./team-hierarchy.js";
+
+import {
   generateInviteToken,
   hashInviteToken,
 } from "./invite-token.js";
@@ -361,6 +365,9 @@ export async function invitePerson(
 
                 status:
                   UserStatus.PENDING_SETUP,
+
+                teamGroupId:
+                  ROOT_TEAM_GROUP_ID,
               },
             });
 
