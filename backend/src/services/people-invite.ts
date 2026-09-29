@@ -19,6 +19,7 @@ import {
 } from "./invite.js";
 
 import {
+  getVisibleTeamGroupIds,
   ROOT_TEAM_GROUP_ID,
 } from "./team-hierarchy.js";
 
@@ -32,6 +33,7 @@ export type InvitePersonInput = {
   email: string;
   roleIds: string[];
   modelIds: string[];
+  teamGroupId?: string | null;
 };
 
 export type InvitePersonResult = {
@@ -63,6 +65,8 @@ export type PeopleInviteErrorCode =
   | "ROLE_NOT_ASSIGNABLE"
   | "INVALID_MODEL"
   | "MODEL_NOT_ASSIGNABLE"
+  | "INVALID_TEAM_GROUP"
+  | "TEAM_GROUP_NOT_ASSIGNABLE"
   | "EMAIL_IN_USE";
 
 export class PeopleInviteError extends Error {
@@ -290,6 +294,65 @@ export async function invitePerson(
 
   /*
    * =======================================================
+   * TEAM GROUP VALIDATION
+   * =======================================================
+   *
+   * If no group is chosen, managers default to their own
+   * group. Owner/legacy callers fall back to the permanent
+   * XYZ Management root.
+   */
+  const teamGroupId =
+    input.teamGroupId
+      ?.trim() ||
+    access.teamGroupId ||
+    ROOT_TEAM_GROUP_ID;
+
+  const [
+    teamGroup,
+    visibleTeamGroupIds,
+  ] =
+    await Promise.all([
+      prisma.teamGroup.findUnique({
+        where: {
+          id:
+            teamGroupId,
+        },
+
+        select: {
+          id:
+            true,
+          name:
+            true,
+        },
+      }),
+
+      getVisibleTeamGroupIds(
+        access
+      ),
+    ]);
+
+  if (
+    !teamGroup
+  ) {
+    throw new PeopleInviteError(
+      "INVALID_TEAM_GROUP",
+      "The selected team group does not exist."
+    );
+  }
+
+  if (
+    !visibleTeamGroupIds.has(
+      teamGroup.id
+    )
+  ) {
+    throw new PeopleInviteError(
+      "TEAM_GROUP_NOT_ASSIGNABLE",
+      "You are not allowed to assign a person to the selected team group."
+    );
+  }
+
+  /*
+   * =======================================================
    * INVITE TOKEN
    * =======================================================
    */
@@ -367,7 +430,7 @@ export async function invitePerson(
                   UserStatus.PENDING_SETUP,
 
                 teamGroupId:
-                  ROOT_TEAM_GROUP_ID,
+                  teamGroup.id,
               },
             });
 
