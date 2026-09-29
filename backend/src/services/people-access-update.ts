@@ -6,13 +6,19 @@ import {
   canAccessModel,
   canAssignRole,
   hasPermission,
+  isOwner,
   type AccessContext,
 } from "./access-control.js";
+
+import {
+  getVisibleTeamGroupIds,
+} from "./team-hierarchy.js";
 
 export type UpdatePersonAccessInput = {
   userId: string;
   roleIds: string[];
   modelIds: string[];
+  teamGroupId?: string;
 };
 
 export type PeopleAccessUpdateErrorCode =
@@ -25,7 +31,10 @@ export type PeopleAccessUpdateErrorCode =
   | "CURRENT_ROLE_NOT_MANAGEABLE"
   | "INVALID_MODEL"
   | "MODEL_NOT_ASSIGNABLE"
-  | "CURRENT_MODEL_NOT_MANAGEABLE";
+  | "CURRENT_MODEL_NOT_MANAGEABLE"
+  | "INVALID_TEAM_GROUP"
+  | "TEAM_GROUP_NOT_ASSIGNABLE"
+  | "CURRENT_TEAM_GROUP_NOT_MANAGEABLE";
 
 export class PeopleAccessUpdateError extends Error {
   readonly code:
@@ -119,6 +128,7 @@ export async function updatePersonAccess(
         name: true,
         email: true,
         status: true,
+        teamGroupId: true,
 
         roleMemberships: {
           select: {
@@ -158,6 +168,117 @@ export async function updatePersonAccess(
       "USER_NOT_FOUND",
       "The user does not exist."
     );
+  }
+
+  /*
+   * Owner is managed outside ordinary People Management.
+   * Treat direct access-update attempts as not found so the
+   * protected account cannot be manipulated through this API.
+   */
+  if (
+    target.roleMemberships.some(
+      (
+        membership
+      ) =>
+        membership.role
+          .systemKey ===
+        "OWNER"
+    )
+  ) {
+    throw new PeopleAccessUpdateError(
+      "USER_NOT_FOUND",
+      "The user does not exist."
+    );
+  }
+
+  const visibleTeamGroupIds =
+    await getVisibleTeamGroupIds(
+      access
+    );
+
+  if (
+    target.teamGroupId
+  ) {
+    if (
+      !visibleTeamGroupIds.has(
+        target.teamGroupId
+      )
+    ) {
+      throw new PeopleAccessUpdateError(
+        "CURRENT_TEAM_GROUP_NOT_MANAGEABLE",
+        "You are not allowed to manage a person outside your organization scope."
+      );
+    }
+  } else if (
+    !isOwner(
+      access
+    )
+  ) {
+    throw new PeopleAccessUpdateError(
+      "CURRENT_TEAM_GROUP_NOT_MANAGEABLE",
+      "You are not allowed to manage an ungrouped person."
+    );
+  }
+
+  let requestedTeamGroup:
+    {
+      id: string;
+      name: string;
+    } |
+    null =
+      null;
+
+  if (
+    input.teamGroupId !==
+    undefined
+  ) {
+    const teamGroupId =
+      input.teamGroupId
+        .trim();
+
+    if (
+      !teamGroupId
+    ) {
+      throw new PeopleAccessUpdateError(
+        "INVALID_TEAM_GROUP",
+        "The selected team group is invalid."
+      );
+    }
+
+    requestedTeamGroup =
+      await prisma.teamGroup.findUnique({
+        where: {
+          id:
+            teamGroupId,
+        },
+
+        select: {
+          id:
+            true,
+          name:
+            true,
+        },
+      });
+
+    if (
+      !requestedTeamGroup
+    ) {
+      throw new PeopleAccessUpdateError(
+        "INVALID_TEAM_GROUP",
+        "The selected team group does not exist."
+      );
+    }
+
+    if (
+      !visibleTeamGroupIds.has(
+        requestedTeamGroup.id
+      )
+    ) {
+      throw new PeopleAccessUpdateError(
+        "TEAM_GROUP_NOT_ASSIGNABLE",
+        "You are not allowed to move a person to the selected team group."
+      );
+    }
   }
 
   /*
@@ -245,6 +366,8 @@ export async function updatePersonAccess(
     of roles
   ) {
     if (
+      role.systemKey ===
+        "OWNER" ||
       !canAssignRole(
         access,
         role
@@ -477,6 +600,24 @@ export async function updatePersonAccess(
               ),
           });
       }
+
+      if (
+        requestedTeamGroup &&
+        requestedTeamGroup.id !==
+          target.teamGroupId
+      ) {
+        await tx.user.update({
+          where: {
+            id:
+              target.id,
+          },
+
+          data: {
+            teamGroupId:
+              requestedTeamGroup.id,
+          },
+        });
+      }
     }
   );
 
@@ -492,6 +633,15 @@ export async function updatePersonAccess(
         name: true,
         email: true,
         status: true,
+
+        teamGroup: {
+          select: {
+            id: true,
+            name: true,
+            parentId: true,
+            isRoot: true,
+          },
+        },
 
         roleMemberships: {
           select: {
@@ -539,6 +689,9 @@ export async function updatePersonAccess(
 
     status:
       updated.status,
+
+    teamGroup:
+      updated.teamGroup,
 
     roles:
       updated.roleMemberships.map(

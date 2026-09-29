@@ -19,6 +19,8 @@ export type AccessContext = {
 
   highestRank: number | null;
 
+  teamGroupId: string | null;
+
   effectiveDataScope: RoleDataScope;
 
   permissions: Set<string>;
@@ -103,6 +105,7 @@ export async function getAccessContext(
 
       select: {
         id: true,
+        teamGroupId: true,
 
         roleMemberships: {
           select: {
@@ -205,6 +208,8 @@ export async function getAccessContext(
     roles,
     highestRank:
       getHighestRank(roles),
+    teamGroupId:
+      user.teamGroupId,
     effectiveDataScope:
       getEffectiveDataScope(roles),
     permissions,

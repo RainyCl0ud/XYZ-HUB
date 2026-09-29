@@ -208,6 +208,8 @@ function actionLabel(
       "Invitation resent",
     "people.access_changed":
       "Access updated",
+    "people.group_changed":
+      "Team group changed",
     "people.deactivated":
       "Account deactivated",
     "people.reactivated":
@@ -230,6 +232,12 @@ function actionLabel(
       "Role updated",
     "role.deleted":
       "Role deleted",
+    "team_group.created":
+      "Team group created",
+    "team_group.updated":
+      "Team group updated",
+    "team_group.deleted":
+      "Team group deleted",
   };
 
   return (
@@ -251,6 +259,8 @@ function collectSnapshotIds(
   modelIds:
     Set<string>,
   userIds:
+    Set<string>,
+  teamGroupIds:
     Set<string>
 ) {
   if (
@@ -297,6 +307,32 @@ function collectSnapshotIds(
   ) {
     modelIds.add(
       modelId
+    );
+  }
+
+  const teamGroupId =
+    asString(
+      record.teamGroupId
+    );
+
+  if (
+    teamGroupId
+  ) {
+    teamGroupIds.add(
+      teamGroupId
+    );
+  }
+
+  const parentId =
+    asString(
+      record.parentId
+    );
+
+  if (
+    parentId
+  ) {
+    teamGroupIds.add(
+      parentId
     );
   }
 }
@@ -607,6 +643,11 @@ function buildChanges(
     Map<
       string,
       string
+    >,
+  teamGroupNames:
+    Map<
+      string,
+      string
     >
 ) {
   if (
@@ -684,6 +725,43 @@ function buildChanges(
           "modelNames",
           modelNames
         )
+      );
+
+      const beforeGroupId =
+        asString(
+          before.teamGroupId
+        );
+
+      const afterGroupId =
+        asString(
+          after.teamGroupId
+        );
+
+      pushChange(
+        changes,
+        "Team group",
+        asString(
+          before.teamGroupName
+        ) ??
+          (
+            beforeGroupId
+              ? teamGroupNames.get(
+                  beforeGroupId
+                ) ??
+                "Unavailable"
+              : null
+          ),
+        asString(
+          after.teamGroupName
+        ) ??
+          (
+            afterGroupId
+              ? teamGroupNames.get(
+                  afterGroupId
+                ) ??
+                "Unavailable"
+              : null
+          )
       );
     } else if (
       !before &&
@@ -787,6 +865,51 @@ function buildChanges(
 
   if (
     event.targetType ===
+      "team_group"
+  ) {
+    pushChange(
+      changes,
+      "Group name",
+      asString(
+        before?.name
+      ),
+      asString(
+        after?.name
+      )
+    );
+
+    const beforeParentId =
+      asString(
+        before?.parentId
+      );
+
+    const afterParentId =
+      asString(
+        after?.parentId
+      );
+
+    pushChange(
+      changes,
+      "Parent group",
+      beforeParentId
+        ? teamGroupNames.get(
+            beforeParentId
+          ) ??
+          "Unavailable"
+        : null,
+      afterParentId
+        ? teamGroupNames.get(
+            afterParentId
+          ) ??
+          "Unavailable"
+        : null
+    );
+
+    return changes;
+  }
+
+  if (
+    event.targetType ===
       "role"
   ) {
     pushChange(
@@ -874,6 +997,9 @@ function buildSummary(
     case "people.access_changed":
       return "Access was updated for " + label + ".";
 
+    case "people.group_changed":
+      return label + " was moved to a different team group.";
+
     case "people.deactivated":
       return label + " was deactivated.";
 
@@ -915,6 +1041,15 @@ function buildSummary(
 
     case "role.deleted":
       return label + " was deleted.";
+
+    case "team_group.created":
+      return label + " was added to the organization hierarchy.";
+
+    case "team_group.updated":
+      return label + " was updated.";
+
+    case "team_group.deleted":
+      return label + " was removed from the organization hierarchy.";
 
     case "auth.password_verified":
       return "The password for " + label + " was verified.";
@@ -959,6 +1094,11 @@ export async function presentAuditEvents(
     >();
 
   const incidentIds =
+    new Set<
+      string
+    >();
+
+  const teamGroupIds =
     new Set<
       string
     >();
@@ -1013,6 +1153,13 @@ export async function presentAuditEvents(
         incidentIds.add(
           event.targetId
         );
+      } else if (
+        event.targetType ===
+          "team_group"
+      ) {
+        teamGroupIds.add(
+          event.targetId
+        );
       }
     }
 
@@ -1038,7 +1185,8 @@ export async function presentAuditEvents(
         record,
         roleIds,
         modelIds,
-        userIds
+        userIds,
+        teamGroupIds
       );
     }
   }
@@ -1049,6 +1197,7 @@ export async function presentAuditEvents(
     models,
     chatters,
     incidents,
+    teamGroups,
   ] =
     await Promise.all([
       userIds.size
@@ -1144,6 +1293,23 @@ export async function presentAuditEvents(
             },
           })
         : [],
+      teamGroupIds.size
+        ? prisma.teamGroup.findMany({
+            where: {
+              id: {
+                in: [
+                  ...teamGroupIds,
+                ],
+              },
+            },
+            select: {
+              id:
+                true,
+              name:
+                true,
+            },
+          })
+        : [],
     ]);
 
   const userMap =
@@ -1204,6 +1370,18 @@ export async function presentAuditEvents(
           incident.chatter.name +
             " · " +
             incident.ruleTitleSnapshot,
+        ] as const
+      )
+    );
+
+  const teamGroupMap =
+    new Map(
+      teamGroups.map(
+        (
+          group
+        ) => [
+          group.id,
+          group.name,
         ] as const
       )
     );
@@ -1362,6 +1540,29 @@ export async function presentAuditEvents(
         };
       } else if (
         event.targetType ===
+          "team_group"
+      ) {
+        target = {
+          label:
+            (
+              event.targetId
+                ? teamGroupMap.get(
+                    event.targetId
+                  )
+                : null
+            ) ??
+            snapshotName(
+              after ??
+              before
+            ) ??
+            "Team group",
+          secondary:
+            null,
+          kind:
+            "team group",
+        };
+      } else if (
+        event.targetType ===
           "chatter"
       ) {
         target = {
@@ -1430,7 +1631,8 @@ export async function presentAuditEvents(
         buildChanges(
           event,
           roleMap,
-          modelMap
+          modelMap,
+          teamGroupMap
         );
 
       return {

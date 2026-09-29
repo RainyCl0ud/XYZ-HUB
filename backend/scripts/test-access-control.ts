@@ -26,6 +26,8 @@ function createAccessContext(
 
     highestRank: null,
 
+    teamGroupId: null,
+
     effectiveDataScope:
       RoleDataScope.SELF,
 

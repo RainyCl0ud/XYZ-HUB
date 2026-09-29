@@ -16,6 +16,10 @@ import {
   type AccessContext,
 } from "./access-control.js";
 
+import {
+  getVisibleTeamGroupIds,
+} from "./team-hierarchy.js";
+
 export type PeopleReadErrorCode =
   | "PEOPLE_MANAGE_REQUIRED"
   | "USER_NOT_FOUND"
@@ -53,6 +57,15 @@ const personReadArgs =
       emailVerifiedAt: true,
       deactivatedAt: true,
       lastSignInAt: true,
+
+      teamGroup: {
+        select: {
+          id: true,
+          name: true,
+          parentId: true,
+          isRoot: true,
+        },
+      },
 
       roleMemberships: {
         orderBy: {
@@ -173,8 +186,64 @@ function canReadPerson(
   access:
     AccessContext,
   person:
-    PersonReadRecord
+    PersonReadRecord,
+  visibleTeamGroupIds:
+    Set<string>
 ): boolean {
+  /*
+   * Owner is the immutable system super-admin,
+   * not an ordinary employee record.
+   *
+   * Hide Owner at the service layer so list and
+   * direct-detail APIs cannot expose it even if
+   * the caller knows the user ID.
+   */
+  if (
+    person
+      .roleMemberships
+      .some(
+        (
+          membership
+        ) =>
+          membership.role
+            .systemKey ===
+          "OWNER"
+      )
+  ) {
+    return false;
+  }
+
+  /*
+   * Organization scope is now an additional
+   * authorization boundary.
+   *
+   * Rank/model checks remain in place during
+   * the migration, so hierarchy narrows access
+   * without weakening the existing safeguards.
+   */
+  if (
+    person.teamGroup
+  ) {
+    if (
+      !visibleTeamGroupIds.has(
+        person.teamGroup.id
+      )
+    ) {
+      return false;
+    }
+  } else if (
+    !isOwner(
+      access
+    )
+  ) {
+    /*
+     * Fail closed for malformed legacy data.
+     * Owner may still see an ungrouped employee
+     * so the record can be repaired.
+     */
+    return false;
+  }
+
   if (
     isOwner(
       access
@@ -386,6 +455,9 @@ function formatPerson(
     deactivatedAt:
       person.deactivatedAt,
 
+    teamGroup:
+      person.teamGroup,
+
     roles:
       person
         .roleMemberships
@@ -484,22 +556,31 @@ export async function listPeople(
     access
   );
 
-  const people =
-    await prisma.user.findMany({
-      ...personReadArgs,
+  const [
+    people,
+    visibleTeamGroupIds,
+  ] =
+    await Promise.all([
+      prisma.user.findMany({
+        ...personReadArgs,
 
-      orderBy: [
-        {
-          name:
-            "asc",
-        },
+        orderBy: [
+          {
+            name:
+              "asc",
+          },
 
-        {
-          createdAt:
-            "asc",
-        },
-      ],
-    });
+          {
+            createdAt:
+              "asc",
+          },
+        ],
+      }),
+
+      getVisibleTeamGroupIds(
+        access
+      ),
+    ]);
 
   return people
     .filter(
@@ -508,7 +589,8 @@ export async function listPeople(
       ) =>
         canReadPerson(
           access,
-          person
+          person,
+          visibleTeamGroupIds
         )
     )
     .map(
@@ -532,15 +614,24 @@ export async function getPersonDetail(
     access
   );
 
-  const person =
-    await prisma.user.findUnique({
-      where: {
-        id:
-          userId,
-      },
+  const [
+    person,
+    visibleTeamGroupIds,
+  ] =
+    await Promise.all([
+      prisma.user.findUnique({
+        where: {
+          id:
+            userId,
+        },
 
-      ...personReadArgs,
-    });
+        ...personReadArgs,
+      }),
+
+      getVisibleTeamGroupIds(
+        access
+      ),
+    ]);
 
   if (!person) {
     throw new PeopleReadError(
@@ -552,7 +643,8 @@ export async function getPersonDetail(
   if (
     !canReadPerson(
       access,
-      person
+      person,
+      visibleTeamGroupIds
     )
   ) {
     throw new PeopleReadError(
