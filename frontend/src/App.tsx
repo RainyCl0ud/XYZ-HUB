@@ -29,6 +29,7 @@ import PeoplePage from "./pages/PeoplePage";
 import ModelsPage from "./pages/ModelsPage";
 import RoleBuilderPage from "./pages/RoleBuilderPage";
 import AuditPage from "./pages/AuditPage";
+import AccountPage from "./pages/AccountPage";
 
 function App() {
   return (
@@ -176,6 +177,13 @@ function App() {
               <RequirePortalModule module="audit">
                 <AuditPage />
               </RequirePortalModule>
+            }
+          />
+
+          <Route
+            path="/account"
+            element={
+              <AccountPage />
             }
           />
         </Route>
