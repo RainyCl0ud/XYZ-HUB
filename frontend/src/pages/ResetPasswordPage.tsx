@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import AuthShell from "../components/AuthShell";
+import PasswordField from "../components/PasswordField";
 
 import {
   ApiError,
@@ -237,7 +238,7 @@ function ResetPasswordPage() {
       <AuthShell
         eyebrow="Account recovery"
         title="Checking reset link"
-        description="Please wait while XYZ Hub validates your password-reset request."
+        description="Please wait while XYZ Management validates your password-reset request."
       >
         <div className="auth-message auth-message-info">
           Validating your reset link...
@@ -307,59 +308,46 @@ function ResetPasswordPage() {
           </div>
         )}
 
-        <label className="auth-field">
-          <span className="auth-label">
-            New password
-          </span>
+        <PasswordField
+          label="New password"
+          value={
+            password
+          }
+          onChange={(
+            event
+          ) =>
+            setPassword(
+              event.target
+                .value
+            )
+          }
+          autoComplete="new-password"
+          minLength={
+            12
+          }
+          placeholder="Create a new password"
+          helper="At least 12 characters."
+        />
 
-          <input
-            className="auth-input"
-            type="password"
-            autoComplete="new-password"
-            minLength={
-              12
-            }
-            value={
-              password
-            }
-            onChange={(
-              event
-            ) =>
-              setPassword(
-                event.target
-                  .value
-              )
-            }
-            required
-          />
-        </label>
-
-        <label className="auth-field">
-          <span className="auth-label">
-            Confirm new password
-          </span>
-
-          <input
-            className="auth-input"
-            type="password"
-            autoComplete="new-password"
-            minLength={
-              12
-            }
-            value={
-              confirmation
-            }
-            onChange={(
-              event
-            ) =>
-              setConfirmation(
-                event.target
-                  .value
-              )
-            }
-            required
-          />
-        </label>
+        <PasswordField
+          label="Confirm new password"
+          value={
+            confirmation
+          }
+          onChange={(
+            event
+          ) =>
+            setConfirmation(
+              event.target
+                .value
+            )
+          }
+          autoComplete="new-password"
+          minLength={
+            12
+          }
+          placeholder="Re-enter your new password"
+        />
 
         <button
           className="auth-submit"

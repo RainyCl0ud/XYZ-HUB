@@ -64,14 +64,6 @@ function AuthShell({
         )}
       </main>
 
-      <div className="auth-environment">
-        <span className="environment-dot" />
-
-        <span>
-          {import.meta.env.VITE_APP_ENV ??
-            "Development"}
-        </span>
-      </div>
     </div>
   );
 }

@@ -441,3 +441,99 @@
     font-size: 24px;
   }
 }
+
+/* ========================================
+   CLIENT READINESS — PASSWORD UX
+   ======================================== */
+
+.auth-password-control {
+  position: relative;
+}
+
+.auth-password-input {
+  padding-right: 48px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+  padding: 0;
+
+  transform: translateY(-50%);
+
+  border: 0;
+  border-radius: 7px;
+
+  background: transparent;
+  color: var(--text-muted);
+
+  cursor: pointer;
+
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.auth-password-toggle:hover {
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.auth-password-toggle svg {
+  width: 17px;
+  height: 17px;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.auth-field-help {
+  color: var(--text-soft);
+
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.auth-field-below {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  min-height: 18px;
+}
+
+.auth-forgot-link {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 24px;
+
+  font-size: 9.5px;
+}
+
+@media (max-width: 560px) {
+  .auth-password-toggle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .auth-password-input {
+    padding-right: 50px;
+  }
+}
