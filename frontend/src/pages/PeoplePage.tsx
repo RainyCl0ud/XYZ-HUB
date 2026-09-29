@@ -642,6 +642,80 @@ function PeoplePage() {
       )
     );
 
+  const activeAccessCreatorIds =
+    useMemo(
+      () =>
+        options?.models
+          .filter(
+            (
+              model
+            ) =>
+              model.isActive
+          )
+          .map(
+            (
+              model
+            ) =>
+              model.id
+          ) ??
+        [],
+      [
+        options,
+      ]
+    );
+
+  const allActiveCreatorsSelected =
+    activeAccessCreatorIds.length >
+      0 &&
+    activeAccessCreatorIds.every(
+      (
+        modelId
+      ) =>
+        accessModelIds.includes(
+          modelId
+        )
+    );
+
+  function toggleAllAccessCreators() {
+    if (
+      allActiveCreatorsSelected
+    ) {
+      setAccessModelIds(
+        []
+      );
+
+      return;
+    }
+
+    const inactiveExistingIds =
+      accessModelIds.filter(
+        (
+          modelId
+        ) => {
+          const model =
+            options?.models.find(
+              (
+                item
+              ) =>
+                item.id ===
+                modelId
+            );
+
+          return Boolean(
+            model &&
+            !model.isActive
+          );
+        }
+      );
+
+    setAccessModelIds([
+      ...new Set([
+        ...activeAccessCreatorIds,
+        ...inactiveExistingIds,
+      ]),
+    ]);
+  }
+
   async function openPerson(
     person:
       Person
