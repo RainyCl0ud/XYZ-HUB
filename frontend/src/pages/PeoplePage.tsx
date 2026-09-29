@@ -1412,10 +1412,6 @@ function PeoplePage() {
               <span>
                 Creators
               </span>
-
-              <span>
-                Setup
-              </span>
             </div>
 
             {filteredPeople.map(
@@ -1485,12 +1481,6 @@ function PeoplePage() {
                             ", "
                           )
                       : "No creator assignment"}
-                  </span>
-
-                  <span className="people-muted-cell">
-                    {formatSetupStatus(
-                      person.setup.status
-                    )}
                   </span>
                 </button>
               )
