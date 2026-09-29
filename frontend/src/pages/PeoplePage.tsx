@@ -1586,20 +1586,8 @@ function PeoplePage() {
               </div>
             ) : (
               <div className="people-detail-body">
-                <div className="people-detail-meta">
-                  <div>
-                    <span>
-                      Account status
-                    </span>
-
-                    <strong>
-                      {formatStatus(
-                        selectedPerson.status
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
+                <div className="people-account-facts">
+                  <div className="people-account-fact">
                     <span>
                       Created
                     </span>
@@ -1611,29 +1599,33 @@ function PeoplePage() {
                     </strong>
                   </div>
 
-                  <div>
+                  <div className="people-account-fact">
                     <span>
-                      Setup status
+                      Email verified
                     </span>
 
                     <strong>
-                      {formatSetupStatus(
-                        selectedPerson.setup.status
-                      )}
+                      {selectedPerson.emailVerifiedAt
+                        ? formatTexasDateTime(
+                            selectedPerson.emailVerifiedAt
+                          )
+                        : "Not verified"}
                     </strong>
                   </div>
 
-                  <div>
-                    <span>
-                      Invite expires
-                    </span>
+                  {selectedPerson.security && (
+                    <div className="people-account-fact">
+                      <span>
+                        Last sign-in
+                      </span>
 
-                    <strong>
-                      {formatTexasDateTime(
-                        selectedPerson.setup.expiresAt
-                      )}
-                    </strong>
-                  </div>
+                      <strong>
+                        {formatTexasDateTime(
+                          selectedPerson.security.lastSignInAt
+                        )}
+                      </strong>
+                    </div>
+                  )}
                 </div>
 
                 <div className="people-detail-section">
@@ -1644,7 +1636,7 @@ function PeoplePage() {
                       </h4>
 
                       <p>
-                        Effective access is calculated from all assigned roles and visible models.
+                        Effective access is calculated from all assigned roles and visible creators.
                       </p>
                     </div>
 
@@ -1729,65 +1721,11 @@ function PeoplePage() {
                   )}
                 </div>
 
-                {selectedPerson.security && (
-                  <div className="people-detail-section">
-                    <div className="people-detail-section-heading">
-                      <div>
-                        <h4>
-                          Account security
-                        </h4>
-
-                        <p>
-                          Owner-only authentication status and last sign-in information.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="people-detail-meta">
-                      <div>
-                        <span>
-                          Last sign-in
-                        </span>
-
-                        <strong>
-                          {formatTexasDateTime(
-                            selectedPerson.security.lastSignInAt
-                          )}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Email 2FA
-                        </span>
-
-                        <strong>
-                          {selectedPerson.security.twoFactor.email.enabled
-                            ? "Enabled"
-                            : "Disabled"}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Email verified
-                        </span>
-
-                        <strong>
-                          {formatTexasDateTime(
-                            selectedPerson.security.twoFactor.email.verifiedAt
-                          )}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="people-detail-section">
+                <div className="people-detail-section people-account-actions-section">
                   <div className="people-detail-section-heading">
                     <div>
                       <h4>
-                        Account actions
+                        Account access
                       </h4>
 
                       <p>
