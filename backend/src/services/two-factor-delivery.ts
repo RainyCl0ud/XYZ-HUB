@@ -1,9 +1,12 @@
 import {
-  escapeEmailHtml,
   formatEmailExpiry,
   getEmailDeliveryMode,
   sendTransactionalEmail,
 } from "./email-delivery.js";
+
+import {
+  renderBrandedTransactionalEmail,
+} from "./transactional-email-template.js";
 
 export type EmailTwoFactorCodeInput = {
   email: string;
@@ -38,7 +41,7 @@ export async function sendEmailTwoFactorCode(
       "========================================"
     );
     console.log(
-      "XYZ HUB — DEVELOPMENT 2FA CODE"
+      "XYZ MANAGEMENT — DEVELOPMENT 2FA CODE"
     );
     console.log(
       `Email: ${input.email}`
@@ -70,11 +73,32 @@ export async function sendEmailTwoFactorCode(
       to:
         input.email,
       subject:
-        "Your XYZ Hub verification code",
+        "Your XYZ Management verification code",
       text:
-        `Your XYZ Hub verification code is ${input.code}. It expires ${expiry}. If you did not try to sign in, you can ignore this email.`,
+        `Use this verification code to finish signing in to XYZ Management:\n\n${input.code}\n\nExpires: ${expiry}\n\nNever share this code. If you did not try to sign in, you can ignore this email.`,
       html:
-        `<p>Your XYZ Hub verification code is:</p><p style="font-size:24px;font-weight:700;letter-spacing:4px">${escapeEmailHtml(input.code)}</p><p>It expires ${escapeEmailHtml(expiry)}.</p><p>If you did not try to sign in, you can ignore this email.</p>`,
+        renderBrandedTransactionalEmail({
+          preheader:
+            "Use your verification code to finish signing in to XYZ Management.",
+          eyebrow:
+            "Two-factor authentication",
+          title:
+            "Finish signing in",
+          intro:
+            "Use the verification code below to finish signing in to XYZ Management.",
+          code:
+            input.code,
+          details: [
+            {
+              label:
+                "Expires",
+              value:
+                expiry,
+            },
+          ],
+          notice:
+            "Never share this verification code. If you did not try to sign in, you can ignore this email.",
+        }),
     });
 
     return;

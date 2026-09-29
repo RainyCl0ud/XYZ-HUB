@@ -1,9 +1,12 @@
 import {
-  escapeEmailHtml,
   formatEmailExpiry,
   getEmailDeliveryMode,
   sendTransactionalEmail,
 } from "./email-delivery.js";
+
+import {
+  renderBrandedTransactionalEmail,
+} from "./transactional-email-template.js";
 
 export type AccountInviteDeliveryInput = {
   name: string;
@@ -60,7 +63,7 @@ export async function sendAccountInvite(
       "========================================"
     );
     console.log(
-      "XYZ HUB — DEVELOPMENT ACCOUNT INVITE"
+      "XYZ MANAGEMENT — DEVELOPMENT ACCOUNT INVITE"
     );
     console.log(
       `Name: ${input.name}`
@@ -86,16 +89,6 @@ export async function sendAccountInvite(
     mode ===
     "gmail_api"
   ) {
-    const safeName =
-      escapeEmailHtml(
-        input.name
-      );
-
-    const safeInviteUrl =
-      escapeEmailHtml(
-        inviteUrl
-      );
-
     const expiry =
       formatEmailExpiry(
         input.expiresAt
@@ -105,11 +98,38 @@ export async function sendAccountInvite(
       to:
         input.email,
       subject:
-        "Set up your XYZ Hub account",
+        "Set up your XYZ Management account",
       text:
-        `Hi ${input.name},\n\nYou have been invited to XYZ Hub. Set your password using this one-time link:\n\n${inviteUrl}\n\nThis invitation expires ${expiry}.\n\nIf you were not expecting this invitation, you can ignore this email.`,
+        `Hi ${input.name},\n\nYou have been invited to XYZ Management. Use the secure one-time link below to create your password and activate your account.\n\nSet up your account:\n${inviteUrl}\n\nExpires: ${expiry}\n\nIf you were not expecting this invitation, you can ignore this email. Do not forward or share this invitation link.`,
       html:
-        `<p>Hi ${safeName},</p><p>You have been invited to <strong>XYZ Hub</strong>.</p><p><a href="${safeInviteUrl}">Set up your account</a></p><p>This one-time invitation expires ${escapeEmailHtml(expiry)}.</p><p>If you were not expecting this invitation, you can ignore this email.</p>`,
+        renderBrandedTransactionalEmail({
+          preheader:
+            "You have been invited to XYZ Management.",
+          eyebrow:
+            "Account invitation",
+          title:
+            "Set up your account",
+          greeting:
+            `Hi ${input.name},`,
+          intro:
+            "You have been invited to XYZ Management. Use the secure one-time link below to create your password and activate your account.",
+          action: {
+            label:
+              "Set up your account",
+            url:
+              inviteUrl,
+          },
+          details: [
+            {
+              label:
+                "Expires",
+              value:
+                expiry,
+            },
+          ],
+          notice:
+            "If you were not expecting this invitation, you can ignore this email. Do not forward or share this invitation link.",
+        }),
     });
 
     return;

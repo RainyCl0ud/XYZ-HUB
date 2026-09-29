@@ -1,9 +1,12 @@
 import {
-  escapeEmailHtml,
   formatEmailExpiry,
   getEmailDeliveryMode,
   sendTransactionalEmail,
 } from "./email-delivery.js";
+
+import {
+  renderBrandedTransactionalEmail,
+} from "./transactional-email-template.js";
 
 export type PasswordResetDeliveryInput = {
   name: string;
@@ -60,7 +63,7 @@ export async function sendPasswordReset(
       "========================================"
     );
     console.log(
-      "XYZ HUB — DEVELOPMENT PASSWORD RESET"
+      "XYZ MANAGEMENT — DEVELOPMENT PASSWORD RESET"
     );
     console.log(
       `Name: ${input.name}`
@@ -86,16 +89,6 @@ export async function sendPasswordReset(
     mode ===
     "gmail_api"
   ) {
-    const safeName =
-      escapeEmailHtml(
-        input.name
-      );
-
-    const safeResetUrl =
-      escapeEmailHtml(
-        resetUrl
-      );
-
     const expiry =
       formatEmailExpiry(
         input.expiresAt
@@ -105,11 +98,38 @@ export async function sendPasswordReset(
       to:
         input.email,
       subject:
-        "Reset your XYZ Hub password",
+        "Reset your XYZ Management password",
       text:
-        `Hi ${input.name},\n\nUse this one-time link to reset your XYZ Hub password:\n\n${resetUrl}\n\nThe link expires ${expiry}.\n\nIf you did not request this reset, you can ignore this email.`,
+        `Hi ${input.name},\n\nWe received a request to reset your XYZ Management password. Use the secure one-time link below to choose a new password.\n\nReset your password:\n${resetUrl}\n\nExpires: ${expiry}\n\nIf you did not request this reset, you can ignore this email. Your current password will remain unchanged unless the reset link is completed.`,
       html:
-        `<p>Hi ${safeName},</p><p>Use the link below to reset your XYZ Hub password.</p><p><a href="${safeResetUrl}">Reset password</a></p><p>The one-time link expires ${escapeEmailHtml(expiry)}.</p><p>If you did not request this reset, you can ignore this email.</p>`,
+        renderBrandedTransactionalEmail({
+          preheader:
+            "Reset your XYZ Management password.",
+          eyebrow:
+            "Account recovery",
+          title:
+            "Reset your password",
+          greeting:
+            `Hi ${input.name},`,
+          intro:
+            "We received a request to reset your XYZ Management password. Use the secure one-time link below to choose a new password.",
+          action: {
+            label:
+              "Reset password",
+            url:
+              resetUrl,
+          },
+          details: [
+            {
+              label:
+                "Expires",
+              value:
+                expiry,
+            },
+          ],
+          notice:
+            "If you did not request this reset, you can ignore this email. Your current password will remain unchanged unless the reset link is completed.",
+        }),
     });
 
     return;
