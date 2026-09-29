@@ -515,7 +515,14 @@
 }
 
 @media (max-width: 640px) {
-  .role-builder-summary,
+  .role-builder-summary {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
   .role-list,
   .role-settings-grid {
     grid-template-columns:
