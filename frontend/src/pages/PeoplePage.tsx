@@ -1914,7 +1914,6 @@ function PeoplePage() {
                     </div>
                   </div>
                 )}
-                </div>
               </div>
             )}
           </section>
