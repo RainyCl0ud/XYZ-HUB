@@ -59,14 +59,13 @@
 .people-table {
   display: grid;
   grid-template-columns:
-    minmax(220px, 1.35fr)
+    minmax(240px, 1.4fr)
     130px
-    minmax(180px, 1fr)
-    minmax(180px, 1fr)
-    140px;
+    minmax(190px, 1fr)
+    minmax(220px, 1.15fr);
   align-items: center;
   gap: 14px;
-  min-width: 930px;
+  min-width: 820px;
   padding: 12px 18px;
 }
 
@@ -457,5 +456,412 @@
 
   .filter-group {
     overflow-x: auto;
+  }
+}
+
+
+/* =========================================================
+   CLIENT READINESS — PEOPLE PROFILE
+   ========================================================= */
+
+.people-profile-header {
+  align-items: center;
+}
+
+.people-profile-identity {
+  min-width: 0;
+}
+
+.people-profile-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 9px;
+
+  margin-top: 4px;
+}
+
+.people-profile-title-row h3 {
+  margin: 0;
+}
+
+.people-profile-role-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 5px;
+}
+
+.people-profile-role-badge {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 24px;
+
+  padding: 0 8px;
+
+  border:
+    1px solid
+    rgba(232, 216, 178, 0.22);
+
+  border-radius: 999px;
+
+  background:
+    var(--accent-soft);
+
+  color:
+    var(--accent);
+
+  font-size: 8px;
+  font-weight: 750;
+
+  white-space: nowrap;
+}
+
+.people-profile-header-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  flex: 0 0 auto;
+}
+
+.people-profile-status {
+  min-height: 28px;
+
+  padding:
+    0 10px;
+
+  font-size: 8.5px;
+}
+
+.people-account-facts {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  gap: 8px;
+
+  padding-bottom: 4px;
+}
+
+.people-account-facts > div {
+  min-height: 62px;
+
+  padding: 11px 12px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius:
+    var(--radius-sm);
+
+  background:
+    var(--surface-deep);
+}
+
+.people-account-facts span {
+  display: block;
+
+  color:
+    var(--text-soft);
+
+  font-size: 7.5px;
+  font-weight: 750;
+
+  letter-spacing: 0.06em;
+
+  text-transform: uppercase;
+}
+
+.people-account-facts strong {
+  display: block;
+
+  margin-top: 8px;
+
+  color:
+    var(--text-secondary);
+
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.people-account-actions-section {
+  padding-bottom: 2px;
+}
+
+.people-danger-zone {
+  margin-top: 20px;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    rgba(229, 141, 135, 0.32);
+
+  border-radius:
+    var(--radius-md);
+
+  background:
+    rgba(229, 141, 135, 0.035);
+}
+
+.people-danger-zone-heading {
+  padding: 16px 18px;
+
+  border-bottom:
+    1px solid
+    rgba(229, 141, 135, 0.18);
+}
+
+.people-danger-zone-heading h4 {
+  margin:
+    4px 0 0;
+
+  color:
+    var(--text);
+
+  font-size: 12px;
+}
+
+.people-danger-zone-heading p {
+  margin:
+    6px 0 0;
+
+  color:
+    var(--text-muted);
+
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.people-danger-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.people-danger-action {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 18px;
+
+  padding: 15px 18px;
+
+  border-bottom:
+    1px solid
+    rgba(229, 141, 135, 0.13);
+}
+
+.people-danger-action:last-child {
+  border-bottom: 0;
+}
+
+.people-danger-action > div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 5px;
+
+  min-width: 0;
+}
+
+.people-danger-action strong {
+  color:
+    var(--text);
+
+  font-size: 10px;
+}
+
+.people-danger-action span {
+  max-width: 580px;
+
+  color:
+    var(--text-muted);
+
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.people-danger-action-recovery {
+  background:
+    rgba(157, 213, 168, 0.025);
+}
+
+.people-reactivate-button {
+  min-height: 36px;
+
+  padding: 0 13px;
+
+  border:
+    1px solid
+    rgba(157, 213, 168, 0.28);
+
+  border-radius:
+    8px;
+
+  background:
+    var(--success-bg);
+
+  color:
+    var(--success);
+
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.people-reactivate-button:hover:not(:disabled) {
+  border-color:
+    rgba(157, 213, 168, 0.48);
+}
+
+.people-option-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  margin-bottom: 9px;
+}
+
+.people-option-heading-row
+.people-section-label {
+  margin-bottom: 0;
+}
+
+.people-select-all-control {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
+  color:
+    var(--text-secondary);
+
+  font-size: 8.5px;
+  font-weight: 650;
+
+  cursor: pointer;
+}
+
+.people-select-all-control input {
+  accent-color:
+    var(--accent);
+}
+
+.people-select-all-control:has(input:disabled) {
+  opacity: 0.5;
+
+  cursor: default;
+}
+
+.people-confirm-impact {
+  margin-bottom: 16px;
+
+  padding: 13px 14px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius:
+    var(--radius-sm);
+
+  background:
+    var(--surface-deep);
+}
+
+.people-confirm-impact.deactivate,
+.people-confirm-impact.delete {
+  border-color:
+    rgba(229, 141, 135, 0.26);
+
+  background:
+    var(--danger-bg);
+}
+
+.people-confirm-impact.reactivate {
+  border-color:
+    rgba(157, 213, 168, 0.22);
+
+  background:
+    var(--success-bg);
+}
+
+.people-confirm-impact > strong {
+  display: block;
+
+  color:
+    var(--text);
+
+  font-size: 10px;
+}
+
+.people-confirm-impact ul {
+  margin:
+    10px 0 0;
+
+  padding-left: 18px;
+
+  color:
+    var(--text-secondary);
+
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+@media (max-width: 760px) {
+  .people-profile-header {
+    align-items: flex-start;
+  }
+
+  .people-profile-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .people-account-facts {
+    grid-template-columns:
+      1fr 1fr;
+  }
+
+  .people-danger-action {
+    grid-template-columns:
+      1fr;
+  }
+
+  .people-danger-action button {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .people-profile-header-actions {
+    align-items: flex-end;
+    flex-direction: column-reverse;
+  }
+
+  .people-account-facts {
+    grid-template-columns:
+      1fr;
+  }
+
+  .people-option-heading-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
