@@ -106,7 +106,7 @@ export async function sendPasswordReset(
           preheader:
             "Reset your XYZ Management password.",
           eyebrow:
-            "Account recovery",
+            "Password reset",
           title:
             "Reset your password",
           greeting:
