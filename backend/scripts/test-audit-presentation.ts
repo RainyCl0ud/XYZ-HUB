@@ -117,7 +117,7 @@ async function main() {
       ipAddress:
         "127.0.0.1",
       userAgent:
-        "Audit Presentation Test",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
       metadata: {
         before: {
           id:
@@ -198,10 +198,12 @@ async function main() {
         ) =>
           change.label ===
             "Roles" &&
-          change.before ===
-            trialRole.name &&
-          change.after ===
+          change.removed.includes(
+            trialRole.name
+          ) &&
+          change.added.includes(
             managerRole.name
+          )
       )
     );
 
@@ -212,9 +214,9 @@ async function main() {
         ) =>
           change.label ===
             "Creators" &&
-          change.before ===
-            firstCreator.name &&
-          change.after?.includes(
+          change.removed.length ===
+            0 &&
+          change.added.includes(
             secondCreator.name
           )
       )
@@ -229,6 +231,20 @@ async function main() {
       false
     );
 
+    assert.equal(
+      presented.source.deviceLabel,
+      "Chrome 154 · Windows"
+    );
+
+    assert.equal(
+      JSON.stringify(
+        presented
+      ).includes(
+        "Mozilla/5.0"
+      ),
+      false
+    );
+
     console.log(
       "✓ actor and target IDs resolve to names and emails"
     );
@@ -239,6 +255,85 @@ async function main() {
 
     console.log(
       "✓ presented audit event does not expose internal target IDs"
+    );
+
+    console.log(
+      "✓ browser and device are summarized without exposing the raw user agent"
+    );
+
+    const [
+      roleChange,
+    ] =
+      await presentAuditEvents([
+        {
+          ...event,
+          id:
+            "role-permission-presentation-test",
+          action:
+            "role.updated",
+          targetType:
+            "role",
+          targetId:
+            managerRole.id,
+          metadata: {
+            before: {
+              id:
+                managerRole.id,
+              name:
+                managerRole.name,
+              rank:
+                managerRole.rank,
+              dataScope:
+                managerRole.dataScope,
+              permissions:
+                [],
+            },
+            after: {
+              id:
+                managerRole.id,
+              name:
+                managerRole.name,
+              rank:
+                managerRole.rank,
+              dataScope:
+                managerRole.dataScope,
+              permissions: [
+                "audit.view",
+                "people.manage",
+              ],
+            },
+          },
+        },
+      ]);
+
+    const permissionChange =
+      roleChange.changes.find(
+        (
+          change
+        ) =>
+          change.label ===
+          "Permissions"
+      );
+
+    assert.ok(
+      permissionChange
+    );
+
+    assert.deepEqual(
+      permissionChange.removed,
+      []
+    );
+
+    assert.deepEqual(
+      permissionChange.added,
+      [
+        "Audit View",
+        "People Manage",
+      ]
+    );
+
+    console.log(
+      "✓ permission changes are separated into added and removed items"
     );
 
     const [

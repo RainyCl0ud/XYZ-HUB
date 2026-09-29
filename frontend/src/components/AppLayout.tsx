@@ -531,7 +531,13 @@ function AppLayout() {
     );
   }
 
+  const supportsCreatorContext =
+    location.pathname ===
+      "/" ||
+    isQaPage;
+
   const showModelContext =
+    supportsCreatorContext &&
     capabilities.canViewQa &&
     (
       models.length >

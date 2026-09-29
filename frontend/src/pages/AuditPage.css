@@ -414,6 +414,111 @@
   stroke-linejoin: round;
 }
 
+.audit-change-value {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.audit-change-value.before {
+  border-color: rgba(229, 141, 135, 0.14);
+}
+
+.audit-change-value.after {
+  border-color: rgba(157, 213, 168, 0.18);
+}
+
+.audit-change-value strong {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 9.5px;
+  font-weight: 650;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.audit-change-delta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.audit-delta-group {
+  display: grid;
+  grid-template-columns:
+    92px
+    minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.audit-delta-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 25px;
+  color: var(--text-secondary);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.audit-delta-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.audit-delta-group.added .audit-delta-symbol {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.audit-delta-group.removed .audit-delta-symbol {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.audit-delta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.audit-delta-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 0 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  font-size: 8.5px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.audit-delta-chip.added {
+  border-color: rgba(157, 213, 168, 0.2);
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.audit-delta-chip.removed {
+  border-color: rgba(229, 141, 135, 0.22);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
 .audit-detail-empty {
   padding: 13px 14px;
   border: 1px solid var(--border-soft);
@@ -516,6 +621,15 @@
 
   .audit-change-values svg {
     display: none;
+  }
+
+  .audit-delta-group {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .audit-delta-label {
+    min-height: auto;
   }
 
   .audit-source-grid {

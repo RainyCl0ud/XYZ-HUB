@@ -22,6 +22,8 @@ export type AuditDisplayChange = {
   label: string;
   before: string | null;
   after: string | null;
+  added: string[];
+  removed: string[];
 };
 
 export type PresentedAuditEvent = {
@@ -37,7 +39,7 @@ export type PresentedAuditEvent = {
   changes: AuditDisplayChange[];
   source: {
     ipAddress: string | null;
-    userAgent: string | null;
+    deviceLabel: string | null;
   };
 };
 
@@ -299,109 +301,6 @@ function collectSnapshotIds(
   }
 }
 
-function displayList(
-  ids:
-    string[],
-  names:
-    Map<
-      string,
-      string
-    >
-) {
-  if (
-    ids.length ===
-    0
-  ) {
-    return "None";
-  }
-
-  return ids
-    .map(
-      (
-        id
-      ) =>
-        names.get(
-          id
-        ) ??
-        "Unavailable"
-    )
-    .join(
-      ", "
-    );
-}
-
-function displaySnapshotList(
-  record:
-    JsonRecord |
-    null,
-  idKey:
-    string,
-  nameKey:
-    string,
-  names:
-    Map<
-      string,
-      string
-    >
-) {
-  if (
-    !record
-  ) {
-    return "None";
-  }
-
-  const snapshotNames =
-    asStringArray(
-      record[
-        nameKey
-      ]
-    );
-
-  if (
-    snapshotNames.length >
-      0
-  ) {
-    return snapshotNames.join(
-      ", "
-    );
-  }
-
-  return displayList(
-    asStringArray(
-      record[
-        idKey
-      ]
-    ),
-    names
-  );
-}
-
-
-function permissionList(
-  value:
-    unknown
-) {
-  const permissions =
-    asStringArray(
-      value
-    );
-
-  if (
-    permissions.length ===
-    0
-  ) {
-    return "None";
-  }
-
-  return permissions
-    .map(
-      humanize
-    )
-    .join(
-      ", "
-    );
-}
-
 function pushChange(
   changes:
     AuditDisplayChange[],
@@ -425,6 +324,8 @@ function pushChange(
     label,
     before,
     after,
+    added: [],
+    removed: [],
   });
 }
 
@@ -440,6 +341,257 @@ function snapshotName(
     asString(
       record?.email
     )
+  );
+}
+
+function snapshotItems(
+  record:
+    JsonRecord |
+    null,
+  idKey:
+    string,
+  nameKey:
+    string,
+  names:
+    Map<
+      string,
+      string
+    >
+) {
+  if (
+    !record
+  ) {
+    return [];
+  }
+
+  const snapshotNames =
+    asStringArray(
+      record[
+        nameKey
+      ]
+    );
+
+  if (
+    snapshotNames.length >
+      0
+  ) {
+    return snapshotNames;
+  }
+
+  return asStringArray(
+    record[
+      idKey
+    ]
+  ).map(
+    (
+      id
+    ) =>
+      names.get(
+        id
+      ) ??
+      "Unavailable"
+  );
+}
+
+function permissionItems(
+  value:
+    unknown
+) {
+  return asStringArray(
+    value
+  ).map(
+    humanize
+  );
+}
+
+function pushListChange(
+  changes:
+    AuditDisplayChange[],
+  label:
+    string,
+  beforeItems:
+    string[],
+  afterItems:
+    string[]
+) {
+  const beforeSet =
+    new Set(
+      beforeItems
+    );
+
+  const afterSet =
+    new Set(
+      afterItems
+    );
+
+  const added =
+    afterItems.filter(
+      (
+        item
+      ) =>
+        !beforeSet.has(
+          item
+        )
+    );
+
+  const removed =
+    beforeItems.filter(
+      (
+        item
+      ) =>
+        !afterSet.has(
+          item
+        )
+    );
+
+  if (
+    added.length ===
+      0 &&
+    removed.length ===
+      0
+  ) {
+    return;
+  }
+
+  changes.push({
+    label,
+    before:
+      beforeItems.length >
+        0
+        ? beforeItems.join(
+            ", "
+          )
+        : "None",
+    after:
+      afterItems.length >
+        0
+        ? afterItems.join(
+            ", "
+          )
+        : "None",
+    added,
+    removed,
+  });
+}
+
+function formatDeviceLabel(
+  userAgent:
+    string |
+    null
+) {
+  if (
+    !userAgent
+  ) {
+    return null;
+  }
+
+  let browser:
+    string |
+    null =
+    null;
+
+  const edge =
+    userAgent.match(
+      /Edg\/(\d+)/
+    );
+
+  const chrome =
+    userAgent.match(
+      /Chrome\/(\d+)/
+    );
+
+  const firefox =
+    userAgent.match(
+      /Firefox\/(\d+)/
+    );
+
+  const safari =
+    userAgent.match(
+      /Version\/(\d+)[\d.]*.*Safari\//
+    );
+
+  if (
+    edge
+  ) {
+    browser =
+      "Edge " +
+      edge[1];
+  } else if (
+    chrome
+  ) {
+    browser =
+      "Chrome " +
+      chrome[1];
+  } else if (
+    firefox
+  ) {
+    browser =
+      "Firefox " +
+      firefox[1];
+  } else if (
+    safari
+  ) {
+    browser =
+      "Safari " +
+      safari[1];
+  }
+
+  let device:
+    string |
+    null =
+    null;
+
+  if (
+    /Windows NT/i.test(
+      userAgent
+    )
+  ) {
+    device =
+      "Windows";
+  } else if (
+    /iPhone|iPad|iPod/i.test(
+      userAgent
+    )
+  ) {
+    device =
+      "iOS";
+  } else if (
+    /Android/i.test(
+      userAgent
+    )
+  ) {
+    device =
+      "Android";
+  } else if (
+    /Mac OS X|Macintosh/i.test(
+      userAgent
+    )
+  ) {
+    device =
+      "macOS";
+  } else if (
+    /Linux/i.test(
+      userAgent
+    )
+  ) {
+    device =
+      "Linux";
+  }
+
+  if (
+    !browser &&
+    !device
+  ) {
+    return "Unknown browser / device";
+  }
+
+  return [
+    browser ??
+      "Unknown browser",
+    device ??
+      "Unknown device",
+  ].join(
+    " · "
   );
 }
 
@@ -500,16 +652,16 @@ function buildChanges(
         )
       );
 
-      pushChange(
+      pushListChange(
         changes,
         "Roles",
-        displaySnapshotList(
+        snapshotItems(
           before,
           "roleIds",
           "roleNames",
           roleNames
         ),
-        displaySnapshotList(
+        snapshotItems(
           after,
           "roleIds",
           "roleNames",
@@ -517,16 +669,16 @@ function buildChanges(
         )
       );
 
-      pushChange(
+      pushListChange(
         changes,
         "Creators",
-        displaySnapshotList(
+        snapshotItems(
           before,
           "modelIds",
           "modelNames",
           modelNames
         ),
-        displaySnapshotList(
+        snapshotItems(
           after,
           "modelIds",
           "modelNames",
@@ -546,11 +698,11 @@ function buildChanges(
         )
       );
 
-      pushChange(
+      pushListChange(
         changes,
         "Roles",
-        null,
-        displaySnapshotList(
+        [],
+        snapshotItems(
           after,
           "roleIds",
           "roleNames",
@@ -558,11 +710,11 @@ function buildChanges(
         )
       );
 
-      pushChange(
+      pushListChange(
         changes,
         "Creators",
-        null,
-        displaySnapshotList(
+        [],
+        snapshotItems(
           after,
           "modelIds",
           "modelNames",
@@ -686,19 +838,19 @@ function buildChanges(
       )
     );
 
-    pushChange(
+    pushListChange(
       changes,
       "Permissions",
       before
-        ? permissionList(
+        ? permissionItems(
             before.permissions
           )
-        : null,
+        : [],
       after
-        ? permissionList(
+        ? permissionItems(
             after.permissions
           )
-        : null
+        : []
     );
 
     return changes;
@@ -1311,8 +1463,10 @@ export async function presentAuditEvents(
         source: {
           ipAddress:
             event.ipAddress,
-          userAgent:
-            event.userAgent,
+          deviceLabel:
+            formatDeviceLabel(
+              event.userAgent
+            ),
         },
       };
     }
