@@ -366,6 +366,8 @@ export async function updatePersonAccess(
     of roles
   ) {
     if (
+      role.systemKey ===
+        "OWNER" ||
       !canAssignRole(
         access,
         role
