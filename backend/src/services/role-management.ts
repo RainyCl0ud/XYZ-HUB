@@ -441,10 +441,18 @@ export async function getRoleBuilderData(
     await Promise.all([
       prisma.role.findMany({
         where: {
-          systemKey: {
-            not:
-              "OWNER",
-          },
+          OR: [
+            {
+              systemKey:
+                null,
+            },
+            {
+              systemKey: {
+                not:
+                  "OWNER",
+              },
+            },
+          ],
         },
 
         select:
