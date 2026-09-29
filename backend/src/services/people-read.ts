@@ -423,6 +423,11 @@ function formatPerson(
         person
       ),
 
+    emailVerifiedAt:
+      emailMethod
+        ?.verifiedAt ??
+      null,
+
     /*
      * Build brief:
      *
