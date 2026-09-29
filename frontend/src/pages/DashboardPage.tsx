@@ -592,7 +592,7 @@ function DashboardPage() {
                       <div className="agency-person-meta">
                         <span
                           className={
-                            `people-status-badge ${person.status.toLowerCase()}`
+                            `agency-person-status ${person.status.toLowerCase()}`
                           }
                         >
                           {statusLabel(
