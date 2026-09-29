@@ -19,6 +19,7 @@ import {
 
 import {
   apiRequest,
+  MODEL_CONTEXT_CHANGED_EVENT,
   PEOPLE_CHANGED_EVENT,
 } from "../lib/api";
 
@@ -78,6 +79,15 @@ type QaDashboardResponse = {
       id: string;
       occurredAt: string;
       ruleTitleSnapshot: string;
+      severityNameSnapshot: string | null;
+      status:
+        "OPEN" |
+        "RESOLVED" |
+        "VOIDED";
+      strikeActivityStatus:
+        "ACTIVE" |
+        "EXPIRED" |
+        "NOT_APPLICABLE";
       chatter: {
         id: string;
         name: string;
@@ -137,7 +147,6 @@ function statusLabel(
 
 function DashboardPage() {
   const {
-    user,
     access,
   } =
     useAuth();
@@ -224,13 +233,7 @@ function DashboardPage() {
 
               capabilities.canViewQa
                 ? apiRequest<QaDashboardResponse>(
-                    "/api/dashboard/summary",
-                    {
-                      headers: {
-                        "X-XYZ-Model-ID":
-                          "ALL",
-                      },
-                    }
+                    "/api/dashboard/summary"
                   )
                 : Promise.resolve(
                     null
@@ -317,6 +320,30 @@ function DashboardPage() {
     ]
   );
 
+  useEffect(
+    () => {
+      const handleCreatorContextChange =
+        () => {
+          void loadDashboard();
+        };
+
+      window.addEventListener(
+        MODEL_CONTEXT_CHANGED_EVENT,
+        handleCreatorContextChange
+      );
+
+      return () => {
+        window.removeEventListener(
+          MODEL_CONTEXT_CHANGED_EVENT,
+          handleCreatorContextChange
+        );
+      };
+    },
+    [
+      loadDashboard,
+    ]
+  );
+
   const activePeople =
     people.filter(
       (
@@ -335,12 +362,35 @@ function DashboardPage() {
         "PENDING_SETUP"
     ).length;
 
-  const activeModels =
+  const activeCreators =
     models.filter(
       (
         model
       ) =>
         model.isActive
+    );
+
+  const currentIncidents =
+    useMemo(
+      () =>
+        qa?.recentIncidents
+          .filter(
+            (
+              incident
+            ) =>
+              incident.status ===
+                "OPEN" ||
+              incident.strikeActivityStatus ===
+                "ACTIVE"
+          )
+          .slice(
+            0,
+            6
+          ) ??
+        [],
+      [
+        qa,
+      ]
     );
 
   const recentPeople =
@@ -401,20 +451,11 @@ function DashboardPage() {
           </h2>
 
           <p className="page-description">
-            A current view of people, models, and quality activity available to your account.
+            A current view of people, creators, and quality activity available to your account.
           </p>
         </div>
 
-        <div className="agency-dashboard-welcome">
-          <span>
-            Welcome back
-          </span>
 
-          <strong>
-            {user?.name ??
-              "Team member"}
-          </strong>
-        </div>
       </header>
 
       {error && (
@@ -485,13 +526,13 @@ function DashboardPage() {
               className="agency-metric-card"
             >
               <span>
-                Active models
+                Active creators
               </span>
 
               <strong>
                 {loading
                   ? "—"
-                  : activeModels.length}
+                  : activeCreators.length}
               </strong>
 
               <small>
@@ -631,11 +672,11 @@ function DashboardPage() {
             <div className="card-header">
               <div>
                 <h3>
-                  Current models
+                  Current creators
                 </h3>
 
                 <p>
-                  Active models and their current assignment load.
+                  Active creators and their current assignment load.
                 </p>
               </div>
 
@@ -643,26 +684,26 @@ function DashboardPage() {
                 to="/models"
                 className="text-button"
               >
-                View models
+                View creators
               </Link>
             </div>
 
             {loading ? (
               <div className="empty-state dashboard-empty">
                 <strong>
-                  Loading models…
+                  Loading creators…
                 </strong>
               </div>
-            ) : activeModels.length ===
+            ) : activeCreators.length ===
               0 ? (
               <div className="empty-state dashboard-empty">
                 <strong>
-                  No active models
+                  No active creators
                 </strong>
               </div>
             ) : (
               <div className="agency-model-list">
-                {activeModels
+                {activeCreators
                   .slice(
                     0,
                     6
@@ -710,101 +751,92 @@ function DashboardPage() {
             <div className="card-header">
               <div>
                 <h3>
-                  Quality snapshot
+                  Current strikes & incidents
                 </h3>
 
                 <p>
-                  Agency-wide QA activity available within your model access.
+                  People with open incidents or active strikes in your current creator access.
                 </p>
               </div>
 
               <Link
-                to="/quality"
+                to="/incidents"
                 className="text-button"
               >
-                Open quality
+                View incidents
               </Link>
             </div>
 
-            <div className="agency-qa-summary">
-              <div>
-                <span>
-                  Active chatters
-                </span>
-
+            {loading ? (
+              <div className="empty-state dashboard-empty">
                 <strong>
-                  {loading
-                    ? "—"
-                    : qa?.counts.activeChatters ??
-                      0}
+                  Loading current incidents…
                 </strong>
               </div>
-
-              <div>
-                <span>
-                  Active rules
-                </span>
-
+            ) : currentIncidents.length ===
+              0 ? (
+              <div className="empty-state dashboard-empty">
                 <strong>
-                  {loading
-                    ? "—"
-                    : qa?.counts.activeRules ??
-                      0}
+                  No current strikes or open incidents
                 </strong>
-              </div>
 
-              <div>
                 <span>
-                  Incident history
+                  New QA records requiring attention will appear here.
                 </span>
-
-                <strong>
-                  {loading
-                    ? "—"
-                    : qa?.counts.totalIncidents ??
-                      0}
-                </strong>
               </div>
-            </div>
-
-            {!loading &&
-              qa &&
-              qa.recentIncidents.length >
-                0 && (
-              <div className="agency-qa-recent">
-                {qa.recentIncidents
-                  .slice(
-                    0,
-                    4
-                  )
-                  .map(
-                    (
-                      incident
-                    ) => (
-                      <Link
-                        key={
-                          incident.id
-                        }
-                        to="/incidents"
-                        className="agency-qa-row"
-                      >
-                        <div>
-                          <strong>
-                            {incident.chatter.name}
-                          </strong>
-
-                          <span>
-                            {incident.agencyModel?.name ??
-                              "Unassigned model"}
-                          </span>
-                        </div>
+            ) : (
+              <div className="agency-incident-list">
+                {currentIncidents.map(
+                  (
+                    incident
+                  ) => (
+                    <Link
+                      key={
+                        incident.id
+                      }
+                      to="/incidents"
+                      className="agency-incident-row"
+                    >
+                      <div className="agency-incident-person">
+                        <strong>
+                          {incident.chatter.name}
+                        </strong>
 
                         <span>
-                          {incident.ruleTitleSnapshot}
+                          {incident.agencyModel?.name ??
+                            "Unassigned creator"}
                         </span>
-                      </Link>
-                    )
-                  )}
+                      </div>
+
+                      <div className="agency-incident-violation">
+                        <span>
+                          Violation
+                        </span>
+
+                        <strong>
+                          {incident.ruleTitleSnapshot}
+                        </strong>
+                      </div>
+
+                      <div className="agency-incident-state">
+                        <strong>
+                          {incident.strikeActivityStatus ===
+                          "ACTIVE"
+                            ? "Active strike"
+                            : incident.status ===
+                                "OPEN"
+                              ? "Open incident"
+                              : "Resolved"}
+                        </strong>
+
+                        <span>
+                          {incident.severityNameSnapshot ??
+                            "No severity"}
+                        </span>
+                      </div>
+                    </Link>
+                  )
+                )}
               </div>
             )}
           </section>
@@ -848,12 +880,12 @@ function DashboardPage() {
 
               <div>
                 <span>
-                  Model access
+                  Creator access
                 </span>
 
                 <strong>
                   {access?.canSeeAllModels
-                    ? "All models"
+                    ? "All creators"
                     : `${access?.assignedModelIds.length ?? 0} assigned`}
                 </strong>
               </div>
