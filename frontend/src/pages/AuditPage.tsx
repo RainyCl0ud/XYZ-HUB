@@ -820,7 +820,7 @@ function AuditPage() {
                   </h4>
 
                   <p>
-                    Human-readable before and after values recorded for this action.
+                    Only the values that actually changed are shown. Added and removed access is highlighted separately.
                   </p>
                 </div>
 
