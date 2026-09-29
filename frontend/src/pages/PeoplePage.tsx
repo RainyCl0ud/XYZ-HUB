@@ -1562,33 +1562,64 @@ function PeoplePage() {
             aria-modal="true"
             aria-label="Person details"
           >
-            <div className="people-detail-header">
-              <div>
+            <div className="people-detail-header people-profile-header">
+              <div className="people-profile-identity">
                 <span className="page-eyebrow">
                   User profile
                 </span>
 
-                <h3>
-                  {selectedPerson.name}
-                </h3>
+                <div className="people-profile-title-row">
+                  <h3>
+                    {selectedPerson.name}
+                  </h3>
+
+                  <div className="people-profile-role-badges">
+                    {selectedPerson.roles.map(
+                      (
+                        role
+                      ) => (
+                        <span
+                          key={
+                            role.id
+                          }
+                          className="people-profile-role-badge"
+                        >
+                          {role.name}
+                        </span>
+                      )
+                    )}
+                  </div>
+                </div>
 
                 <p>
                   {selectedPerson.email}
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="people-close"
-                onClick={() =>
-                  setSelectedPerson(
-                    null
-                  )
-                }
-                aria-label="Close profile"
-              >
-                ×
-              </button>
+              <div className="people-profile-header-actions">
+                <span
+                  className={
+                    `people-status-badge people-profile-status ${selectedPerson.status.toLowerCase()}`
+                  }
+                >
+                  {formatStatus(
+                    selectedPerson.status
+                  )}
+                </span>
+
+                <button
+                  type="button"
+                  className="people-close"
+                  onClick={() =>
+                    setSelectedPerson(
+                      null
+                    )
+                  }
+                  aria-label="Close profile"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             {detailLoading ? (
@@ -1599,19 +1630,7 @@ function PeoplePage() {
               </div>
             ) : (
               <div className="people-detail-body">
-                <div className="people-detail-meta">
-                  <div>
-                    <span>
-                      Account status
-                    </span>
-
-                    <strong>
-                      {formatStatus(
-                        selectedPerson.status
-                      )}
-                    </strong>
-                  </div>
-
+                <div className="people-account-facts">
                   <div>
                     <span>
                       Created
@@ -1626,27 +1645,31 @@ function PeoplePage() {
 
                   <div>
                     <span>
-                      Setup status
+                      Email verified
                     </span>
 
                     <strong>
-                      {formatSetupStatus(
-                        selectedPerson.setup.status
-                      )}
+                      {selectedPerson.emailVerifiedAt
+                        ? formatTexasDateTime(
+                            selectedPerson.emailVerifiedAt
+                          )
+                        : "Not verified"}
                     </strong>
                   </div>
 
-                  <div>
-                    <span>
-                      Invite expires
-                    </span>
+                  {selectedPerson.security && (
+                    <div>
+                      <span>
+                        Last sign-in
+                      </span>
 
-                    <strong>
-                      {formatTexasDateTime(
-                        selectedPerson.setup.expiresAt
-                      )}
-                    </strong>
-                  </div>
+                      <strong>
+                        {formatTexasDateTime(
+                          selectedPerson.security.lastSignInAt
+                        )}
+                      </strong>
+                    </div>
+                  )}
                 </div>
 
                 <div className="people-detail-section">
@@ -1657,7 +1680,7 @@ function PeoplePage() {
                       </h4>
 
                       <p>
-                        Effective access is calculated from all assigned roles and visible models.
+                        Effective access is calculated from assigned roles and creator access.
                       </p>
                     </div>
 
