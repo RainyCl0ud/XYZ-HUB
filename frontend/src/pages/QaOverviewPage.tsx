@@ -9,6 +9,14 @@ import {
 } from "react-router-dom";
 
 import {
+  useAuth,
+} from "../auth/AuthContext";
+
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
+
+import {
   apiRequest,
   MODEL_CONTEXT_CHANGED_EVENT,
 } from "../lib/api";
@@ -89,6 +97,16 @@ function formatCentralDateTime(
 }
 
 function QaOverviewPage() {
+  const {
+    access,
+  } =
+    useAuth();
+
+  const capabilities =
+    getPortalCapabilities(
+      access
+    );
+
   const [
     dashboard,
     setDashboard,
@@ -232,17 +250,21 @@ function QaOverviewPage() {
           Chatters
         </Link>
 
-        <Link
-          to="/rules"
-        >
-          Rules
-        </Link>
+        {capabilities.canConfigureQa && (
+          <>
+            <Link
+              to="/rules"
+            >
+              Rules
+            </Link>
 
-        <Link
-          to="/configuration"
-        >
-          Configuration
-        </Link>
+            <Link
+              to="/configuration"
+            >
+              Configuration
+            </Link>
+          </>
+        )}
       </nav>
 
       {error && (
