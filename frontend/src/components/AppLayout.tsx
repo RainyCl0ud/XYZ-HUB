@@ -585,6 +585,48 @@ function AppLayout() {
   useEffect(
     () => {
       if (
+        !logoutConfirmOpen
+      ) {
+        return;
+      }
+
+      const handleKeyDown =
+        (
+          event:
+            KeyboardEvent
+        ) => {
+          if (
+            event.key ===
+              "Escape" &&
+            !signingOut
+          ) {
+            setLogoutConfirmOpen(
+              false
+            );
+          }
+        };
+
+      window.addEventListener(
+        "keydown",
+        handleKeyDown
+      );
+
+      return () => {
+        window.removeEventListener(
+          "keydown",
+          handleKeyDown
+        );
+      };
+    },
+    [
+      logoutConfirmOpen,
+      signingOut,
+    ]
+  );
+
+  useEffect(
+    () => {
+      if (
         !mobileNavOpen
       ) {
         return;
