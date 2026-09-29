@@ -1142,3 +1142,363 @@
     display: none;
   }
 }
+
+
+/* =========================================================
+   CLIENT READINESS — CURRENT USER ACCOUNT MENU
+   ========================================================= */
+
+.portal-account-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.portal-account-avatar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+  padding: 0;
+
+  border: 1px solid rgba(232, 216, 178, 0.24);
+  border-radius: 50%;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(232, 216, 178, 0.1),
+      rgba(255, 255, 255, 0.02)
+    ),
+    var(--surface-deep);
+
+  color: var(--accent);
+
+  cursor: pointer;
+
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+.portal-account-avatar-button:hover,
+.portal-account-avatar-button[aria-expanded="true"] {
+  border-color: rgba(232, 216, 178, 0.48);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(232, 216, 178, 0.16),
+      rgba(255, 255, 255, 0.03)
+    ),
+    var(--surface-deep);
+}
+
+.portal-account-avatar-button:active {
+  transform: scale(0.97);
+}
+
+.portal-account-avatar-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.portal-account-avatar,
+.portal-account-dropdown-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  font-weight: 800;
+  letter-spacing: 0.025em;
+}
+
+.portal-account-avatar {
+  width: 34px;
+  height: 34px;
+
+  background: rgba(232, 216, 178, 0.08);
+  color: var(--accent);
+
+  font-size: 10px;
+}
+
+.portal-account-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+
+  z-index: 180;
+
+  width: min(290px, calc(100vw - 24px));
+
+  overflow: hidden;
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  background: var(--surface);
+
+  box-shadow:
+    0 22px 60px rgba(0, 0, 0, 0.52);
+}
+
+.portal-account-dropdown-profile {
+  display: grid;
+  grid-template-columns:
+    44px
+    minmax(0, 1fr);
+
+  align-items: center;
+
+  gap: 11px;
+
+  padding: 14px;
+}
+
+.portal-account-dropdown-avatar {
+  width: 44px;
+  height: 44px;
+
+  border: 1px solid rgba(232, 216, 178, 0.22);
+
+  background: var(--accent-soft);
+  color: var(--accent);
+
+  font-size: 11px;
+}
+
+.portal-account-dropdown-profile > div {
+  min-width: 0;
+}
+
+.portal-account-dropdown-profile strong,
+.portal-account-dropdown-profile small,
+.portal-account-dropdown-profile span {
+  display: block;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-account-dropdown-profile strong {
+  color: var(--text);
+
+  font-size: 10.5px;
+  font-weight: 750;
+}
+
+.portal-account-dropdown-profile small {
+  margin-top: 3px;
+
+  color: var(--text-muted);
+
+  font-size: 8px;
+}
+
+.portal-account-dropdown-profile span {
+  margin-top: 5px;
+
+  color: var(--accent);
+
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.portal-account-dropdown-divider {
+  height: 1px;
+
+  background: var(--border-soft);
+}
+
+.portal-account-dropdown-item {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  width: 100%;
+  min-height: 42px;
+
+  padding: 0 14px;
+
+  border: 0;
+  border-bottom: 1px solid var(--border-soft);
+
+  background: transparent;
+  color: var(--text-secondary);
+
+  font-size: 9.5px;
+  font-weight: 650;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.portal-account-dropdown-item:last-child {
+  border-bottom: 0;
+}
+
+.portal-account-dropdown-item:hover,
+.portal-account-dropdown-item:focus-visible {
+  background: var(--sidebar-hover);
+  color: var(--text);
+}
+
+.portal-account-dropdown-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.portal-account-dropdown-item.danger {
+  color: var(--danger);
+}
+
+.portal-account-dropdown-item.danger:hover,
+.portal-account-dropdown-item.danger:focus-visible {
+  background: var(--danger-bg);
+}
+
+.portal-account-dropdown-item svg {
+  width: 17px;
+  height: 17px;
+
+  flex: 0 0 auto;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.portal-account-confirm-overlay {
+  position: fixed;
+  inset: 0;
+
+  z-index: 240;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(0, 0, 0, 0.72);
+
+  backdrop-filter: blur(6px);
+}
+
+.portal-account-confirm {
+  width: min(420px, 100%);
+
+  padding: 22px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+
+  box-shadow: var(--shadow-modal);
+}
+
+.portal-account-confirm h3 {
+  margin: 4px 0 0;
+
+  color: var(--text);
+
+  font-size: 19px;
+}
+
+.portal-account-confirm p {
+  margin: 9px 0 0;
+
+  color: var(--text-muted);
+
+  font-size: 9.5px;
+  line-height: 1.55;
+}
+
+.portal-account-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+
+  margin-top: 20px;
+}
+
+@media (max-width: 1100px) {
+  .portal-account-avatar-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .portal-account-avatar {
+    width: 30px;
+    height: 30px;
+
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 720px) {
+  .portal-command-meta {
+    gap: 9px;
+  }
+
+  .portal-account-menu {
+    display: block;
+  }
+
+  .portal-account-avatar-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .portal-account-avatar {
+    width: 28px;
+    height: 28px;
+
+    font-size: 8.5px;
+  }
+
+  .portal-account-dropdown {
+    position: fixed;
+    top: 64px;
+    right: 10px;
+
+    width: min(290px, calc(100vw - 20px));
+  }
+}
+
+@media (max-width: 430px) {
+  .portal-clock-date {
+    display: none;
+  }
+
+  .portal-command-time {
+    min-width: 54px;
+  }
+
+  .portal-clock-time {
+    font-size: 9px !important;
+  }
+
+  .portal-account-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .portal-account-confirm-actions button {
+    width: 100%;
+  }
+}
