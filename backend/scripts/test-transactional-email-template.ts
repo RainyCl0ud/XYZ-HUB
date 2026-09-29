@@ -128,6 +128,44 @@ function main() {
     "✓ secure-link fallback and automated-message footer render"
   );
 
+  assert.ok(
+    html.includes(
+      'bgcolor="#ffffff"'
+    )
+  );
+
+  assert.ok(
+    html.includes(
+      "background:#ffffff"
+    )
+  );
+
+  console.log(
+    "✓ white outer email canvas renders around the dark card"
+  );
+
+  assert.ok(
+    html.includes(
+      "-webkit-user-select:all"
+    )
+  );
+
+  assert.ok(
+    html.includes(
+      "tap and hold the code to copy it"
+    )
+  );
+
+  assert.ok(
+    html.includes(
+      "white-space:nowrap"
+    )
+  );
+
+  console.log(
+    "✓ verification code stays copyable and mobile-safe"
+  );
+
   assert.equal(
     html.includes(
       "XYZ Hub"
