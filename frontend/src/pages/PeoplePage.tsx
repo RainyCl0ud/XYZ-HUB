@@ -1664,7 +1664,7 @@ function PeoplePage() {
                     <p className="people-scope-note">
                       {isSelectedSelf
                         ? "Your own role and creator assignments cannot be changed from People Management. This prevents accidental self-lockout."
-                        : "This profile is visible to you, but one or more of its current roles/models are outside the assignments you are allowed to change."}
+                        : "This profile is visible to you, but one or more of its current roles or creator assignments are outside the access you are allowed to change."}
                     </p>
                   )}
                 </div>
@@ -1846,7 +1846,7 @@ function PeoplePage() {
                     ?.capabilities
                     .canDelete && (
                     <p className="people-scope-note">
-                      Permanent deletion is available in Staging for workflow testing, but it must not be treated as production-ready until append-only audit logging is connected.
+                      Permanent deletion cannot be undone. Use deactivation when access should be blocked while account and operational history are preserved.
                     </p>
                   )}
                 </div>
