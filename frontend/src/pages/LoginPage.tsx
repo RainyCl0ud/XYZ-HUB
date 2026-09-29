@@ -11,6 +11,7 @@ import {
 } from "react-router-dom";
 
 import AuthShell from "../components/AuthShell";
+import PasswordField from "../components/PasswordField";
 
 import {
   ApiError,
@@ -179,7 +180,7 @@ function LoginPage() {
       footer={
         <>
           Accounts are created through an
-          invitation from XYZ management.
+          invitation from XYZ Management.
         </>
       }
     >
@@ -220,39 +221,30 @@ function LoginPage() {
           />
         </label>
 
-        <label className="auth-field">
-          <div className="auth-field-header">
-            <span className="auth-label">
-              Password
-            </span>
-
+        <PasswordField
+          label="Password"
+          value={
+            password
+          }
+          onChange={(
+            event
+          ) =>
+            setPassword(
+              event.target
+                .value
+            )
+          }
+          autoComplete="current-password"
+          placeholder="Enter your password"
+          below={
             <Link
-              className="auth-link"
+              className="auth-link auth-forgot-link"
               to="/forgot-password"
             >
               Forgot password?
             </Link>
-          </div>
-
-          <input
-            className="auth-input"
-            type="password"
-            autoComplete="current-password"
-            value={
-              password
-            }
-            onChange={(
-              event
-            ) =>
-              setPassword(
-                event.target
-                  .value
-              )
-            }
-            placeholder="Enter your password"
-            required
-          />
-        </label>
+          }
+        />
 
         <button
           className="auth-submit"
