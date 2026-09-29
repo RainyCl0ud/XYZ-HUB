@@ -90,6 +90,8 @@ type Person = {
     PersonStatus;
   createdAt:
     string;
+  emailVerifiedAt:
+    string | null;
   deactivatedAt:
     string | null;
   roles:
@@ -622,6 +624,77 @@ function PeoplePage() {
         options,
       ]
     );
+
+  const activeAssignableCreatorIds =
+    useMemo(
+      () =>
+        activeAssignableCreators.map(
+          (
+            model
+          ) =>
+            model.id
+        ),
+      [
+        activeAssignableCreators,
+      ]
+    );
+
+  const allInviteCreatorsSelected =
+    activeAssignableCreatorIds.length >
+      0 &&
+    activeAssignableCreatorIds.every(
+      (
+        id
+      ) =>
+        inviteModelIds.includes(
+          id
+        )
+    );
+
+  const allAccessCreatorsSelected =
+    activeAssignableCreatorIds.length >
+      0 &&
+    activeAssignableCreatorIds.every(
+      (
+        id
+      ) =>
+        accessModelIds.includes(
+          id
+        )
+    );
+
+  function toggleAllInviteCreators() {
+    setInviteModelIds(
+      allInviteCreatorsSelected
+        ? []
+        : activeAssignableCreatorIds
+    );
+  }
+
+  function toggleAllAccessCreators() {
+    setAccessModelIds(
+      (
+        current
+      ) => {
+        const inactiveCurrent =
+          current.filter(
+            (
+              id
+            ) =>
+              !activeAssignableCreatorIds.includes(
+                id
+              )
+          );
+
+        return allAccessCreatorsSelected
+          ? inactiveCurrent
+          : [
+              ...inactiveCurrent,
+              ...activeAssignableCreatorIds,
+            ];
+      }
+    );
+  }
 
   const assignableRoleIds =
     useMemo(
