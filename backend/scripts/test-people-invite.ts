@@ -17,6 +17,10 @@ import {
 } from "../src/services/access-control.js";
 
 import {
+  ROOT_TEAM_GROUP_ID,
+} from "../src/services/team-hierarchy.js";
+
+import {
   invitePerson,
   PeopleInviteError,
 } from "../src/services/people-invite.js";
@@ -125,6 +129,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -153,6 +159,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
@@ -181,6 +189,8 @@ async function runTests() {
 
         status:
           UserStatus.ACTIVE,
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
 
         roleMemberships: {
           create: {
