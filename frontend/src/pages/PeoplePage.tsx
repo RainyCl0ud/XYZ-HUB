@@ -1512,33 +1512,70 @@ function PeoplePage() {
             aria-modal="true"
             aria-label="Person details"
           >
-            <div className="people-detail-header">
-              <div>
+            <div className="people-detail-header people-profile-header">
+              <div className="people-profile-identity">
                 <span className="page-eyebrow">
-                  User profile
+                  Profile
                 </span>
 
-                <h3>
-                  {selectedPerson.name}
-                </h3>
+                <div className="people-profile-title-row">
+                  <h3>
+                    {selectedPerson.name}
+                  </h3>
+
+                  <div className="people-profile-role-badges">
+                    {selectedPerson.roles.map(
+                      (
+                        role
+                      ) => (
+                        <span
+                          key={
+                            role.id
+                          }
+                          className="people-profile-role-badge"
+                        >
+                          {role.name}
+                        </span>
+                      )
+                    )}
+                  </div>
+                </div>
 
                 <p>
                   {selectedPerson.email}
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="people-close"
-                onClick={() =>
-                  setSelectedPerson(
-                    null
-                  )
-                }
-                aria-label="Close profile"
-              >
-                ×
-              </button>
+              <div className="people-profile-header-actions">
+                <div
+                  className={
+                    `people-profile-status ${selectedPerson.status.toLowerCase()}`
+                  }
+                >
+                  <span>
+                    Account status
+                  </span>
+
+                  <strong>
+                    {formatStatus(
+                      selectedPerson.status
+                    )}
+                  </strong>
+                </div>
+
+                <button
+                  type="button"
+                  className="people-close"
+                  onClick={() =>
+                    setSelectedPerson(
+                      null
+                    )
+                  }
+                  aria-label="Close profile"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             {detailLoading ? (
