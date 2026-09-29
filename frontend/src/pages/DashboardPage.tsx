@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -18,50 +19,51 @@ import {
 
 import {
   apiRequest,
-  MODEL_CONTEXT_CHANGED_EVENT,
+  PEOPLE_CHANGED_EVENT,
 } from "../lib/api";
 
-const CENTRAL_TIME_ZONE =
-  "America/Chicago";
+import "./DashboardPage.css";
 
-type IncidentStatus =
-  | "OPEN"
-  | "RESOLVED"
-  | "VOIDED";
-
-type StrikeActivityStatus =
+type PersonStatus =
+  | "PENDING_SETUP"
   | "ACTIVE"
-  | "EXPIRED"
-  | "NOT_APPLICABLE";
+  | "DEACTIVATED";
 
-type RecentIncident = {
+type Person = {
   id: string;
-  modelId: string | null;
-  ruleTitleSnapshot: string;
-  severityNameSnapshot: string | null;
-  weightNameSnapshot: string | null;
-  weightValueSnapshot: number | null;
-  occurredAt: string;
-  expiresAt: string;
-  status: IncidentStatus;
-  strikeActivityStatus: StrikeActivityStatus;
-
-  chatter: {
+  name: string;
+  email: string;
+  status: PersonStatus;
+  createdAt: string;
+  roles: {
     id: string;
     name: string;
-  };
-
-  ruleVersion: {
-    versionNumber: number;
-  };
-
-  agencyModel: {
+  }[];
+  models: {
     id: string;
     name: string;
-  } | null;
+  }[];
 };
 
-type DashboardResponse = {
+type PeopleResponse = {
+  people:
+    Person[];
+};
+
+type AgencyModel = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  peopleCount: number;
+  incidentCount: number;
+};
+
+type ModelsResponse = {
+  models:
+    AgencyModel[];
+};
+
+type QaDashboardResponse = {
   data: {
     counts: {
       openIncidents: number;
@@ -72,12 +74,26 @@ type DashboardResponse = {
       activeRules: number;
     };
 
-    recentIncidents:
-      RecentIncident[];
+    recentIncidents: {
+      id: string;
+      occurredAt: string;
+      ruleTitleSnapshot: string;
+      chatter: {
+        id: string;
+        name: string;
+      };
+      agencyModel: {
+        id: string;
+        name: string;
+      } | null;
+    }[];
   };
 };
 
-function formatCentralDateTime(
+const CENTRAL_TIME_ZONE =
+  "America/Chicago";
+
+function formatCentralDate(
   value:
     string
 ) {
@@ -92,18 +108,31 @@ function formatCentralDateTime(
         "numeric",
       year:
         "numeric",
-      hour:
-        "numeric",
-      minute:
-        "2-digit",
-      timeZoneName:
-        "short",
     }
   ).format(
     new Date(
       value
     )
   );
+}
+
+function statusLabel(
+  status:
+    PersonStatus
+) {
+  switch (
+    status
+  ) {
+    case "PENDING_SETUP":
+      return "Pending setup";
+
+    case "DEACTIVATED":
+      return "Deactivated";
+
+    case "ACTIVE":
+    default:
+      return "Active";
+  }
 }
 
 function DashboardPage() {
@@ -119,20 +148,36 @@ function DashboardPage() {
     );
 
   const [
-    dashboard,
-    setDashboard,
+    people,
+    setPeople,
   ] =
     useState<
-      DashboardResponse["data"] |
+      Person[]
+    >([]);
+
+  const [
+    models,
+    setModels,
+  ] =
+    useState<
+      AgencyModel[]
+    >([]);
+
+  const [
+    qa,
+    setQa,
+  ] =
+    useState<
+      QaDashboardResponse["data"] |
       null
     >(null);
 
   const [
-    isLoading,
-    setIsLoading,
+    loading,
+    setLoading,
   ] =
     useState(
-      capabilities.canViewQa
+      true
     );
 
   const [
@@ -146,37 +191,65 @@ function DashboardPage() {
   const loadDashboard =
     useCallback(
       async () => {
-        if (
-          !capabilities.canViewQa
-        ) {
-          setDashboard(
-            null
-          );
-          setIsLoading(
-            false
-          );
-          setError(
-            ""
-          );
-
-          return;
-        }
-
         try {
-          setIsLoading(
+          setLoading(
             true
           );
+
           setError(
             ""
           );
 
-          const response =
-            await apiRequest<DashboardResponse>(
-              "/api/dashboard/summary"
-            );
+          const [
+            peopleResponse,
+            modelsResponse,
+            qaResponse,
+          ] =
+            await Promise.all([
+              capabilities.canManagePeople
+                ? apiRequest<PeopleResponse>(
+                    "/api/people"
+                  )
+                : Promise.resolve(
+                    null
+                  ),
 
-          setDashboard(
-            response.data
+              capabilities.canManageModels
+                ? apiRequest<ModelsResponse>(
+                    "/api/models"
+                  )
+                : Promise.resolve(
+                    null
+                  ),
+
+              capabilities.canViewQa
+                ? apiRequest<QaDashboardResponse>(
+                    "/api/dashboard/summary",
+                    {
+                      headers: {
+                        "X-XYZ-Model-ID":
+                          "ALL",
+                      },
+                    }
+                  )
+                : Promise.resolve(
+                    null
+                  ),
+            ]);
+
+          setPeople(
+            peopleResponse?.people ??
+              []
+          );
+
+          setModels(
+            modelsResponse?.models ??
+              []
+          );
+
+          setQa(
+            qaResponse?.data ??
+              null
           );
         } catch (
           error
@@ -184,44 +257,34 @@ function DashboardPage() {
           setError(
             error instanceof Error
               ? error.message
-              : "Failed to load QA overview"
+              : "Unable to load the dashboard."
           );
         } finally {
-          setIsLoading(
+          setLoading(
             false
           );
         }
       },
       [
+        capabilities.canManageModels,
+        capabilities.canManagePeople,
         capabilities.canViewQa,
       ]
     );
 
   useEffect(
     () => {
-      void loadDashboard();
-    },
-    [
-      loadDashboard,
-    ]
-  );
-
-  useEffect(
-    () => {
-      const handleModelContextChange =
-        () => {
-          void loadDashboard();
-        };
-
-      window.addEventListener(
-        MODEL_CONTEXT_CHANGED_EVENT,
-        handleModelContextChange
-      );
+      const timeoutId =
+        window.setTimeout(
+          () => {
+            void loadDashboard();
+          },
+          0
+        );
 
       return () => {
-        window.removeEventListener(
-          MODEL_CONTEXT_CHANGED_EVENT,
-          handleModelContextChange
+        window.clearTimeout(
+          timeoutId
         );
       };
     },
@@ -230,301 +293,128 @@ function DashboardPage() {
     ]
   );
 
-  if (
-    !capabilities.canViewQa
-  ) {
-    const roleNames =
-      access?.roles
-        .map(
-          (
-            role
-          ) =>
-            role.name
-        )
-        .join(
-          ", "
-        ) ||
-      "No role assigned";
+  useEffect(
+    () => {
+      const handlePeopleChanged =
+        () => {
+          void loadDashboard();
+        };
 
-    const systemKeys =
-      new Set(
-        access?.roles
-          .map(
-            (
-              role
-            ) =>
-              role.systemKey
-          )
-          .filter(
-            (
-              value
-            ): value is string =>
-              Boolean(
-                value
-              )
-          ) ??
-          []
+      window.addEventListener(
+        PEOPLE_CHANGED_EVENT,
+        handlePeopleChanged
       );
 
-    const homeProfile =
-      systemKeys.has(
-        "TRIAL_CHATTER"
-      )
-        ? {
-            label:
-              "Trial Chatter",
-            title:
-              "Account setup complete",
-            description:
-              "Your trial account is active. The Login Gate has verified your identity, role, and assigned access.",
-            next:
-              "No operational workspace is enabled for this role in the current build.",
-          }
-        : systemKeys.has(
-              "CHATTER"
-            )
-          ? {
-              label:
-                "Chatter",
-              title:
-                "Your portal access is active",
-              description:
-                "Your account, roles and model assignments are active through the Login Gate.",
-              next:
-                "No chatter operations workspace is enabled in the current build.",
-            }
-          : systemKeys.has(
-                "ACCOUNTANT"
-              )
-            ? {
-                label:
-                  "Accountant",
-                title:
-                  "Finance role ready",
-                description:
-                  "Your finance role is active in the Login Gate access system.",
-                next:
-                  "No finance workspace is enabled in the current build.",
-              }
-            : systemKeys.has(
-                  "MODEL"
-                )
-              ? {
-                  label:
-                    "Model",
-                  title:
-                    "Your XYZ Hub account is active",
-                  description:
-                    "Your role and own-data scope are active through the Login Gate.",
-                  next:
-                    "No model-facing operational workspace is enabled in the current build.",
-                }
-              : systemKeys.has(
-                    "GENERAL_STAFF"
-                  )
-                ? {
-                    label:
-                      "General Staff",
-                    title:
-                      "Your staff account is active",
-                    description:
-                      "Your staff account and access profile are active through the Login Gate.",
-                    next:
-                      "Only workspaces enabled for this role are shown.",
-                  }
-                : {
-                    label:
-                      "XYZ Hub",
-                    title:
-                      "Your portal access is active",
-                    description:
-                      "Your Login Gate access is active. No operational workspace is enabled for your current role in this build.",
-                    next:
-                      "Access is granted through centralized roles, permissions, and model scope.",
-                  };
+      return () => {
+        window.removeEventListener(
+          PEOPLE_CHANGED_EVENT,
+          handlePeopleChanged
+        );
+      };
+    },
+    [
+      loadDashboard,
+    ]
+  );
 
-    return (
-      <div className="page">
-        <header className="page-header">
-          <div>
-            <p className="page-eyebrow">
-              {homeProfile.label}
-            </p>
+  const activePeople =
+    people.filter(
+      (
+        person
+      ) =>
+        person.status ===
+        "ACTIVE"
+    ).length;
 
-            <h2>
-              {homeProfile.title}{user?.name
-                ? `, ${user.name}`
-                : ""}
-            </h2>
+  const pendingPeople =
+    people.filter(
+      (
+        person
+      ) =>
+        person.status ===
+        "PENDING_SETUP"
+    ).length;
 
-            <p className="page-description">
-              {homeProfile.description}
-            </p>
-          </div>
-        </header>
-
-        <section className="portal-home-grid">
-          <div className="content-card portal-home-card">
-            <span className="stat-label">
-              Assigned roles
-            </span>
-
-            <strong>
-              {roleNames}
-            </strong>
-
-            <span>
-              Roles stack. Effective access is the union of permissions granted by all assigned roles.
-            </span>
-          </div>
-
-          <div className="content-card portal-home-card">
-            <span className="stat-label">
-              Data scope
-            </span>
-
-            <strong>
-              {access?.effectiveDataScope ??
-                "—"}
-            </strong>
-
-            <span>
-              The access layer combines this scope with model assignments where a module supports model-scoped data.
-            </span>
-          </div>
-
-          <div className="content-card portal-home-card">
-            <span className="stat-label">
-              Model access
-            </span>
-
-            <strong>
-              {access?.canSeeAllModels
-                ? "All models"
-                : `${access?.assignedModelIds.length ?? 0} assigned`}
-            </strong>
-
-            <span>
-              {homeProfile.next}
-            </span>
-          </div>
-        </section>
-      </div>
+  const activeModels =
+    models.filter(
+      (
+        model
+      ) =>
+        model.isActive
     );
-  }
 
-  function getStatusClass(
-    status:
-      IncidentStatus
-  ) {
-    if (
-      status ===
-      "OPEN"
-    ) {
-      return "incident-status open";
-    }
+  const recentPeople =
+    useMemo(
+      () =>
+        [
+          ...people,
+        ]
+          .sort(
+            (
+              first,
+              second
+            ) =>
+              new Date(
+                second.createdAt
+              ).getTime() -
+              new Date(
+                first.createdAt
+              ).getTime()
+          )
+          .slice(
+            0,
+            5
+          ),
+      [
+        people,
+      ]
+    );
 
-    if (
-      status ===
-      "RESOLVED"
-    ) {
-      return "incident-status resolved";
-    }
+  const roleNames =
+    access?.roles
+      .map(
+        (
+          role
+        ) =>
+          role.name
+      )
+      .join(
+        ", "
+      ) ||
+    "No role assigned";
 
-    return "incident-status voided";
-  }
-
-  function formatStatus(
-    status:
-      IncidentStatus
-  ) {
-    if (
-      status ===
-      "OPEN"
-    ) {
-      return "Open";
-    }
-
-    if (
-      status ===
-      "RESOLVED"
-    ) {
-      return "Resolved";
-    }
-
-    return "Voided";
-  }
-
-  function getStrikeStatusClass(
-    status:
-      StrikeActivityStatus
-  ) {
-    if (
-      status ===
-      "ACTIVE"
-    ) {
-      return "status-badge active";
-    }
-
-    return "status-badge inactive";
-  }
-
-  function formatStrikeStatus(
-    status:
-      StrikeActivityStatus
-  ) {
-    if (
-      status ===
-      "ACTIVE"
-    ) {
-      return "Active";
-    }
-
-    if (
-      status ===
-      "EXPIRED"
-    ) {
-      return "Expired";
-    }
-
-    return "—";
-  }
+  const hasAgencyOverview =
+    capabilities.canManagePeople ||
+    capabilities.canManageModels ||
+    capabilities.canViewQa;
 
   return (
-    <div
-      className={
-        capabilities.isOwner
-          ? "page owner-command-page"
-          : "page"
-      }
-    >
-      <header className="page-header owner-aware-page-header">
+    <div className="page agency-dashboard-page">
+      <header className="page-header agency-dashboard-header">
         <div>
           <p className="page-eyebrow">
-            {capabilities.isOwner
-              ? "Owner · Current workspace"
-              : "Quality"}
+            Agency overview
           </p>
 
           <h2>
-            {capabilities.isOwner
-              ? "Quality & Incident Tracking"
-              : "QA & Incident Overview"}
+            Dashboard
           </h2>
 
           <p className="page-description">
-            {capabilities.isOwner
-              ? "Agency-wide Login Gate access is active. Quality and incident tracking is the current operational workspace."
-              : "Current QA, incident, and strike activity follows the model context selected above."}
+            A current view of people, models, and quality activity available to your account.
           </p>
         </div>
 
-        <Link
-          to="/incidents"
-          className="primary-button"
-        >
-          View Incidents
-        </Link>
+        <div className="agency-dashboard-welcome">
+          <span>
+            Welcome back
+          </span>
+
+          <strong>
+            {user?.name ??
+              "Team member"}
+          </strong>
+        </div>
       </header>
 
       {error && (
@@ -545,454 +435,430 @@ function DashboardPage() {
         </div>
       )}
 
-      <div
-        className={
-          capabilities.isOwner
-            ? "owner-dashboard-layout"
-            : undefined
-        }
-      >
-        <div
-          className={
-            capabilities.isOwner
-              ? "owner-dashboard-main"
-              : undefined
-          }
-        >
-          <section className="dashboard-stat-grid">
-            <div className="stat-card">
-              <span className="stat-label">
-                Open Incidents
+      {hasAgencyOverview && (
+        <section className="agency-metric-grid">
+          {capabilities.canManagePeople && (
+            <>
+              <Link
+                to="/people?status=ACTIVE"
+                className="agency-metric-card"
+              >
+                <span>
+                  Active people
+                </span>
+
+                <strong>
+                  {loading
+                    ? "—"
+                    : activePeople}
+                </strong>
+
+                <small>
+                  Current active accounts
+                </small>
+              </Link>
+
+              <Link
+                to="/people?status=PENDING_SETUP"
+                className="agency-metric-card"
+              >
+                <span>
+                  Pending setup
+                </span>
+
+                <strong>
+                  {loading
+                    ? "—"
+                    : pendingPeople}
+                </strong>
+
+                <small>
+                  Invitations awaiting completion
+                </small>
+              </Link>
+            </>
+          )}
+
+          {capabilities.canManageModels && (
+            <Link
+              to="/models"
+              className="agency-metric-card"
+            >
+              <span>
+                Active models
               </span>
 
-              <strong className="stat-value">
-                {isLoading
+              <strong>
+                {loading
                   ? "—"
-                  : dashboard?.counts.openIncidents ?? 0}
+                  : activeModels.length}
               </strong>
 
-              <span className="stat-help">
-                Incidents requiring review
-              </span>
-            </div>
+              <small>
+                Available for assignments
+              </small>
+            </Link>
+          )}
 
-            <div className="stat-card">
-              <span className="stat-label">
-                Active Chatters
+          {capabilities.canViewQa && (
+            <Link
+              to="/incidents"
+              className="agency-metric-card"
+            >
+              <span>
+                Open incidents
               </span>
 
-              <strong className="stat-value">
-                {isLoading
+              <strong>
+                {loading
                   ? "—"
-                  : dashboard?.counts.activeChatters ?? 0}
+                  : qa?.counts.openIncidents ??
+                    0}
               </strong>
 
-              <span className="stat-help">
-                Visible in the current model scope
-              </span>
-            </div>
+              <small>
+                Quality items requiring attention
+              </small>
+            </Link>
+          )}
+        </section>
+      )}
 
-            <div className="stat-card">
-              <span className="stat-label">
-                Active Rules
-              </span>
-
-              <strong className="stat-value">
-                {isLoading
-                  ? "—"
-                  : dashboard?.counts.activeRules ?? 0}
-              </strong>
-
-              <span className="stat-help">
-                Current strike reasons
-              </span>
-            </div>
-
-            <div className="stat-card">
-              <span className="stat-label">
-                Total Incidents
-              </span>
-
-              <strong className="stat-value">
-                {isLoading
-                  ? "—"
-                  : dashboard?.counts.totalIncidents ?? 0}
-              </strong>
-
-              <span className="stat-help">
-                Visible historical records
-              </span>
-            </div>
-          </section>
-
-          <section className="dashboard-secondary-grid dashboard-secondary-grid-single">
-            <div className="content-card">
-              <div className="card-header">
-                <div>
-                  <h3>
-                    Incident Status
-                  </h3>
-
-                  <p>
-                    Current breakdown inside your visible model scope.
-                  </p>
-                </div>
-              </div>
-
-              <div className="status-summary">
-                <div className="status-summary-item">
-                  <div>
-                    <span className="status-dot open" />
-                    <span>
-                      Open
-                    </span>
-                  </div>
-
-                  <strong>
-                    {isLoading
-                      ? "—"
-                      : dashboard?.counts.openIncidents ?? 0}
-                  </strong>
-                </div>
-
-                <div className="status-summary-item">
-                  <div>
-                    <span className="status-dot resolved" />
-                    <span>
-                      Resolved
-                    </span>
-                  </div>
-
-                  <strong>
-                    {isLoading
-                      ? "—"
-                      : dashboard?.counts.resolvedIncidents ?? 0}
-                  </strong>
-                </div>
-
-                <div className="status-summary-item">
-                  <div>
-                    <span className="status-dot voided" />
-                    <span>
-                      Voided
-                    </span>
-                  </div>
-
-                  <strong>
-                    {isLoading
-                      ? "—"
-                      : dashboard?.counts.voidedIncidents ?? 0}
-                  </strong>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="content-card dashboard-recent-card">
+      <div className="agency-dashboard-grid">
+        {capabilities.canManagePeople && (
+          <section className="content-card agency-dashboard-panel">
             <div className="card-header">
               <div>
                 <h3>
-                  Recent Incident Activity
+                  Recently added people
                 </h3>
 
                 <p>
-                  The six most recent incidents in the current model scope.
+                  Latest accounts added to People Management.
                 </p>
               </div>
 
               <Link
-                to="/incidents"
+                to="/people"
                 className="text-button"
               >
-                View all
+                View people
               </Link>
             </div>
 
-            {isLoading ? (
+            {loading ? (
               <div className="empty-state dashboard-empty">
                 <strong>
-                  Loading recent activity...
+                  Loading people…
                 </strong>
               </div>
-            ) : !dashboard ||
-              dashboard.recentIncidents.length === 0 ? (
+            ) : recentPeople.length ===
+              0 ? (
               <div className="empty-state dashboard-empty">
                 <strong>
-                  No incident activity yet
+                  No people yet
                 </strong>
-
-                <span>
-                  Recent visible records will appear here after incidents are logged.
-                </span>
               </div>
             ) : (
-              <div className="table-wrapper">
-                <table className="data-table dashboard-table">
-                  <thead>
-                    <tr>
-                      <th>Chatter</th>
-                      <th>Model</th>
-                      <th>Rule</th>
-                      <th>Severity</th>
-                      <th>Weight</th>
-                      <th>Occurred</th>
-                      <th>Expires</th>
-                      <th>Incident Status</th>
-                      <th>Strike Status</th>
-                    </tr>
-                  </thead>
+              <div className="agency-people-list">
+                {recentPeople.map(
+                  (
+                    person
+                  ) => (
+                    <Link
+                      to="/people"
+                      key={
+                        person.id
+                      }
+                      className="agency-people-row"
+                    >
+                      <div className="agency-person-avatar">
+                        {person.name
+                          .trim()
+                          .charAt(
+                            0
+                          )
+                          .toUpperCase()}
+                      </div>
 
-                  <tbody>
-                    {dashboard.recentIncidents.map(
-                      (incident) => (
-                        <tr key={incident.id}>
-                          <td>
-                            <div className="primary-cell">
-                              {incident.chatter.name}
-                            </div>
-                          </td>
+                      <div className="agency-person-copy">
+                        <strong>
+                          {person.name}
+                        </strong>
 
-                          <td>
-                            {incident.agencyModel?.name ??
-                              "Legacy / unassigned"}
-                          </td>
+                        <span>
+                          {person.roles
+                            .map(
+                              (
+                                role
+                              ) =>
+                                role.name
+                            )
+                            .join(
+                              ", "
+                            ) ||
+                            "Role not assigned"}
+                        </span>
+                      </div>
 
-                          <td>
-                            <div className="dashboard-rule-cell">
-                              <strong>
-                                {incident.ruleTitleSnapshot}
-                              </strong>
+                      <div className="agency-person-meta">
+                        <span
+                          className={
+                            `agency-person-status ${person.status.toLowerCase()}`
+                          }
+                        >
+                          {statusLabel(
+                            person.status
+                          )}
+                        </span>
 
-                              <span>
-                                v{incident.ruleVersion.versionNumber}
-                              </span>
-                            </div>
-                          </td>
-
-                          <td>
-                            {incident.severityNameSnapshot ??
-                              "—"}
-                          </td>
-
-                          <td>
-                            {incident.weightNameSnapshot ? (
-                              <div className="weight-display">
-                                <span>
-                                  {incident.weightNameSnapshot}
-                                </span>
-
-                                {incident.weightValueSnapshot !== null && (
-                                  <span className="weight-value">
-                                    {incident.weightValueSnapshot}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-
-                          <td>
-                            {formatCentralDateTime(
-                              incident.occurredAt
-                            )}
-                          </td>
-
-                          <td>
-                            {incident.strikeActivityStatus === "NOT_APPLICABLE"
-                              ? "—"
-                              : formatCentralDateTime(
-                                  incident.expiresAt
-                                )}
-                          </td>
-
-                          <td>
-                            <span
-                              className={
-                                getStatusClass(
-                                  incident.status
-                                )
-                              }
-                            >
-                              {formatStatus(
-                                incident.status
-                              )}
-                            </span>
-                          </td>
-
-                          <td>
-                            {incident.strikeActivityStatus === "NOT_APPLICABLE" ? (
-                              <span>
-                                —
-                              </span>
-                            ) : (
-                              <span
-                                className={
-                                  getStrikeStatusClass(
-                                    incident.strikeActivityStatus
-                                  )
-                                }
-                              >
-                                {formatStrikeStatus(
-                                  incident.strikeActivityStatus
-                                )}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    )}
-                  </tbody>
-                </table>
+                        <time>
+                          {formatCentralDate(
+                            person.createdAt
+                          )}
+                        </time>
+                      </div>
+                    </Link>
+                  )
+                )}
               </div>
             )}
           </section>
-        </div>
+        )}
 
-        {capabilities.isOwner && (
-          <aside className="owner-dashboard-rail">
-            <section className="content-card owner-rail-card">
-              <div className="card-header">
-                <div>
-                  <h3>
-                    Login Gate
-                  </h3>
+        {capabilities.canManageModels && (
+          <section className="content-card agency-dashboard-panel">
+            <div className="card-header">
+              <div>
+                <h3>
+                  Current models
+                </h3>
 
-                  <p>
-                    Current Owner access boundary.
-                  </p>
-                </div>
+                <p>
+                  Active models and their current assignment load.
+                </p>
               </div>
 
-              <div className="owner-rail-list">
-                <div className="owner-rail-row">
-                  <span>
-                    Rank
-                  </span>
+              <Link
+                to="/models"
+                className="text-button"
+              >
+                View models
+              </Link>
+            </div>
 
-                  <strong>
-                    {access?.highestRank
-                      ? `Rank ${access.highestRank}`
-                      : "Unranked"}
-                  </strong>
-                </div>
-
-                <div className="owner-rail-row">
-                  <span>
-                    Data scope
-                  </span>
-
-                  <strong>
-                    {access?.effectiveDataScope ??
-                      "—"}
-                  </strong>
-                </div>
-
-                <div className="owner-rail-row">
-                  <span>
-                    Model access
-                  </span>
-
-                  <strong>
-                    {access?.canSeeAllModels
-                      ? "All models"
-                      : `${access?.assignedModelIds.length ?? 0} assigned`}
-                  </strong>
-                </div>
-
-                <div className="owner-rail-row">
-                  <span>
-                    Permissions
-                  </span>
-
-                  <strong>
-                    {access?.permissions.length ??
-                      0}
-                  </strong>
-                </div>
+            {loading ? (
+              <div className="empty-state dashboard-empty">
+                <strong>
+                  Loading models…
+                </strong>
               </div>
-            </section>
+            ) : activeModels.length ===
+              0 ? (
+              <div className="empty-state dashboard-empty">
+                <strong>
+                  No active models
+                </strong>
+              </div>
+            ) : (
+              <div className="agency-model-list">
+                {activeModels
+                  .slice(
+                    0,
+                    6
+                  )
+                  .map(
+                    (
+                      model
+                    ) => (
+                      <Link
+                        to="/models"
+                        key={
+                          model.id
+                        }
+                        className="agency-model-row"
+                      >
+                        <div>
+                          <strong>
+                            {model.name}
+                          </strong>
 
-            <section className="content-card owner-rail-card">
-              <div className="card-header">
-                <div>
-                  <h3>
-                    Management
-                  </h3>
+                          <span>
+                            {model.peopleCount} assigned
+                          </span>
+                        </div>
 
-                  <p>
-                    Login Gate administration.
-                  </p>
-                </div>
+                        <div className="agency-model-stat">
+                          <strong>
+                            {model.incidentCount}
+                          </strong>
+
+                          <span>
+                            incidents
+                          </span>
+                        </div>
+                      </Link>
+                    )
+                  )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {capabilities.canViewQa && (
+          <section className="content-card agency-dashboard-panel agency-dashboard-panel-wide">
+            <div className="card-header">
+              <div>
+                <h3>
+                  Quality snapshot
+                </h3>
+
+                <p>
+                  Agency-wide QA activity available within your model access.
+                </p>
               </div>
 
-              <div className="owner-management-links">
-                {capabilities.canManagePeople && (
-                  <Link to="/people">
-                    <span>
-                      People
-                    </span>
+              <Link
+                to="/quality"
+                className="text-button"
+              >
+                Open quality
+              </Link>
+            </div>
 
-                    <strong>
-                      Manage access
-                    </strong>
-                  </Link>
-                )}
-
-                {capabilities.canManageModels && (
-                  <Link to="/models">
-                    <span>
-                      Models
-                    </span>
-
-                    <strong>
-                      Model access
-                    </strong>
-                  </Link>
-                )}
-
-                {capabilities.canManageRoles && (
-                  <Link to="/roles">
-                    <span>
-                      Role Builder
-                    </span>
-
-                    <strong>
-                      Roles & permissions
-                    </strong>
-                  </Link>
-                )}
-
-                {capabilities.canViewAudit && (
-                  <Link to="/audit">
-                    <span>
-                      Audit Log
-                    </span>
-
-                    <strong>
-                      Security history
-                    </strong>
-                  </Link>
-                )}
-              </div>
-            </section>
-
-            <section className="content-card owner-rail-card owner-current-module-card">
-              <div className="owner-current-module">
-                <span className="stat-label">
-                  Current operational module
+            <div className="agency-qa-summary">
+              <div>
+                <span>
+                  Active chatters
                 </span>
 
                 <strong>
-                  Quality & Incidents
+                  {loading
+                    ? "—"
+                    : qa?.counts.activeChatters ??
+                      0}
                 </strong>
-
-                <span>
-                  Other agency systems remain hidden until they are actually commissioned and built.
-                </span>
               </div>
-            </section>
-          </aside>
+
+              <div>
+                <span>
+                  Active rules
+                </span>
+
+                <strong>
+                  {loading
+                    ? "—"
+                    : qa?.counts.activeRules ??
+                      0}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Incident history
+                </span>
+
+                <strong>
+                  {loading
+                    ? "—"
+                    : qa?.counts.totalIncidents ??
+                      0}
+                </strong>
+              </div>
+            </div>
+
+            {!loading &&
+              qa &&
+              qa.recentIncidents.length >
+                0 && (
+              <div className="agency-qa-recent">
+                {qa.recentIncidents
+                  .slice(
+                    0,
+                    4
+                  )
+                  .map(
+                    (
+                      incident
+                    ) => (
+                      <Link
+                        key={
+                          incident.id
+                        }
+                        to="/incidents"
+                        className="agency-qa-row"
+                      >
+                        <div>
+                          <strong>
+                            {incident.chatter.name}
+                          </strong>
+
+                          <span>
+                            {incident.agencyModel?.name ??
+                              "Unassigned model"}
+                          </span>
+                        </div>
+
+                        <span>
+                          {incident.ruleTitleSnapshot}
+                        </span>
+                      </Link>
+                    )
+                  )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {!hasAgencyOverview && (
+          <section className="content-card agency-dashboard-panel agency-access-panel">
+            <div className="card-header">
+              <div>
+                <h3>
+                  Your account
+                </h3>
+
+                <p>
+                  Current access assigned to your XYZ Management account.
+                </p>
+              </div>
+            </div>
+
+            <div className="agency-access-summary">
+              <div>
+                <span>
+                  Roles
+                </span>
+
+                <strong>
+                  {roleNames}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Data scope
+                </span>
+
+                <strong>
+                  {access?.effectiveDataScope ??
+                    "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Model access
+                </span>
+
+                <strong>
+                  {access?.canSeeAllModels
+                    ? "All models"
+                    : `${access?.assignedModelIds.length ?? 0} assigned`}
+                </strong>
+              </div>
+            </div>
+          </section>
         )}
       </div>
     </div>

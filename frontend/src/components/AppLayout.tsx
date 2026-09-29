@@ -1,10 +1,12 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import {
   Outlet,
+  useLocation,
   useNavigate,
 } from "react-router-dom";
 
@@ -29,6 +31,9 @@ import SidebarNavigation from "./SidebarNavigation";
 const MODEL_CONTEXT_STORAGE_KEY =
   "xyz_active_model_id";
 
+const CENTRAL_TIME_ZONE =
+  "America/Chicago";
+
 type AccessModel = {
   id: string;
   name: string;
@@ -46,9 +51,75 @@ type AccessModelsResponse = {
     boolean;
 };
 
+const QA_PATHS =
+  new Set([
+    "/quality",
+    "/incidents",
+    "/chatters",
+    "/rules",
+    "/configuration",
+  ]);
+
+const PAGE_TITLES:
+  Record<
+    string,
+    string
+  > = {
+  "/":
+    "Dashboard",
+  "/quality":
+    "Quality & Incidents",
+  "/incidents":
+    "Incidents",
+  "/chatters":
+    "Chatters",
+  "/rules":
+    "Rules & Strike Reasons",
+  "/configuration":
+    "QA Configuration",
+  "/people":
+    "People",
+  "/models":
+    "Models",
+  "/roles":
+    "Role Builder",
+  "/audit":
+    "Audit Log",
+};
+
+function formatCentralTime(
+  value:
+    Date
+) {
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone:
+        CENTRAL_TIME_ZONE,
+      month:
+        "short",
+      day:
+        "numeric",
+      year:
+        "numeric",
+      hour:
+        "numeric",
+      minute:
+        "2-digit",
+      timeZoneName:
+        "short",
+    }
+  ).format(
+    value
+  );
+}
+
 function AppLayout() {
   const navigate =
     useNavigate();
+
+  const location =
+    useLocation();
 
   const {
     user,
@@ -73,6 +144,15 @@ function AppLayout() {
     setMobileNavOpen,
   ] =
     useState(false);
+
+  const [
+    now,
+    setNow,
+  ] =
+    useState(
+      () =>
+        new Date()
+    );
 
   const [
     models,
@@ -101,6 +181,38 @@ function AppLayout() {
     useState(
       !capabilities.canViewQa
     );
+
+  const pageTitle =
+    PAGE_TITLES[
+      location.pathname
+    ] ??
+    "XYZ Management";
+
+  const isQaPage =
+    QA_PATHS.has(
+      location.pathname
+    );
+
+  useEffect(
+    () => {
+      const timer =
+        window.setInterval(
+          () => {
+            setNow(
+              new Date()
+            );
+          },
+          30_000
+        );
+
+      return () => {
+        window.clearInterval(
+          timer
+        );
+      };
+    },
+    []
+  );
 
   useEffect(
     () => {
@@ -238,14 +350,7 @@ function AppLayout() {
       .join(
         ", "
       ) ||
-    "XYZ Hub User";
-
-  /*
-   * Mobile navigation behaves as an off-canvas drawer.
-   * Route links close the drawer from the click event;
-   * viewport changes are handled by the media-query
-   * subscription below.
-   */
+    "XYZ Management";
 
   useEffect(
     () => {
@@ -388,6 +493,7 @@ function AppLayout() {
   }
 
   const showModelContext =
+    isQaPage &&
     capabilities.canViewQa &&
     (
       models.length >
@@ -409,74 +515,26 @@ function AppLayout() {
       ? models[0]
       : null;
 
+  const centralTime =
+    useMemo(
+      () =>
+        formatCentralTime(
+          now
+        ),
+      [
+        now,
+      ]
+    );
+
   return (
-    <div className="app-shell portal-shell">
-      <header className="portal-command-bar">
-        <div className="portal-command-context">
-          <span className="portal-command-label">
-            Model context
-          </span>
-
-          {showModelContext ? (
-            canSwitchModelContext ? (
-              <select
-                id="portal-model-context"
-                aria-label="Model context"
-                value={activeModelId}
-                onChange={(event) =>
-                  changeModelContext(
-                    event.target.value
-                  )
-                }
-              >
-                {(access?.canSeeAllModels ||
-                  models.length > 1) && (
-                  <option value="ALL">
-                    {access?.canSeeAllModels
-                      ? "All models"
-                      : "All assigned models"}
-                  </option>
-                )}
-
-                {models.map((model) => (
-                  <option
-                    key={model.id}
-                    value={model.id}
-                  >
-                    {model.name}
-                    {model.isActive
-                      ? ""
-                      : " (Inactive)"}
-                  </option>
-                ))}
-              </select>
-            ) : fixedModel ? (
-              <div className="portal-command-context-static">
-                {fixedModel.name}
-                {fixedModel.isActive
-                  ? ""
-                  : " (Inactive)"}
-              </div>
-            ) : null
-          ) : (
-            <div className="portal-command-context-static">
-              No model context
-            </div>
-          )}
-        </div>
-
-        <div className="portal-command-brand">
-          <img
-            src={xyzManagementLogo}
-            alt=""
-            className="portal-command-logo"
-          />
-
-          <strong>
-            XYZ MANAGEMENT
-          </strong>
-        </div>
-
+    <div
+      className={
+        `app-shell portal-shell${isQaPage
+          ? " portal-shell-qa"
+          : ""}`
+      }
+    >
+      <header className="portal-command-bar portal-command-bar-v2">
         <button
           type="button"
           className="portal-mobile-menu-button"
@@ -501,14 +559,105 @@ function AppLayout() {
           </svg>
         </button>
 
-        <div className="portal-command-user">
+        <div className="portal-page-context">
           <span className="portal-command-label">
-            Signed in
+            XYZ Management
           </span>
 
           <strong>
-            {roleNames}
+            {pageTitle}
           </strong>
+        </div>
+
+        {showModelContext ? (
+          <div className="portal-command-context portal-command-context-v2">
+            <span className="portal-command-label">
+              Model context
+            </span>
+
+            {canSwitchModelContext ? (
+              <select
+                id="portal-model-context"
+                aria-label="Model context"
+                value={
+                  activeModelId
+                }
+                onChange={(
+                  event
+                ) =>
+                  changeModelContext(
+                    event.target.value
+                  )
+                }
+              >
+                {(access?.canSeeAllModels ||
+                  models.length >
+                    1) && (
+                  <option value="ALL">
+                    {access?.canSeeAllModels
+                      ? "All models"
+                      : "All assigned models"}
+                  </option>
+                )}
+
+                {models.map(
+                  (
+                    model
+                  ) => (
+                    <option
+                      key={
+                        model.id
+                      }
+                      value={
+                        model.id
+                      }
+                    >
+                      {model.name}
+                      {model.isActive
+                        ? ""
+                        : " (Inactive)"}
+                    </option>
+                  )
+                )}
+              </select>
+            ) : fixedModel ? (
+              <div className="portal-command-context-static">
+                {fixedModel.name}
+                {fixedModel.isActive
+                  ? ""
+                  : " (Inactive)"}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="portal-command-context-spacer" />
+        )}
+
+        <div className="portal-command-meta">
+          <div className="portal-command-time">
+            <span className="portal-command-label">
+              US Central
+            </span>
+
+            <strong>
+              {centralTime}
+            </strong>
+          </div>
+
+          <div className="portal-command-user">
+            <span className="portal-command-label">
+              Signed in
+            </span>
+
+            <strong>
+              {user?.name ??
+                roleNames}
+            </strong>
+
+            <small>
+              {roleNames}
+            </small>
+          </div>
         </div>
       </header>
 
@@ -532,7 +681,9 @@ function AppLayout() {
             ? " mobile-open"
             : ""}`
         }
-        onClick={(event) => {
+        onClick={(
+          event
+        ) => {
           const target =
             event.target;
 
@@ -551,7 +702,9 @@ function AppLayout() {
       >
         <div className="sidebar-header portal-workspace-header portal-brand-header">
           <img
-            src={xyzManagementLogo}
+            src={
+              xyzManagementLogo
+            }
             alt=""
             className="portal-sidebar-logo"
           />
@@ -569,7 +722,7 @@ function AppLayout() {
           <button
             type="button"
             className="portal-mobile-drawer-close"
-            aria-label="Close navigation"
+            aria-label="Collapse navigation"
             onClick={() =>
               setMobileNavOpen(
                 false
@@ -581,13 +734,17 @@ function AppLayout() {
               aria-hidden="true"
             >
               <path
-                d="M6 6l12 12M18 6 6 18"
+                d="m15 6-6 6 6 6"
               />
             </svg>
           </button>
         </div>
 
-        <SidebarNavigation access={access} />
+        <SidebarNavigation
+          access={
+            access
+          }
+        />
 
         <div className="sidebar-account">
           <div className="sidebar-account-name">
@@ -609,7 +766,9 @@ function AppLayout() {
             onClick={() => {
               void handleLogout();
             }}
-            disabled={signingOut}
+            disabled={
+              signingOut
+            }
           >
             {signingOut
               ? "Signing out..."
@@ -631,13 +790,17 @@ function AppLayout() {
       <main className="main-content">
         {modelContextReady ? (
           <Outlet
-            key={activeModelId}
+            key={
+              isQaPage
+                ? activeModelId
+                : location.pathname
+            }
           />
         ) : (
           <div className="page">
             <div className="empty-state">
               <strong>
-                Loading portal access…
+                Loading workspace…
               </strong>
             </div>
           </div>
