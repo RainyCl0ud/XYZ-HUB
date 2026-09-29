@@ -231,6 +231,36 @@
   font-size: 8px;
 }
 
+
+.agency-person-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 22px;
+  padding: 0 7px;
+
+  border-radius: 999px;
+
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.agency-person-status.active {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.agency-person-status.pending_setup {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.agency-person-status.deactivated {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
 .agency-model-row {
   display: flex;
   align-items: center;
