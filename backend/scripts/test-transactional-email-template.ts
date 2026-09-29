@@ -91,6 +91,40 @@ function main() {
 
   assert.ok(
     html.includes(
+      'bgcolor="#ffffff"'
+    )
+  );
+
+  assert.ok(
+    html.includes(
+      'background:#ffffff'
+    )
+  );
+
+  assert.ok(
+    html.includes(
+      "Tap and hold the code to copy it."
+    )
+  );
+
+  assert.ok(
+    html.includes(
+      ">123456</div>"
+    )
+  );
+
+  assert.ok(
+    html.includes(
+      "@media screen and (max-width: 600px)"
+    )
+  );
+
+  console.log(
+    "✓ white outer background and mobile copy-ready verification code render"
+  );
+
+  assert.ok(
+    html.includes(
       "Hi &lt;Admin&gt; &amp; Team,"
     )
   );
