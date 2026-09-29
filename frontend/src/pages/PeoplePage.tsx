@@ -211,25 +211,6 @@ function formatStatus(
   }
 }
 
-function formatSetupStatus(
-  value:
-    string
-) {
-  return value
-    .replaceAll(
-      "_",
-      " "
-    )
-    .toLowerCase()
-    .replace(
-      /\b\w/g,
-      (
-        letter
-      ) =>
-        letter.toUpperCase()
-    );
-}
-
 function PeoplePage() {
   const toast =
     useToast();
@@ -1452,10 +1433,6 @@ function PeoplePage() {
               <span>
                 Creators
               </span>
-
-              <span>
-                Setup
-              </span>
             </div>
 
             {filteredPeople.map(
@@ -1527,11 +1504,7 @@ function PeoplePage() {
                       : "No creator assignment"}
                   </span>
 
-                  <span className="people-muted-cell">
-                    {formatSetupStatus(
-                      person.setup.status
-                    )}
-                  </span>
+
                 </button>
               )
             )}
