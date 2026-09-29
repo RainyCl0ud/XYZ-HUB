@@ -1765,69 +1765,15 @@ function PeoplePage() {
                   )}
                 </div>
 
-                {selectedPerson.security && (
-                  <div className="people-detail-section">
-                    <div className="people-detail-section-heading">
-                      <div>
-                        <h4>
-                          Account security
-                        </h4>
-
-                        <p>
-                          Owner-only authentication status and last sign-in information.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="people-detail-meta">
-                      <div>
-                        <span>
-                          Last sign-in
-                        </span>
-
-                        <strong>
-                          {formatTexasDateTime(
-                            selectedPerson.security.lastSignInAt
-                          )}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Email 2FA
-                        </span>
-
-                        <strong>
-                          {selectedPerson.security.twoFactor.email.enabled
-                            ? "Enabled"
-                            : "Disabled"}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Email verified
-                        </span>
-
-                        <strong>
-                          {formatTexasDateTime(
-                            selectedPerson.security.twoFactor.email.verifiedAt
-                          )}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="people-detail-section">
+                <div className="people-detail-section people-account-actions-section">
                   <div className="people-detail-section-heading">
                     <div>
                       <h4>
-                        Account actions
+                        Account controls
                       </h4>
 
                       <p>
-                        Available actions follow your effective permissions and role hierarchy.
+                        Security and account-status actions available within your permissions.
                       </p>
                     </div>
                   </div>
@@ -1849,53 +1795,9 @@ function PeoplePage() {
                             .invitesAvailable
                         }
                       >
-                        Resend invite
+                        Resend invitation
                       </button>
                     )}
-
-                    {selectedPerson.status ===
-                      "ACTIVE" &&
-                      !isSelectedSelf &&
-                      options
-                        ?.capabilities
-                        .canDeactivate && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() =>
-                            setConfirmAction(
-                              "deactivate"
-                            )
-                          }
-                          disabled={
-                            saving ||
-                            !canManageSelected
-                          }
-                        >
-                          Deactivate
-                        </button>
-                      )}
-
-                    {selectedPerson.status ===
-                      "DEACTIVATED" &&
-                      options
-                        ?.capabilities
-                        .isOwner && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() =>
-                            setConfirmAction(
-                              "reactivate"
-                            )
-                          }
-                          disabled={
-                            saving
-                          }
-                        >
-                          Reactivate
-                        </button>
-                      )}
 
                     {options
                       ?.capabilities
@@ -1915,37 +1817,141 @@ function PeoplePage() {
                         Reset 2FA
                       </button>
                     )}
-
-                    {options
-                      ?.capabilities
-                      .canDelete &&
-                      selectedPerson.id !==
-                        user?.id && (
-                      <button
-                        type="button"
-                        className="danger-button"
-                        onClick={() =>
-                          setConfirmAction(
-                            "delete"
-                          )
-                        }
-                        disabled={
-                          saving
-                        }
-                      >
-                        Permanently delete
-                      </button>
-                    )}
                   </div>
-
-                  {options
-                    ?.capabilities
-                    .canDelete && (
-                    <p className="people-scope-note">
-                      Permanent deletion cannot be undone. Use deactivation when access should be blocked while account and operational history are preserved.
-                    </p>
-                  )}
                 </div>
+
+                {!isSelectedSelf &&
+                  (
+                    options
+                      ?.capabilities
+                      .canDeactivate ||
+                    options
+                      ?.capabilities
+                      .isOwner ||
+                    options
+                      ?.capabilities
+                      .canDelete
+                  ) && (
+                  <div className="people-danger-zone">
+                    <div className="people-danger-zone-heading">
+                      <div>
+                        <span className="page-eyebrow">
+                          Account status & danger zone
+                        </span>
+
+                        <h4>
+                          High-impact account actions
+                        </h4>
+
+                        <p>
+                          These actions affect sign-in access, active sessions, or permanently stored account data.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="people-danger-actions">
+                      {selectedPerson.status ===
+                        "ACTIVE" &&
+                        options
+                          ?.capabilities
+                          .canDeactivate && (
+                          <div className="people-danger-action">
+                            <div>
+                              <strong>
+                                Deactivate account
+                              </strong>
+
+                              <span>
+                                Blocks sign-in immediately and revokes active sessions while preserving roles, creator assignments, and history.
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="danger-button"
+                              onClick={() =>
+                                setConfirmAction(
+                                  "deactivate"
+                                )
+                              }
+                              disabled={
+                                saving ||
+                                !canManageSelected
+                              }
+                            >
+                              Deactivate
+                            </button>
+                          </div>
+                        )}
+
+                      {selectedPerson.status ===
+                        "DEACTIVATED" &&
+                        options
+                          ?.capabilities
+                          .isOwner && (
+                          <div className="people-danger-action people-danger-action-recovery">
+                            <div>
+                              <strong>
+                                Reactivate account
+                              </strong>
+
+                              <span>
+                                Restores sign-in access. Previously revoked sessions remain invalid and the user must authenticate again.
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="success-button"
+                              onClick={() =>
+                                setConfirmAction(
+                                  "reactivate"
+                                )
+                              }
+                              disabled={
+                                saving
+                              }
+                            >
+                              Reactivate
+                            </button>
+                          </div>
+                        )}
+
+                      {options
+                        ?.capabilities
+                        .canDelete &&
+                        selectedPerson.id !==
+                          user?.id && (
+                        <div className="people-danger-action">
+                          <div>
+                            <strong>
+                              Permanently delete account
+                            </strong>
+
+                            <span>
+                              Permanently removes the account and tied QA records. This action cannot be undone.
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="danger-button"
+                            onClick={() =>
+                              setConfirmAction(
+                                "delete"
+                              )
+                            }
+                            disabled={
+                              saving
+                            }
+                          >
+                            Permanently delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </section>
