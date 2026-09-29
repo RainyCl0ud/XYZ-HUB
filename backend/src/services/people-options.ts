@@ -99,6 +99,8 @@ export async function getPeopleManagementOptions(
       (
         role
       ) =>
+        role.systemKey !==
+          "OWNER" &&
         canAssignRole(
           access,
           role
