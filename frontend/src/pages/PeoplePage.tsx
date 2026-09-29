@@ -1283,7 +1283,7 @@ function PeoplePage() {
           <input
             className="search-input"
             type="search"
-            placeholder="Search name, email, role, or model"
+            placeholder="Search name, email, role, or creator"
             aria-label="Search people"
             value={
               search
@@ -1451,7 +1451,7 @@ function PeoplePage() {
                           .join(
                             ", "
                           )
-                      : "No model assignment"}
+                      : "No creator assignment"}
                   </span>
 
                   <span className="people-muted-cell">
