@@ -26,6 +26,7 @@ import {
 } from "./middleware/rate-limit.js";
 
 import peopleRoutes from "./routes/people.js";
+import teamGroupRoutes from "./routes/team-groups.js";
 import modelRoutes from "./routes/models.js";
 import roleRoutes from "./routes/roles.js";
 import inviteRoutes from "./routes/invites.js";
@@ -192,6 +193,11 @@ app.use(
 app.use(
   "/api/people",
   peopleRoutes
+);
+
+app.use(
+  "/api/team-groups",
+  teamGroupRoutes
 );
 
 app.use(
