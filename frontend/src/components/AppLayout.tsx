@@ -465,17 +465,6 @@ function AppLayout() {
 
   useEffect(
     () => {
-      setAccountMenuOpen(
-        false
-      );
-    },
-    [
-      location.pathname,
-    ]
-  );
-
-  useEffect(
-    () => {
       if (
         !accountMenuOpen
       ) {
