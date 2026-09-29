@@ -146,6 +146,64 @@ type GroupModalAction =
 const TEXAS_TIME_ZONE =
   "America/Chicago";
 
+const EMPTY_TEAM_GROUPS: TeamGroup[] =
+  [];
+
+function collectDescendantGroupIds(
+  groupChildren: Map<
+    string | null,
+    TeamGroup[]
+  >,
+  rootGroupId: string
+) {
+  const ids =
+    new Set<string>([
+      rootGroupId,
+    ]);
+
+  const stack = [
+    rootGroupId,
+  ];
+
+  while (
+    stack.length >
+    0
+  ) {
+    const current =
+      stack.pop();
+
+    if (
+      !current
+    ) {
+      continue;
+    }
+
+    for (
+      const child
+      of groupChildren.get(
+        current
+      ) ??
+      []
+    ) {
+      if (
+        !ids.has(
+          child.id
+        )
+      ) {
+        ids.add(
+          child.id
+        );
+
+        stack.push(
+          child.id
+        );
+      }
+    }
+  }
+
+  return ids;
+}
+
 function formatTexasDateTime(
   value: string | null
 ) {
@@ -652,7 +710,7 @@ function PeoplePage() {
 
   const organizationGroups =
     options?.organization.groups ??
-    [];
+    EMPTY_TEAM_GROUPS;
 
   const groupById =
     useMemo(
@@ -793,60 +851,6 @@ function PeoplePage() {
     ]
   );
 
-  function getDescendantGroupIds(
-    rootGroupId: string
-  ) {
-    const ids =
-      new Set<string>([
-        rootGroupId,
-      ]);
-
-    const stack = [
-      rootGroupId,
-    ];
-
-    while (
-      stack.length >
-      0
-    ) {
-      const current =
-        stack.pop();
-
-      if (
-        !current
-      ) {
-        continue;
-      }
-
-      const children =
-        groupChildren.get(
-          current
-        ) ??
-        [];
-
-      for (
-        const child
-        of children
-      ) {
-        if (
-          !ids.has(
-            child.id
-          )
-        ) {
-          ids.add(
-            child.id
-          );
-
-          stack.push(
-            child.id
-          );
-        }
-      }
-    }
-
-    return ids;
-  }
-
   const selectedGroupScopeIds =
     useMemo(
       () => {
@@ -863,55 +867,10 @@ function PeoplePage() {
           );
         }
 
-        const ids =
-          new Set<string>([
-            selectedGroupId,
-          ]);
-
-        const stack = [
-          selectedGroupId,
-        ];
-
-        while (
-          stack.length >
-          0
-        ) {
-          const current =
-            stack.pop();
-
-          if (
-            !current
-          ) {
-            continue;
-          }
-
-          const children =
-            groupChildren.get(
-              current
-            ) ??
-            [];
-
-          for (
-            const child
-            of children
-          ) {
-            if (
-              !ids.has(
-                child.id
-              )
-            ) {
-              ids.add(
-                child.id
-              );
-
-              stack.push(
-                child.id
-              );
-            }
-          }
-        }
-
-        return ids;
+        return collectDescendantGroupIds(
+          groupChildren,
+          selectedGroupId
+        );
       },
       [
         groupChildren,
@@ -969,35 +928,43 @@ function PeoplePage() {
       ]
     );
 
-  function canManagePerson(
-    person: Person
-  ) {
-    if (
-      person.id ===
-      user?.id
-    ) {
-      return false;
-    }
+  const canManagePerson =
+    useCallback(
+      (
+        person: Person
+      ) => {
+        if (
+          person.id ===
+          user?.id
+        ) {
+          return false;
+        }
 
-    return (
-      person.roles.every(
-        (
-          role
-        ) =>
-          assignableRoleIds.has(
-            role.id
+        return (
+          person.roles.every(
+            (
+              role
+            ) =>
+              assignableRoleIds.has(
+                role.id
+              )
+          ) &&
+          person.models.every(
+            (
+              model
+            ) =>
+              assignableModelIds.has(
+                model.id
+              )
           )
-      ) &&
-      person.models.every(
-        (
-          model
-        ) =>
-          assignableModelIds.has(
-            model.id
-          )
-      )
+        );
+      },
+      [
+        assignableModelIds,
+        assignableRoleIds,
+        user?.id,
+      ]
     );
-  }
 
   const filteredPeople =
     useMemo(
@@ -1110,10 +1077,8 @@ function PeoplePage() {
               person.id
           ),
       [
+        canManagePerson,
         filteredPeople,
-        assignableModelIds,
-        assignableRoleIds,
-        user?.id,
       ]
     );
 
@@ -1205,49 +1170,10 @@ function PeoplePage() {
           of organizationGroups
         ) {
           const ids =
-            new Set<string>([
-              group.id,
-            ]);
-
-          const stack = [
-            group.id,
-          ];
-
-          while (
-            stack.length >
-            0
-          ) {
-            const current =
-              stack.pop();
-
-            if (
-              !current
-            ) {
-              continue;
-            }
-
-            for (
-              const child
-              of groupChildren.get(
-                current
-              ) ??
-              []
-            ) {
-              if (
-                !ids.has(
-                  child.id
-                )
-              ) {
-                ids.add(
-                  child.id
-                );
-
-                stack.push(
-                  child.id
-                );
-              }
-            }
-          }
+            collectDescendantGroupIds(
+              groupChildren,
+              group.id
+            );
 
           result.set(
             group.id,
@@ -1333,11 +1259,9 @@ function PeoplePage() {
             )
         ),
       [
+        canManagePerson,
         people,
         selectedPersonIds,
-        assignableModelIds,
-        assignableRoleIds,
-        user?.id,
       ]
     );
 
