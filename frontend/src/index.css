@@ -6798,3 +6798,141 @@ td:nth-child(-n + 4)::after {
 
   padding-top: 10px;
 }
+
+
+/* =========================================================
+   CLIENT READINESS — COMPACT SUMMARY CARDS
+   Keep top-level module metrics visually consistent with
+   the compact agency Dashboard treatment.
+   ========================================================= */
+
+.people-summary-grid,
+.models-summary-grid,
+.role-builder-summary,
+.qa-overview-page .dashboard-stat-grid {
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.people-summary-grid .stat-card,
+.models-summary-grid .stat-card,
+.role-builder-summary .stat-card,
+.qa-overview-page .dashboard-stat-grid .stat-card {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  grid-template-rows:
+    auto
+    auto;
+
+  align-items: center;
+
+  gap:
+    5px
+    14px;
+
+  min-height: 88px;
+
+  padding: 14px 16px;
+}
+
+.people-summary-grid .stat-label,
+.models-summary-grid .stat-label,
+.role-builder-summary .stat-label,
+.qa-overview-page .dashboard-stat-grid .stat-label {
+  grid-column: 1;
+  grid-row: 1;
+
+  font-size: 9px;
+}
+
+.people-summary-grid .stat-value,
+.models-summary-grid .stat-value,
+.role-builder-summary .stat-value,
+.qa-overview-page .dashboard-stat-grid .stat-value {
+  grid-column: 2;
+  grid-row: 1 / 3;
+
+  align-self: center;
+
+  margin: 0;
+
+  font-size: 28px;
+  line-height: 1;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.people-summary-grid .stat-help,
+.models-summary-grid .stat-help,
+.role-builder-summary .stat-help,
+.qa-overview-page .dashboard-stat-grid .stat-help {
+  grid-column: 1;
+  grid-row: 2;
+
+  margin: 0;
+
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  .people-summary-grid,
+  .models-summary-grid,
+  .role-builder-summary,
+  .qa-overview-page .dashboard-stat-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+@media (max-width: 560px) {
+  .people-summary-grid,
+  .models-summary-grid,
+  .role-builder-summary,
+  .qa-overview-page .dashboard-stat-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
+    gap: 8px;
+  }
+
+  .people-summary-grid .stat-card,
+  .models-summary-grid .stat-card,
+  .role-builder-summary .stat-card,
+  .qa-overview-page .dashboard-stat-grid .stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    min-height: 104px;
+
+    padding: 13px 14px;
+  }
+
+  .people-summary-grid .stat-value,
+  .models-summary-grid .stat-value,
+  .role-builder-summary .stat-value,
+  .qa-overview-page .dashboard-stat-grid .stat-value {
+    margin-top: 7px;
+
+    font-size: 25px;
+  }
+
+  .people-summary-grid .stat-help,
+  .models-summary-grid .stat-help,
+  .role-builder-summary .stat-help,
+  .qa-overview-page .dashboard-stat-grid .stat-help {
+    margin-top: auto;
+  }
+}
