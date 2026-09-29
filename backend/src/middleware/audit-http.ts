@@ -35,10 +35,21 @@ type PersonAccessSnapshot = {
   name: string;
   email: string;
   status: string;
+  teamGroupId: string | null;
+  teamGroupName: string | null;
   roleIds: string[];
   roleNames: string[];
   modelIds: string[];
   modelNames: string[];
+};
+
+type TeamGroupSnapshot = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  isRoot: boolean;
+  memberCount: number;
+  childCount: number;
 };
 
 type ModelSnapshot = {
@@ -193,6 +204,16 @@ async function getPersonAccessSnapshot(
         status:
           true,
 
+        teamGroupId:
+          true,
+
+        teamGroup: {
+          select: {
+            name:
+              true,
+          },
+        },
+
         roleMemberships: {
           select: {
             roleId:
@@ -238,6 +259,12 @@ async function getPersonAccessSnapshot(
       user.email,
     status:
       user.status,
+    teamGroupId:
+      user.teamGroupId,
+    teamGroupName:
+      user.teamGroup
+        ?.name ??
+      null,
     roleIds:
       user.roleMemberships
         .map(
@@ -309,6 +336,71 @@ async function getPersonByEmail(
   return getPersonAccessSnapshot(
     user.id
   );
+}
+
+async function getTeamGroupSnapshot(
+  groupId:
+    string
+): Promise<TeamGroupSnapshot | null> {
+  const group =
+    await prisma.teamGroup.findUnique({
+      where: {
+        id:
+          groupId,
+      },
+
+      select: {
+        id:
+          true,
+
+        name:
+          true,
+
+        parentId:
+          true,
+
+        isRoot:
+          true,
+
+        _count: {
+          select: {
+            members:
+              true,
+
+            children:
+              true,
+          },
+        },
+      },
+    });
+
+  if (
+    !group
+  ) {
+    return null;
+  }
+
+  return {
+    id:
+      group.id,
+
+    name:
+      group.name,
+
+    parentId:
+      group.parentId,
+
+    isRoot:
+      group.isRoot,
+
+    memberCount:
+      group._count
+        .members,
+
+    childCount:
+      group._count
+        .children,
+  };
 }
 
 async function getModelSnapshot(
@@ -900,6 +992,182 @@ async function prepareAudit(
             ),
       };
     }
+  }
+
+  if (
+    path ===
+      "/api/team-groups" &&
+    method ===
+      "POST"
+  ) {
+    const name =
+      typeof req.body
+        ?.name ===
+        "string"
+        ? req.body.name
+        : "";
+
+    const parentGroupId =
+      typeof req.body
+        ?.parentGroupId ===
+        "string"
+        ? req.body.parentGroupId
+        : null;
+
+    return {
+      ...base,
+      action:
+        "team_group.created",
+      targetType:
+        "team_group",
+      metadata: {
+        before:
+          null,
+        requested: {
+          name:
+            name ||
+            null,
+          parentGroupId,
+        },
+      },
+      ...(name &&
+      parentGroupId
+        ? {
+            loadAfter:
+              async () => {
+                const group =
+                  await prisma.teamGroup.findFirst({
+                    where: {
+                      parentId:
+                        parentGroupId,
+
+                      name: {
+                        equals:
+                          name.trim(),
+                        mode:
+                          "insensitive",
+                      },
+                    },
+
+                    select: {
+                      id:
+                        true,
+                    },
+                  });
+
+                return group
+                  ? getTeamGroupSnapshot(
+                      group.id
+                    )
+                  : null;
+              },
+          }
+        : {}),
+    };
+  }
+
+  const teamMemberId =
+    segmentAfter(
+      path,
+      "/api/team-groups/members/"
+    );
+
+  if (
+    teamMemberId &&
+    method ===
+      "PUT"
+  ) {
+    const before =
+      await getPersonAccessSnapshot(
+        teamMemberId
+      );
+
+    return {
+      ...base,
+      action:
+        "people.group_changed",
+      targetType:
+        "user",
+      targetId:
+        teamMemberId,
+      metadata: {
+        before,
+        requested: {
+          teamGroupId:
+            typeof req.body
+              ?.groupId ===
+              "string"
+              ? req.body
+                  .groupId
+              : null,
+        },
+      },
+      loadAfter:
+        () =>
+          getPersonAccessSnapshot(
+            teamMemberId
+          ),
+    };
+  }
+
+  const teamGroupId =
+    segmentAfter(
+      path,
+      "/api/team-groups/"
+    );
+
+  if (
+    teamGroupId &&
+    teamGroupId !==
+      "members" &&
+    (
+      method ===
+        "PUT" ||
+      method ===
+        "DELETE"
+    )
+  ) {
+    const before =
+      await getTeamGroupSnapshot(
+        teamGroupId
+      );
+
+    return {
+      ...base,
+      action:
+        method ===
+          "DELETE"
+          ? "team_group.deleted"
+          : "team_group.updated",
+      targetType:
+        "team_group",
+      targetId:
+        teamGroupId,
+      metadata: {
+        before,
+        ...(method ===
+          "DELETE"
+          ? {
+              after:
+                null,
+            }
+          : {
+              requested:
+                req.body ??
+                null,
+            }),
+      },
+      ...(method ===
+        "PUT"
+        ? {
+            loadAfter:
+              () =>
+                getTeamGroupSnapshot(
+                  teamGroupId
+                ),
+          }
+        : {}),
+    };
   }
 
   if (
