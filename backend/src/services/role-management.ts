@@ -37,6 +37,7 @@ export class RoleManagementError
     | "ROLE_NAME_IN_USE"
     | "INVALID_ROLE_RANK"
     | "INVALID_PERMISSIONS"
+    | "OWNER_ROLE_IMMUTABLE"
     | "SYSTEM_ROLE_DELETE_FORBIDDEN"
     | "ROLE_IN_USE";
 
@@ -463,6 +464,13 @@ export async function getRoleBuilderData(
   ] =
     await Promise.all([
       prisma.role.findMany({
+        where: {
+          systemKey: {
+            not:
+              "OWNER",
+          },
+        },
+
         select:
           roleSelect,
 
@@ -655,6 +663,16 @@ export async function updateRole(
     throw new RoleManagementError(
       "ROLE_NOT_FOUND",
       "Role not found."
+    );
+  }
+
+  if (
+    existingRole.systemKey ===
+    "OWNER"
+  ) {
+    throw new RoleManagementError(
+      "OWNER_ROLE_IMMUTABLE",
+      "The Owner role is the system super-admin role and cannot be edited."
     );
   }
 
