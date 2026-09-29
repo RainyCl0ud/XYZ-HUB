@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import AuthShell from "../components/AuthShell";
+import PasswordField from "../components/PasswordField";
 
 import {
   ApiError,
@@ -271,7 +272,7 @@ function InviteSetupPage() {
       <AuthShell
         eyebrow="Account invitation"
         title="Checking invitation"
-        description="Please wait while XYZ Hub validates your invitation."
+        description="Please wait while XYZ Management validates your invitation."
       >
         <div className="auth-message auth-message-info">
           Validating invitation...
@@ -296,7 +297,7 @@ function InviteSetupPage() {
         }
       >
         <div className="auth-message auth-message-error">
-          Ask XYZ management for a new invitation if you still need access.
+          Ask XYZ Management for a new invitation if you still need access.
         </div>
       </AuthShell>
     );
@@ -317,7 +318,7 @@ function InviteSetupPage() {
         }
       >
         <div className="auth-message auth-message-success">
-          XYZ Hub account activated successfully.
+          XYZ Management account activated successfully.
         </div>
       </AuthShell>
     );
@@ -327,7 +328,7 @@ function InviteSetupPage() {
     <AuthShell
       eyebrow="Account invitation"
       title="Set up your account"
-      description="Create your private XYZ Hub password. Management will never receive or see this password."
+      description="Create your private XYZ Management password. Management will never receive or see this password."
     >
       {invite && (
         <div className="auth-account-preview">
@@ -353,59 +354,46 @@ function InviteSetupPage() {
           </div>
         )}
 
-        <label className="auth-field">
-          <span className="auth-label">
-            Create password
-          </span>
+        <PasswordField
+          label="Create password"
+          value={
+            password
+          }
+          onChange={(
+            event
+          ) =>
+            setPassword(
+              event.target
+                .value
+            )
+          }
+          autoComplete="new-password"
+          minLength={
+            12
+          }
+          placeholder="Create your password"
+          helper="At least 12 characters."
+        />
 
-          <input
-            className="auth-input"
-            type="password"
-            autoComplete="new-password"
-            minLength={
-              12
-            }
-            value={
-              password
-            }
-            onChange={(
-              event
-            ) =>
-              setPassword(
-                event.target
-                  .value
-              )
-            }
-            required
-          />
-        </label>
-
-        <label className="auth-field">
-          <span className="auth-label">
-            Confirm password
-          </span>
-
-          <input
-            className="auth-input"
-            type="password"
-            autoComplete="new-password"
-            minLength={
-              12
-            }
-            value={
-              confirmation
-            }
-            onChange={(
-              event
-            ) =>
-              setConfirmation(
-                event.target
-                  .value
-              )
-            }
-            required
-          />
-        </label>
+        <PasswordField
+          label="Confirm password"
+          value={
+            confirmation
+          }
+          onChange={(
+            event
+          ) =>
+            setConfirmation(
+              event.target
+                .value
+            )
+          }
+          autoComplete="new-password"
+          minLength={
+            12
+          }
+          placeholder="Re-enter your password"
+        />
 
         <button
           className="auth-submit"
