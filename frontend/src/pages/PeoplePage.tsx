@@ -118,12 +118,13 @@ type TeamContextMenu = {
 
 const TEXAS_TIME_ZONE = "America/Chicago";
 const EMPTY_TEAMS: TeamGroup[] = [];
+const PEOPLE_PAGE_SIZE = 7;
+const EXISTING_PAGE_SIZE = 6;
 const COLOR_PRESETS = [
   "#7C8CFF",
   "#48B8A0",
   "#E0A458",
   "#D16D8C",
-  "#8A72D6",
   "#5B9BD5",
   "#8AA84F",
   "#C97842",
@@ -197,6 +198,7 @@ function PeoplePage() {
   );
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [collapsedTeamIds, setCollapsedTeamIds] = useState<string[]>([]);
+  const [peoplePage, setPeoplePage] = useState(1);
 
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -214,6 +216,7 @@ function PeoplePage() {
   const [existingSearch, setExistingSearch] = useState("");
   const [existingRoleFilter, setExistingRoleFilter] = useState("ALL");
   const [existingSelectedIds, setExistingSelectedIds] = useState<string[]>([]);
+  const [existingPage, setExistingPage] = useState(1);
 
   const [showAccessEditor, setShowAccessEditor] = useState(false);
   const [accessTeamId, setAccessTeamId] = useState("");
@@ -369,6 +372,16 @@ function PeoplePage() {
     return null;
   }, [teamById]);
 
+  const selectedPersonTeam = selectedPerson?.teamGroup
+    ? teamById.get(selectedPerson.teamGroup.id) ?? null
+    : null;
+  const selectedPersonTeamColor = selectedPersonTeam
+    ? effectiveTeamColor(selectedPersonTeam)
+    : null;
+
+  const accessTeam = accessTeamId ? teamById.get(accessTeamId) ?? null : null;
+  const accessTeamColor = accessTeam ? effectiveTeamColor(accessTeam) : null;
+
   const assignableRoleIds = useMemo(
     () => new Set(options?.roles.map((role) => role.id) ?? []),
     [options?.roles]
@@ -426,9 +439,38 @@ function PeoplePage() {
     });
   }, [canManagePerson, existingRoleFilter, existingSearch, people, selectedTeam]);
 
+  useEffect(() => {
+    setPeoplePage(1);
+  }, [creatorFilter, roleFilter, search, selectedTeamId, statusFilter]);
+
+  useEffect(() => {
+    setExistingPage(1);
+  }, [existingRoleFilter, existingSearch, selectedTeamId]);
+
+  const peoplePageCount = Math.max(1, Math.ceil(filteredPeople.length / PEOPLE_PAGE_SIZE));
+  const existingPageCount = Math.max(1, Math.ceil(existingCandidates.length / EXISTING_PAGE_SIZE));
+
+  useEffect(() => {
+    setPeoplePage((current) => Math.min(current, peoplePageCount));
+  }, [peoplePageCount]);
+
+  useEffect(() => {
+    setExistingPage((current) => Math.min(current, existingPageCount));
+  }, [existingPageCount]);
+
+  const pagedPeople = useMemo(() => {
+    const start = (peoplePage - 1) * PEOPLE_PAGE_SIZE;
+    return filteredPeople.slice(start, start + PEOPLE_PAGE_SIZE);
+  }, [filteredPeople, peoplePage]);
+
+  const pagedExistingCandidates = useMemo(() => {
+    const start = (existingPage - 1) * EXISTING_PAGE_SIZE;
+    return existingCandidates.slice(start, start + EXISTING_PAGE_SIZE);
+  }, [existingCandidates, existingPage]);
+
   const visibleSelectableIds = useMemo(
-    () => filteredPeople.filter(canManagePerson).map((person) => person.id),
-    [canManagePerson, filteredPeople]
+    () => pagedPeople.filter(canManagePerson).map((person) => person.id),
+    [canManagePerson, pagedPeople]
   );
 
   const allVisibleSelected = visibleSelectableIds.length > 0
@@ -518,6 +560,22 @@ function PeoplePage() {
     setSelectedPersonIds([]);
   }
 
+  function teamOptionLabel(team: TeamGroup) {
+    if (team.isRoot) return team.name;
+
+    const names = [team.name];
+    let current = team.parentId ? teamById.get(team.parentId) : undefined;
+    const seen = new Set<string>([team.id]);
+
+    while (current && !current.isRoot && !seen.has(current.id)) {
+      seen.add(current.id);
+      names.unshift(current.name);
+      current = current.parentId ? teamById.get(current.parentId) : undefined;
+    }
+
+    return names.join(" / ");
+  }
+
   function handleTeamKeyDown(event: ReactKeyboardEvent<HTMLDivElement>, teamId: string) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -557,6 +615,7 @@ function PeoplePage() {
     setStatusFilter("ALL");
     setSelectedTeamId(defaultTeamId);
     setSelectedPersonIds([]);
+    setPeoplePage(1);
   }
 
   function resetInviteForm(teamId?: string | null) {
@@ -613,6 +672,7 @@ function PeoplePage() {
     setExistingSearch("");
     setExistingRoleFilter("ALL");
     setExistingSelectedIds([]);
+    setExistingPage(1);
     setShowAddExisting(true);
   }
 
@@ -966,7 +1026,6 @@ function PeoplePage() {
     const selected = team.id === selectedTeamId;
     const accent = effectiveTeamColor(team);
     const itemStyle: CSSProperties = {
-      paddingLeft: `${10 + depth * 16}px`,
       "--team-accent": accent ?? "var(--accent)",
     } as CSSProperties;
 
@@ -975,6 +1034,7 @@ function PeoplePage() {
         <div
           className={`people-org-item${selected ? " active" : ""}${accent ? " colored" : ""}${team.isRoot ? " root" : ""}`}
           style={itemStyle}
+          data-depth={depth}
           role="button"
           tabIndex={0}
           aria-current={selected ? "true" : undefined}
@@ -1016,7 +1076,7 @@ function PeoplePage() {
         </div>
 
         {hasChildren && !collapsed && (
-          <div className="people-org-children">
+          <div className={`people-org-children ${team.isRoot ? "root-children" : "nested-children"}`}>
             {children.map((child) => renderTeamNode(child, depth + 1))}
           </div>
         )}
@@ -1025,6 +1085,10 @@ function PeoplePage() {
   }
 
   const rootTeams = childrenByParent.get(null) ?? [];
+  const peopleRangeStart = filteredPeople.length ? (peoplePage - 1) * PEOPLE_PAGE_SIZE + 1 : 0;
+  const peopleRangeEnd = Math.min(peoplePage * PEOPLE_PAGE_SIZE, filteredPeople.length);
+  const existingRangeStart = existingCandidates.length ? (existingPage - 1) * EXISTING_PAGE_SIZE + 1 : 0;
+  const existingRangeEnd = Math.min(existingPage * EXISTING_PAGE_SIZE, existingCandidates.length);
 
   return (
     <div className="page people-page">
@@ -1164,56 +1228,67 @@ function PeoplePage() {
               <span>Try changing the team or filters.</span>
             </div>
           ) : (
-            <div className="people-table-wrap">
-              <div className="people-table people-table-head">
-                <span className="people-select-cell">
-                  <input
-                    ref={headerCheckboxRef}
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    aria-label="Select visible employees"
-                    onChange={() => {
-                      setSelectedPersonIds((current) => allVisibleSelected
-                        ? current.filter((id) => !visibleSelectableIds.includes(id))
-                        : [...new Set([...current, ...visibleSelectableIds])]);
-                    }}
-                  />
-                </span>
-                <span>Employee</span>
-                <span>Assigned creators</span>
-                <span>Role</span>
-                <span>Status</span>
-              </div>
-
-              {filteredPeople.map((person) => (
-                <div
-                  key={person.id}
-                  className="people-table people-table-row"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => { void openPerson(person); }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      void openPerson(person);
-                    }
-                  }}
-                >
-                  <span className="people-select-cell" onClick={(event) => event.stopPropagation()}>
+            <div className="people-table-shell">
+              <div className="people-table-wrap">
+                <div className="people-table people-table-head">
+                  <span className="people-select-cell">
                     <input
+                      ref={headerCheckboxRef}
                       type="checkbox"
-                      checked={selectedPersonIds.includes(person.id)}
-                      disabled={!canManagePerson(person)}
-                      aria-label={`Select ${person.name}`}
-                      onChange={() => toggleSelection(selectedPersonIds, person.id, setSelectedPersonIds)}
+                      checked={allVisibleSelected}
+                      aria-label="Select employees on this page"
+                      onChange={() => {
+                        setSelectedPersonIds((current) => allVisibleSelected
+                          ? current.filter((id) => !visibleSelectableIds.includes(id))
+                          : [...new Set([...current, ...visibleSelectableIds])]);
+                      }}
                     />
                   </span>
-                  <span className="people-person-cell"><strong>{person.name}</strong><small>{person.email}</small></span>
-                  <span>{compactCreators(person.models)}</span>
-                  <span className="people-role-cell">{compactRole(person.roles)}</span>
-                  <span><span className={`people-status-badge ${person.status.toLowerCase()}`}>{formatStatus(person.status)}</span></span>
+                  <span>Employee</span>
+                  <span>Assigned creators</span>
+                  <span>Role</span>
+                  <span>Status</span>
                 </div>
-              ))}
+
+                {pagedPeople.map((person) => (
+                  <div
+                    key={person.id}
+                    className="people-table people-table-row"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => { void openPerson(person); }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        void openPerson(person);
+                      }
+                    }}
+                  >
+                    <span className="people-select-cell" onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedPersonIds.includes(person.id)}
+                        disabled={!canManagePerson(person)}
+                        aria-label={`Select ${person.name}`}
+                        onChange={() => toggleSelection(selectedPersonIds, person.id, setSelectedPersonIds)}
+                      />
+                    </span>
+                    <span className="people-person-cell"><strong>{person.name}</strong><small>{person.email}</small></span>
+                    <span>{compactCreators(person.models)}</span>
+                    <span className="people-role-cell">{compactRole(person.roles)}</span>
+                    <span><span className={`people-status-badge ${person.status.toLowerCase()}`}>{formatStatus(person.status)}</span></span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="people-pagination" aria-label="Employee table pagination">
+                <span>{peopleRangeStart}–{peopleRangeEnd} of {filteredPeople.length}</span>
+                <div className="people-pagination-controls">
+                  <button type="button" onClick={() => setPeoplePage((page) => Math.max(1, page - 1))} disabled={peoplePage <= 1} aria-label="Previous employee page">‹</button>
+                  <strong>Page {peoplePage} of {peoplePageCount}</strong>
+                  <button type="button" onClick={() => setPeoplePage((page) => Math.min(peoplePageCount, page + 1))} disabled={peoplePage >= peoplePageCount} aria-label="Next employee page">›</button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1240,7 +1315,13 @@ function PeoplePage() {
             if (event.target === event.currentTarget) setSelectedPerson(null);
           }}
         >
-          <section className="people-detail-panel" role="dialog" aria-modal="true" aria-label="Employee details">
+          <section
+            className={`people-detail-panel${selectedPersonTeamColor ? " team-colored" : ""}`}
+            style={selectedPersonTeamColor ? ({ "--profile-team-accent": selectedPersonTeamColor } as CSSProperties) : undefined}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Employee details"
+          >
             <div className="people-detail-header people-profile-header">
               <div className="people-profile-identity">
                 <span className="page-eyebrow">Employee profile</span>
@@ -1255,7 +1336,8 @@ function PeoplePage() {
                 <p>{selectedPerson.email}</p>
               </div>
 
-              <div className="people-profile-header-status" aria-label={`Status: ${formatStatus(selectedPerson.status)}`}>
+              <div className="people-profile-header-status" aria-label={`Account status: ${formatStatus(selectedPerson.status)}`}>
+                <span className="people-profile-status-label">Account status:</span>
                 <span className={`people-profile-status-pill ${selectedPerson.status.toLowerCase()}`}>
                   {formatStatus(selectedPerson.status)}
                 </span>
@@ -1278,7 +1360,7 @@ function PeoplePage() {
                   </div>
 
                   <div className="people-access-grid">
-                    <div>
+                    <div className="people-access-team-card">
                       <span className="people-section-label">Team</span>
                       <strong className="people-access-value">{selectedPerson.teamGroup?.name ?? "Not assigned"}</strong>
                     </div>
@@ -1388,16 +1470,27 @@ function PeoplePage() {
               </label>
             </div>
 
-            <div className="people-existing-table-wrap">
-              <div className="people-existing-table people-existing-head"><span /><span>Employee</span><span>Current team</span><span>Role</span></div>
-              {existingCandidates.length ? existingCandidates.map((person) => (
-                <label key={person.id} className="people-existing-table people-existing-row">
-                  <input type="checkbox" checked={existingSelectedIds.includes(person.id)} onChange={() => toggleSelection(existingSelectedIds, person.id, setExistingSelectedIds)} />
-                  <span className="people-person-cell"><strong>{person.name}</strong><small>{person.email}</small></span>
-                  <span className="people-role-cell">{person.teamGroup?.name ?? "Not assigned"}</span>
-                  <span className="people-role-cell">{compactRole(person.roles)}</span>
-                </label>
-              )) : <div className="empty-state"><strong>No eligible employees</strong><span>Try a different search or role filter.</span></div>}
+            <div className="people-existing-table-shell">
+              <div className="people-existing-table-wrap">
+                <div className="people-existing-table people-existing-head"><span /><span>Employee</span><span>Current team</span><span>Role</span></div>
+                {pagedExistingCandidates.length ? pagedExistingCandidates.map((person) => (
+                  <label key={person.id} className="people-existing-table people-existing-row">
+                    <input type="checkbox" checked={existingSelectedIds.includes(person.id)} onChange={() => toggleSelection(existingSelectedIds, person.id, setExistingSelectedIds)} />
+                    <span className="people-person-cell"><strong>{person.name}</strong><small>{person.email}</small></span>
+                    <span className="people-role-cell">{person.teamGroup?.name ?? "Not assigned"}</span>
+                    <span className="people-role-cell">{compactRole(person.roles)}</span>
+                  </label>
+                )) : <div className="empty-state"><strong>No eligible employees</strong><span>Try a different search or role filter.</span></div>}
+              </div>
+
+              <div className="people-pagination" aria-label="Existing employee pagination">
+                <span>{existingRangeStart}–{existingRangeEnd} of {existingCandidates.length}</span>
+                <div className="people-pagination-controls">
+                  <button type="button" onClick={() => setExistingPage((page) => Math.max(1, page - 1))} disabled={existingPage <= 1} aria-label="Previous existing employee page">‹</button>
+                  <strong>Page {existingPage} of {existingPageCount}</strong>
+                  <button type="button" onClick={() => setExistingPage((page) => Math.min(existingPageCount, page + 1))} disabled={existingPage >= existingPageCount} aria-label="Next existing employee page">›</button>
+                </div>
+              </div>
             </div>
 
             <div className="people-modal-footer">
@@ -1420,7 +1513,15 @@ function PeoplePage() {
             <div className="people-form-body">
               <label className="form-field"><span>Name</span><input value={inviteName} onChange={(event) => setInviteName(event.target.value)} autoFocus /></label>
               <label className="form-field"><span>Email</span><input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} /></label>
-              <label className="form-field"><span>Team</span><select value={inviteTeamId} onChange={(event) => setInviteTeamId(event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+              <label className="form-field people-team-select-field">
+                <span>Team</span>
+                <div className="people-select-shell">
+                  <select value={inviteTeamId} onChange={(event) => setInviteTeamId(event.target.value)}>
+                    {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
+                  </select>
+                  <span className="people-select-caret" aria-hidden="true">▾</span>
+                </div>
+              </label>
 
               <div className="people-option-section">
                 <span className="people-section-label">Roles</span>
@@ -1458,7 +1559,18 @@ function PeoplePage() {
               <button type="button" className="people-close" onClick={() => setShowAccessEditor(false)} aria-label="Close access editor">×</button>
             </div>
             <div className="people-form-body">
-              <label className="form-field"><span>Team</span><select value={accessTeamId} onChange={(event) => setAccessTeamId(event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+              <label className="form-field people-team-select-field">
+                <span>Team</span>
+                <div
+                  className="people-select-shell team-accented"
+                  style={{ "--team-select-accent": accessTeamColor ?? "var(--accent)" } as CSSProperties}
+                >
+                  <select value={accessTeamId} onChange={(event) => setAccessTeamId(event.target.value)}>
+                    {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
+                  </select>
+                  <span className="people-select-caret" aria-hidden="true">▾</span>
+                </div>
+              </label>
               <div className="people-option-section">
                 <span className="people-section-label">Roles</span>
                 <div className="people-option-grid">{options?.roles.map((role) => (
@@ -1493,7 +1605,15 @@ function PeoplePage() {
             <div className="people-confirm-body">
               <p>This will update <strong>{selectedManageablePeople.length}</strong> selected employee{selectedManageablePeople.length === 1 ? "" : "s"}.</p>
               {batchAction === "team" ? (
-                <label className="form-field"><span>New team</span><select value={batchTeamId} onChange={(event) => setBatchTeamId(event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+                <label className="form-field people-team-select-field">
+                  <span>New team</span>
+                  <div className="people-select-shell">
+                    <select value={batchTeamId} onChange={(event) => setBatchTeamId(event.target.value)}>
+                      {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
+                    </select>
+                    <span className="people-select-caret" aria-hidden="true">▾</span>
+                  </div>
+                </label>
               ) : (
                 <label className="form-field"><span>New role</span><select value={batchRoleId} onChange={(event) => setBatchRoleId(event.target.value)}>{options?.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
               )}
@@ -1524,7 +1644,7 @@ function PeoplePage() {
           <form className="people-confirm-modal" onSubmit={saveTeamColor}>
             <div className="people-modal-header"><div><span className="page-eyebrow">Team appearance</span><h3>Color for {teamActionTarget.name}</h3></div><button type="button" className="people-close" onClick={() => setShowColorModal(false)}>×</button></div>
             <div className="people-confirm-body">
-              <p>This color fills the team row and is inherited visually by its subteams until a subteam gets its own color.</p>
+              <p>This color identifies the team and appears as its selected-row accent. Subteams inherit it until they receive their own color.</p>
               <div className="people-color-picker-row"><input type="color" value={teamColor} onChange={(event) => setTeamColor(event.target.value.toUpperCase())} /><strong>{teamColor}</strong></div>
               <div className="people-color-presets">{COLOR_PRESETS.map((color) => <button key={color} type="button" className={teamColor === color ? "active" : ""} style={{ background: color }} onClick={() => setTeamColor(color)} aria-label={`Use ${color}`} />)}</div>
             </div>

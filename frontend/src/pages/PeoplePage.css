@@ -1282,13 +1282,11 @@
   background: color-mix(in srgb, var(--accent) 13%, var(--surface-deep));
 }
 
-/* The root is a container, so opening it should not draw a hierarchy rail. */
 .people-org-item.root + .people-org-children::before,
 .people-org-item.root + .people-org-children > .people-org-node::before {
   display: none;
 }
 
-/* Rails and connectors start only when a real team exposes subteams. */
 .people-org-children::before {
   left: 12px;
   background: color-mix(in srgb, var(--border-soft) 82%, transparent);
@@ -1309,13 +1307,11 @@
   pointer-events: none;
 }
 
-/* Immediate children of XYZ Management are top-level teams, not visual subteams. */
 .people-org-item.root + .people-org-children > .people-org-node > .people-org-item {
   width: 100%;
   margin-left: 0;
 }
 
-/* Actual subteams begin after the hierarchy rail instead of painting from the panel edge. */
 .people-org-children .people-org-children > .people-org-node > .people-org-item {
   width: calc(100% - 24px);
   margin-left: 24px;
@@ -1326,7 +1322,6 @@
   width: 12px;
 }
 
-/* Make expand/collapse controls visually obvious and easier to hit. */
 .people-org-caret,
 .people-org-caret-space {
   width: 28px;
@@ -1345,4 +1340,352 @@
   background: rgba(255, 255, 255, 0.07);
   color: var(--text);
   outline: none;
+}
+
+/* B.6 profile, pagination, selector and hierarchy polish. */
+.people-profile-header-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.people-profile-status-label {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.people-profile-header-status .people-profile-status-pill {
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  font-size: 10.5px;
+  font-weight: 760;
+}
+
+.people-detail-panel.team-colored {
+  border-top: 3px solid var(--profile-team-accent);
+  box-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 color-mix(in srgb, var(--profile-team-accent) 18%, transparent);
+}
+
+.people-detail-panel.team-colored .people-access-team-card {
+  border-left: 3px solid var(--profile-team-accent);
+  background: color-mix(in srgb, var(--profile-team-accent) 8%, var(--surface-deep));
+}
+
+.people-table-shell,
+.people-existing-table-shell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.people-table-wrap {
+  height: 504px;
+  min-height: 504px;
+  overflow: hidden;
+}
+
+.people-table {
+  grid-template-columns: 34px minmax(0, 1.45fr) minmax(0, 1.05fr) minmax(0, 0.9fr) 108px;
+  min-width: 0;
+}
+
+.people-table > * {
+  min-width: 0;
+}
+
+.people-table-head {
+  height: 42px;
+  min-height: 42px;
+}
+
+.people-table-row {
+  height: 66px;
+  min-height: 66px;
+}
+
+.people-table-row > span:not(.people-select-cell),
+.people-table-row .people-creator-summary,
+.people-table-row .people-role-summary {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.people-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 8px 18px;
+  border-top: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--surface-deep) 92%, black 8%);
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.people-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.people-pagination-controls strong {
+  min-width: 86px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 680;
+  text-align: center;
+}
+
+.people-pagination-controls button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.people-pagination-controls button:hover:not(:disabled) {
+  border-color: rgba(232, 216, 178, 0.28);
+  color: var(--accent);
+}
+
+.people-pagination-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.people-existing-table-wrap {
+  height: 414px;
+  max-height: none;
+  overflow: hidden;
+}
+
+.people-existing-table {
+  grid-template-columns: 34px minmax(0, 1.3fr) minmax(0, 0.85fr) minmax(0, 0.9fr);
+  min-width: 0;
+}
+
+.people-existing-table > * {
+  min-width: 0;
+}
+
+.people-existing-head {
+  height: 42px;
+  min-height: 42px;
+}
+
+.people-existing-row {
+  height: 62px;
+  min-height: 62px;
+}
+
+.people-select-shell {
+  position: relative;
+  width: 100%;
+}
+
+.people-select-shell select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 46px 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  appearance: none;
+  background: color-mix(in srgb, var(--surface-deep) 94%, white 6%);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 620;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.people-select-shell select:hover {
+  border-color: rgba(232, 216, 178, 0.24);
+  background: color-mix(in srgb, var(--surface-deep) 90%, white 10%);
+}
+
+.people-select-shell select:focus {
+  border-color: color-mix(in srgb, var(--team-select-accent, var(--accent)) 54%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--team-select-accent, var(--accent)) 10%, transparent);
+}
+
+.people-select-caret {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  font-size: 17px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.people-select-shell.team-accented::before {
+  position: absolute;
+  z-index: 2;
+  top: 7px;
+  bottom: 7px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--team-select-accent, var(--accent));
+  content: "";
+  pointer-events: none;
+}
+
+/* Clear parent/child rails: root children stay flat; subteams receive one rail and short connectors. */
+.people-org-children::before,
+.people-org-children > .people-org-node::before,
+.people-org-item.root + .people-org-children::before,
+.people-org-item.root + .people-org-children > .people-org-node::before {
+  display: none;
+}
+
+.people-org-children.root-children {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.people-org-children.root-children > .people-org-node > .people-org-item {
+  width: 100%;
+  margin-left: 0;
+}
+
+.people-org-children.nested-children {
+  position: relative;
+  margin-left: 27px;
+  padding-left: 18px;
+}
+
+.people-org-children.nested-children::before {
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 22px;
+  left: 7px;
+  width: 1px;
+  background: color-mix(in srgb, var(--border-soft) 88%, transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.people-org-children.nested-children > .people-org-node {
+  position: relative;
+}
+
+.people-org-children.nested-children > .people-org-node::before {
+  display: block;
+  position: absolute;
+  top: 22px;
+  left: -11px;
+  width: 11px;
+  height: 1px;
+  background: color-mix(in srgb, var(--border-soft) 88%, transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.people-org-children.nested-children > .people-org-node > .people-org-item,
+.people-org-children .people-org-children > .people-org-node > .people-org-item {
+  width: 100%;
+  margin-left: 0;
+  padding-left: 8px !important;
+}
+
+@media (max-width: 780px) {
+  .people-table {
+    grid-template-columns: 30px minmax(0, 1.55fr) minmax(0, 0.9fr) minmax(0, 0.8fr) 82px;
+    gap: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .people-table-wrap {
+    width: 100%;
+  }
+
+  .people-pagination {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+@media (max-width: 620px) {
+  .people-profile-header-status {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .people-profile-status-label {
+    display: none;
+  }
+
+  .people-profile-header-status .people-profile-status-pill {
+    font-size: 11px;
+  }
+
+  .people-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+}
+
+@media (max-width: 560px) {
+  .people-table {
+    grid-template-columns: 28px minmax(0, 1.7fr) minmax(0, 0.8fr) minmax(0, 0.8fr) 68px;
+    gap: 6px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .people-table-head {
+    font-size: 8px;
+    letter-spacing: 0.035em;
+  }
+
+  .people-table-row .people-person-cell strong,
+  .people-table-row .people-creator-name,
+  .people-table-row .people-role-cell {
+    font-size: 9.5px;
+  }
+
+  .people-table-row .people-person-cell small,
+  .people-table-row .people-creator-more,
+  .people-table-row .people-role-more,
+  .people-table-row .people-status-badge {
+    font-size: 8.5px;
+  }
+
+  .people-table-row .people-status-badge {
+    min-height: 23px;
+    padding: 0 6px;
+  }
 }
