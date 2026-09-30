@@ -30,12 +30,12 @@ function invitationsAreAvailable() {
   const mode =
     getInviteDeliveryMode();
 
-if (
-  mode === "smtp" ||
-  mode === "gmail_api"
-) {
-  return true;
-}
+  if (
+    mode === "smtp" ||
+    mode === "gmail_api"
+  ) {
+    return true;
+  }
 
   return (
     mode === "console" &&
@@ -62,13 +62,11 @@ export async function getPeopleManagementOptions(
           rank: true,
           dataScope: true,
         },
-
         orderBy: [
           {
             rank:
               "asc",
           },
-
           {
             name:
               "asc",
@@ -82,7 +80,6 @@ export async function getPeopleManagementOptions(
           name: true,
           isActive: true,
         },
-
         orderBy: {
           name:
             "asc",
@@ -94,13 +91,15 @@ export async function getPeopleManagementOptions(
       ),
     ]);
 
+  /*
+   * canAssignRole() is the single authority gate for role assignment.
+   * It already reserves Owner, Ops Manager, Dev, Accountant, Model and
+   * General Staff for Owners. Keeping Owner in this list for an Owner
+   * allows the build-brief promotion flow without exposing it to others.
+   */
   const assignableRoles =
     roles.filter(
-      (
-        role
-      ) =>
-        role.systemKey !==
-          "OWNER" &&
+      (role) =>
         canAssignRole(
           access,
           role
@@ -109,9 +108,7 @@ export async function getPeopleManagementOptions(
 
   const assignableModels =
     models.filter(
-      (
-        model
-      ) =>
+      (model) =>
         canAccessModel(
           access,
           model.id
