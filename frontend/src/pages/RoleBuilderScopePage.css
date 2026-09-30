@@ -1,0 +1,540 @@
+.role-scope-page {
+  position: relative;
+}
+
+.role-scope-page-header {
+  align-items: flex-start;
+}
+
+.role-scope-error {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(229, 141, 135, 0.26);
+  border-radius: var(--radius-sm);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 11px;
+}
+
+.role-scope-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.role-scope-catalog,
+.role-scope-editor {
+  overflow: hidden;
+}
+
+.role-scope-catalog-header,
+.role-scope-editor-header,
+.role-scope-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.role-scope-catalog-header,
+.role-scope-editor-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.role-scope-catalog-header h3,
+.role-scope-editor-header h3,
+.role-scope-delete-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.role-scope-count,
+.role-scope-users {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 25px;
+  padding: 0 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface-deep);
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.role-scope-users {
+  border-color: rgba(225, 189, 119, 0.2);
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.role-scope-filter {
+  display: flex;
+  gap: 5px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.role-scope-filter button {
+  flex: 1;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.role-scope-filter button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.role-scope-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.role-scope-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 15px;
+  border: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-scope-list-item:hover,
+.role-scope-list-item:focus-visible {
+  background: rgba(255, 255, 255, 0.025);
+  outline: none;
+}
+
+.role-scope-list-item.active {
+  background: linear-gradient(90deg, var(--accent-soft), rgba(232, 216, 178, 0.02));
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.role-scope-list-main,
+.role-scope-list-meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.role-scope-list-main {
+  gap: 5px;
+}
+
+.role-scope-list-meta {
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.role-scope-list-main strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-scope-list-main small,
+.role-scope-list-meta small {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.role-scope-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.role-scope-type.default {
+  border: 1px solid rgba(174, 188, 224, 0.2);
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.role-scope-type.custom {
+  border: 1px solid rgba(157, 213, 168, 0.18);
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.role-scope-empty {
+  padding: 30px 20px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.role-scope-editor-empty {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+}
+
+.role-scope-section {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.role-scope-section-heading {
+  margin-bottom: 16px;
+}
+
+.role-scope-section-heading strong {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.role-scope-section-heading span {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.role-scope-name-field {
+  max-width: 520px;
+  margin-bottom: 18px;
+}
+
+.role-scope-options {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.role-scope-options legend {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 680;
+}
+
+.role-scope-option-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.role-scope-option {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  min-height: 100px;
+  padding: 13px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: var(--surface-deep);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.role-scope-option:hover {
+  border-color: rgba(232, 216, 178, 0.22);
+}
+
+.role-scope-option.selected {
+  border-color: rgba(232, 216, 178, 0.34);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(232, 216, 178, 0.08);
+}
+
+.role-scope-option input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
+.role-scope-option > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.role-scope-option strong {
+  color: var(--text);
+  font-size: 10.5px;
+}
+
+.role-scope-option small {
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.role-scope-impact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 12px 13px;
+  border: 1px solid rgba(225, 189, 119, 0.2);
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+}
+
+.role-scope-impact strong {
+  color: var(--warning);
+  font-size: 9.5px;
+}
+
+.role-scope-impact span {
+  color: var(--text-secondary);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.role-scope-permission-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.role-scope-permission-group {
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: var(--surface-deep);
+}
+
+.role-scope-permission-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.014);
+}
+
+.role-scope-permission-heading strong,
+.role-scope-permission-heading span {
+  text-transform: capitalize;
+}
+
+.role-scope-permission-heading strong {
+  color: var(--text-secondary);
+  font-size: 9.5px;
+}
+
+.role-scope-permission-heading span {
+  color: var(--text-soft);
+  font-size: 8.5px;
+}
+
+.role-scope-permission-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.role-scope-permission-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-height: 74px;
+  padding: 13px;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+}
+
+.role-scope-permission-item:nth-child(2n) {
+  border-right: 0;
+}
+
+.role-scope-permission-item input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
+.role-scope-permission-item > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.role-scope-permission-item strong {
+  color: var(--text);
+  font-size: 10px;
+}
+
+.role-scope-permission-item small {
+  color: var(--text-muted);
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
+.role-scope-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.role-scope-footer p {
+  max-width: 440px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.role-scope-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.role-scope-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.role-scope-delete-modal {
+  width: min(520px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-modal);
+}
+
+.role-scope-delete-header,
+.role-scope-delete-body,
+.role-scope-delete-footer {
+  padding: 20px 22px;
+}
+
+.role-scope-delete-header {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.role-scope-delete-body {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.role-scope-delete-body p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.role-scope-delete-warning {
+  padding: 11px 12px;
+  border: 1px solid rgba(225, 189, 119, 0.2);
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.role-scope-delete-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface-deep);
+}
+
+@media (max-width: 1120px) {
+  .role-scope-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .role-scope-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .role-scope-list-item {
+    border-right: 1px solid var(--border-soft);
+  }
+}
+
+@media (max-width: 840px) {
+  .role-scope-option-grid,
+  .role-scope-permission-list {
+    grid-template-columns: 1fr;
+  }
+
+  .role-scope-permission-item,
+  .role-scope-permission-item:nth-child(2n) {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .role-scope-page-header,
+  .role-scope-editor-header,
+  .role-scope-section-heading,
+  .role-scope-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .role-scope-page-header .primary-button {
+    width: 100%;
+  }
+
+  .role-scope-list {
+    grid-template-columns: 1fr;
+  }
+
+  .role-scope-actions {
+    width: 100%;
+  }
+
+  .role-scope-actions button {
+    flex: 1;
+  }
+
+  .role-scope-overlay {
+    padding: 10px;
+  }
+}
