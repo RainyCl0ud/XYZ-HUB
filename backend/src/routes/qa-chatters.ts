@@ -186,7 +186,6 @@ router.get(
             ) => ({
               ...chatter,
               name:
-                chatter.user?.name ??
                 chatter.name,
               user:
                 undefined,
@@ -354,11 +353,12 @@ router.get(
         ...chatterData
       } = chatter;
 
+      void user;
+
       res.status(200).json({
         data: {
           ...chatterData,
           name:
-            user?.name ??
             chatter.name,
           strikeSummary: {
             activeStrikeCount,

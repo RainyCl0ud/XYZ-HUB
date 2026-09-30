@@ -76,11 +76,6 @@ router.get(
           select: {
             id: true,
             name: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
           },
         },
         ruleVersion: {
@@ -187,7 +182,6 @@ router.get(
             id:
               incident.chatter.id,
             name:
-              incident.chatter.user?.name ??
               incident.chatter.name,
           },
           strikeActivityStatus:

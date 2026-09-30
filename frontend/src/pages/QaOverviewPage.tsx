@@ -9,14 +9,6 @@ import {
 } from "react-router-dom";
 
 import {
-  useAuth,
-} from "../auth/AuthContext";
-
-import {
-  getPortalCapabilities,
-} from "../auth/portalAccess";
-
-import {
   apiRequest,
   MODEL_CONTEXT_CHANGED_EVENT,
 } from "../lib/api";
@@ -43,12 +35,10 @@ type RecentIncident = {
   occurredAt: string;
   status: IncidentStatus;
   strikeActivityStatus: StrikeActivityStatus;
-
   chatter: {
     id: string;
     name: string;
   };
-
   agencyModel: {
     id: string;
     name: string;
@@ -65,15 +55,12 @@ type DashboardResponse = {
       activeChatters: number;
       activeRules: number;
     };
-
-    recentIncidents:
-      RecentIncident[];
+    recentIncidents: RecentIncident[];
   };
 };
 
 function formatCentralDateTime(
-  value:
-    string
+  value: string
 ) {
   return new Intl.DateTimeFormat(
     "en-US",
@@ -90,59 +77,47 @@ function formatCentralDateTime(
         "2-digit",
     }
   ).format(
-    new Date(
-      value
-    )
+    new Date(value)
   );
 }
 
-function QaOverviewPage() {
-  const {
-    access,
-  } =
-    useAuth();
-
-  const capabilities =
-    getPortalCapabilities(
-      access
+function formatIncidentStatus(
+  status: IncidentStatus
+) {
+  return status
+    .toLowerCase()
+    .replace(
+      /^./,
+      (letter) =>
+        letter.toUpperCase()
     );
+}
 
+function QaOverviewPage() {
   const [
     dashboard,
     setDashboard,
-  ] =
-    useState<
-      DashboardResponse["data"] |
-      null
-    >(null);
+  ] = useState<
+    DashboardResponse["data"] |
+    null
+  >(null);
 
   const [
     isLoading,
     setIsLoading,
-  ] =
-    useState(
-      true
-    );
+  ] = useState(true);
 
   const [
     error,
     setError,
-  ] =
-    useState(
-      ""
-    );
+  ] = useState("");
 
   const loadDashboard =
     useCallback(
       async () => {
         try {
-          setIsLoading(
-            true
-          );
-
-          setError(
-            ""
-          );
+          setIsLoading(true);
+          setError("");
 
           const response =
             await apiRequest<DashboardResponse>(
@@ -152,18 +127,14 @@ function QaOverviewPage() {
           setDashboard(
             response.data
           );
-        } catch (
-          error
-        ) {
+        } catch (caught) {
           setError(
-            error instanceof Error
-              ? error.message
+            caught instanceof Error
+              ? caught.message
               : "Unable to load the quality overview."
           );
         } finally {
-          setIsLoading(
-            false
-          );
+          setIsLoading(false);
         }
       },
       []
@@ -185,9 +156,7 @@ function QaOverviewPage() {
         );
       };
     },
-    [
-      loadDashboard,
-    ]
+    [loadDashboard]
   );
 
   useEffect(
@@ -209,9 +178,7 @@ function QaOverviewPage() {
         );
       };
     },
-    [
-      loadDashboard,
-    ]
+    [loadDashboard]
   );
 
   return (
@@ -227,7 +194,7 @@ function QaOverviewPage() {
           </h2>
 
           <p className="page-description">
-            Review current QA workload, active chatters, strike rules, and recent incident activity.
+            Review current quality workload, active chatters, strike rules, and recent incident activity.
           </p>
         </div>
 
@@ -238,46 +205,6 @@ function QaOverviewPage() {
           View incidents
         </Link>
       </header>
-
-      <nav
-        className="qa-local-nav"
-        aria-label="Quality and incident pages"
-      >
-        <Link
-          to="/quality"
-          className="active"
-        >
-          Overview
-        </Link>
-
-        <Link
-          to="/incidents"
-        >
-          Incidents
-        </Link>
-
-        <Link
-          to="/chatters"
-        >
-          Chatters
-        </Link>
-
-        {capabilities.canConfigureQa && (
-          <>
-            <Link
-              to="/rules"
-            >
-              Rules
-            </Link>
-
-            <Link
-              to="/configuration"
-            >
-              Configuration
-            </Link>
-          </>
-        )}
-      </nav>
 
       {error && (
         <div className="alert alert-error page-alert dashboard-error">
@@ -390,8 +317,7 @@ function QaOverviewPage() {
             </strong>
           </div>
         ) : !dashboard ||
-          dashboard.recentIncidents.length ===
-            0 ? (
+          dashboard.recentIncidents.length === 0 ? (
           <div className="empty-state dashboard-empty">
             <strong>
               No incident activity yet
@@ -404,14 +330,10 @@ function QaOverviewPage() {
         ) : (
           <div className="qa-activity-list">
             {dashboard.recentIncidents.map(
-              (
-                incident
-              ) => (
+              (incident) => (
                 <Link
                   to="/incidents"
-                  key={
-                    incident.id
-                  }
+                  key={incident.id}
                   className="qa-activity-row"
                 >
                   <div className="qa-activity-primary">
@@ -438,19 +360,11 @@ function QaOverviewPage() {
 
                   <div className="qa-activity-meta">
                     <span
-                      className={
-                        `incident-status ${incident.status.toLowerCase()}`
-                      }
+                      className={`incident-status ${incident.status.toLowerCase()}`}
                     >
-                      {incident.status
-                        .toLowerCase()
-                        .replace(
-                          /^./,
-                          (
-                            letter
-                          ) =>
-                            letter.toUpperCase()
-                        )}
+                      {formatIncidentStatus(
+                        incident.status
+                      )}
                     </span>
 
                     <time>
