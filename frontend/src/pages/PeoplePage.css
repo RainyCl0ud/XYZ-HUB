@@ -1249,3 +1249,100 @@
     flex-wrap: wrap;
   }
 }
+
+/* Hierarchy refinement: keep color as an identity cue until a team is selected. */
+.people-org-item,
+.people-org-item.colored,
+.people-org-item.root {
+  border-color: transparent;
+  border-left-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.people-org-item:hover,
+.people-org-item:focus-visible {
+  border-color: var(--border-soft);
+  border-left-color: transparent;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text);
+}
+
+.people-org-item.active,
+.people-org-item.colored.active {
+  border-color: color-mix(in srgb, var(--team-accent) 46%, transparent);
+  border-left-color: var(--team-accent);
+  background: color-mix(in srgb, var(--team-accent) 22%, var(--surface-deep));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--team-accent) 12%, transparent);
+}
+
+.people-org-item.root.active {
+  border-color: color-mix(in srgb, var(--accent) 36%, transparent);
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, var(--surface-deep));
+}
+
+/* The root is a container, so opening it should not draw a hierarchy rail. */
+.people-org-item.root + .people-org-children::before,
+.people-org-item.root + .people-org-children > .people-org-node::before {
+  display: none;
+}
+
+/* Rails and connectors start only when a real team exposes subteams. */
+.people-org-children::before {
+  left: 12px;
+  background: color-mix(in srgb, var(--border-soft) 82%, transparent);
+}
+
+.people-org-children > .people-org-node {
+  position: relative;
+}
+
+.people-org-children > .people-org-node::before {
+  position: absolute;
+  top: 23px;
+  left: 12px;
+  width: 10px;
+  height: 1px;
+  background: color-mix(in srgb, var(--border-soft) 82%, transparent);
+  content: "";
+  pointer-events: none;
+}
+
+/* Immediate children of XYZ Management are top-level teams, not visual subteams. */
+.people-org-item.root + .people-org-children > .people-org-node > .people-org-item {
+  width: 100%;
+  margin-left: 0;
+}
+
+/* Actual subteams begin after the hierarchy rail instead of painting from the panel edge. */
+.people-org-children .people-org-children > .people-org-node > .people-org-item {
+  width: calc(100% - 24px);
+  margin-left: 24px;
+  padding-left: 10px !important;
+}
+
+.people-org-children .people-org-children > .people-org-node::before {
+  width: 12px;
+}
+
+/* Make expand/collapse controls visually obvious and easier to hit. */
+.people-org-caret,
+.people-org-caret-space {
+  width: 28px;
+  height: 28px;
+}
+
+.people-org-caret {
+  border-radius: 7px;
+  color: var(--text-secondary);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.people-org-caret:hover,
+.people-org-caret:focus-visible {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  outline: none;
+}
