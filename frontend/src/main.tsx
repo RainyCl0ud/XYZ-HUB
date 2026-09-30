@@ -12,6 +12,7 @@ import {
 
 import "./index.css";
 import "./pages/PeopleViewportFit.css";
+import "./components/ClientPolish.css";
 
 import App from "./App";
 
