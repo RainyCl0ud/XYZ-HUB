@@ -11,7 +11,7 @@ import type {
   AuthenticatedRequest,
 } from "./access.js";
 
-function rewriteCurrentChatterNames(
+export function rewriteCurrentChatterNames(
   value: unknown,
   currentNames: ReadonlyMap<string, string>
 ): unknown {
@@ -27,6 +27,24 @@ function rewriteCurrentChatterNames(
   if (
     !value ||
     typeof value !== "object"
+  ) {
+    return value;
+  }
+
+  /*
+   * Prisma responses still contain native Date instances before Express
+   * serializes them. Rebuilding every object with Object.fromEntries()
+   * turns Date values into {}, which later causes frontend date formatters
+   * to throw "Invalid time value". Only recurse into plain JSON objects.
+   */
+  const prototype =
+    Object.getPrototypeOf(
+      value
+    );
+
+  if (
+    prototype !== Object.prototype &&
+    prototype !== null
   ) {
     return value;
   }
