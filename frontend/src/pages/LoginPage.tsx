@@ -15,6 +15,7 @@ import PasswordField from "../components/PasswordField";
 
 import {
   ApiError,
+  SIGNED_OUT_STORAGE_KEY,
   apiRequest,
 } from "../lib/api";
 
@@ -32,6 +33,15 @@ type LoginResponse = {
   expiresAt:
     string;
 };
+
+const SIGNED_OUT_MESSAGES = [
+  "Nice work today. Your workspace will be ready when you return.",
+  "A short reset can make the next session sharper.",
+  "Good progress compounds. Pick things up again when you are ready.",
+  "Your session is closed securely. Enjoy the rest of your day.",
+  "One task at a time is still forward progress.",
+  "You are all signed out. Come back whenever the next task is ready.",
+] as const;
 
 function LoginPage() {
   const navigate =
@@ -59,6 +69,17 @@ function LoginPage() {
     useState("");
 
   const [
+    signedOutAt,
+    setSignedOutAt,
+  ] =
+    useState<string | null>(
+      () =>
+        window.sessionStorage.getItem(
+          SIGNED_OUT_STORAGE_KEY
+        )
+    );
+
+  const [
     submitting,
     setSubmitting,
   ] =
@@ -83,6 +104,34 @@ function LoginPage() {
         to="/"
         replace
       />
+    );
+  }
+
+  const signedOutValue =
+    Number(
+      signedOutAt ??
+        "0"
+    );
+
+  const signedOutMessage =
+    SIGNED_OUT_MESSAGES[
+      Number.isFinite(
+        signedOutValue
+      )
+        ? Math.abs(
+            signedOutValue
+          ) %
+          SIGNED_OUT_MESSAGES.length
+        : 0
+    ];
+
+  function showSignIn() {
+    window.sessionStorage.removeItem(
+      SIGNED_OUT_STORAGE_KEY
+    );
+
+    setSignedOutAt(
+      null
     );
   }
 
@@ -170,6 +219,56 @@ function LoginPage() {
         false
       );
     }
+  }
+
+  if (
+    signedOutAt
+  ) {
+    return (
+      <AuthShell
+        eyebrow="Signed out"
+        title="You are signed out"
+        description="Your session has been closed and this browser no longer has access to the workspace."
+        footer={
+          <>
+            XYZ Management will be ready when you return.
+          </>
+        }
+      >
+        <div className="auth-signed-out">
+          <div
+            className="auth-signed-out-avatar-wrap"
+            aria-hidden="true"
+          >
+            <div className="auth-signed-out-avatar">
+              XYZ
+            </div>
+
+            <span className="auth-signed-out-check">
+              ✓
+            </span>
+          </div>
+
+          <p className="auth-signed-out-message">
+            {signedOutMessage}
+          </p>
+
+          <p className="auth-signed-out-note">
+            Sign in again whenever you need to continue.
+          </p>
+
+          <button
+            className="auth-submit"
+            type="button"
+            onClick={
+              showSignIn
+            }
+          >
+            Sign in again
+          </button>
+        </div>
+      </AuthShell>
+    );
   }
 
   return (
