@@ -1,0 +1,96 @@
+/* Desktop-only viewport fit for People Management.
+   Keeps the page within the visible app workspace while preserving
+   natural document scrolling on tablet/mobile layouts. */
+
+@media (min-width: 781px) {
+  .people-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 76px);
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 26px;
+    padding-bottom: 18px;
+  }
+
+  .people-page-header {
+    flex: 0 0 auto;
+    margin-bottom: 14px;
+  }
+
+  .people-management-shell {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .people-organization-panel {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .people-org-tree {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .people-directory {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .people-directory-header {
+    flex: 0 0 auto;
+    min-height: 64px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .people-filter-toolbar,
+  .people-batch-bar,
+  .people-inline-error {
+    flex: 0 0 auto;
+  }
+
+  .people-filter-toolbar {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  .people-table-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .people-table-wrap {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .people-table-head {
+    height: 38px;
+    min-height: 38px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .people-table-row {
+    height: 50px;
+    min-height: 50px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .people-pagination {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+}
