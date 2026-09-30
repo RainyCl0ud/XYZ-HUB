@@ -15,6 +15,10 @@ import {
 } from "./access-control.js";
 
 import {
+  publishLiveUpdate,
+} from "./live-updates.js";
+
+import {
   revokeAllUserSessions,
 } from "./session.js";
 
@@ -41,12 +45,8 @@ export class PeopleStatusError extends Error {
     message: string
   ) {
     super(message);
-
-    this.name =
-      "PeopleStatusError";
-
-    this.code =
-      code;
+    this.name = "PeopleStatusError";
+    this.code = code;
   }
 }
 
@@ -57,7 +57,6 @@ async function getTargetUser(
     where: {
       id: userId,
     },
-
     select: {
       id: true,
       name: true,
@@ -65,7 +64,6 @@ async function getTargetUser(
       status: true,
       deactivatedAt: true,
       teamGroupId: true,
-
       roleMemberships: {
         select: {
           role: {
@@ -78,7 +76,6 @@ async function getTargetUser(
           },
         },
       },
-
       modelAssignments: {
         select: {
           model: {
@@ -134,11 +131,8 @@ export async function deactivatePerson(
 
   if (
     user.roleMemberships.some(
-      (
-        membership
-      ) =>
-        membership.role
-          .systemKey ===
+      (membership) =>
+        membership.role.systemKey ===
         "OWNER"
     )
   ) {
@@ -170,10 +164,6 @@ export async function deactivatePerson(
     );
   }
 
-  /*
-   * A person may only deactivate somebody
-   * whose roles they would be allowed to assign.
-   */
   for (
     const membership
     of user.roleMemberships
@@ -191,10 +181,6 @@ export async function deactivatePerson(
     }
   }
 
-  /*
-   * They must also be allowed to manage
-   * every model assigned to the target.
-   */
   for (
     const assignment
     of user.modelAssignments
@@ -218,18 +204,12 @@ export async function deactivatePerson(
   const updatedUser =
     await prisma.user.update({
       where: {
-        id:
-          user.id,
+        id: user.id,
       },
-
       data: {
-        status:
-          UserStatus.DEACTIVATED,
-
-        deactivatedAt:
-          now,
+        status: UserStatus.DEACTIVATED,
+        deactivatedAt: now,
       },
-
       select: {
         id: true,
         name: true,
@@ -239,17 +219,15 @@ export async function deactivatePerson(
       },
     });
 
-  /*
-   * Session validation already rejects
-   * non-ACTIVE users immediately.
-   *
-   * We also revoke every stored session so
-   * those credentials can never become usable
-   * again if the account is later reactivated.
-   */
   await revokeAllUserSessions(
     user.id
   );
+
+  publishLiveUpdate({
+    type: "session.invalidated",
+    userId: user.id,
+    reason: "ACCOUNT_DEACTIVATED",
+  });
 
   return updatedUser;
 }
@@ -258,10 +236,6 @@ export async function reactivatePerson(
   userId: string,
   access: AccessContext
 ) {
-  /*
-   * The build brief explicitly reserves
-   * reactivation for Owners.
-   */
   if (!isOwner(access)) {
     throw new PeopleStatusError(
       "OWNER_REQUIRED",
@@ -283,11 +257,8 @@ export async function reactivatePerson(
 
   if (
     user.roleMemberships.some(
-      (
-        membership
-      ) =>
-        membership.role
-          .systemKey ===
+      (membership) =>
+        membership.role.systemKey ===
         "OWNER"
     )
   ) {
@@ -321,18 +292,12 @@ export async function reactivatePerson(
 
   return prisma.user.update({
     where: {
-      id:
-        user.id,
+      id: user.id,
     },
-
     data: {
-      status:
-        UserStatus.ACTIVE,
-
-      deactivatedAt:
-        null,
+      status: UserStatus.ACTIVE,
+      deactivatedAt: null,
     },
-
     select: {
       id: true,
       name: true,
