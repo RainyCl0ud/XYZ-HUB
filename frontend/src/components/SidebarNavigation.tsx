@@ -87,7 +87,7 @@ function ModuleIcon({
     roles:
       "M4 7h16 M4 17h16 M8 4v6 M16 14v6",
     audit:
-      "M8 3H5a2 2 0 0 0-2 2v15a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V5a2 2h8v4H8V2Z M7 11h10 M7 16h6",
+      "M6 3h9l3 3v15H6V3Z M14 3v4h4 M9 11h6 M9 15h6",
   };
 
   return (
