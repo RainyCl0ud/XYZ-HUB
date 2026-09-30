@@ -20,6 +20,10 @@ import {
 } from "./middleware/qa-access.js";
 
 import {
+  presentCurrentChatterIdentity,
+} from "./middleware/current-chatter-identity.js";
+
+import {
   loginRateLimit,
   passwordResetRateLimit,
   twoFactorRateLimit,
@@ -223,6 +227,7 @@ app.use(
   "/api/chatters",
   requireAuth,
   requireQaView,
+  presentCurrentChatterIdentity,
   requireQaConfigurationForWrites,
   chatterRoutes
 );
@@ -255,6 +260,7 @@ app.use(
   "/api/incidents",
   requireAuth,
   requireQaView,
+  presentCurrentChatterIdentity,
   incidentRoutes
 );
 
@@ -262,6 +268,7 @@ app.use(
   "/api/dashboard",
   requireAuth,
   requireQaView,
+  presentCurrentChatterIdentity,
   dashboardRoutes
 );
 
