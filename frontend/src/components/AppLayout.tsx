@@ -83,7 +83,7 @@ const PAGE_TITLES:
   "/models":
     "Creators",
   "/roles":
-    "Role Builder",
+    "Role Settings",
   "/audit":
     "Audit Log",
   "/account":
