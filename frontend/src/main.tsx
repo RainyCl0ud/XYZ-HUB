@@ -11,6 +11,7 @@ import {
 } from "react-router-dom";
 
 import "./index.css";
+import "./pages/PeopleViewportFit.css";
 
 import App from "./App";
 
