@@ -43,18 +43,10 @@ export type InvitePersonResult = {
     email: string;
     status: UserStatus;
   };
-
   invite: {
     id: string;
     expiresAt: Date;
   };
-
-  /*
-   * Raw token is returned only so the
-   * delivery layer can build the invite link.
-   *
-   * It must never be stored directly.
-   */
   token: string;
 };
 
@@ -70,47 +62,29 @@ export type PeopleInviteErrorCode =
   | "EMAIL_IN_USE";
 
 export class PeopleInviteError extends Error {
-  readonly code: PeopleInviteErrorCode;
+  readonly code:
+    PeopleInviteErrorCode;
 
   constructor(
-    code: PeopleInviteErrorCode,
-    message: string
+    code:
+      PeopleInviteErrorCode,
+    message:
+      string
   ) {
     super(message);
-
     this.name =
       "PeopleInviteError";
-
     this.code =
       code;
   }
 }
 
-/*
- * =========================================================
- * INVITE PERSON
- * =========================================================
- *
- * Creates:
- *
- * User
- * UserRole records
- * UserModelAssignment records
- * Invite
- *
- * as one database transaction.
- */
 export async function invitePerson(
-  input: InvitePersonInput,
-  access: AccessContext
+  input:
+    InvitePersonInput,
+  access:
+    AccessContext
 ): Promise<InvitePersonResult> {
-  /*
-   * Authorization is checked here as well as
-   * later at the HTTP middleware layer.
-   *
-   * Business services must not rely solely on
-   * routes being configured correctly.
-   */
   if (
     !hasPermission(
       access,
@@ -125,22 +99,15 @@ export async function invitePerson(
 
   const name =
     input.name.trim();
-
   const email =
     input.email
       .trim()
       .toLowerCase();
-
-  /*
-   * Remove duplicate IDs before validating
-   * or writing them.
-   */
   const roleIds = [
     ...new Set(
       input.roleIds
     ),
   ];
-
   const modelIds = [
     ...new Set(
       input.modelIds
@@ -148,7 +115,8 @@ export async function invitePerson(
   ];
 
   if (
-    roleIds.length === 0
+    roleIds.length ===
+    0
   ) {
     throw new PeopleInviteError(
       "ROLE_REQUIRED",
@@ -156,24 +124,16 @@ export async function invitePerson(
     );
   }
 
-  /*
-   * =======================================================
-   * EMAIL UNIQUENESS
-   * =======================================================
-   */
-
   const existingUser =
     await prisma.user.findFirst({
       where: {
         email: {
           equals:
             email,
-
           mode:
             "insensitive",
         },
       },
-
       select: {
         id: true,
       },
@@ -186,12 +146,6 @@ export async function invitePerson(
     );
   }
 
-  /*
-   * =======================================================
-   * ROLE VALIDATION
-   * =======================================================
-   */
-
   const roles =
     await prisma.role.findMany({
       where: {
@@ -200,7 +154,6 @@ export async function invitePerson(
             roleIds,
         },
       },
-
       select: {
         id: true,
         name: true,
@@ -219,12 +172,18 @@ export async function invitePerson(
     );
   }
 
+  /*
+   * canAssignRole() is the single role-assignment authority gate.
+   * It reserves Owner, Ops Manager, Dev, Accountant, Model and
+   * General Staff for Owners while retaining the ranked chain for
+   * ordinary roles. Do not special-case Owner here: an Owner is
+   * allowed to assign the Owner role by requirement.
+   */
   for (
-    const role of roles
+    const role
+    of roles
   ) {
     if (
-      role.systemKey ===
-        "OWNER" ||
       !canAssignRole(
         access,
         role
@@ -237,14 +196,9 @@ export async function invitePerson(
     }
   }
 
-  /*
-   * =======================================================
-   * MODEL VALIDATION
-   * =======================================================
-   */
-
   const models =
-    modelIds.length === 0
+    modelIds.length ===
+      0
       ? []
       : await prisma.agencyModel.findMany({
           where: {
@@ -253,7 +207,6 @@ export async function invitePerson(
                 modelIds,
             },
           },
-
           select: {
             id: true,
             name: true,
@@ -272,7 +225,8 @@ export async function invitePerson(
   }
 
   for (
-    const model of models
+    const model
+    of models
   ) {
     if (!model.isActive) {
       throw new PeopleInviteError(
@@ -294,15 +248,6 @@ export async function invitePerson(
     }
   }
 
-  /*
-   * =======================================================
-   * TEAM GROUP VALIDATION
-   * =======================================================
-   *
-   * If no group is chosen, managers default to their own
-   * group. Owner/legacy callers fall back to the permanent
-   * XYZ Management root.
-   */
   const teamGroupId =
     input.teamGroupId
       ?.trim() ||
@@ -319,23 +264,17 @@ export async function invitePerson(
           id:
             teamGroupId,
         },
-
         select: {
-          id:
-            true,
-          name:
-            true,
+          id: true,
+          name: true,
         },
       }),
-
       getVisibleTeamGroupIds(
         access
       ),
     ]);
 
-  if (
-    !teamGroup
-  ) {
+  if (!teamGroup) {
     throw new PeopleInviteError(
       "INVALID_TEAM_GROUP",
       "The selected team group does not exist."
@@ -353,23 +292,14 @@ export async function invitePerson(
     );
   }
 
-  /*
-   * =======================================================
-   * INVITE TOKEN
-   * =======================================================
-   */
-
   const token =
     generateInviteToken();
-
   const tokenHash =
     hashInviteToken(
       token
     );
-
   const now =
     new Date();
-
   const expiresAt =
     new Date(
       now.getTime() +
@@ -379,25 +309,19 @@ export async function invitePerson(
   try {
     const result =
       await prisma.$transaction(
-        async (tx) => {
-          /*
-           * Re-check the email inside the transaction.
-           *
-           * Every management-created email is stored
-           * normalized to lowercase.
-           */
+        async (
+          tx
+        ) => {
           const duplicate =
             await tx.user.findFirst({
               where: {
                 email: {
                   equals:
                     email,
-
                   mode:
                     "insensitive",
                 },
               },
-
               select: {
                 id: true,
               },
@@ -410,45 +334,29 @@ export async function invitePerson(
             );
           }
 
-          /*
-           * New invited users do not receive a
-           * password here.
-           *
-           * They remain PENDING_SETUP until they
-           * accept the invitation and create their
-           * own password.
-           */
           const user =
             await tx.user.create({
               data: {
                 name,
-
                 email,
-
                 passwordHash:
                   null,
-
                 status:
                   UserStatus.PENDING_SETUP,
-
                 teamGroupId:
                   teamGroup.id,
               },
             });
 
-          /*
-           * Roles stack, so every selected role is
-           * recorded independently.
-           */
           await tx.userRole.createMany({
             data:
               roleIds.map(
-                (roleId) => ({
+                (
+                  roleId
+                ) => ({
                   userId:
                     user.id,
-
                   roleId,
-
                   assignedByUserId:
                     access.userId,
                 })
@@ -456,17 +364,18 @@ export async function invitePerson(
           });
 
           if (
-            modelIds.length > 0
+            modelIds.length >
+            0
           ) {
             await tx.userModelAssignment.createMany({
               data:
                 modelIds.map(
-                  (modelId) => ({
+                  (
+                    modelId
+                  ) => ({
                     userId:
                       user.id,
-
                     modelId,
-
                     assignedByUserId:
                       access.userId,
                   })
@@ -479,15 +388,11 @@ export async function invitePerson(
               data: {
                 userId:
                   user.id,
-
                 tokenHash,
-
                 createdByUserId:
                   access.userId,
-
                 sentAt:
                   now,
-
                 expiresAt,
               },
             });
@@ -503,28 +408,24 @@ export async function invitePerson(
       user: {
         id:
           result.user.id,
-
         name:
           result.user.name,
-
         email:
           result.user.email,
-
         status:
           result.user.status,
       },
-
       invite: {
         id:
           result.invite.id,
-
         expiresAt:
           result.invite.expiresAt,
       },
-
       token,
     };
-  } catch (error) {
+  } catch (
+    error
+  ) {
     if (
       error instanceof
       PeopleInviteError
@@ -532,12 +433,6 @@ export async function invitePerson(
       throw error;
     }
 
-    /*
-     * Because all management-created emails
-     * are normalized to lowercase, the DB
-     * unique constraint also protects against
-     * concurrent duplicate creation.
-     */
     if (
       error instanceof
         Prisma.PrismaClientKnownRequestError &&
