@@ -1,0 +1,145 @@
+/* =========================================================
+   GLOBAL CLIENT READINESS POLISH
+   ========================================================= */
+
+/* Raise the smallest shared shell text without changing page density. */
+.portal-command-label,
+.hub-nav-heading,
+.page-eyebrow {
+  font-size: 9.5px;
+}
+
+.portal-clock-date {
+  font-size: 9px;
+}
+
+.portal-account-dropdown-profile small,
+.portal-account-dropdown-profile span {
+  font-size: 9.5px;
+}
+
+.portal-account-dropdown-item {
+  font-size: 11px;
+}
+
+.portal-account-confirm p {
+  font-size: 11px;
+}
+
+.owner-rail-row span,
+.owner-rail-row strong,
+.owner-current-module > span:last-child {
+  font-size: 10.5px;
+}
+
+.owner-management-links strong {
+  font-size: 9.5px;
+}
+
+/* Password visibility should remain visually stable on hover.
+   Keyboard focus stays explicit through the existing focus-visible ring. */
+.auth-password-toggle,
+.auth-password-toggle:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* Signed-out state shown after the server session has been revoked. */
+.auth-signed-out {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.auth-signed-out-avatar-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+}
+
+.auth-signed-out-avatar {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border: 1px solid rgba(232, 216, 178, 0.28);
+  border-radius: 50%;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(232, 216, 178, 0.13),
+      rgba(255, 255, 255, 0.02)
+    ),
+    var(--surface-deep);
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  animation: auth-signed-out-float 3.2s ease-in-out infinite;
+}
+
+.auth-signed-out-check {
+  position: absolute;
+  right: 4px;
+  bottom: 6px;
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--success-bg);
+  color: var(--success);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.auth-signed-out-message {
+  max-width: 330px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.auth-signed-out-note {
+  margin: -7px 0 0;
+  color: var(--text-soft);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.auth-signed-out .auth-submit {
+  margin-top: 2px;
+}
+
+@keyframes auth-signed-out-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@media (max-width: 720px) {
+  .portal-clock-date {
+    font-size: 7.6px;
+  }
+
+  .portal-command-label {
+    font-size: 8.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-signed-out-avatar {
+    animation: none;
+  }
+}
