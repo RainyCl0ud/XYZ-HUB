@@ -27,7 +27,7 @@ import ChattersPage from "./pages/ChattersPage";
 import ConfigurationPage from "./pages/ConfigurationPage";
 import PeoplePage from "./pages/PeoplePage";
 import ModelsPage from "./pages/ModelsPage";
-import RoleBuilderPage from "./pages/RoleBuilderPage";
+import RoleBuilderPage from "./pages/RoleBuilderScopePage";
 import AuditPage from "./pages/AuditPage";
 import AccountPage from "./pages/AccountPage";
 
