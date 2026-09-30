@@ -31,6 +31,24 @@ function rewriteCurrentChatterNames(
     return value;
   }
 
+  /*
+   * Prisma responses still contain native Date instances before Express
+   * serializes them. Rebuilding every object with Object.fromEntries()
+   * turns Date values into {}, which later causes frontend date formatters
+   * to throw "Invalid time value". Only recurse into plain JSON objects.
+   */
+  const prototype =
+    Object.getPrototypeOf(
+      value
+    );
+
+  if (
+    prototype !== Object.prototype &&
+    prototype !== null
+  ) {
+    return value;
+  }
+
   const source =
     value as Record<string, unknown>;
 
