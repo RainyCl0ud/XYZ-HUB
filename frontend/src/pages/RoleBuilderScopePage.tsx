@@ -153,7 +153,13 @@ function RoleBuilderScopePage() {
   }, [creating, selectedRoleId, toast]);
 
   useEffect(() => {
-    void loadBuilder();
+    const loadTimer = window.setTimeout(() => {
+      void loadBuilder();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(loadTimer);
+    };
   }, [loadBuilder]);
 
   const visibleRoles = useMemo(
