@@ -75,7 +75,7 @@ type RoleDraft = {
   permissionIds: string[];
 };
 
-const PAGE_SIZE = 7;
+const PAGE_SIZE = 10;
 
 const SCOPE_OPTIONS: Array<{
   value: DataScope;
@@ -816,19 +816,16 @@ function RoleSettingsRankPage() {
                         >
                           Edit
                         </button>
-                        <button
-                          type="button"
-                          className="role-settings-link-button danger"
-                          disabled={role.isSystem || role.affectedUserCount > 0}
-                          title={role.isSystem
-                            ? "Default roles cannot be deleted."
-                            : role.affectedUserCount > 0
-                              ? "Remove this role from all users before deleting it."
-                              : "Delete role"}
-                          onClick={() => setDeleteRoleId(role.id)}
-                        >
-                          Delete
-                        </button>
+                        {!role.isSystem && role.affectedUserCount === 0 && (
+                          <button
+                            type="button"
+                            className="role-settings-link-button danger"
+                            title="Delete role"
+                            onClick={() => setDeleteRoleId(role.id)}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
