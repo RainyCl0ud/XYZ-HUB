@@ -20,6 +20,9 @@ export const AUTH_EXPIRED_EVENT =
 export const PEOPLE_CHANGED_EVENT =
   "xyz-people-changed";
 
+export const SIGNED_OUT_STORAGE_KEY =
+  "xyz_signed_out_at";
+
 type ApiErrorResponse = {
   error?: string;
   message?: string;
@@ -166,6 +169,30 @@ export async function apiRequest<T>(
       errorData?.message ??
         `Request failed with status ${response.status}`
     );
+  }
+
+  if (
+    typeof window !==
+      "undefined"
+  ) {
+    if (
+      path ===
+      "/api/auth/logout"
+    ) {
+      window.sessionStorage.setItem(
+        SIGNED_OUT_STORAGE_KEY,
+        String(
+          Date.now()
+        )
+      );
+    } else if (
+      path ===
+      "/api/auth/login"
+    ) {
+      window.sessionStorage.removeItem(
+        SIGNED_OUT_STORAGE_KEY
+      );
+    }
   }
 
   return response.json() as
