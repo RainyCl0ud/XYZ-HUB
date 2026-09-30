@@ -22,27 +22,53 @@ type IconName =
   | "audit";
 
 type NavigationItem = {
-  id:
-    IconName;
-  label:
-    string;
-  to:
-    string;
-  activePaths?:
-    string[];
+  id: IconName;
+  label: string;
+  to: string;
+  activePaths?: string[];
 };
+
+const QA_ITEMS: Array<{
+  label: string;
+  to: string;
+}> = [
+  {
+    label: "Overview",
+    to: "/quality",
+  },
+  {
+    label: "Incidents",
+    to: "/incidents",
+  },
+  {
+    label: "Chatters",
+    to: "/chatters",
+  },
+  {
+    label: "Rules",
+    to: "/rules",
+  },
+  {
+    label: "Configuration",
+    to: "/configuration",
+  },
+];
+
+const QA_PATHS = new Set(
+  QA_ITEMS.map(
+    (item) => item.to
+  )
+);
 
 function ModuleIcon({
   name,
 }: {
-  name:
-    IconName;
+  name: IconName;
 }) {
-  const paths:
-    Record<
-      IconName,
-      string
-    > = {
+  const paths: Record<
+    IconName,
+    string
+  > = {
     dashboard:
       "M4 4h6v6H4V4Z M14 4h6v4h-6V4Z M14 12h6v8h-6v-8Z M4 14h6v6H4v-6Z",
     quality:
@@ -54,7 +80,7 @@ function ModuleIcon({
     roles:
       "M4 7h16 M4 17h16 M8 4v6 M16 14v6",
     audit:
-      "M8 3H5a2 2 0 0 0-2 2v15a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V5a2 2 0 0 0-2-2h-3 M8 2h8v4H8V2Z M7 11h10 M7 16h6",
+      "M8 3H5a2 2 0 0 0-2 2v15a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V5a2 2h8v4H8V2Z M7 11h10 M7 16h6",
   };
 
   return (
@@ -69,11 +95,7 @@ function ModuleIcon({
       aria-hidden="true"
     >
       <path
-        d={
-          paths[
-            name
-          ]
-        }
+        d={paths[name]}
       />
     </svg>
   );
@@ -82,19 +104,15 @@ function ModuleIcon({
 function NavigationLink({
   item,
 }: {
-  item:
-    NavigationItem;
+  item: NavigationItem;
 }) {
   const {
     pathname,
-  } =
-    useLocation();
+  } = useLocation();
 
   const paths =
     item.activePaths ??
-    [
-      item.to,
-    ];
+    [item.to];
 
   const active =
     paths.includes(
@@ -103,30 +121,75 @@ function NavigationLink({
 
   return (
     <Link
-      to={
-        item.to
-      }
-      className={
-        `hub-nav-link${active
-          ? " active"
-          : ""}`
-      }
-      aria-current={
-        active
-          ? "page"
-          : undefined
-      }
+      to={item.to}
+      className={`hub-nav-link${active ? " active" : ""}`}
+      aria-current={active ? "page" : undefined}
     >
       <ModuleIcon
-        name={
-          item.id
-        }
+        name={item.id}
       />
-
       <span>
         {item.label}
       </span>
     </Link>
+  );
+}
+
+function QualityNavigation() {
+  const {
+    pathname,
+  } = useLocation();
+
+  const active =
+    QA_PATHS.has(
+      pathname
+    );
+
+  return (
+    <details
+      className={`hub-nav-group${active ? " active" : ""}`}
+      open={active ? true : undefined}
+    >
+      <summary className="hub-nav-group-summary">
+        <ModuleIcon
+          name="quality"
+        />
+        <span>
+          Quality & Incidents
+        </span>
+        <svg
+          className="hub-nav-group-chevron"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path d="m9 6 6 6-6 6" />
+        </svg>
+      </summary>
+
+      <div className="hub-nav-group-links">
+        {QA_ITEMS.map(
+          (item) => {
+            const childActive =
+              pathname ===
+              item.to;
+
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`hub-nav-child-link${childActive ? " active" : ""}`}
+                aria-current={childActive ? "page" : undefined}
+              >
+                <span className="hub-nav-child-dot" />
+                <span>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          }
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -142,48 +205,21 @@ export default function SidebarNavigation({
       access
     );
 
-  const primary:
-    NavigationItem[] = [
-      {
-        id:
-          "dashboard",
-        label:
-          "Dashboard",
-        to:
-          "/",
-      },
-    ];
-
-  if (
-    capabilities.canViewQa
-  ) {
-    primary.push({
-      id:
-        "quality",
-      label:
-        "Quality & Incidents",
-      to:
-        "/quality",
-      activePaths: [
-        "/quality",
-        "/incidents",
-        "/chatters",
-        "/rules",
-        "/configuration",
-      ],
-    });
-  }
+  const primary: NavigationItem[] = [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      to: "/",
+    },
+  ];
 
   if (
     capabilities.canManagePeople
   ) {
     primary.push({
-      id:
-        "people",
-      label:
-        "People",
-      to:
-        "/people",
+      id: "people",
+      label: "People",
+      to: "/people",
     });
   }
 
@@ -191,28 +227,21 @@ export default function SidebarNavigation({
     capabilities.canManageModels
   ) {
     primary.push({
-      id:
-        "models",
-      label:
-        "Creators",
-      to:
-        "/models",
+      id: "models",
+      label: "Creators",
+      to: "/models",
     });
   }
 
-  const administration:
-    NavigationItem[] = [];
+  const administration: NavigationItem[] = [];
 
   if (
     capabilities.canManageRoles
   ) {
     administration.push({
-      id:
-        "roles",
-      label:
-        "Role Builder",
-      to:
-        "/roles",
+      id: "roles",
+      label: "Role Builder",
+      to: "/roles",
     });
   }
 
@@ -220,12 +249,9 @@ export default function SidebarNavigation({
     capabilities.canViewAudit
   ) {
     administration.push({
-      id:
-        "audit",
-      label:
-        "Audit Log",
-      to:
-        "/audit",
+      id: "audit",
+      label: "Audit Log",
+      to: "/audit",
     });
   }
 
@@ -239,40 +265,35 @@ export default function SidebarNavigation({
           Agency
         </p>
 
-        {primary.map(
-          (
-            item
-          ) => (
+        <NavigationLink
+          item={primary[0]}
+        />
+
+        {capabilities.canViewQa && (
+          <QualityNavigation />
+        )}
+
+        {primary.slice(1).map(
+          (item) => (
             <NavigationLink
-              key={
-                item.id
-              }
-              item={
-                item
-              }
+              key={item.id}
+              item={item}
             />
           )
         )}
       </div>
 
-      {administration.length >
-        0 && (
+      {administration.length > 0 && (
         <div className="hub-nav-section">
           <p className="hub-nav-heading">
             Administration
           </p>
 
           {administration.map(
-            (
-              item
-            ) => (
+            (item) => (
               <NavigationLink
-                key={
-                  item.id
-                }
-                item={
-                  item
-                }
+                key={item.id}
+                item={item}
               />
             )
           )}
