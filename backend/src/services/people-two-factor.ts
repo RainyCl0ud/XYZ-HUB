@@ -12,6 +12,10 @@ import {
   type AccessContext,
 } from "./access-control.js";
 
+import {
+  publishLiveUpdate,
+} from "./live-updates.js";
+
 export type PeopleTwoFactorErrorCode =
   | "OWNER_REQUIRED"
   | "TWO_FACTOR_RESET_REQUIRED"
@@ -43,10 +47,6 @@ export async function resetPersonTwoFactor(
   access:
     AccessContext
 ) {
-  /*
-   * The build brief reserves 2FA reset
-   * for Owners.
-   */
   if (
     !isOwner(
       access
@@ -58,12 +58,6 @@ export async function resetPersonTwoFactor(
     );
   }
 
-  /*
-   * Owner status alone is not enough.
-   *
-   * The explicit permission still has to
-   * exist on the Owner's effective roles.
-   */
   if (
     !hasPermission(
       access,
@@ -82,7 +76,6 @@ export async function resetPersonTwoFactor(
         id:
           userId,
       },
-
       select: {
         id: true,
         name: true,
@@ -107,10 +100,6 @@ export async function resetPersonTwoFactor(
       async (
         tx
       ) => {
-        /*
-         * Any code issued before the reset
-         * must immediately become unusable.
-         */
         const invalidatedChallenges =
           await tx
             .twoFactorChallenge
@@ -118,46 +107,27 @@ export async function resetPersonTwoFactor(
               where: {
                 userId:
                   user.id,
-
                 consumedAt:
                   null,
               },
-
               data: {
                 consumedAt:
                   now,
               },
             });
 
-        /*
-         * AUTHENTICATOR is reserved for the
-         * future authenticator-app feature.
-         *
-         * A reset removes that enrollment so
-         * the user cannot remain tied to an
-         * old authenticator device.
-         */
         await tx
           .userTwoFactorMethod
           .deleteMany({
             where: {
               userId:
                 user.id,
-
               type:
                 TwoFactorMethodType
                   .AUTHENTICATOR,
             },
           });
 
-        /*
-         * Email remains the Step 1 fallback
-         * and current supported method.
-         *
-         * Preserve an existing verifiedAt
-         * timestamp if the method already
-         * exists.
-         */
         await tx
           .userTwoFactorMethod
           .upsert({
@@ -165,52 +135,36 @@ export async function resetPersonTwoFactor(
               userId_type: {
                 userId:
                   user.id,
-
                 type:
                   TwoFactorMethodType
                     .EMAIL,
               },
             },
-
             update: {
               isEnabled:
                 true,
             },
-
             create: {
               userId:
                 user.id,
-
               type:
                 TwoFactorMethodType
                   .EMAIL,
-
               isEnabled:
                 true,
-
               verifiedAt:
                 user.emailVerifiedAt,
             },
           });
 
-        /*
-         * Resetting an authentication factor
-         * is a security-sensitive operation.
-         *
-         * Every existing session is revoked
-         * so the user must authenticate again
-         * with the freshly-reset factor.
-         */
         const revokedSessions =
           await tx.session.updateMany({
             where: {
               userId:
                 user.id,
-
               revokedAt:
                 null,
             },
-
             data: {
               revokedAt:
                 now,
@@ -220,39 +174,35 @@ export async function resetPersonTwoFactor(
         return {
           challengesInvalidated:
             invalidatedChallenges.count,
-
           sessionsRevoked:
             revokedSessions.count,
         };
       }
     );
 
+  publishLiveUpdate({
+    type: "session.invalidated",
+    userId: user.id,
+    reason: "TWO_FACTOR_RESET",
+  });
+
   return {
     user: {
       id:
         user.id,
-
       name:
         user.name,
-
       email:
         user.email,
-
       status:
         user.status,
     },
-
     method:
       "EMAIL" as const,
-
     challengesInvalidated:
-      result
-        .challengesInvalidated,
-
+      result.challengesInvalidated,
     sessionsRevoked:
-      result
-        .sessionsRevoked,
-
+      result.sessionsRevoked,
     resetAt:
       now,
   };
