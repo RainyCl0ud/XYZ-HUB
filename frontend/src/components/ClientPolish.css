@@ -23,6 +23,60 @@ body {
   font-size: 12px;
 }
 
+.text-button {
+  font-size: 11px !important;
+}
+
+.card-header h3 {
+  font-size: 14px !important;
+}
+
+.card-header p {
+  font-size: 11.5px !important;
+}
+
+.data-table th {
+  font-size: 11px !important;
+}
+
+.data-table td,
+.primary-cell {
+  font-size: 13px !important;
+}
+
+.dashboard-rule-cell strong,
+.incident-rule-cell strong,
+.rule-title-cell strong {
+  font-size: 12px !important;
+}
+
+.dashboard-rule-cell span,
+.incident-rule-cell > span,
+.stat-help {
+  font-size: 10.5px !important;
+}
+
+.stat-label,
+.status-summary-item > div,
+.integrity-summary span {
+  font-size: 11.5px !important;
+}
+
+.form-field > span,
+.form-field label,
+.filter-label,
+.input-label {
+  font-size: 11px !important;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea,
+.search-input,
+.filter-select {
+  font-size: 12px !important;
+}
+
 .portal-clock-date {
   font-size: 9px;
 }
