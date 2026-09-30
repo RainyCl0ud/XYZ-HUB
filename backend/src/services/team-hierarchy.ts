@@ -1,4 +1,5 @@
 import {
+  Prisma,
   RoleDataScope,
 } from "@prisma/client";
 
@@ -22,6 +23,9 @@ export const ROOT_TEAM_GROUP_ID =
 export const ROOT_TEAM_GROUP_NAME =
   "XYZ Management";
 
+const GROUP_COLOR_PATTERN =
+  /^#[0-9A-F]{6}$/i;
+
 export type TeamHierarchyErrorCode =
   | "PEOPLE_MANAGE_REQUIRED"
   | "OWNER_REQUIRED"
@@ -33,7 +37,8 @@ export type TeamHierarchyErrorCode =
   | "GROUP_HAS_MEMBERS"
   | "GROUP_OUT_OF_SCOPE"
   | "USER_NOT_FOUND"
-  | "OWNER_GROUP_ASSIGNMENT_FORBIDDEN";
+  | "OWNER_GROUP_ASSIGNMENT_FORBIDDEN"
+  | "INVALID_GROUP_COLOR";
 
 export class TeamHierarchyError extends Error {
   readonly code:
@@ -68,6 +73,11 @@ type GroupRecord = {
     children: number;
     members: number;
   };
+};
+
+type GroupColorRow = {
+  id: string;
+  color: string | null;
 };
 
 function assertPeopleManagementAccess(
@@ -119,9 +129,42 @@ function normalizeName(
     );
 }
 
+function normalizeColor(
+  value:
+    string | null
+) {
+  if (
+    value ===
+    null
+  ) {
+    return null;
+  }
+
+  const normalized =
+    value
+      .trim()
+      .toUpperCase();
+
+  if (
+    !GROUP_COLOR_PATTERN.test(
+      normalized
+    )
+  ) {
+    throw new TeamHierarchyError(
+      "INVALID_GROUP_COLOR",
+      "Group colors must use a valid #RRGGBB hexadecimal value."
+    );
+  }
+
+  return normalized;
+}
+
 function serializeGroup(
   group:
-    GroupRecord
+    GroupRecord,
+  color:
+    string | null =
+      null
 ) {
   return {
     id:
@@ -135,6 +178,8 @@ function serializeGroup(
 
     isRoot:
       group.isRoot,
+
+    color,
 
     memberCount:
       group._count
@@ -150,6 +195,48 @@ function serializeGroup(
     updatedAt:
       group.updatedAt,
   };
+}
+
+async function loadGroupColors() {
+  try {
+    const rows =
+      await prisma.$queryRaw<
+        GroupColorRow[]
+      >(
+        Prisma.sql`
+          SELECT "id", "color"
+          FROM "TeamGroup"
+        `
+      );
+
+    return new Map(
+      rows.map(
+        (
+          row
+        ) => [
+          row.id,
+          row.color,
+        ]
+      )
+    );
+  } catch (
+    error
+  ) {
+    /*
+     * Keep local development usable before the migration has
+     * been applied. Staging/production migrations will create
+     * the column before the updated application starts.
+     */
+    console.warn(
+      "Unable to load team group colors; falling back to no colors:",
+      error
+    );
+
+    return new Map<
+      string,
+      string | null
+    >();
+  }
 }
 
 async function loadAllGroups() {
@@ -351,13 +438,14 @@ export async function listTeamGroups(
   const [
     groups,
     visibleIds,
+    colors,
   ] =
     await Promise.all([
       loadAllGroups(),
-
       getVisibleTeamGroupIds(
         access
       ),
+      loadGroupColors(),
     ]);
 
   return {
@@ -375,7 +463,16 @@ export async function listTeamGroups(
             )
         )
         .map(
-          serializeGroup
+          (
+            group
+          ) =>
+            serializeGroup(
+              group,
+              colors.get(
+                group.id
+              ) ??
+                null
+            )
         ),
   };
 }
@@ -427,6 +524,48 @@ async function ensureUniqueSiblingName(
       "Another subgroup under this parent already uses that name."
     );
   }
+}
+
+async function loadGroupRecord(
+  groupId:
+    string
+) {
+  return prisma.teamGroup.findUnique({
+    where: {
+      id:
+        groupId,
+    },
+
+    select: {
+      id:
+        true,
+
+      name:
+        true,
+
+      parentId:
+        true,
+
+      isRoot:
+        true,
+
+      createdAt:
+        true,
+
+      updatedAt:
+        true,
+
+      _count: {
+        select: {
+          children:
+            true,
+
+          members:
+            true,
+        },
+      },
+    },
+  });
 }
 
 export async function createTeamGroup(
@@ -640,13 +779,94 @@ export async function renameTeamGroup(
       },
     });
 
+  const colors =
+    await loadGroupColors();
+
   publishLiveUpdate({
     type:
       "people.changed",
   });
 
   return serializeGroup(
-    group
+    group,
+    colors.get(
+      group.id
+    ) ??
+      null
+  );
+}
+
+export async function setTeamGroupColor(
+  groupId:
+    string,
+  colorInput:
+    string | null,
+  access:
+    AccessContext
+) {
+  assertOwnerMutationAccess(
+    access
+  );
+
+  const group =
+    await loadGroupRecord(
+      groupId
+    );
+
+  if (
+    !group
+  ) {
+    throw new TeamHierarchyError(
+      "GROUP_NOT_FOUND",
+      "The group no longer exists."
+    );
+  }
+
+  if (
+    group.isRoot
+  ) {
+    throw new TeamHierarchyError(
+      "ROOT_GROUP_IMMUTABLE",
+      "The XYZ Management root group uses the system accent and cannot set a custom color."
+    );
+  }
+
+  const color =
+    normalizeColor(
+      colorInput
+    );
+
+  await prisma.$executeRaw(
+    Prisma.sql`
+      UPDATE "TeamGroup"
+      SET "color" = ${color},
+          "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${groupId}
+    `
+  );
+
+  const updated =
+    await loadGroupRecord(
+      groupId
+    );
+
+  if (
+    !updated
+  ) {
+    throw new TeamHierarchyError(
+      "GROUP_NOT_FOUND",
+      "The group no longer exists."
+    );
+  }
+
+  publishLiveUpdate({
+    type:
+      "people.changed",
+  });
+
+  return serializeGroup(
+    updated,
+    color
   );
 }
 
