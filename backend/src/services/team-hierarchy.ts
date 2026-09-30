@@ -1,5 +1,4 @@
 import {
-  Prisma,
   RoleDataScope,
 } from "@prisma/client";
 
@@ -25,6 +24,9 @@ export const ROOT_TEAM_GROUP_NAME =
 
 const GROUP_COLOR_PATTERN =
   /^#[0-9A-F]{6}$/i;
+
+const GROUP_COLOR_AUDIT_ACTION =
+  "team_group.color_set";
 
 export type TeamHierarchyErrorCode =
   | "PEOPLE_MANAGE_REQUIRED"
@@ -73,11 +75,6 @@ type GroupRecord = {
     children: number;
     members: number;
   };
-};
-
-type GroupColorRow = {
-  id: string;
-  color: string | null;
 };
 
 function assertPeopleManagementAccess(
@@ -198,45 +195,78 @@ function serializeGroup(
 }
 
 async function loadGroupColors() {
-  try {
-    const rows =
-      await prisma.$queryRaw<
-        GroupColorRow[]
-      >(
-        Prisma.sql`
-          SELECT "id", "color"
-          FROM "TeamGroup"
-        `
-      );
+  const events =
+    await prisma.auditEvent.findMany({
+      where: {
+        action:
+          GROUP_COLOR_AUDIT_ACTION,
 
-    return new Map(
-      rows.map(
-        (
-          row
-        ) => [
-          row.id,
-          row.color,
-        ]
-      )
-    );
-  } catch (
-    error
-  ) {
-    /*
-     * Keep local development usable before the migration has
-     * been applied. Staging/production migrations will create
-     * the column before the updated application starts.
-     */
-    console.warn(
-      "Unable to load team group colors; falling back to no colors:",
-      error
-    );
+        success:
+          true,
 
-    return new Map<
+        targetType:
+          "team_group",
+      },
+
+      orderBy: {
+        occurredAt:
+          "desc",
+      },
+
+      select: {
+        targetId:
+          true,
+
+        metadata:
+          true,
+      },
+    });
+
+  const colors =
+    new Map<
       string,
       string | null
     >();
+
+  for (
+    const event
+    of events
+  ) {
+    if (
+      !event.targetId ||
+      colors.has(
+        event.targetId
+      )
+    ) {
+      continue;
+    }
+
+    const metadata =
+      event.metadata;
+
+    if (
+      metadata &&
+      typeof metadata ===
+        "object" &&
+      !Array.isArray(
+        metadata
+      ) &&
+      "color" in metadata
+    ) {
+      const value =
+        metadata.color;
+
+      colors.set(
+        event.targetId,
+        typeof value ===
+          "string"
+          ? value
+          : null
+      );
+    }
   }
+
+  return colors;
 }
 
 async function loadAllGroups() {
@@ -836,28 +866,31 @@ export async function setTeamGroupColor(
       colorInput
     );
 
-  await prisma.$executeRaw(
-    Prisma.sql`
-      UPDATE "TeamGroup"
-      SET "color" = ${color},
-          "updatedAt" = CURRENT_TIMESTAMP
-      WHERE "id" = ${groupId}
-    `
-  );
+  await prisma.auditEvent.create({
+    data: {
+      action:
+        GROUP_COLOR_AUDIT_ACTION,
 
-  const updated =
-    await loadGroupRecord(
-      groupId
-    );
+      success:
+        true,
 
-  if (
-    !updated
-  ) {
-    throw new TeamHierarchyError(
-      "GROUP_NOT_FOUND",
-      "The group no longer exists."
-    );
-  }
+      statusCode:
+        200,
+
+      actorUserId:
+        access.userId,
+
+      targetType:
+        "team_group",
+
+      targetId:
+        groupId,
+
+      metadata: {
+        color,
+      },
+    },
+  });
 
   publishLiveUpdate({
     type:
@@ -865,7 +898,7 @@ export async function setTeamGroupColor(
   });
 
   return serializeGroup(
-    updated,
+    group,
     color
   );
 }
