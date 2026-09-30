@@ -85,6 +85,11 @@ body {
   font-size: 11.5px;
 }
 
+/* The account menu is intentionally compact; full email remains on My Account. */
+.portal-account-dropdown-profile small {
+  display: none;
+}
+
 .portal-account-dropdown-profile small,
 .portal-account-dropdown-profile span {
   font-size: 10.5px;
