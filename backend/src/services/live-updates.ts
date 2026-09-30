@@ -7,6 +7,14 @@ export type LiveUpdate =
       type: "access.changed";
       userId?: string;
       roleId?: string;
+    }
+  | {
+      type: "session.invalidated";
+      userId: string;
+      reason:
+        | "TWO_FACTOR_RESET"
+        | "ACCOUNT_DEACTIVATED"
+        | "ACCOUNT_DELETED";
     };
 
 type LiveUpdateListener = (
