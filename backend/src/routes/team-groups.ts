@@ -22,6 +22,7 @@ import {
   deleteTeamGroup,
   listTeamGroups,
   renameTeamGroup,
+  setTeamGroupColor,
   TeamHierarchyError,
 } from "../services/team-hierarchy.js";
 
@@ -50,6 +51,17 @@ const renameGroupSchema =
   z.object({
     name:
       groupNameSchema,
+  });
+
+const colorSchema =
+  z.object({
+    color:
+      z
+        .string()
+        .regex(
+          /^#[0-9A-F]{6}$/i
+        )
+        .nullable(),
   });
 
 const assignPersonSchema =
@@ -129,6 +141,17 @@ function handleHierarchyError(
       });
 
       return true;
+
+    case "INVALID_GROUP_COLOR":
+      res.status(400).json({
+        error:
+          error.code,
+
+        message:
+          error.message,
+      });
+
+      return true;
   }
 }
 
@@ -142,9 +165,7 @@ const peopleManagementGuards = [
 
 router.get(
   "/",
-
   ...peopleManagementGuards,
-
   async (
     req:
       AuthenticatedRequest,
@@ -153,13 +174,10 @@ router.get(
     if (
       !req.access
     ) {
-      res.status(
-        401
-      ).json({
+      res.status(401).json({
         error:
           "UNAUTHENTICATED",
       });
-
       return;
     }
 
@@ -169,9 +187,7 @@ router.get(
           req.access
         );
 
-      res.status(
-        200
-      ).json(
+      res.status(200).json(
         hierarchy
       );
     } catch (
@@ -191,9 +207,7 @@ router.get(
         error
       );
 
-      res.status(
-        500
-      ).json({
+      res.status(500).json({
         error:
           "LIST_TEAM_GROUPS_FAILED",
 
@@ -206,9 +220,7 @@ router.get(
 
 router.post(
   "/",
-
   ...peopleManagementGuards,
-
   async (
     req:
       AuthenticatedRequest,
@@ -217,13 +229,10 @@ router.post(
     if (
       !req.access
     ) {
-      res.status(
-        401
-      ).json({
+      res.status(401).json({
         error:
           "UNAUTHENTICATED",
       });
-
       return;
     }
 
@@ -235,16 +244,13 @@ router.post(
     if (
       !parsed.success
     ) {
-      res.status(
-        400
-      ).json({
+      res.status(400).json({
         error:
           "INVALID_REQUEST",
 
         message:
           "A subgroup name and parent group are required.",
       });
-
       return;
     }
 
@@ -255,9 +261,7 @@ router.post(
           req.access
         );
 
-      res.status(
-        201
-      ).json({
+      res.status(201).json({
         status:
           "TEAM_GROUP_CREATED",
 
@@ -280,9 +284,7 @@ router.post(
         error
       );
 
-      res.status(
-        500
-      ).json({
+      res.status(500).json({
         error:
           "CREATE_TEAM_GROUP_FAILED",
 
@@ -295,9 +297,7 @@ router.post(
 
 router.put(
   "/:groupId",
-
   ...peopleManagementGuards,
-
   async (
     req:
       AuthenticatedRequest,
@@ -306,20 +306,16 @@ router.put(
     if (
       !req.access
     ) {
-      res.status(
-        401
-      ).json({
+      res.status(401).json({
         error:
           "UNAUTHENTICATED",
       });
-
       return;
     }
 
     const groupId =
       getParam(
-        req.params
-          .groupId
+        req.params.groupId
       );
 
     const parsed =
@@ -331,16 +327,13 @@ router.put(
       !groupId ||
       !parsed.success
     ) {
-      res.status(
-        400
-      ).json({
+      res.status(400).json({
         error:
           "INVALID_REQUEST",
 
         message:
           "A valid group and name are required.",
       });
-
       return;
     }
 
@@ -348,14 +341,11 @@ router.put(
       const group =
         await renameTeamGroup(
           groupId,
-          parsed.data
-            .name,
+          parsed.data.name,
           req.access
         );
 
-      res.status(
-        200
-      ).json({
+      res.status(200).json({
         status:
           "TEAM_GROUP_UPDATED",
 
@@ -378,9 +368,7 @@ router.put(
         error
       );
 
-      res.status(
-        500
-      ).json({
+      res.status(500).json({
         error:
           "UPDATE_TEAM_GROUP_FAILED",
 
@@ -391,11 +379,9 @@ router.put(
   }
 );
 
-router.delete(
-  "/:groupId",
-
+router.put(
+  "/:groupId/color",
   ...peopleManagementGuards,
-
   async (
     req:
       AuthenticatedRequest,
@@ -404,32 +390,109 @@ router.delete(
     if (
       !req.access
     ) {
-      res.status(
-        401
-      ).json({
+      res.status(401).json({
         error:
           "UNAUTHENTICATED",
       });
-
       return;
     }
 
     const groupId =
       getParam(
-        req.params
-          .groupId
+        req.params.groupId
+      );
+
+    const parsed =
+      colorSchema.safeParse(
+        req.body
+      );
+
+    if (
+      !groupId ||
+      !parsed.success
+    ) {
+      res.status(400).json({
+        error:
+          "INVALID_REQUEST",
+
+        message:
+          "A valid group and #RRGGBB color are required.",
+      });
+      return;
+    }
+
+    try {
+      const group =
+        await setTeamGroupColor(
+          groupId,
+          parsed.data.color,
+          req.access
+        );
+
+      res.status(200).json({
+        status:
+          "TEAM_GROUP_COLOR_UPDATED",
+
+        group,
+      });
+    } catch (
+      error
+    ) {
+      if (
+        handleHierarchyError(
+          error,
+          res
+        )
+      ) {
+        return;
+      }
+
+      console.error(
+        "Update team group color request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "UPDATE_TEAM_GROUP_COLOR_FAILED",
+
+        message:
+          "Unable to update the group color.",
+      });
+    }
+  }
+);
+
+router.delete(
+  "/:groupId",
+  ...peopleManagementGuards,
+  async (
+    req:
+      AuthenticatedRequest,
+    res
+  ) => {
+    if (
+      !req.access
+    ) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+      return;
+    }
+
+    const groupId =
+      getParam(
+        req.params.groupId
       );
 
     if (
       !groupId
     ) {
-      res.status(
-        400
-      ).json({
+      res.status(400).json({
         error:
           "INVALID_GROUP_ID",
       });
-
       return;
     }
 
@@ -440,9 +503,7 @@ router.delete(
           req.access
         );
 
-      res.status(
-        200
-      ).json({
+      res.status(200).json({
         status:
           "TEAM_GROUP_DELETED",
 
@@ -465,9 +526,7 @@ router.delete(
         error
       );
 
-      res.status(
-        500
-      ).json({
+      res.status(500).json({
         error:
           "DELETE_TEAM_GROUP_FAILED",
 
@@ -480,9 +539,7 @@ router.delete(
 
 router.put(
   "/members/:userId",
-
   ...peopleManagementGuards,
-
   async (
     req:
       AuthenticatedRequest,
@@ -491,20 +548,16 @@ router.put(
     if (
       !req.access
     ) {
-      res.status(
-        401
-      ).json({
+      res.status(401).json({
         error:
           "UNAUTHENTICATED",
       });
-
       return;
     }
 
     const userId =
       getParam(
-        req.params
-          .userId
+        req.params.userId
       );
 
     const parsed =
@@ -516,16 +569,13 @@ router.put(
       !userId ||
       !parsed.success
     ) {
-      res.status(
-        400
-      ).json({
+      res.status(400).json({
         error:
           "INVALID_REQUEST",
 
         message:
           "A valid person and group are required.",
       });
-
       return;
     }
 
@@ -534,17 +584,13 @@ router.put(
         await assignPersonToTeamGroup(
           {
             userId,
-
             groupId:
-              parsed.data
-                .groupId,
+              parsed.data.groupId,
           },
           req.access
         );
 
-      res.status(
-        200
-      ).json({
+      res.status(200).json({
         status:
           "TEAM_GROUP_MEMBER_UPDATED",
 
@@ -567,9 +613,7 @@ router.put(
         error
       );
 
-      res.status(
-        500
-      ).json({
+      res.status(500).json({
         error:
           "ASSIGN_TEAM_GROUP_FAILED",
 
