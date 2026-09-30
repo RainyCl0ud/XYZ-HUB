@@ -87,7 +87,7 @@ body {
 
 /* The account menu is intentionally compact; full email remains on My Account. */
 .portal-account-dropdown-profile small {
-  display: none;
+  display: none !important;
 }
 
 .portal-account-dropdown-profile small,
