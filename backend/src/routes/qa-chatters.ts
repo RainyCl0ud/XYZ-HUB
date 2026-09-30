@@ -8,6 +8,10 @@ import type {
 } from "express";
 
 import {
+  z,
+} from "zod";
+
+import {
   prisma,
 } from "../lib/prisma.js";
 
@@ -26,11 +30,28 @@ import {
 } from "../services/qa-access.js";
 
 import {
+  publishLiveUpdate,
+} from "../services/live-updates.js";
+
+import {
   getCurrentStrikeLadder,
 } from "../services/strike-ladder.js";
 
 const router =
   Router();
+
+const chatterNameSchema =
+  z.object({
+    name:
+      z
+        .string()
+        .trim()
+        .min(1, "Chatter name is required")
+        .max(
+          100,
+          "Chatter name must be 100 characters or fewer"
+        ),
+  });
 
 function getRouteParam(
   value:
@@ -38,24 +59,29 @@ function getRouteParam(
     string[] |
     undefined
 ) {
-  return Array.isArray(
-    value
-  )
+  return Array.isArray(value)
     ? value[0]
     : value;
 }
 
 function handleScopeError(
-  error: unknown,
-  res: Response
+  error:
+    unknown,
+  res:
+    Response
 ) {
-  if (!(error instanceof QaAccessError)) {
+  if (
+    !(error instanceof
+      QaAccessError)
+  ) {
     return false;
   }
 
   res.status(403).json({
-    error: error.code,
-    message: error.message,
+    error:
+      error.code,
+    message:
+      error.message,
   });
 
   return true;
@@ -63,20 +89,16 @@ function handleScopeError(
 
 router.get(
   "/",
-
   async (
     req:
       AuthenticatedRequest,
     res
   ) => {
-    if (
-      !req.access
-    ) {
+    if (!req.access) {
       res.status(401).json({
         error:
           "UNAUTHENTICATED",
       });
-
       return;
     }
 
@@ -90,28 +112,21 @@ router.get(
           : undefined;
 
       const search =
-        typeof req.query
-          .search ===
+        typeof req.query.search ===
           "string"
           ? req.query.search
               .trim()
-              .slice(
-                0,
-                100
-              )
+              .slice(0, 100)
           : "";
-
-      const requestedModelId =
-        readRequestedModelId(
-          req.headers[
-            "x-xyz-model-id"
-          ]
-        );
 
       const scope =
         await resolveQaModelScope(
           req.access,
-          requestedModelId
+          readRequestedModelId(
+            req.headers[
+              "x-xyz-model-id"
+            ]
+          )
         );
 
       const chatters =
@@ -120,25 +135,43 @@ router.get(
             ...buildChatterModelWhere(
               scope
             ),
-
             ...(status
               ? {
                   status,
                 }
               : {}),
-
             ...(search
               ? {
-                  name: {
-                    contains:
-                      search,
-                    mode:
-                      "insensitive",
-                  },
+                  OR: [
+                    {
+                      name: {
+                        contains:
+                          search,
+                        mode:
+                          "insensitive",
+                      },
+                    },
+                    {
+                      user: {
+                        name: {
+                          contains:
+                            search,
+                          mode:
+                            "insensitive",
+                        },
+                      },
+                    },
+                  ],
                 }
               : {}),
           },
-
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
           orderBy: {
             name:
               "asc",
@@ -147,12 +180,26 @@ router.get(
 
       res.status(200).json({
         data:
-          chatters,
+          chatters.map(
+            (
+              chatter
+            ) => ({
+              ...chatter,
+              name:
+                chatter.user?.name ??
+                chatter.name,
+              user:
+                undefined,
+            })
+          ),
       });
-    } catch (
-      error
-    ) {
-      if (handleScopeError(error, res)) {
+    } catch (error) {
+      if (
+        handleScopeError(
+          error,
+          res
+        )
+      ) {
         return;
       }
 
@@ -160,7 +207,6 @@ router.get(
         "Failed to fetch scoped chatters:",
         error
       );
-
       res.status(500).json({
         message:
           "Failed to fetch chatters",
@@ -171,35 +217,28 @@ router.get(
 
 router.get(
   "/:id",
-
   async (
     req:
       AuthenticatedRequest,
     res
   ) => {
-    if (
-      !req.access
-    ) {
+    if (!req.access) {
       res.status(401).json({
         error:
           "UNAUTHENTICATED",
       });
-
       return;
     }
 
     try {
-      const requestedModelId =
-        readRequestedModelId(
-          req.headers[
-            "x-xyz-model-id"
-          ]
-        );
-
       const scope =
         await resolveQaModelScope(
           req.access,
-          requestedModelId
+          readRequestedModelId(
+            req.headers[
+              "x-xyz-model-id"
+            ]
+          )
         );
 
       const chatterId =
@@ -207,17 +246,13 @@ router.get(
           req.params.id
         );
 
-      if (
-        !chatterId
-      ) {
+      if (!chatterId) {
         res.status(400).json({
           error:
             "INVALID_CHATTER_ID",
-
           message:
             "A valid chatter ID is required.",
         });
-
         return;
       }
 
@@ -226,21 +261,24 @@ router.get(
           where: {
             id:
               chatterId,
-
             ...buildChatterModelWhere(
               scope
             ),
           },
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
         });
 
-      if (
-        !chatter
-      ) {
+      if (!chatter) {
         res.status(404).json({
           message:
             "Chatter not found",
         });
-
         return;
       }
 
@@ -253,32 +291,25 @@ router.get(
       ] =
         await Promise.all([
           getCurrentStrikeLadder(),
-
           prisma.incident.findMany({
             where: {
               chatterId:
                 chatter.id,
-
               ...buildIncidentModelWhere(
                 scope
               ),
-
               status: {
                 not:
                   "VOIDED",
               },
-
               expiresAt: {
                 gt:
                   now,
               },
             },
-
             select: {
-              expiresAt:
-                true,
+              expiresAt: true,
             },
-
             orderBy: {
               expiresAt:
                 "asc",
@@ -287,9 +318,7 @@ router.get(
         ]);
 
       const orderedSteps =
-        [
-          ...strikeLadder.steps,
-        ].sort(
+        [...strikeLadder.steps].sort(
           (
             first,
             second
@@ -317,45 +346,46 @@ router.get(
             step;
           continue;
         }
-
         break;
       }
 
+      const {
+        user,
+        ...chatterData
+      } = chatter;
+
       res.status(200).json({
         data: {
-          ...chatter,
-
+          ...chatterData,
+          name:
+            user?.name ??
+            chatter.name,
           strikeSummary: {
             activeStrikeCount,
-
             standingLabel:
-              matchedStep
-                ?.standingLabel ??
+              matchedStep?.standingLabel ??
               "Clear",
-
             deductionPercent:
-              matchedStep
-                ?.deductionPercent ??
+              matchedStep?.deductionPercent ??
               0,
-
             nextExpiryAt:
               activeStrikeIncidents[0]
                 ?.expiresAt ??
               null,
-
             ladderVersionId:
               strikeLadder.id,
-
             ladderVersion:
-              strikeLadder
-                .versionNumber,
+              strikeLadder.versionNumber,
           },
         },
       });
-    } catch (
-      error
-    ) {
-      if (handleScopeError(error, res)) {
+    } catch (error) {
+      if (
+        handleScopeError(
+          error,
+          res
+        )
+      ) {
         return;
       }
 
@@ -363,7 +393,6 @@ router.get(
         "Failed to fetch scoped chatter:",
         error
       );
-
       res.status(500).json({
         message:
           "Failed to fetch chatter",
@@ -373,79 +402,241 @@ router.get(
 );
 
 async function ensureChatterAccess(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
+  req:
+    AuthenticatedRequest,
+  res:
+    Response,
+  next:
+    NextFunction
 ) {
   if (!req.access) {
     res.status(401).json({
-      error: "UNAUTHENTICATED",
+      error:
+        "UNAUTHENTICATED",
     });
-
     return;
   }
 
   try {
-    const scope = await resolveQaModelScope(
-      req.access,
-      readRequestedModelId(
-        req.headers["x-xyz-model-id"]
-      )
-    );
+    const scope =
+      await resolveQaModelScope(
+        req.access,
+        readRequestedModelId(
+          req.headers[
+            "x-xyz-model-id"
+          ]
+        )
+      );
 
-    const chatterId = getRouteParam(req.params.id);
+    const chatterId =
+      getRouteParam(
+        req.params.id
+      );
 
     if (!chatterId) {
       res.status(400).json({
-        error: "INVALID_CHATTER_ID",
-        message: "A valid chatter ID is required.",
+        error:
+          "INVALID_CHATTER_ID",
+        message:
+          "A valid chatter ID is required.",
       });
-
       return;
     }
 
-    const chatter = await prisma.chatter.findFirst({
-      where: {
-        id: chatterId,
-        ...buildChatterModelWhere(scope),
-      },
-      select: {
-        id: true,
-      },
-    });
+    const chatter =
+      await prisma.chatter.findFirst({
+        where: {
+          id:
+            chatterId,
+          ...buildChatterModelWhere(
+            scope
+          ),
+        },
+        select: {
+          id: true,
+        },
+      });
 
     if (!chatter) {
       res.status(404).json({
-        message: "Chatter not found",
+        message:
+          "Chatter not found",
       });
-
       return;
     }
 
     next();
   } catch (error) {
-    if (handleScopeError(error, res)) {
+    if (
+      handleScopeError(
+        error,
+        res
+      )
+    ) {
       return;
     }
 
-    console.error("Unable to verify chatter access:", error);
-
+    console.error(
+      "Unable to verify chatter access:",
+      error
+    );
     res.status(500).json({
-      message: "Unable to verify chatter access",
+      message:
+        "Unable to verify chatter access",
     });
   }
 }
 
 router.patch(
-  ["/:id", "/:id/deactivate", "/:id/reactivate"],
+  [
+    "/:id",
+    "/:id/deactivate",
+    "/:id/reactivate",
+  ],
   ensureChatterAccess
 );
 
 /*
- * Configuration permission is checked at the mount.
- * Existing-profile writes also verify the same model
- * scope as reads before reaching the legacy handlers.
+ * Linked QA chatter records and Login Gate users represent the same
+ * employee identity. Rename both atomically so current incident views,
+ * People Management, and chatter selectors never drift apart.
  */
+router.patch(
+  "/:id",
+  async (
+    req:
+      AuthenticatedRequest,
+    res
+  ) => {
+    const parsed =
+      chatterNameSchema.safeParse(
+        req.body
+      );
+
+    if (!parsed.success) {
+      res.status(400).json({
+        message:
+          "Invalid chatter data",
+        errors:
+          parsed.error.flatten()
+            .fieldErrors,
+      });
+      return;
+    }
+
+    const chatterId =
+      getRouteParam(
+        req.params.id
+      );
+
+    if (!chatterId) {
+      res.status(400).json({
+        message:
+          "A valid chatter ID is required.",
+      });
+      return;
+    }
+
+    const existing =
+      await prisma.chatter.findUnique({
+        where: {
+          id:
+            chatterId,
+        },
+        select: {
+          id: true,
+          userId: true,
+          name: true,
+        },
+      });
+
+    if (!existing) {
+      res.status(404).json({
+        message:
+          "Chatter not found",
+      });
+      return;
+    }
+
+    const duplicate =
+      await prisma.chatter.findFirst({
+        where: {
+          id: {
+            not:
+              chatterId,
+          },
+          name: {
+            equals:
+              parsed.data.name,
+            mode:
+              "insensitive",
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+    if (duplicate) {
+      res.status(409).json({
+        message:
+          "A chatter with this name already exists",
+      });
+      return;
+    }
+
+    const updated =
+      await prisma.$transaction(
+        async (
+          tx
+        ) => {
+          const chatter =
+            await tx.chatter.update({
+              where: {
+                id:
+                  chatterId,
+              },
+              data: {
+                name:
+                  parsed.data.name,
+              },
+            });
+
+          if (existing.userId) {
+            await tx.user.update({
+              where: {
+                id:
+                  existing.userId,
+              },
+              data: {
+                name:
+                  parsed.data.name,
+              },
+            });
+          }
+
+          return chatter;
+        }
+      );
+
+    if (existing.userId) {
+      publishLiveUpdate({
+        type: "people.changed",
+        userId:
+          existing.userId,
+      });
+    }
+
+    res.status(200).json({
+      message:
+        "Chatter updated successfully",
+      data:
+        updated,
+    });
+  }
+);
+
+/* Deactivate/reactivate continue through the existing scoped legacy handlers. */
 router.use(
   legacyChatterRoutes
 );

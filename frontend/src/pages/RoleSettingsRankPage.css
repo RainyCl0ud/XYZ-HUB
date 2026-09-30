@@ -1,0 +1,76 @@
+.role-settings-rank-page .role-settings-header .page-description {
+  max-width: 820px;
+}
+
+.role-settings-rank-table th,
+.role-settings-rank-table td {
+  font-size: 11.5px;
+}
+
+.role-settings-rank-table th {
+  font-size: 10.5px;
+}
+
+.role-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid rgba(232, 216, 178, 0.22);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.role-rank.unranked {
+  border-color: var(--border-soft);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-muted);
+  font-weight: 650;
+}
+
+.role-settings-rank-editor {
+  display: grid;
+  gap: 18px;
+}
+
+.role-rank-field small {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.role-rank-field input {
+  font-variant-numeric: tabular-nums;
+}
+
+.role-settings-rank-page .role-settings-filter-field > span,
+.role-settings-rank-page .role-settings-table small,
+.role-settings-rank-page .role-settings-description,
+.role-settings-rank-page .role-settings-pagination,
+.role-settings-rank-page .role-settings-modal p,
+.role-settings-rank-page .role-settings-modal small {
+  font-size: 10.5px;
+}
+
+.role-settings-rank-page .role-settings-role-cell strong,
+.role-settings-rank-page .role-settings-link-button,
+.role-settings-rank-page .role-settings-type,
+.role-settings-rank-page .role-settings-modal label,
+.role-settings-rank-page .role-settings-modal input,
+.role-settings-rank-page .role-settings-modal select {
+  font-size: 11.5px;
+}
+
+@media (max-width: 900px) {
+  .role-settings-rank-table {
+    min-width: 980px;
+  }
+}

@@ -46,13 +46,9 @@ export class PeopleAccessUpdateError extends Error {
     message:
       string
   ) {
-    super(
-      message
-    );
-
+    super(message);
     this.name =
       "PeopleAccessUpdateError";
-
     this.code =
       code;
   }
@@ -91,7 +87,6 @@ export async function updatePersonAccess(
       input.roleIds
     ),
   ];
-
   const modelIds = [
     ...new Set(
       input.modelIds
@@ -108,33 +103,22 @@ export async function updatePersonAccess(
     );
   }
 
-  /*
-   * Load the target's existing assignments.
-   *
-   * This is important because an actor must
-   * be allowed to manage what the target
-   * CURRENTLY has, not merely what the actor
-   * is trying to replace it with.
-   */
   const target =
     await prisma.user.findUnique({
       where: {
         id:
           input.userId,
       },
-
       select: {
         id: true,
         name: true,
         email: true,
         status: true,
         teamGroupId: true,
-
         roleMemberships: {
           select: {
             id: true,
             roleId: true,
-
             role: {
               select: {
                 id: true,
@@ -145,12 +129,10 @@ export async function updatePersonAccess(
             },
           },
         },
-
         modelAssignments: {
           select: {
             id: true,
             modelId: true,
-
             model: {
               select: {
                 id: true,
@@ -170,18 +152,11 @@ export async function updatePersonAccess(
     );
   }
 
-  /*
-   * Owner is managed outside ordinary People Management.
-   * Treat direct access-update attempts as not found so the
-   * protected account cannot be manipulated through this API.
-   */
+  /* Existing Owners remain outside ordinary People Management. */
   if (
     target.roleMemberships.some(
-      (
-        membership
-      ) =>
-        membership.role
-          .systemKey ===
+      (membership) =>
+        membership.role.systemKey ===
         "OWNER"
     )
   ) {
@@ -233,12 +208,9 @@ export async function updatePersonAccess(
     undefined
   ) {
     const teamGroupId =
-      input.teamGroupId
-        .trim();
+      input.teamGroupId.trim();
 
-    if (
-      !teamGroupId
-    ) {
+    if (!teamGroupId) {
       throw new PeopleAccessUpdateError(
         "INVALID_TEAM_GROUP",
         "The selected team group is invalid."
@@ -251,18 +223,13 @@ export async function updatePersonAccess(
           id:
             teamGroupId,
         },
-
         select: {
-          id:
-            true,
-          name:
-            true,
+          id: true,
+          name: true,
         },
       });
 
-    if (
-      !requestedTeamGroup
-    ) {
+    if (!requestedTeamGroup) {
       throw new PeopleAccessUpdateError(
         "INVALID_TEAM_GROUP",
         "The selected team group does not exist."
@@ -281,15 +248,6 @@ export async function updatePersonAccess(
     }
   }
 
-  /*
-   * =======================================================
-   * CURRENT ROLE AUTHORIZATION
-   * =======================================================
-   *
-   * Prevents a Manager from taking somebody
-   * they could never assign/manage and simply
-   * stripping the protected role.
-   */
   for (
     const membership
     of target.roleMemberships
@@ -307,11 +265,6 @@ export async function updatePersonAccess(
     }
   }
 
-  /*
-   * =======================================================
-   * CURRENT MODEL AUTHORIZATION
-   * =======================================================
-   */
   for (
     const assignment
     of target.modelAssignments
@@ -329,11 +282,6 @@ export async function updatePersonAccess(
     }
   }
 
-  /*
-   * =======================================================
-   * REQUESTED ROLE VALIDATION
-   * =======================================================
-   */
   const roles =
     await prisma.role.findMany({
       where: {
@@ -342,7 +290,6 @@ export async function updatePersonAccess(
             roleIds,
         },
       },
-
       select: {
         id: true,
         name: true,
@@ -361,13 +308,17 @@ export async function updatePersonAccess(
     );
   }
 
+  /*
+   * Owner assignment is intentionally permitted only through
+   * canAssignRole(), which reserves the protected role set for Owners.
+   * Once promoted, the target is hidden/protected by the existing Owner
+   * read and mutation boundaries.
+   */
   for (
     const role
     of roles
   ) {
     if (
-      role.systemKey ===
-        "OWNER" ||
       !canAssignRole(
         access,
         role
@@ -380,31 +331,23 @@ export async function updatePersonAccess(
     }
   }
 
-  /*
-   * =======================================================
-   * REQUESTED MODEL VALIDATION
-   * =======================================================
-   */
   const models =
     modelIds.length ===
-    0
+      0
       ? []
-      : await prisma
-          .agencyModel
-          .findMany({
-            where: {
-              id: {
-                in:
-                  modelIds,
-              },
+      : await prisma.agencyModel.findMany({
+          where: {
+            id: {
+              in:
+                modelIds,
             },
-
-            select: {
-              id: true,
-              name: true,
-              isActive: true,
-            },
-          });
+          },
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
+          },
+        });
 
   if (
     models.length !==
@@ -422,9 +365,7 @@ export async function updatePersonAccess(
   ) {
     const alreadyAssigned =
       target.modelAssignments.some(
-        (
-          assignment
-        ) =>
+        (assignment) =>
           assignment.modelId ===
           model.id
       );
@@ -459,12 +400,10 @@ export async function updatePersonAccess(
           membership.roleId
       )
     );
-
   const requestedRoleIds =
     new Set(
       roleIds
     );
-
   const currentModelIds =
     new Set(
       target.modelAssignments.map(
@@ -472,7 +411,6 @@ export async function updatePersonAccess(
           assignment.modelId
       )
     );
-
   const requestedModelIds =
     new Set(
       modelIds
@@ -485,16 +423,13 @@ export async function updatePersonAccess(
           roleId
         )
     );
-
   const roleIdsToRemove =
-    [...currentRoleIds]
-      .filter(
-        (roleId) =>
-          !requestedRoleIds.has(
-            roleId
-          )
-      );
-
+    [...currentRoleIds].filter(
+      (roleId) =>
+        !requestedRoleIds.has(
+          roleId
+        )
+    );
   const modelIdsToAdd =
     modelIds.filter(
       (modelId) =>
@@ -502,23 +437,14 @@ export async function updatePersonAccess(
           modelId
         )
     );
-
   const modelIdsToRemove =
-    [...currentModelIds]
-      .filter(
-        (modelId) =>
-          !requestedModelIds.has(
-            modelId
-          )
-      );
+    [...currentModelIds].filter(
+      (modelId) =>
+        !requestedModelIds.has(
+          modelId
+        )
+    );
 
-  /*
-   * Only changed assignments are deleted or
-   * created.
-   *
-   * Unchanged assignment rows keep their
-   * original assignedAt / assignedBy metadata.
-   */
   await prisma.$transaction(
     async (
       tx
@@ -531,7 +457,6 @@ export async function updatePersonAccess(
           where: {
             userId:
               target.id,
-
             roleId: {
               in:
                 roleIdsToRemove,
@@ -550,9 +475,7 @@ export async function updatePersonAccess(
               (roleId) => ({
                 userId:
                   target.id,
-
                 roleId,
-
                 assignedByUserId:
                   access.userId,
               })
@@ -564,41 +487,34 @@ export async function updatePersonAccess(
         modelIdsToRemove.length >
         0
       ) {
-        await tx
-          .userModelAssignment
-          .deleteMany({
-            where: {
-              userId:
-                target.id,
-
-              modelId: {
-                in:
-                  modelIdsToRemove,
-              },
+        await tx.userModelAssignment.deleteMany({
+          where: {
+            userId:
+              target.id,
+            modelId: {
+              in:
+                modelIdsToRemove,
             },
-          });
+          },
+        });
       }
 
       if (
         modelIdsToAdd.length >
         0
       ) {
-        await tx
-          .userModelAssignment
-          .createMany({
-            data:
-              modelIdsToAdd.map(
-                (modelId) => ({
-                  userId:
-                    target.id,
-
-                  modelId,
-
-                  assignedByUserId:
-                    access.userId,
-                })
-              ),
-          });
+        await tx.userModelAssignment.createMany({
+          data:
+            modelIdsToAdd.map(
+              (modelId) => ({
+                userId:
+                  target.id,
+                modelId,
+                assignedByUserId:
+                  access.userId,
+              })
+            ),
+        });
       }
 
       if (
@@ -611,7 +527,6 @@ export async function updatePersonAccess(
             id:
               target.id,
           },
-
           data: {
             teamGroupId:
               requestedTeamGroup.id,
@@ -627,13 +542,11 @@ export async function updatePersonAccess(
         id:
           target.id,
       },
-
       select: {
         id: true,
         name: true,
         email: true,
         status: true,
-
         teamGroup: {
           select: {
             id: true,
@@ -642,12 +555,10 @@ export async function updatePersonAccess(
             isRoot: true,
           },
         },
-
         roleMemberships: {
           select: {
             assignedAt: true,
             assignedByUserId: true,
-
             role: {
               select: {
                 id: true,
@@ -659,12 +570,10 @@ export async function updatePersonAccess(
             },
           },
         },
-
         modelAssignments: {
           select: {
             assignedAt: true,
             assignedByUserId: true,
-
             model: {
               select: {
                 id: true,
@@ -680,40 +589,30 @@ export async function updatePersonAccess(
   return {
     id:
       updated.id,
-
     name:
       updated.name,
-
     email:
       updated.email,
-
     status:
       updated.status,
-
     teamGroup:
       updated.teamGroup,
-
     roles:
       updated.roleMemberships.map(
         (membership) => ({
           ...membership.role,
-
           assignedAt:
             membership.assignedAt,
-
           assignedByUserId:
             membership.assignedByUserId,
         })
       ),
-
     models:
       updated.modelAssignments.map(
         (assignment) => ({
           ...assignment.model,
-
           assignedAt:
             assignment.assignedAt,
-
           assignedByUserId:
             assignment.assignedByUserId,
         })

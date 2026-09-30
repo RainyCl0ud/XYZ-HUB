@@ -12,47 +12,29 @@ function getInitials(
     string |
     undefined
 ) {
-  if (
-    !name
-  ) {
+  if (!name) {
     return "U";
   }
 
   const parts =
     name
       .trim()
-      .split(
-        /\s+/
-      )
-      .filter(
-        Boolean
-      );
+      .split(/\s+/)
+      .filter(Boolean);
 
-  if (
-    parts.length ===
-      0
-  ) {
+  if (parts.length === 0) {
     return "U";
   }
 
-  if (
-    parts.length ===
-      1
-  ) {
+  if (parts.length === 1) {
     return parts[0]
-      .slice(
-        0,
-        2
-      )
+      .slice(0, 2)
       .toUpperCase();
   }
 
   return (
     parts[0][0] +
-    parts[
-      parts.length -
-        1
-    ][0]
+    parts[parts.length - 1][0]
   ).toUpperCase();
 }
 
@@ -62,9 +44,7 @@ function formatCentralDateTime(
     null |
     undefined
 ) {
-  if (
-    !value
-  ) {
+  if (!value) {
     return "Not available";
   }
 
@@ -73,23 +53,15 @@ function formatCentralDateTime(
     {
       timeZone:
         CENTRAL_TIME_ZONE,
-      month:
-        "short",
-      day:
-        "numeric",
-      year:
-        "numeric",
-      hour:
-        "numeric",
-      minute:
-        "2-digit",
-      timeZoneName:
-        "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
     }
   ).format(
-    new Date(
-      value
-    )
+    new Date(value)
   );
 }
 
@@ -97,15 +69,11 @@ function AccountPage() {
   const {
     user,
     access,
-  } =
-    useAuth();
+  } = useAuth();
 
   const roleNames =
     access?.roles.map(
-      (
-        role
-      ) =>
-        role.name
+      (role) => role.name
     ) ?? [];
 
   return (
@@ -132,9 +100,7 @@ function AccountPage() {
             className="account-profile-avatar"
             aria-hidden="true"
           >
-            {getInitials(
-              user?.name
-            )}
+            {getInitials(user?.name)}
           </div>
 
           <div className="account-profile-copy">
@@ -143,8 +109,7 @@ function AccountPage() {
             </span>
 
             <h3>
-              {user?.name ??
-                "Account"}
+              {user?.name ?? "Account"}
             </h3>
 
             <p>
@@ -153,14 +118,8 @@ function AccountPage() {
 
             <div className="account-role-list">
               {roleNames.map(
-                (
-                  role
-                ) => (
-                  <span
-                    key={
-                      role
-                    }
-                  >
+                (role) => (
+                  <span key={role}>
                     {role}
                   </span>
                 )
@@ -168,17 +127,17 @@ function AccountPage() {
             </div>
           </div>
 
-          <div className="account-status-card">
+          <div
+            className="account-status-card"
+            aria-label={`Account status: ${user?.status === "ACTIVE" ? "Active" : user?.status ?? "Unknown"}`}
+          >
             <span>
-              Account status
+              Account status:
             </span>
-
             <strong>
-              {user?.status ===
-              "ACTIVE"
+              {user?.status === "ACTIVE"
                 ? "Active"
-                : user?.status ??
-                  "Unknown"}
+                : user?.status ?? "Unknown"}
             </strong>
           </div>
         </div>
@@ -188,10 +147,8 @@ function AccountPage() {
             <span>
               Email
             </span>
-
             <strong>
-              {user?.email ??
-                "Not available"}
+              {user?.email ?? "Not available"}
             </strong>
           </div>
 
@@ -199,7 +156,6 @@ function AccountPage() {
             <span>
               Last sign-in
             </span>
-
             <strong>
               {formatCentralDateTime(
                 user?.lastSignInAt
@@ -211,13 +167,9 @@ function AccountPage() {
             <span>
               Access scope
             </span>
-
             <strong>
               {access?.effectiveDataScope
-                ?.replaceAll(
-                  "_",
-                  " "
-                ) ??
+                ?.replaceAll("_", " ") ??
                 "Not available"}
             </strong>
           </div>

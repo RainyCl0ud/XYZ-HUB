@@ -8,6 +8,10 @@ import {
   type AccessContext,
 } from "./access-control.js";
 
+import {
+  publishLiveUpdate,
+} from "./live-updates.js";
+
 export type DeletePersonInput = {
   userId: string;
   confirmEmail: string;
@@ -30,9 +34,7 @@ export class PeopleDeleteError extends Error {
     message:
       string
   ) {
-    super(
-      message
-    );
+    super(message);
 
     this.name =
       "PeopleDeleteError";
@@ -87,7 +89,6 @@ export async function deletePerson(
         id:
           input.userId,
       },
-
       select: {
         id:
           true,
@@ -97,7 +98,6 @@ export async function deletePerson(
           true,
         status:
           true,
-
         chatterProfile: {
           select: {
             id:
@@ -107,9 +107,7 @@ export async function deletePerson(
       },
     });
 
-  if (
-    !user
-  ) {
+  if (!user) {
     throw new PeopleDeleteError(
       "USER_NOT_FOUND",
       "The user does not exist."
@@ -143,12 +141,6 @@ export async function deletePerson(
         let deletedIncidents =
           0;
 
-        /*
-         * Clarified Step 1 behavior:
-         * permanent deletion removes the employee
-         * and QA records tied to that employee.
-         * Deactivation is the preservation path.
-         */
         if (
           chatterId
         ) {
@@ -182,6 +174,12 @@ export async function deletePerson(
         };
       }
     );
+
+  publishLiveUpdate({
+    type: "session.invalidated",
+    userId: user.id,
+    reason: "ACCOUNT_DELETED",
+  });
 
   return {
     id:

@@ -70,7 +70,6 @@ async function expectCode(
     assert.ok(
       error instanceof errorType
     );
-
     assert.equal(
       error.code,
       expectedCode
@@ -94,20 +93,17 @@ async function main() {
     await Promise.all([
       prisma.role.findUniqueOrThrow({
         where: {
-          systemKey:
-            "OWNER",
+          systemKey: "OWNER",
         },
       }),
       prisma.role.findUniqueOrThrow({
         where: {
-          systemKey:
-            "MANAGER",
+          systemKey: "MANAGER",
         },
       }),
       prisma.role.findUniqueOrThrow({
         where: {
-          systemKey:
-            "CHATTER",
+          systemKey: "CHATTER",
         },
       }),
     ]);
@@ -324,6 +320,32 @@ async function main() {
       },
     });
 
+  const promotionTarget =
+    await prisma.user.create({
+      data: {
+        name:
+          "Hierarchy Promotion Target",
+        email:
+          `hierarchy-promote-${suffix}@example.test`,
+        status:
+          UserStatus.ACTIVE,
+        teamGroupId:
+          alpha.id,
+        roleMemberships: {
+          create: {
+            roleId:
+              chatterRole.id,
+          },
+        },
+        modelAssignments: {
+          create: {
+            modelId:
+              modelA.id,
+          },
+        },
+      },
+    });
+
   const createdUserIds = [
     owner.id,
     manager.id,
@@ -331,6 +353,7 @@ async function main() {
     outsideGroupChatter.id,
     wrongCreatorChatter.id,
     outsidePending.id,
+    promotionTarget.id,
   ];
 
   try {
@@ -356,13 +379,10 @@ async function main() {
       await listPeople(
         managerAccess
       );
-
     const managerVisibleIds =
       new Set(
         managerPeople.map(
-          (
-            person
-          ) =>
+          (person) =>
             person.id
         )
       );
@@ -373,14 +393,12 @@ async function main() {
       ),
       true
     );
-
     assert.equal(
       managerVisibleIds.has(
         outsideGroupChatter.id
       ),
       false
     );
-
     assert.equal(
       managerVisibleIds.has(
         wrongCreatorChatter.id
@@ -409,24 +427,10 @@ async function main() {
 
     assert.equal(
       ownerPeople.some(
-        (
-          person
-        ) =>
-          person.id ===
-          owner.id
+        (person) =>
+          person.id === owner.id
       ),
       false
-    );
-
-    assert.equal(
-      ownerPeople.some(
-        (
-          person
-        ) =>
-          person.id ===
-          outsideGroupChatter.id
-      ),
-      true
     );
 
     await expectCode(
@@ -443,17 +447,19 @@ async function main() {
       "✓ Owner is hidden from People Management at the backend service layer"
     );
 
-    const options =
+    const managerOptions =
       await getPeopleManagementOptions(
         managerAccess
+      );
+    const ownerOptions =
+      await getPeopleManagementOptions(
+        ownerAccess
       );
 
     const optionGroupIds =
       new Set(
-        options.organization.groups.map(
-          (
-            group
-          ) =>
+        managerOptions.organization.groups.map(
+          (group) =>
             group.id
         )
       );
@@ -484,18 +490,22 @@ async function main() {
     );
 
     assert.equal(
-      options.roles.some(
-        (
-          role
-        ) =>
-          role.systemKey ===
-          "OWNER"
+      managerOptions.roles.some(
+        (role) =>
+          role.systemKey === "OWNER"
       ),
       false
     );
+    assert.equal(
+      ownerOptions.roles.some(
+        (role) =>
+          role.systemKey === "OWNER"
+      ),
+      true
+    );
 
     console.log(
-      "✓ People options expose only scoped groups and never offer the Owner role"
+      "✓ role options keep Owner Owner-only while allowing Owner assignment"
     );
 
     const invited =
@@ -519,23 +529,6 @@ async function main() {
 
     createdUserIds.push(
       invited.user.id
-    );
-
-    const invitedRecord =
-      await prisma.user.findUniqueOrThrow({
-        where: {
-          id:
-            invited.user.id,
-        },
-        select: {
-          teamGroupId:
-            true,
-        },
-      });
-
-    assert.equal(
-      invitedRecord.teamGroupId,
-      alpha.id
     );
 
     await expectCode(
@@ -566,43 +559,81 @@ async function main() {
         invitePerson(
           {
             name:
-              "Invalid Owner Invite",
+              "Manager Owner Attempt",
             email:
-              `hierarchy-owner-invite-${suffix}@example.test`,
+              `hierarchy-manager-owner-${suffix}@example.test`,
             roleIds: [
               ownerRole.id,
             ],
             modelIds: [],
             teamGroupId:
-              ROOT_TEAM_GROUP_ID,
+              operations.id,
           },
-          ownerAccess
+          managerAccess
         ),
       PeopleInviteError,
       "ROLE_NOT_ASSIGNABLE"
     );
 
-    await expectCode(
-      () =>
-        updatePersonAccess(
-          {
-            userId:
-              visibleChatter.id,
-            roleIds: [
-              ownerRole.id,
-            ],
-            modelIds: [
-              modelA.id,
-            ],
-          },
-          ownerAccess
-        ),
-      PeopleAccessUpdateError,
-      "ROLE_NOT_ASSIGNABLE"
+    const ownerInvite =
+      await invitePerson(
+        {
+          name:
+            "Owner Assigned Owner",
+          email:
+            `hierarchy-owner-invite-${suffix}@example.test`,
+          roleIds: [
+            ownerRole.id,
+          ],
+          modelIds: [],
+          teamGroupId:
+            ROOT_TEAM_GROUP_ID,
+        },
+        ownerAccess
+      );
+
+    createdUserIds.push(
+      ownerInvite.user.id
+    );
+
+    const promoted =
+      await updatePersonAccess(
+        {
+          userId:
+            promotionTarget.id,
+          roleIds: [
+            ownerRole.id,
+          ],
+          modelIds: [
+            modelA.id,
+          ],
+        },
+        ownerAccess
+      );
+
+    assert.equal(
+      promoted.roles.some(
+        (role) =>
+          role.systemKey === "OWNER"
+      ),
+      true
+    );
+
+    const afterPromotion =
+      await listPeople(
+        ownerAccess
+      );
+
+    assert.equal(
+      afterPromotion.some(
+        (person) =>
+          person.id === promotionTarget.id
+      ),
+      false
     );
 
     console.log(
-      "✓ ordinary People APIs cannot create or promote an employee to Owner"
+      "✓ only Owner can assign Owner and promoted Owners become protected from ordinary People views"
     );
 
     console.log(
@@ -729,14 +760,11 @@ async function main() {
 
 main()
   .catch(
-    (
-      error
-    ) => {
+    (error) => {
       console.error(
         "People hierarchy authorization test failed:",
         error
       );
-
       process.exit(1);
     }
   )

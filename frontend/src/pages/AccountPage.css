@@ -12,10 +12,7 @@
 
 .account-profile-hero {
   display: grid;
-  grid-template-columns:
-    auto
-    minmax(0, 1fr)
-    auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px;
   padding: 22px;
@@ -32,11 +29,7 @@
   border: 1px solid rgba(232, 216, 178, 0.26);
   border-radius: 50%;
   background:
-    linear-gradient(
-      180deg,
-      rgba(232, 216, 178, 0.12),
-      rgba(255, 255, 255, 0.02)
-    ),
+    linear-gradient(180deg, rgba(232, 216, 178, 0.12), rgba(255, 255, 255, 0.02)),
     var(--surface-deep);
   color: var(--accent);
   font-size: 20px;
@@ -52,7 +45,7 @@
   display: block;
   margin-bottom: 5px;
   color: var(--text-soft);
-  font-size: 8px;
+  font-size: 10.5px;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -67,7 +60,7 @@
 .account-profile-copy p {
   margin: 5px 0 0;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 11px;
 }
 
 .account-role-list {
@@ -80,48 +73,45 @@
 .account-role-list span {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
+  min-height: 25px;
   padding: 0 9px;
   border: 1px solid rgba(232, 216, 178, 0.2);
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 8.5px;
+  font-size: 10.5px;
   font-weight: 700;
 }
 
 .account-status-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 5px;
-  min-width: 130px;
-  padding: 11px 13px;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
   border: 1px solid rgba(157, 213, 168, 0.18);
   border-radius: 10px;
   background: var(--success-bg);
 }
 
 .account-status-card span {
-  color: var(--text-soft);
-  font-size: 7.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .account-status-card strong {
   color: var(--success);
-  font-size: 10px;
+  font-size: 11.5px;
 }
 
 .account-profile-facts {
   display: grid;
-  grid-template-columns:
-    repeat(
-      3,
-      minmax(0, 1fr)
-    );
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .account-profile-facts > div {
@@ -137,7 +127,7 @@
 .account-profile-facts span {
   display: block;
   color: var(--text-soft);
-  font-size: 7.5px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -148,16 +138,14 @@
   overflow-wrap: anywhere;
   margin-top: 6px;
   color: var(--text-secondary);
-  font-size: 9.5px;
+  font-size: 11.5px;
   font-weight: 650;
   line-height: 1.5;
 }
 
 @media (max-width: 720px) {
   .account-profile-hero {
-    grid-template-columns:
-      auto
-      minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
     padding: 18px;
   }
@@ -169,9 +157,10 @@
   }
 
   .account-status-card {
-    grid-column: 1 / -1;
-    align-items: flex-start;
-    width: 100%;
+    grid-column: 2;
+    justify-self: start;
+    justify-content: flex-start;
+    margin-top: 10px;
   }
 
   .account-profile-facts {

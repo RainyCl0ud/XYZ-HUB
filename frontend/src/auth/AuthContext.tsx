@@ -21,106 +21,65 @@ type AuthUser = {
   name: string;
   email: string;
   status: string;
-  lastSignInAt:
-    string | null;
+  lastSignInAt: string | null;
 };
 
 type AuthRole = {
   id: string;
   name: string;
-  systemKey:
-    string | null;
-  rank:
-    number | null;
+  systemKey: string | null;
+  rank: number | null;
   dataScope: string;
 };
 
 type AuthAccess = {
-  roles:
-    AuthRole[];
-  highestRank:
-    number | null;
-  effectiveDataScope:
-    string | null;
-  permissions:
-    string[];
-  assignedModelIds:
-    string[];
-  canSeeAllModels:
-    boolean;
+  roles: AuthRole[];
+  highestRank: number | null;
+  effectiveDataScope: string | null;
+  permissions: string[];
+  assignedModelIds: string[];
+  canSeeAllModels: boolean;
 };
 
 type AuthMeResponse = {
-  user:
-    AuthUser;
-  access:
-    AuthAccess;
+  user: AuthUser;
+  access: AuthAccess;
 };
 
 type AuthContextValue = {
-  user:
-    AuthUser | null;
-  access:
-    AuthAccess | null;
-  loading:
-    boolean;
-  refreshAuth:
-    () => Promise<boolean>;
-  logout:
-    () => Promise<void>;
+  user: AuthUser | null;
+  access: AuthAccess | null;
+  loading: boolean;
+  refreshAuth: () => Promise<boolean>;
+  logout: () => Promise<void>;
 };
 
 const AuthContext =
-  createContext<
-    AuthContextValue | undefined
-  >(
+  createContext<AuthContextValue | undefined>(
     undefined
   );
 
 export function AuthProvider({
   children,
 }: {
-  children:
-    ReactNode;
+  children: ReactNode;
 }) {
-  const [
-    user,
-    setUser,
-  ] =
-    useState<
-      AuthUser | null
-    >(
+  const [user, setUser] =
+    useState<AuthUser | null>(
       null
     );
-
-  const [
-    access,
-    setAccess,
-  ] =
-    useState<
-      AuthAccess | null
-    >(
+  const [access, setAccess] =
+    useState<AuthAccess | null>(
       null
     );
-
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(
-      true
-    );
+  const [loading, setLoading] =
+    useState(true);
 
   const clearAuth =
     useCallback(
       () => {
-        setUser(
-          null
-        );
-
-        setAccess(
-          null
-        );
+        setUser(null);
+        setAccess(null);
       },
       []
     );
@@ -134,43 +93,24 @@ export function AuthProvider({
               "/api/auth/me"
             );
 
-          setUser(
-            result.user
-          );
-
-          setAccess(
-            result.access
-          );
-
+          setUser(result.user);
+          setAccess(result.access);
           return true;
-        } catch (
-          error
-        ) {
+        } catch (error) {
           if (
-            error instanceof
-              ApiError &&
-            error.status ===
-              401
+            error instanceof ApiError &&
+            error.status === 401
           ) {
             clearAuth();
-
             return false;
           }
 
           throw error;
         }
       },
-      [
-        clearAuth,
-      ]
+      [clearAuth]
     );
 
-  /*
-   * Protected API calls can discover an expired,
-   * revoked or deactivated session before /auth/me
-   * is called again. Listen for the shared API event
-   * so route guards react immediately.
-   */
   useEffect(
     () => {
       const handleAuthExpired =
@@ -190,39 +130,28 @@ export function AuthProvider({
         );
       };
     },
-    [
-      clearAuth,
-    ]
+    [clearAuth]
   );
 
   useEffect(
     () => {
-      let active =
-        true;
+      let active = true;
 
       async function load() {
         try {
           await refreshAuth();
-        } catch (
-          error
-        ) {
+        } catch (error) {
           console.error(
             "Unable to restore authentication:",
             error
           );
 
-          if (
-            active
-          ) {
+          if (active) {
             clearAuth();
           }
         } finally {
-          if (
-            active
-          ) {
-            setLoading(
-              false
-            );
+          if (active) {
+            setLoading(false);
           }
         }
       }
@@ -230,33 +159,28 @@ export function AuthProvider({
       void load();
 
       return () => {
-        active =
-          false;
+        active = false;
       };
     },
-    [
-      clearAuth,
-      refreshAuth,
-    ]
+    [clearAuth, refreshAuth]
   );
 
   /*
-   * Keep effective access synchronized across open
-   * sessions. Role Builder changes are pushed by the
-   * backend and /auth/me remains the source of truth.
+   * Keep access, People Management, and security state synchronized
+   * across open browser sessions.
    *
-   * The same stream forwards People Management changes
-   * as a browser event so open management screens can
-   * refresh without a hard reload.
+   * session.invalidated is targeted by user ID and is emitted after a
+   * 2FA reset, account deactivation, or permanent deletion. Clearing
+   * local auth here causes RequireAuth to remove an actively logged-in
+   * user from the portal immediately instead of waiting for a later API
+   * request to discover the revoked session.
    */
   useEffect(
     () => {
       const currentUserId =
         user?.id;
 
-      if (
-        !currentUserId
-      ) {
+      if (!currentUserId) {
         return;
       }
 
@@ -264,89 +188,68 @@ export function AuthProvider({
         new EventSource(
           `${API_BASE_URL}/api/live`,
           {
-            withCredentials:
-              true,
+            withCredentials: true,
           }
         );
 
-      const handleAccessChanged =
-        (
-          event:
-            Event
-        ) => {
-          let targetUserId:
-            string | null =
-            null;
-
+      const readUserId =
+        (event: Event) => {
           if (
-            event instanceof
-              MessageEvent &&
-            typeof event.data ===
-              "string" &&
-            event.data
+            !(event instanceof MessageEvent) ||
+            typeof event.data !== "string" ||
+            !event.data
           ) {
-            try {
-              const payload =
-                JSON.parse(
-                  event.data
-                ) as {
-                  userId?:
-                    string;
-                };
-
-              targetUserId =
-                payload.userId ??
-                null;
-            } catch {
-              // Ignore malformed optional event metadata.
-            }
+            return null;
           }
+
+          try {
+            const payload =
+              JSON.parse(event.data) as {
+                userId?: string;
+              };
+
+            return payload.userId ?? null;
+          } catch {
+            return null;
+          }
+        };
+
+      const handleAccessChanged =
+        (event: Event) => {
+          const targetUserId =
+            readUserId(event);
 
           if (
             targetUserId &&
-            targetUserId !==
-              currentUserId
+            targetUserId !== currentUserId
           ) {
             return;
           }
 
-          void refreshAuth()
-            .catch(
-              (
+          void refreshAuth().catch(
+            (error) => {
+              console.error(
+                "Unable to refresh live access:",
                 error
-              ) => {
-                console.error(
-                  "Unable to refresh live access:",
-                  error
-                );
-              }
-            );
+              );
+            }
+          );
         };
 
       const handlePeopleChanged =
-        (
-          event:
-            Event
-        ) => {
-          let detail:
-            unknown =
-            null;
+        (event: Event) => {
+          let detail: unknown = null;
 
           if (
-            event instanceof
-              MessageEvent &&
-            typeof event.data ===
-              "string" &&
+            event instanceof MessageEvent &&
+            typeof event.data === "string" &&
             event.data
           ) {
             try {
               detail =
-                JSON.parse(
-                  event.data
-                );
+                JSON.parse(event.data);
             } catch {
-              detail =
-                null;
+              detail = null;
             }
           }
 
@@ -360,14 +263,30 @@ export function AuthProvider({
           );
         };
 
+      const handleSessionInvalidated =
+        (event: Event) => {
+          const targetUserId =
+            readUserId(event);
+
+          if (
+            targetUserId ===
+            currentUserId
+          ) {
+            clearAuth();
+          }
+        };
+
       source.addEventListener(
         "access.changed",
         handleAccessChanged
       );
-
       source.addEventListener(
         "people.changed",
         handlePeopleChanged
+      );
+      source.addEventListener(
+        "session.invalidated",
+        handleSessionInvalidated
       );
 
       return () => {
@@ -375,19 +294,18 @@ export function AuthProvider({
           "access.changed",
           handleAccessChanged
         );
-
         source.removeEventListener(
           "people.changed",
           handlePeopleChanged
         );
-
+        source.removeEventListener(
+          "session.invalidated",
+          handleSessionInvalidated
+        );
         source.close();
       };
     },
-    [
-      refreshAuth,
-      user?.id,
-    ]
+    [clearAuth, refreshAuth, user?.id]
   );
 
   const logout =
@@ -395,22 +313,18 @@ export function AuthProvider({
       async () => {
         try {
           await apiRequest<{
-            status:
-              string;
+            status: string;
           }>(
             "/api/auth/logout",
             {
-              method:
-                "POST",
+              method: "POST",
             }
           );
         } finally {
           clearAuth();
         }
       },
-      [
-        clearAuth,
-      ]
+      [clearAuth]
     );
 
   const value =
@@ -433,9 +347,7 @@ export function AuthProvider({
 
   return (
     <AuthContext.Provider
-      value={
-        value
-      }
+      value={value}
     >
       {children}
     </AuthContext.Provider>
@@ -448,9 +360,7 @@ export function useAuth() {
       AuthContext
     );
 
-  if (
-    !context
-  ) {
+  if (!context) {
     throw new Error(
       "useAuth must be used inside AuthProvider."
     );
