@@ -8,6 +8,7 @@ import {
 
 import {
   requireAuth,
+  requireOwner,
 } from "./middleware/access.js";
 
 import {
@@ -38,6 +39,7 @@ import authRoutes from "./routes/auth.js";
 import accessRoutes from "./routes/access.js";
 import auditRoutes from "./routes/audit.js";
 import liveRoutes from "./routes/live.js";
+import legacyMaintenanceRoutes from "./routes/legacy-maintenance.js";
 
 import chatterRoutes from "./routes/qa-chatters.js";
 import incidentRoutes from "./routes/qa-incidents.js";
@@ -212,6 +214,17 @@ app.use(
 app.use(
   "/api/roles",
   roleRoutes
+);
+
+/*
+ * Owner-only maintenance endpoint for safely reconciling legacy QA
+ * chatter records that predate the User↔Chatter identity bridge.
+ */
+app.use(
+  "/api/maintenance",
+  requireAuth,
+  requireOwner,
+  legacyMaintenanceRoutes
 );
 
 /*
