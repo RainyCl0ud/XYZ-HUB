@@ -24,6 +24,7 @@ import {
   listTeamGroups,
   renameTeamGroup,
   ROOT_TEAM_GROUP_ID,
+  setTeamGroupColor,
   TeamHierarchyError,
 } from "../src/services/team-hierarchy.js";
 
@@ -378,6 +379,94 @@ async function runTests() {
       "✓ non-Owner cannot mutate the organization hierarchy"
     );
 
+    await expectHierarchyError(
+      () =>
+        setTeamGroupColor(
+          groupA.id,
+          "#4F46E5",
+          managerAccess
+        ),
+      "OWNER_REQUIRED"
+    );
+
+    console.log(
+      "✓ non-Owner cannot change group colors"
+    );
+
+    const colored =
+      await setTeamGroupColor(
+        groupA.id,
+        "#4f46e5",
+        ownerAccess
+      );
+
+    assert.equal(
+      colored.color,
+      "#4F46E5"
+    );
+
+    const coloredHierarchy =
+      await listTeamGroups(
+        ownerAccess
+      );
+
+    assert.equal(
+      coloredHierarchy.groups.find(
+        (
+          group
+        ) =>
+          group.id ===
+          groupA.id
+      )?.color,
+      "#4F46E5"
+    );
+
+    const cleared =
+      await setTeamGroupColor(
+        groupA.id,
+        null,
+        ownerAccess
+      );
+
+    assert.equal(
+      cleared.color,
+      null
+    );
+
+    const clearedHierarchy =
+      await listTeamGroups(
+        ownerAccess
+      );
+
+    assert.equal(
+      clearedHierarchy.groups.find(
+        (
+          group
+        ) =>
+          group.id ===
+          groupA.id
+      )?.color,
+      null
+    );
+
+    console.log(
+      "✓ Owner can set, read, and clear persisted group colors"
+    );
+
+    await expectHierarchyError(
+      () =>
+        setTeamGroupColor(
+          ROOT_TEAM_GROUP_ID,
+          "#4F46E5",
+          ownerAccess
+        ),
+      "ROOT_GROUP_IMMUTABLE"
+    );
+
+    console.log(
+      "✓ agency root cannot set a custom group color"
+    );
+
     const chatterRole =
       await prisma.role.findUnique({
         where: {
@@ -551,6 +640,26 @@ async function runTests() {
           id
         )
     );
+
+    if (
+      ids.length >
+      0
+    ) {
+      await prisma.auditEvent.deleteMany({
+        where: {
+          action:
+            "team_group.color_set",
+
+          targetType:
+            "team_group",
+
+          targetId: {
+            in:
+              ids,
+          },
+        },
+      });
+    }
 
     for (
       const id
