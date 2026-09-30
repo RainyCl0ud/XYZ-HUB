@@ -28,7 +28,7 @@ type NavigationItem = {
   activePaths?: string[];
 };
 
-const QA_ITEMS: Array<{
+const QA_CORE_ITEMS: Array<{
   label: string;
   to: string;
 }> = [
@@ -44,6 +44,12 @@ const QA_ITEMS: Array<{
     label: "Chatters",
     to: "/chatters",
   },
+];
+
+const QA_CONFIGURATION_ITEMS: Array<{
+  label: string;
+  to: string;
+}> = [
   {
     label: "Rules",
     to: "/rules",
@@ -54,11 +60,12 @@ const QA_ITEMS: Array<{
   },
 ];
 
-const QA_PATHS = new Set(
-  QA_ITEMS.map(
-    (item) => item.to
-  )
-);
+const QA_PATHS = new Set([
+  ...QA_CORE_ITEMS,
+  ...QA_CONFIGURATION_ITEMS,
+].map(
+  (item) => item.to
+));
 
 function ModuleIcon({
   name,
@@ -135,7 +142,11 @@ function NavigationLink({
   );
 }
 
-function QualityNavigation() {
+function QualityNavigation({
+  canConfigureQa,
+}: {
+  canConfigureQa: boolean;
+}) {
   const {
     pathname,
   } = useLocation();
@@ -144,6 +155,14 @@ function QualityNavigation() {
     QA_PATHS.has(
       pathname
     );
+
+  const visibleItems =
+    canConfigureQa
+      ? [
+          ...QA_CORE_ITEMS,
+          ...QA_CONFIGURATION_ITEMS,
+        ]
+      : QA_CORE_ITEMS;
 
   return (
     <details
@@ -167,7 +186,7 @@ function QualityNavigation() {
       </summary>
 
       <div className="hub-nav-group-links">
-        {QA_ITEMS.map(
+        {visibleItems.map(
           (item) => {
             const childActive =
               pathname ===
@@ -240,7 +259,7 @@ export default function SidebarNavigation({
   ) {
     administration.push({
       id: "roles",
-      label: "Role Builder",
+      label: "Role Settings",
       to: "/roles",
     });
   }
@@ -270,7 +289,9 @@ export default function SidebarNavigation({
         />
 
         {capabilities.canViewQa && (
-          <QualityNavigation />
+          <QualityNavigation
+            canConfigureQa={capabilities.canConfigureQa}
+          />
         )}
 
         {primary.slice(1).map(
