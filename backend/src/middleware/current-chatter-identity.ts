@@ -11,7 +11,7 @@ import type {
   AuthenticatedRequest,
 } from "./access.js";
 
-function rewriteCurrentChatterNames(
+export function rewriteCurrentChatterNames(
   value: unknown,
   currentNames: ReadonlyMap<string, string>
 ): unknown {
