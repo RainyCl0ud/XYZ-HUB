@@ -55,8 +55,10 @@ router.get(
           update
         ) => {
           if (
-            update.type ===
-              "access.changed" &&
+            (update.type ===
+              "access.changed" ||
+              update.type ===
+                "session.invalidated") &&
             update.userId &&
             update.userId !==
               req.userId
