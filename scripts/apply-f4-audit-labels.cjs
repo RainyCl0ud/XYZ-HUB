@@ -6,7 +6,22 @@ const file = path.join(
   "backend/src/services/audit-presentation.ts"
 );
 
-const original = fs.readFileSync(file, "utf8");
+const originalRaw = fs.readFileSync(file, "utf8");
+const eol = originalRaw.includes("\r\n")
+  ? "\r\n"
+  : "\n";
+const original = originalRaw.replace(/\r\n/g, "\n");
+
+function write(content) {
+  const normalized = content.replace(/\r\n/g, "\n");
+  fs.writeFileSync(
+    file,
+    eol === "\r\n"
+      ? normalized.replace(/\n/g, "\r\n")
+      : normalized,
+    "utf8"
+  );
+}
 
 function replaceOnce(source, oldText, newText, label) {
   const first = source.indexOf(oldText);
@@ -32,10 +47,10 @@ try {
     "QA audit action labels"
   );
 
-  fs.writeFileSync(file, source, "utf8");
+  write(source);
   console.log("F.4 QA audit labels applied successfully.");
 } catch (error) {
-  fs.writeFileSync(file, original, "utf8");
+  write(original);
   console.error("F.4 audit-label codemod aborted; source was restored.");
   throw error;
 }
