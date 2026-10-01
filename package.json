@@ -11,6 +11,8 @@
     "dev:backend": "npm run dev --workspace=backend",
     "build:frontend": "npm run build --workspace=frontend",
     "build:backend": "npm run build --workspace=backend",
+    "staging:reset-test-data": "npm run staging:reset-test-data --workspace=backend",
+    "staging:validate-test-data": "npm run test:staging-reset-data-plan --workspace=backend",
     "verify:static": "npm run build:backend && npm run build:frontend && npm run lint --workspace=frontend && npm audit",
     "verify:step1": "npm run verify:static && npm run test:step1 --workspace=backend"
   },
