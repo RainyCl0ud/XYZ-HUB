@@ -2,13 +2,29 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = process.cwd();
+const fileEndings = new Map();
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
+  const raw = fs.readFileSync(path.join(root, relativePath), "utf8");
+
+  if (!fileEndings.has(relativePath)) {
+    fileEndings.set(
+      relativePath,
+      raw.includes("\r\n") ? "\r\n" : "\n"
+    );
+  }
+
+  return raw.replace(/\r\n/g, "\n");
 }
 
 function write(relativePath, content) {
-  fs.writeFileSync(path.join(root, relativePath), content, "utf8");
+  const normalized = content.replace(/\r\n/g, "\n");
+  const eol = fileEndings.get(relativePath) ?? "\n";
+  const output = eol === "\r\n"
+    ? normalized.replace(/\n/g, "\r\n")
+    : normalized;
+
+  fs.writeFileSync(path.join(root, relativePath), output, "utf8");
 }
 
 function replaceOnce(content, oldText, newText, label) {
