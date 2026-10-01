@@ -53,6 +53,13 @@ try {
     "visible ladder step count"
   );
 
+  source = replaceOnce(
+    source,
+    `                  <p>\n                    Active-strike numbers\n                    are assigned by the\n                    system. The 0-strike\n                    base and its 0%\n                    deduction are fixed.\n                  </p>`,
+    `                  <p>\n                    Configure the standing\n                    and deduction applied\n                    at each active-strike\n                    level.\n                  </p>`,
+    "hidden baseline editor copy"
+  );
+
   fs.writeFileSync(
     file,
     source,
@@ -60,7 +67,7 @@ try {
   );
 
   console.log(
-    "✓ Strike Ladder visible step count excludes the system baseline."
+    "✓ Strike Ladder presentation hides the system baseline consistently."
   );
 } catch (error) {
   fs.writeFileSync(
