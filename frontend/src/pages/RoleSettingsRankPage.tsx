@@ -754,8 +754,8 @@ function RoleSettingsRankPage() {
           <table className="role-settings-table role-settings-rank-table">
             <thead>
               <tr>
-                <th>Role</th>
                 <th>Rank</th>
+                <th>Role</th>
                 <th>Description</th>
                 <th>Users</th>
                 <th className="role-settings-operations-heading">Operations</th>
@@ -799,12 +799,6 @@ function RoleSettingsRankPage() {
                     }}
                   >
                     <td>
-                      <div className="role-settings-role-cell">
-                        <strong>{role.name}</strong>
-                        <small>{scopeLabel(role.dataScope)}</small>
-                      </div>
-                    </td>
-                    <td>
                       <span className={role.rank === null ? "role-rank unranked" : "role-rank"}>
                         {role.rank === null
                           ? "Unranked"
@@ -812,12 +806,22 @@ function RoleSettingsRankPage() {
                       </span>
                     </td>
                     <td>
+                      <div className="role-settings-role-cell">
+                        <strong>{role.name}</strong>
+                        <small>{scopeLabel(role.dataScope)}</small>
+                      </div>
+                    </td>
+                    <td>
                       <span className="role-settings-description">
                         {role.description ||
                           "No description provided."}
                       </span>
                     </td>
-                    <td>{role.affectedUserCount}</td>
+                    <td className="role-settings-users-cell">
+                      <span className="role-settings-user-count">
+                        {role.affectedUserCount}
+                      </span>
+                    </td>
                     <td>
                       <div className="role-settings-operations">
                         <button
@@ -828,7 +832,7 @@ function RoleSettingsRankPage() {
                             openPermissions(role);
                           }}
                         >
-                          Set permissions
+                          Permissions
                         </button>
                         <button
                           type="button"

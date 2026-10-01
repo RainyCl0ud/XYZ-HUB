@@ -154,18 +154,28 @@ async function main() {
     for (const role of ["OWNER", "OPS_MANAGER", "MANAGER", "DEV"]) {
       for (const roles of [[role], ["QC", role]]) {
         access = asRoles(...roles);
-        const created = await request("POST", "", createBody);
-        assert.equal(created.status, 201, `${roles.join("+")} can create: ${JSON.stringify(created.body)}`);
-        const incidentId = created.body.data.id as string;
-        const resolved = await request("PATCH", `/${incidentId}/resolve`, { resolutionNotes: "Allowed resolution." });
+        const createdForResolve = await request("POST", "", createBody);
+        assert.equal(createdForResolve.status, 201, `${roles.join("+")} can create for resolve: ${JSON.stringify(createdForResolve.body)}`);
+        const resolvedIncidentId = createdForResolve.body.data.id as string;
+        const resolved = await request("PATCH", `/${resolvedIncidentId}/resolve`, { resolutionNotes: "Allowed resolution." });
         assert.equal(resolved.status, 200, `${roles.join("+")} can resolve.`);
         assert.equal(resolved.body.data.status, "RESOLVED");
-        const voided = await request("PATCH", `/${incidentId}/void`, { reason: "Allowed void." });
-        assert.equal(voided.status, 200, `${roles.join("+")} can void.`);
+
+        const rejectedVoid = await request("PATCH", `/${resolvedIncidentId}/void`, { reason: "Resolved incidents must not be voided." });
+        assert.equal(rejectedVoid.status, 409, `${roles.join("+")} cannot void a resolved incident.`);
+        const savedResolved = await prisma.incident.findUniqueOrThrow({ where: { id: resolvedIncidentId } });
+        assert.equal(savedResolved.status, "RESOLVED");
+        assert.equal(savedResolved.voidReason, null);
+
+        const createdForVoid = await request("POST", "", createBody);
+        assert.equal(createdForVoid.status, 201, `${roles.join("+")} can create for void: ${JSON.stringify(createdForVoid.body)}`);
+        const openIncidentId = createdForVoid.body.data.id as string;
+        const voided = await request("PATCH", `/${openIncidentId}/void`, { reason: "Allowed void." });
+        assert.equal(voided.status, 200, `${roles.join("+")} can void an open incident.`);
         assert.equal(voided.body.data.status, "VOIDED");
-        const saved = await prisma.incident.findUniqueOrThrow({ where: { id: incidentId } });
-        assert.equal(saved.status, "VOIDED");
-        assert.equal(saved.voidReason, "Allowed void.");
+        const savedVoided = await prisma.incident.findUniqueOrThrow({ where: { id: openIncidentId } });
+        assert.equal(savedVoided.status, "VOIDED");
+        assert.equal(savedVoided.voidReason, "Allowed void.");
       }
     }
     console.log("✓ Owner, Ops Manager, Manager, Dev and each stacked with QC retain all incident writes");

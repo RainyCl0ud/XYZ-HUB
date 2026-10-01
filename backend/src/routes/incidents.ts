@@ -790,6 +790,18 @@ router.patch(
         return;
       }
 
+      if (
+        existing.status ===
+        "RESOLVED"
+      ) {
+        res.status(409).json({
+          message:
+            "A resolved incident cannot be voided",
+        });
+
+        return;
+      }
+
       const incident =
         await prisma.incident.update(
           {

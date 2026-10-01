@@ -2872,8 +2872,8 @@ function IncidentsPage() {
                         </button>
                       )}
 
-                      {canManageQaIncidents && selectedIncident.status !==
-                        "VOIDED" && (
+                      {canManageQaIncidents && selectedIncident.status ===
+                        "OPEN" && (
                         <button
                           type="button"
                           className="danger-button"
