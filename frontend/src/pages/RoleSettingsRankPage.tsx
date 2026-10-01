@@ -832,7 +832,7 @@ function RoleSettingsRankPage() {
                             openPermissions(role);
                           }}
                         >
-                          Permissions
+                          Set permissions
                         </button>
                         <button
                           type="button"
