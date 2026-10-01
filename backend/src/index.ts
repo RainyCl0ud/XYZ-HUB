@@ -16,6 +16,10 @@ import {
 } from "./middleware/audit-http.js";
 
 import {
+  qaAuditHttpMiddleware,
+} from "./middleware/qa-audit-http.js";
+
+import {
   requireQaConfigurationForWrites,
   requireQaView,
 } from "./middleware/qa-access.js";
@@ -23,6 +27,10 @@ import {
 import {
   presentCurrentChatterIdentity,
 } from "./middleware/current-chatter-identity.js";
+
+import {
+  reconcileQaChatterProfilesMiddleware,
+} from "./middleware/reconcile-qa-chatter-profiles.js";
 
 import {
   requestPerformanceMiddleware,
@@ -35,6 +43,7 @@ import {
 } from "./middleware/rate-limit.js";
 
 import peopleRoutes from "./routes/people.js";
+import peopleQaStandingRoutes from "./routes/people-qa-standing.js";
 import teamGroupRoutes from "./routes/team-groups.js";
 import modelRoutes from "./routes/models.js";
 import roleRoutes from "./routes/roles.js";
@@ -164,6 +173,11 @@ app.use(
   auditHttpMiddleware
 );
 
+/* QA mutations use the same durable append-only audit store. */
+app.use(
+  qaAuditHttpMiddleware
+);
+
 app.use(
   "/api/auth/login",
   loginRateLimit
@@ -202,6 +216,11 @@ app.use(
 app.use(
   "/api/audit",
   auditRoutes
+);
+
+app.use(
+  "/api/people",
+  peopleQaStandingRoutes
 );
 
 app.use(
@@ -248,6 +267,7 @@ app.use(
   "/api/chatters",
   requireAuth,
   requireQaView,
+  reconcileQaChatterProfilesMiddleware,
   presentCurrentChatterIdentity,
   requireQaConfigurationForWrites,
   chatterRoutes
