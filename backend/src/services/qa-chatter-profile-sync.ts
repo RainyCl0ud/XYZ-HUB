@@ -17,9 +17,9 @@ function qaStatusForUser(
   status: UserStatus
 ) {
   return status ===
-    UserStatus.DEACTIVATED
-    ? ChatterStatus.INACTIVE
-    : ChatterStatus.ACTIVE;
+    UserStatus.ACTIVE
+    ? ChatterStatus.ACTIVE
+    : ChatterStatus.INACTIVE;
 }
 
 /**
@@ -29,9 +29,9 @@ function qaStatusForUser(
  * incident has ever been logged for them. Their QA profile therefore must
  * not depend on Incident existence.
  *
- * Removing the chatter role does not delete history. Existing linked QA
- * profiles are retained and marked inactive so historical incident records
- * remain navigable.
+ * Pending/deactivated employees remain visible as inactive QA profiles so
+ * they cannot be selected for new incidents. Removing the chatter role does
+ * not delete history; linked profiles remain inactive for historical access.
  */
 export async function reconcileQaChatterProfiles() {
   const [
