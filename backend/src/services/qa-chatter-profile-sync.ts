@@ -1,5 +1,6 @@
 import {
   ChatterStatus,
+  Prisma,
   UserStatus,
 } from "@prisma/client";
 
@@ -86,7 +87,9 @@ export async function reconcileQaChatterProfiles() {
       )
     );
 
-  const operations = [];
+  const operations:
+    Prisma.PrismaPromise<unknown>[] =
+    [];
 
   for (
     const user of
