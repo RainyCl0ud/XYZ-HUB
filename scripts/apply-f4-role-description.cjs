@@ -8,13 +8,29 @@ const files = [
   "backend/src/services/role-management.ts",
   "frontend/src/pages/RoleSettingsRankPage.tsx",
 ];
+const fileEndings = new Map();
 
 function read(file) {
-  return fs.readFileSync(path.join(root, file), "utf8");
+  const raw = fs.readFileSync(path.join(root, file), "utf8");
+
+  if (!fileEndings.has(file)) {
+    fileEndings.set(
+      file,
+      raw.includes("\r\n") ? "\r\n" : "\n"
+    );
+  }
+
+  return raw.replace(/\r\n/g, "\n");
 }
 
 function write(file, content) {
-  fs.writeFileSync(path.join(root, file), content, "utf8");
+  const normalized = content.replace(/\r\n/g, "\n");
+  const eol = fileEndings.get(file) ?? "\n";
+  const output = eol === "\r\n"
+    ? normalized.replace(/\n/g, "\r\n")
+    : normalized;
+
+  fs.writeFileSync(path.join(root, file), output, "utf8");
 }
 
 function replaceOnce(source, oldText, newText, label) {
