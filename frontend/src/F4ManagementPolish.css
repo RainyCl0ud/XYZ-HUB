@@ -1,0 +1,168 @@
+/*
+ * F.4 management readability and presentation adjustments.
+ *
+ * These overrides intentionally avoid changing authorization or stored
+ * QA data. They raise the visual baseline on dense management screens,
+ * hide system-only strike state, and keep destructive chatter actions
+ * out of the read-oriented chatter profile.
+ */
+
+/* ---------------------------------------------------------
+ * Readability baseline
+ * --------------------------------------------------------- */
+
+.page-description,
+.card-header p,
+.people-detail-section-heading p,
+.chatter-profile-header p,
+.chatter-profile-section-heading + p {
+  font-size: 13px !important;
+  line-height: 1.55;
+}
+
+.data-table th,
+.people-table-head,
+.role-settings-table th,
+.strike-ladder-table-header {
+  font-size: 11.5px !important;
+}
+
+.data-table td,
+.people-table-row,
+.role-settings-table td,
+.config-item,
+.strike-ladder-table-row,
+.chatter-incident-item {
+  font-size: 13px !important;
+}
+
+.search-input,
+.toolbar-select,
+.filter-button,
+.primary-button,
+.secondary-button,
+.danger-button,
+.text-button,
+.people-filter-field select,
+.people-filter-field input,
+.role-settings-filter-field input,
+.role-settings-filter-field select,
+.role-settings-link-button,
+.form-field input,
+.form-field select,
+.form-field textarea {
+  font-size: 12.5px !important;
+}
+
+.people-section-label,
+.people-filter-field > span,
+.role-settings-filter-field > span,
+.config-meta,
+.people-profile-facts-bottom span,
+.chatter-standing-metric span,
+.chatter-stat-card span {
+  font-size: 11px !important;
+}
+
+.people-person-cell strong,
+.people-role-cell,
+.people-creator-name,
+.people-profile-role-badge,
+.role-settings-role-cell strong,
+.role-rank,
+.status-badge,
+.people-status-badge,
+.people-profile-status-pill {
+  font-size: 12.5px !important;
+}
+
+.people-person-cell small,
+.people-muted-cell,
+.role-settings-role-cell small,
+.role-settings-description,
+.role-settings-pagination,
+.role-settings-modal small,
+.chatter-profile-member-since,
+.chatter-incident-meta {
+  font-size: 11.5px !important;
+}
+
+/* ---------------------------------------------------------
+ * Chatter profile: People Management owns identity/status mutation.
+ * Keep Reactivate available for an already inactive legacy chatter,
+ * but remove Edit and Deactivate from the row-click profile.
+ * --------------------------------------------------------- */
+
+.chatter-profile-actions > .secondary-button:not(.chatter-reactivate-button),
+.chatter-profile-actions > .danger-button {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------
+ * Configuration: the 0-strike / Clear / 0% row is a permanent system
+ * base state. Keep it in API payloads/history but do not expose it as
+ * an editable management step.
+ * --------------------------------------------------------- */
+
+.strike-ladder-table-header + .strike-ladder-table-row,
+.strike-ladder-editor-list > .strike-ladder-editor-row:first-child {
+  display: none !important;
+}
+
+/* Strike Ladder is the primary configuration concept. */
+.page:has(> .strike-ladder-card) {
+  display: flex;
+  flex-direction: column;
+}
+
+.page:has(> .strike-ladder-card) > .page-header,
+.page:has(> .strike-ladder-card) > .page-alert {
+  order: 0;
+}
+
+.page:has(> .strike-ladder-card) > .strike-ladder-card {
+  order: 1;
+}
+
+.page:has(> .strike-ladder-card) > .two-column-grid {
+  order: 2;
+}
+
+/* ---------------------------------------------------------
+ * Role Settings: keep operations inside the scrollable table instead
+ * of allowing action links to spill beyond the table edge.
+ * --------------------------------------------------------- */
+
+.role-settings-table-wrap {
+  overflow-x: auto !important;
+  overflow-y: visible;
+}
+
+.role-settings-rank-table {
+  min-width: 1040px !important;
+}
+
+.role-settings-operations {
+  min-width: 210px;
+  justify-content: flex-end;
+  white-space: normal !important;
+}
+
+.role-settings-link-button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 900px) {
+  .page-description,
+  .card-header p {
+    font-size: 12.5px !important;
+  }
+
+  .data-table td,
+  .people-table-row,
+  .role-settings-table td,
+  .config-item,
+  .chatter-incident-item {
+    font-size: 12.5px !important;
+  }
+}
