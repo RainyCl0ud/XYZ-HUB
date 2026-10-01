@@ -61,7 +61,6 @@
 }
 
 .role-settings-rank-page .role-settings-role-cell strong,
-.role-settings-rank-page .role-settings-link-button,
 .role-settings-rank-page .role-settings-type,
 .role-settings-rank-page .role-settings-modal label,
 .role-settings-rank-page .role-settings-modal input,
@@ -74,8 +73,10 @@
    ========================================================= */
 
 .role-settings-rank-page .role-settings-table-wrap {
-  padding: 0 14px;
+  overflow: auto;
+  padding: 0 14px 10px;
   background: rgba(0, 0, 0, 0.035);
+  scrollbar-gutter: stable;
 }
 
 .role-settings-rank-page .role-settings-rank-table {
@@ -86,10 +87,13 @@
 }
 
 .role-settings-rank-page .role-settings-rank-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   height: 38px;
   padding: 0 14px;
   border-bottom: 0;
-  background: transparent;
+  background: var(--surface);
   color: var(--text-muted);
 }
 
@@ -190,40 +194,10 @@
   padding-right: 18px;
 }
 
-.role-settings-rank-page .role-settings-operations {
-  gap: 7px;
-}
-
-.role-settings-rank-page .role-settings-link-button {
-  min-height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border-soft);
-  border-radius: 7px;
-  background: rgba(0, 0, 0, 0.12);
-  color: var(--text-secondary);
-  font-size: 10.5px;
-  font-weight: 700;
-  text-decoration: none;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    color 120ms ease;
-}
-
-.role-settings-rank-page .role-settings-link-button:last-child {
-  border-right: 1px solid var(--border-soft);
-}
-
-.role-settings-rank-page .role-settings-link-button:hover:not(:disabled) {
-  border-color: rgba(232, 216, 178, 0.28);
-  background: var(--accent-soft);
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.role-settings-rank-page .role-settings-link-button.danger {
-  border-color: rgba(229, 141, 135, 0.18);
-  color: var(--danger);
+.role-settings-rank-page .role-settings-pagination {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
 }
 
 @media (max-width: 900px) {
