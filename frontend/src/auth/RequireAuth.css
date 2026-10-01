@@ -1,0 +1,71 @@
+.auth-service-screen {
+  gap: 0;
+  padding: 28px;
+  text-align: center;
+}
+
+.auth-service-mark {
+  color: var(--danger-strong);
+  border-color: rgba(229, 141, 135, 0.35);
+  background: var(--danger-bg);
+}
+
+.auth-service-copy {
+  width: min(100%, 430px);
+}
+
+.auth-service-copy h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.auth-service-copy p {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.auth-service-copy .auth-service-detail {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-deep);
+  color: var(--text-soft);
+}
+
+.auth-service-retry {
+  min-width: 132px;
+  min-height: 42px;
+  margin-top: 18px;
+  padding: 0 18px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    background 130ms ease,
+    border-color 130ms ease,
+    transform 100ms ease;
+}
+
+.auth-service-retry:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.auth-service-retry:active {
+  transform: translateY(1px);
+}
+
+.auth-service-retry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
