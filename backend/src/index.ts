@@ -39,6 +39,7 @@ import {
 } from "./middleware/rate-limit.js";
 
 import peopleRoutes from "./routes/people.js";
+import peopleQaRoutes from "./routes/people-qa.js";
 import teamGroupRoutes from "./routes/team-groups.js";
 import modelRoutes from "./routes/models.js";
 import roleRoutes from "./routes/roles.js";
@@ -215,6 +216,11 @@ app.use(
 app.use(
   "/api/audit",
   auditRoutes
+);
+
+app.use(
+  "/api/people",
+  peopleQaRoutes
 );
 
 app.use(
