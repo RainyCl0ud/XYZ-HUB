@@ -3396,6 +3396,10 @@ function ConfigurationPage() {
               </div>
 
               {[...currentLadder.steps]
+                .filter(
+                  (step) =>
+                    step.minActiveStrikes > 0
+                )
                 .sort(
                   (
                     first,
@@ -4014,7 +4018,10 @@ function ConfigurationPage() {
                   (
                     step,
                     index
-                  ) => (
+                  ) =>
+                    index === 0
+                      ? null
+                      : (
                     <div
                       className={[
                         "strike-ladder-editor-row",
@@ -4281,6 +4288,10 @@ function ConfigurationPage() {
                   (version) => {
                     const orderedSteps =
                       [...version.steps]
+                        .filter(
+                          (step) =>
+                            step.minActiveStrikes > 0
+                        )
                         .sort(
                           (
                             first,
