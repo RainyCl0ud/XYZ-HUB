@@ -27,6 +27,53 @@ body:has(.modal-backdrop) {
 }
 
 /*
+ * Keep Team Management → Chatters visually stable even when a
+ * filter/search leaves fewer than seven records on the page.
+ * The compact desktop footprint also keeps the page inside the
+ * viewport instead of creating unnecessary document scrolling.
+ */
+.page:has(.chatter-table) {
+  padding-top: 32px;
+  padding-bottom: 28px;
+}
+
+.page:has(.chatter-table) > .page-header {
+  margin-bottom: 20px;
+}
+
+.table-wrapper:has(> .chatter-table) {
+  height: 400px;
+  overflow-y: hidden;
+}
+
+.chatter-table th,
+.chatter-table td {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.chatter-table tbody tr {
+  height: 52px;
+}
+
+/*
+ * Audit Log always reserves the full eight-row page footprint.
+ * Short final/filter pages therefore do not collapse the table.
+ */
+.audit-table-wrap {
+  height: 472px;
+  overflow-y: hidden;
+}
+
+.audit-table-head {
+  min-height: 40px;
+}
+
+.audit-table-row {
+  min-height: 54px;
+}
+
+/*
  * Base styles declare `.incident-detail-top > div` as a column.
  * These more-specific selectors intentionally restore the F.5 top row layout.
  */
