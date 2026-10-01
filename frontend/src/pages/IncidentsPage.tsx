@@ -10,7 +10,6 @@ import type {
 } from "react";
 
 import {
-  useNavigate,
   useSearchParams,
 } from "react-router-dom";
 
@@ -26,6 +25,8 @@ import {
 import {
   useToast,
 } from "../components/ToastProvider";
+
+import QaProfileModal from "../components/QaProfileModal";
 
 import {
   useAuth,
@@ -222,10 +223,10 @@ type PendingConfirmation =
       notes: string;
     };
 
+const INCIDENTS_PAGE_SIZE = 7;
+
 function IncidentsPage() {
   const toast = useToast();
-  const navigate =
-    useNavigate();
   const [
     searchParams,
     setSearchParams,
@@ -303,6 +304,11 @@ function IncidentsPage() {
     search,
     setSearch,
   ] = useState("");
+
+  const [
+    incidentPage,
+    setIncidentPage,
+  ] = useState(1);
 
   const [
     isLoading,
@@ -383,6 +389,13 @@ function IncidentsPage() {
     detailLoading,
     setDetailLoading,
   ] = useState(false);
+
+  const [
+    qaProfileChatterId,
+    setQaProfileChatterId,
+  ] = useState<string | null>(
+    null
+  );
 
   /*
    * =========================================================
@@ -624,6 +637,7 @@ function IncidentsPage() {
         setFormError("");
         setShowLogModal(false);
         setSelectedIncident(null);
+        setQaProfileChatterId(null);
         setActionType(null);
         setActionIncident(null);
         setActionNotes("");
@@ -770,6 +784,56 @@ function IncidentsPage() {
       search,
       strikeActivityFilter,
     ]);
+
+  const incidentPageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        visibleIncidents.length /
+        INCIDENTS_PAGE_SIZE
+      )
+    );
+
+  const paginatedIncidents =
+    useMemo(() => {
+      const start =
+        (incidentPage - 1) *
+        INCIDENTS_PAGE_SIZE;
+
+      return visibleIncidents.slice(
+        start,
+        start +
+          INCIDENTS_PAGE_SIZE
+      );
+    }, [
+      visibleIncidents,
+      incidentPage,
+    ]);
+
+  useEffect(() => {
+    setIncidentPage(1);
+  }, [
+    search,
+    chatterFilter,
+    ruleFilter,
+    statusFilter,
+    strikeActivityFilter,
+    modelContextRevision,
+  ]);
+
+  useEffect(() => {
+    if (
+      incidentPage >
+      incidentPageCount
+    ) {
+      setIncidentPage(
+        incidentPageCount
+      );
+    }
+  }, [
+    incidentPage,
+    incidentPageCount,
+  ]);
 
   /*
    * =========================================================
@@ -1050,6 +1114,7 @@ function IncidentsPage() {
       return;
     }
 
+    setQaProfileChatterId(null);
     setSelectedIncident(null);
 
     if (
@@ -1849,7 +1914,7 @@ function IncidentsPage() {
               </thead>
 
               <tbody>
-                {visibleIncidents.map(
+                {paginatedIncidents.map(
                   (incident) => {
                     const isExpired =
                       incident
@@ -1938,30 +2003,8 @@ function IncidentsPage() {
                         </td>
 
                         <td>
-                          {incident
-                            .weightNameSnapshot ? (
-                            <div className="weight-display">
-                              <span>
-                                {
-                                  incident
-                                    .weightNameSnapshot
-                                }
-                              </span>
-
-                              {incident
-                                .weightValueSnapshot !==
-                                null && (
-                                <span className="weight-value">
-                                  {
-                                    incident
-                                      .weightValueSnapshot
-                                  }
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
+                          {incident.weightNameSnapshot ??
+                            "—"}
                         </td>
 
                         <td className="incident-date-cell">
@@ -2031,6 +2074,55 @@ function IncidentsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!isLoading &&
+          visibleIncidents.length > 0 &&
+          incidentPageCount > 1 && (
+          <div className="incident-pagination" aria-label="Incident table pagination">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                setIncidentPage(
+                  (current) =>
+                    Math.max(
+                      1,
+                      current - 1
+                    )
+                )
+              }
+              disabled={
+                incidentPage <= 1
+              }
+            >
+              Previous
+            </button>
+
+            <span>
+              Page {incidentPage} of {incidentPageCount}
+            </span>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                setIncidentPage(
+                  (current) =>
+                    Math.min(
+                      incidentPageCount,
+                      current + 1
+                    )
+                )
+              }
+              disabled={
+                incidentPage >=
+                incidentPageCount
+              }
+            >
+              Next
+            </button>
           </div>
         )}
       </section>
@@ -2486,34 +2578,35 @@ function IncidentsPage() {
                 selectedIncident && (
                   <div className="incident-detail">
                     <div className="incident-detail-top">
-                      <div>
-                        <span className="detail-label">
-                          Chatter
-                        </span>
+                      <div className="incident-detail-chatter-row">
+                        <div>
+                          <span className="detail-label">
+                            Chatter
+                          </span>
 
-                        <strong>
-                          {
-                            selectedIncident
-                              .chatter
-                              .name
+                          <strong>
+                            {
+                              selectedIncident
+                                .chatter
+                                .name
+                            }
+                          </strong>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="secondary-button incident-qa-profile-button"
+                          onClick={() =>
+                            setQaProfileChatterId(
+                              selectedIncident.chatter.id
+                            )
                           }
-                        </strong>
+                        >
+                          View QA Profile
+                        </button>
                       </div>
 
-                      <div
-                        style={{
-                          display:
-                            "flex",
-                          alignItems:
-                            "center",
-                          gap:
-                            "8px",
-                          flexWrap:
-                            "wrap",
-                          justifyContent:
-                            "flex-end",
-                        }}
-                      >
+                      <div className="incident-detail-statuses">
                         <span
                           className={getStatusClass(
                             selectedIncident.status
@@ -2577,21 +2670,6 @@ function IncidentsPage() {
 
                         <div>
                           <span>
-                            Rule Version
-                          </span>
-
-                          <strong>
-                            v
-                            {
-                              selectedIncident
-                                .ruleVersion
-                                .versionNumber
-                            }
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
                             Severity
                           </span>
 
@@ -2608,14 +2686,8 @@ function IncidentsPage() {
                           </span>
 
                           <strong>
-                            {selectedIncident
-                              .weightNameSnapshot ??
+                            {selectedIncident.weightNameSnapshot ??
                               "None"}
-
-                            {selectedIncident
-                              .weightValueSnapshot !==
-                              null &&
-                              ` (${selectedIncident.weightValueSnapshot})`}
                           </strong>
                         </div>
 
@@ -2778,35 +2850,6 @@ function IncidentsPage() {
                     )}
 
                     <div className="incident-detail-actions">
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() =>
-                          navigate(
-                            `/chatters?chatterId=${encodeURIComponent(
-                              selectedIncident.chatter.id
-                            )}`
-                          )
-                        }
-                      >
-                        View Chatter Profile
-                      </button>
-
-                      {selectedIncident.chatter.userId && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() =>
-                            navigate(
-                              `/people?personId=${encodeURIComponent(
-                                selectedIncident.chatter.userId ?? ""
-                              )}`
-                            )
-                          }
-                        >
-                          View Employee Profile
-                        </button>
-                      )}
 
                       {canManageQaIncidents && selectedIncident.status ===
                         "OPEN" && (
@@ -2817,9 +2860,7 @@ function IncidentsPage() {
                             const incident =
                               selectedIncident;
 
-                            setSelectedIncident(
-                              null
-                            );
+                            closeIncidentDetails();
 
                             openAction(
                               "resolve",
@@ -2840,9 +2881,7 @@ function IncidentsPage() {
                             const incident =
                               selectedIncident;
 
-                            setSelectedIncident(
-                              null
-                            );
+                            closeIncidentDetails();
 
                             openAction(
                               "void",
@@ -2860,6 +2899,41 @@ function IncidentsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {qaProfileChatterId && (
+        <QaProfileModal
+          chatterId={qaProfileChatterId}
+          onClose={() =>
+            setQaProfileChatterId(
+              null
+            )
+          }
+          onOpenIncident={(incidentId) => {
+            setQaProfileChatterId(
+              null
+            );
+
+            const nextParams =
+              new URLSearchParams(
+                searchParams
+              );
+            nextParams.set(
+              "incidentId",
+              incidentId
+            );
+            setSearchParams(
+              nextParams,
+              {
+                replace: true,
+              }
+            );
+
+            void openIncidentDetails(
+              incidentId
+            );
+          }}
+        />
       )}
 
       {/* =====================================================

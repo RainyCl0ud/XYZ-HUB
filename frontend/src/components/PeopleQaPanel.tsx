@@ -44,6 +44,9 @@ type QaSummary = {
       | "NOT_APPLICABLE";
   }>;
   totalIncidentCount: number;
+  historyPage: number;
+  historyPageSize: number;
+  historyPageCount: number;
 };
 
 type QaSummaryResponse = {
@@ -79,6 +82,8 @@ export default function PeopleQaPanel({
     useState(true);
   const [error, setError] =
     useState("");
+  const [historyPage, setHistoryPage] =
+    useState(1);
 
   useEffect(
     () => {
@@ -91,10 +96,21 @@ export default function PeopleQaPanel({
 
           const response =
             await apiRequest<QaSummaryResponse>(
-              `/api/people/${personId}/qa`
+              `/api/people/${personId}/qa?page=${historyPage}`
             );
 
           if (active) {
+            const resolvedPage =
+              response.qa?.historyPage ??
+              1;
+
+            setHistoryPage(
+              (current) =>
+                current === resolvedPage
+                  ? current
+                  : resolvedPage
+            );
+
             setQa(
               response.qa
             );
@@ -121,7 +137,10 @@ export default function PeopleQaPanel({
         active = false;
       };
     },
-    [personId]
+    [
+      personId,
+      historyPage,
+    ]
   );
 
   return (
@@ -217,13 +236,11 @@ export default function PeopleQaPanel({
                 QA history
               </span>
               <strong>
-                Recent Incidents
+                Incident History
               </strong>
             </div>
             <span>
-              {qa.totalIncidentCount > 5
-                ? `Latest 5 of ${qa.totalIncidentCount}`
-                : `${qa.totalIncidentCount} total`}
+              {qa.totalIncidentCount} total
             </span>
           </div>
 
@@ -283,6 +300,55 @@ export default function PeopleQaPanel({
                   </button>
                 )
               )}
+            </div>
+          )}
+
+          {qa.historyPageCount > 1 && (
+            <div className="qa-history-pagination" aria-label="Employee QA history pagination">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setHistoryPage(
+                    (current) =>
+                      Math.max(
+                        1,
+                        current - 1
+                      )
+                  )
+                }
+                disabled={
+                  loading ||
+                  qa.historyPage <= 1
+                }
+              >
+                Previous
+              </button>
+
+              <span>
+                Page {qa.historyPage} of {qa.historyPageCount}
+              </span>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setHistoryPage(
+                    (current) =>
+                      Math.min(
+                        qa.historyPageCount,
+                        current + 1
+                      )
+                  )
+                }
+                disabled={
+                  loading ||
+                  qa.historyPage >=
+                    qa.historyPageCount
+                }
+              >
+                Next
+              </button>
             </div>
           )}
         </>

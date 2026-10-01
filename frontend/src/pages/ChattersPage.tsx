@@ -180,6 +180,8 @@ type PendingConfirmation =
 const TEXAS_TIME_ZONE =
   "America/Chicago";
 
+const CHATTER_HISTORY_PAGE_SIZE = 5;
+
 function formatTexasDate(
   value: string
 ) {
@@ -373,6 +375,11 @@ function ChattersPage() {
       null
     );
 
+  const [
+    historyPage,
+    setHistoryPage,
+  ] = useState(1);
+
   /*
    * Actions / confirmation
    */
@@ -541,6 +548,8 @@ function ChattersPage() {
     setExpandedIncidentId(
       null
     );
+
+    setHistoryPage(1);
   }
 
   async function openChatterDetails(
@@ -567,6 +576,8 @@ function ChattersPage() {
     setExpandedIncidentId(
       null
     );
+
+    setHistoryPage(1);
 
     setDetailsError("");
 
@@ -756,33 +767,81 @@ function ChattersPage() {
       return stats;
     }, [chatterIncidents]);
 
-  const visibleIncidents =
+  const filteredIncidents =
     useMemo(() => {
-      return chatterIncidents
-        .filter(
-          (incident) => {
-            const matchesIncidentStatus =
-              incidentFilter === "ALL" ||
-              incident.status ===
-                incidentFilter;
+      return chatterIncidents.filter(
+        (incident) => {
+          const matchesIncidentStatus =
+            incidentFilter === "ALL" ||
+            incident.status ===
+              incidentFilter;
 
-            const matchesStrikeStatus =
-              strikeFilter === "ALL" ||
-              incident.strikeActivityStatus ===
-                strikeFilter;
+          const matchesStrikeStatus =
+            strikeFilter === "ALL" ||
+            incident.strikeActivityStatus ===
+              strikeFilter;
 
-            return (
-              matchesIncidentStatus &&
-              matchesStrikeStatus
-            );
-          }
-        )
-        .slice(0, 5);
+          return (
+            matchesIncidentStatus &&
+            matchesStrikeStatus
+          );
+        }
+      );
     }, [
       chatterIncidents,
       incidentFilter,
       strikeFilter,
     ]);
+
+  const historyPageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        filteredIncidents.length /
+        CHATTER_HISTORY_PAGE_SIZE
+      )
+    );
+
+  const visibleIncidents =
+    useMemo(() => {
+      const start =
+        (historyPage - 1) *
+        CHATTER_HISTORY_PAGE_SIZE;
+
+      return filteredIncidents.slice(
+        start,
+        start +
+          CHATTER_HISTORY_PAGE_SIZE
+      );
+    }, [
+      filteredIncidents,
+      historyPage,
+    ]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+    setExpandedIncidentId(
+      null
+    );
+  }, [
+    incidentFilter,
+    strikeFilter,
+    selectedChatter?.id,
+  ]);
+
+  useEffect(() => {
+    if (
+      historyPage >
+      historyPageCount
+    ) {
+      setHistoryPage(
+        historyPageCount
+      );
+    }
+  }, [
+    historyPage,
+    historyPageCount,
+  ]);
 
   function selectIncidentFilter(
     filter: IncidentFilter
@@ -1848,18 +1907,6 @@ function ChattersPage() {
                         </small>
                       </div>
 
-                      <div className="chatter-standing-metric">
-                        <span>
-                          Ladder Version
-                        </span>
-
-                        <strong>
-                          v
-                          {
-                            chatterStrikeSummary.ladderVersion
-                          }
-                        </strong>
-                      </div>
                     </div>
                   </div>
                 ) : (
@@ -2386,6 +2433,55 @@ function ChattersPage() {
                         );
                       }
                     )}
+                  </div>
+                )}
+
+                {!detailsLoading &&
+                  filteredIncidents.length > 0 &&
+                  historyPageCount > 1 && (
+                  <div className="qa-history-pagination" aria-label="Chatter QA history pagination">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() =>
+                        setHistoryPage(
+                          (current) =>
+                            Math.max(
+                              1,
+                              current - 1
+                            )
+                        )
+                      }
+                      disabled={
+                        historyPage <= 1
+                      }
+                    >
+                      Previous
+                    </button>
+
+                    <span>
+                      Page {historyPage} of {historyPageCount}
+                    </span>
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() =>
+                        setHistoryPage(
+                          (current) =>
+                            Math.min(
+                              historyPageCount,
+                              current + 1
+                            )
+                        )
+                      }
+                      disabled={
+                        historyPage >=
+                        historyPageCount
+                      }
+                    >
+                      Next
+                    </button>
                   </div>
                 )}
               </section>
