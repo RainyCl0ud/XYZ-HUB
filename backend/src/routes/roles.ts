@@ -41,6 +41,14 @@ const roleInputSchema =
         .min(1)
         .max(120),
 
+    description:
+      z
+        .string()
+        .trim()
+        .max(500)
+        .nullable()
+        .optional(),
+
     rank:
       z
         .number()

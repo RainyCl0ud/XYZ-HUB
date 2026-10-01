@@ -3371,7 +3371,10 @@ function ConfigurationPage() {
 
                 <strong>
                   {
-                    currentLadder.steps.length
+                    Math.max(
+                      0,
+                      currentLadder.steps.length - 1
+                    )
                   }
                 </strong>
               </div>
@@ -3985,11 +3988,10 @@ function ConfigurationPage() {
                   </span>
 
                   <p>
-                    Active-strike numbers
-                    are assigned by the
-                    system. The 0-strike
-                    base and its 0%
-                    deduction are fixed.
+                    Configure the standing
+                    and deduction applied
+                    at each active-strike
+                    level.
                   </p>
                 </div>
 

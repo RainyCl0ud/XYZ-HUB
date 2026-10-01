@@ -238,6 +238,52 @@ function actionLabel(
       "Team group updated",
     "team_group.deleted":
       "Team group deleted",
+    "qa.severity.created":
+      "Severity created",
+    "qa.severity.updated":
+      "Severity updated",
+    "qa.severity.archived":
+      "Severity archived",
+    "qa.severity.reactivated":
+      "Severity reactivated",
+    "qa.severity.reordered":
+      "Severity order updated",
+    "qa.weight.created":
+      "Strike weight created",
+    "qa.weight.updated":
+      "Strike weight updated",
+    "qa.weight.archived":
+      "Strike weight archived",
+    "qa.weight.reactivated":
+      "Strike weight reactivated",
+    "qa.weight.reordered":
+      "Strike weight order updated",
+    "qa.rule.created":
+      "QA rule created",
+    "qa.rule.version_created":
+      "QA rule version created",
+    "qa.rule.archived":
+      "QA rule archived",
+    "qa.rule.reactivated":
+      "QA rule reactivated",
+    "qa.strike_ladder.version_created":
+      "Strike ladder version created",
+    "qa.incident.logged":
+      "Incident logged",
+    "qa.incident.updated":
+      "Incident updated",
+    "qa.incident.resolved":
+      "Incident resolved",
+    "qa.incident.voided":
+      "Incident voided",
+    "qa.chatter.created":
+      "Chatter created",
+    "qa.chatter.updated":
+      "Chatter updated",
+    "qa.chatter.deactivated":
+      "Chatter deactivated",
+    "qa.chatter.reactivated":
+      "Chatter reactivated",
   };
 
   return (

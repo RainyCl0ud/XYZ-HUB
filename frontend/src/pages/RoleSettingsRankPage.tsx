@@ -38,6 +38,7 @@ type ManagedRole = {
   id: string;
   systemKey: string | null;
   name: string;
+  description: string | null;
   rank: number | null;
   dataScope: DataScope;
   landingPath: string | null;
@@ -70,6 +71,7 @@ type EditorMode =
 
 type RoleDraft = {
   name: string;
+  description: string;
   rank: string;
   dataScope: DataScope;
   permissionIds: string[];
@@ -109,15 +111,6 @@ function scopeLabel(
     (option) =>
       option.value === value
   )?.label ?? value;
-}
-
-function scopeDescription(
-  value: DataScope
-) {
-  return SCOPE_OPTIONS.find(
-    (option) =>
-      option.value === value
-  )?.description ?? value;
 }
 
 function sortRoles(
@@ -211,6 +204,7 @@ function RoleSettingsRankPage() {
   const [draft, setDraft] =
     useState<RoleDraft>({
       name: "",
+      description: "",
       rank: "",
       dataScope: "SELF",
       permissionIds: [],
@@ -401,6 +395,7 @@ function RoleSettingsRankPage() {
     setEditorRoleId(null);
     setDraft({
       name: "",
+      description: "",
       rank:
         nextSafeRank(roles),
       dataScope: "SELF",
@@ -415,6 +410,8 @@ function RoleSettingsRankPage() {
     setEditorRoleId(role.id);
     setDraft({
       name: role.name,
+      description:
+        role.description ?? "",
       rank:
         role.rank === null
           ? ""
@@ -528,6 +525,9 @@ function RoleSettingsRankPage() {
             body:
               JSON.stringify({
                 name,
+                description:
+                  draft.description.trim() ||
+                  null,
                 rank,
                 dataScope:
                   draft.dataScope,
@@ -591,6 +591,8 @@ function RoleSettingsRankPage() {
             JSON.stringify({
               name:
                 permissionRole.name,
+              description:
+                permissionRole.description,
               rank:
                 permissionRole.rank,
               dataScope:
@@ -753,41 +755,55 @@ function RoleSettingsRankPage() {
             <thead>
               <tr>
                 <th>Role</th>
+                <th>Rank</th>
                 <th>Description</th>
                 <th>Users</th>
-                <th>Rank</th>
-                <th>Type</th>
                 <th className="role-settings-operations-heading">Operations</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="role-settings-empty" colSpan={6}>
+                  <td className="role-settings-empty" colSpan={5}>
                     Loading roles…
                   </td>
                 </tr>
               ) : visibleRoles.length === 0 ? (
                 <tr>
-                  <td className="role-settings-empty" colSpan={6}>
+                  <td className="role-settings-empty" colSpan={5}>
                     No matching roles.
                   </td>
                 </tr>
               ) : visibleRoles.map(
                 (role) => (
-                  <tr key={role.id}>
+                  <tr
+                    key={role.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`View ${role.name} role details`}
+                    onClick={() =>
+                      openPermissions(
+                        role
+                      )
+                    }
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" ||
+                        event.key === " "
+                      ) {
+                        event.preventDefault();
+                        openPermissions(
+                          role
+                        );
+                      }
+                    }}
+                  >
                     <td>
                       <div className="role-settings-role-cell">
                         <strong>{role.name}</strong>
                         <small>{scopeLabel(role.dataScope)}</small>
                       </div>
                     </td>
-                    <td>
-                      <span className="role-settings-description">
-                        {scopeDescription(role.dataScope)}
-                      </span>
-                    </td>
-                    <td>{role.affectedUserCount}</td>
                     <td>
                       <span className={role.rank === null ? "role-rank unranked" : "role-rank"}>
                         {role.rank === null
@@ -796,23 +812,31 @@ function RoleSettingsRankPage() {
                       </span>
                     </td>
                     <td>
-                      <span className={role.isSystem ? "role-settings-type default" : "role-settings-type custom"}>
-                        {role.isSystem ? "Default" : "Custom"}
+                      <span className="role-settings-description">
+                        {role.description ||
+                          "No description provided."}
                       </span>
                     </td>
+                    <td>{role.affectedUserCount}</td>
                     <td>
                       <div className="role-settings-operations">
                         <button
                           type="button"
                           className="role-settings-link-button"
-                          onClick={() => openPermissions(role)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openPermissions(role);
+                          }}
                         >
                           Set permissions
                         </button>
                         <button
                           type="button"
                           className="role-settings-link-button"
-                          onClick={() => openEdit(role)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openEdit(role);
+                          }}
                         >
                           Edit
                         </button>
@@ -821,7 +845,10 @@ function RoleSettingsRankPage() {
                             type="button"
                             className="role-settings-link-button danger"
                             title="Delete role"
-                            onClick={() => setDeleteRoleId(role.id)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setDeleteRoleId(role.id);
+                            }}
                           >
                             Delete
                           </button>
@@ -900,6 +927,23 @@ function RoleSettingsRankPage() {
                     setDraft((current) => ({
                       ...current,
                       name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <label className="form-field">
+                <span>Description</span>
+                <textarea
+                  value={draft.description}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="Describe the purpose and responsibility of this role"
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      description:
+                        event.target.value,
                     }))
                   }
                 />
@@ -1000,10 +1044,13 @@ function RoleSettingsRankPage() {
           >
             <div className="role-settings-modal-header">
               <div>
-                <span className="page-eyebrow">Permissions</span>
+                <span className="page-eyebrow">Role details & permissions</span>
                 <h3>{permissionRole.name}</h3>
                 <p>
-                  {permissionDraft.length} selected · Rank {permissionRole.rank ?? "Unranked"} · {scopeLabel(permissionRole.dataScope)}
+                  Rank {permissionRole.rank ?? "Unranked"} · {scopeLabel(permissionRole.dataScope)} · {permissionRole.affectedUserCount} user{permissionRole.affectedUserCount === 1 ? "" : "s"}
+                </p>
+                <p>
+                  {permissionRole.description || "No description provided."} · {permissionDraft.length} permission{permissionDraft.length === 1 ? "" : "s"} selected
                 </p>
               </div>
               <button
