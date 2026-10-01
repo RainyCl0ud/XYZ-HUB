@@ -4,6 +4,8 @@ import {
   useLocation,
 } from "react-router-dom";
 
+import "./RequireAuth.css";
+
 import {
   useAuth,
 } from "./AuthContext";
