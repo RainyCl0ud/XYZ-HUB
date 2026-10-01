@@ -223,7 +223,7 @@ type PendingConfirmation =
       notes: string;
     };
 
-const INCIDENTS_PAGE_SIZE = 7;
+const INCIDENTS_PAGE_SIZE = 5;
 
 function IncidentsPage() {
   const toast = useToast();

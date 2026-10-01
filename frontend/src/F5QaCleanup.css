@@ -19,7 +19,7 @@ body:has(.modal-backdrop) {
 
 /* Keep the Incident Records footprint stable across all paginated pages. */
 .table-wrapper:has(> .incidents-table) {
-  min-height: 458px;
+  min-height: 346px;
 }
 
 .incidents-table tbody tr {
@@ -103,6 +103,39 @@ body:has(.modal-backdrop) {
 .incident-pagination .secondary-button {
   min-height: 34px;
   padding: 7px 12px;
+}
+
+/* Shared compact pagination for management record tables. */
+.compact-table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.compact-table-pagination > span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.compact-table-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compact-table-pagination strong {
+  min-width: 78px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+}
+
+.compact-table-pagination .secondary-button {
+  min-height: 32px;
+  padding: 6px 10px;
 }
 
 @media (max-width: 720px) {
