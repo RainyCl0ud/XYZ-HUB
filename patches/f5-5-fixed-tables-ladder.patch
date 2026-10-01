@@ -1,0 +1,117 @@
+diff --git a/frontend/src/F5QaCleanup.css b/frontend/src/F5QaCleanup.css
+--- a/frontend/src/F5QaCleanup.css
++++ b/frontend/src/F5QaCleanup.css
+@@ -24,6 +24,48 @@ body:has(.modal-backdrop) {
+ .incidents-table tbody tr {
+   height: 56px;
+ }
++
++/*
++ * Keep Team Management → Chatters visually stable even when a
++ * filter/search leaves fewer than seven records on the page.
++ * The compact desktop footprint also keeps the page inside the
++ * viewport instead of creating unnecessary document scrolling.
++ */
++.page:has(.chatter-table) {
++  padding-top: 32px;
++  padding-bottom: 28px;
++}
++
++.page:has(.chatter-table) > .page-header {
++  margin-bottom: 20px;
++}
++
++.table-wrapper:has(> .chatter-table) {
++  height: 400px;
++  overflow-y: hidden;
++}
++
++.chatter-table th,
++.chatter-table td {
++  padding-top: 9px;
++  padding-bottom: 9px;
++}
++
++.chatter-table tbody tr {
++  height: 52px;
++}
++
++/*
++ * Audit Log always reserves the full eight-row page footprint.
++ * Short final/filter pages therefore do not collapse the table.
++ */
++.audit-table-wrap {
++  height: 472px;
++  overflow-y: hidden;
++}
++
++.audit-table-head {
++  min-height: 40px;
++}
++
++.audit-table-row {
++  min-height: 54px;
++}
+ 
+ /*
+  * Base styles declare `.incident-detail-top > div` as a column.
+diff --git a/frontend/src/pages/ConfigurationPage.tsx b/frontend/src/pages/ConfigurationPage.tsx
+--- a/frontend/src/pages/ConfigurationPage.tsx
++++ b/frontend/src/pages/ConfigurationPage.tsx
+@@ -1791,12 +1791,31 @@ function ConfigurationPage() {
+       )
+     );
+ 
++    /*
++     * Only the system Clear standing is implicit/default.
++     * Threshold 0 by itself is not enough to classify a row as
++     * hidden because historical data may contain another standing
++     * at the same threshold. Keep Clear first so array position still
++     * maps cleanly to the backend's sequential strike numbering.
++     */
++    const isClearBaseStep =
++      (step: StrikeLadderStep) =>
++        step.standingLabel
++          .trim()
++          .toLowerCase() ===
++        "clear";
++
+     const orderedSteps =
+       [...currentLadder.steps].sort(
+-        (first, second) =>
+-          first.minActiveStrikes -
+-          second.minActiveStrikes
++        (first, second) => {
++          const firstIsClear =
++            isClearBaseStep(first);
++          const secondIsClear =
++            isClearBaseStep(second);
++
++          if (firstIsClear !== secondIsClear) {
++            return firstIsClear ? -1 : 1;
++          }
++
++          return (
++            first.minActiveStrikes -
++            second.minActiveStrikes
++          );
++        }
+       );
+ 
+     const draftSteps:
+@@ -1806,14 +1825,14 @@ function ConfigurationPage() {
+             nextLadderDraftId(),
+ 
+           isImplicitBase:
+-            step.minActiveStrikes === 0,
++            isClearBaseStep(step),
+ 
+           standingLabel:
+             step.standingLabel,
+ 
+           deductionPercent:
+-            step.minActiveStrikes === 0
++            isClearBaseStep(step)
+               ? "0"
+               : String(
+                   step.deductionPercent
