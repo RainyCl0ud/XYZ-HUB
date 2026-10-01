@@ -1791,11 +1791,41 @@ function ConfigurationPage() {
       )
     );
 
+    /*
+     * The only hidden/default row is the system Clear base state.
+     * A threshold of 0 alone must not hide another standing such as
+     * Formal Warning if historical data happens to share that value.
+     */
+    const isClearBaseStep =
+      (step: StrikeLadderStep) =>
+        step.minActiveStrikes === 0 &&
+        step.standingLabel
+          .trim()
+          .toLowerCase() ===
+          "clear";
+
     const orderedSteps =
       [...currentLadder.steps].sort(
-        (first, second) =>
-          first.minActiveStrikes -
-          second.minActiveStrikes
+        (first, second) => {
+          const firstIsClear =
+            isClearBaseStep(first);
+          const secondIsClear =
+            isClearBaseStep(second);
+
+          if (
+            firstIsClear !==
+            secondIsClear
+          ) {
+            return firstIsClear
+              ? -1
+              : 1;
+          }
+
+          return (
+            first.minActiveStrikes -
+            second.minActiveStrikes
+          );
+        }
       );
 
     const draftSteps:
@@ -1806,13 +1836,13 @@ function ConfigurationPage() {
             nextLadderDraftId(),
 
           isImplicitBase:
-            step.minActiveStrikes === 0,
+            isClearBaseStep(step),
 
           standingLabel:
             step.standingLabel,
 
           deductionPercent:
-            step.minActiveStrikes === 0
+            isClearBaseStep(step)
               ? "0"
               : String(
                   step.deductionPercent
