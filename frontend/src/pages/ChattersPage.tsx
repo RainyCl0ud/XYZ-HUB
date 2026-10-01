@@ -181,6 +181,7 @@ const TEXAS_TIME_ZONE =
   "America/Chicago";
 
 const CHATTER_HISTORY_PAGE_SIZE = 5;
+const CHATTER_LIST_PAGE_SIZE = 7;
 
 function formatTexasDate(
   value: string
@@ -271,6 +272,11 @@ function ChattersPage() {
     debouncedSearch,
     setDebouncedSearch,
   ] = useState("");
+
+  const [
+    chatterPage,
+    setChatterPage,
+  ] = useState(1);
 
   const [
     isLoading,
@@ -1423,6 +1429,39 @@ function ChattersPage() {
     );
   }
 
+  const chatterPageCount = Math.max(
+    1,
+    Math.ceil(
+      chatters.length /
+        CHATTER_LIST_PAGE_SIZE
+    )
+  );
+
+  const safeChatterPage = Math.min(
+    chatterPage,
+    chatterPageCount
+  );
+
+  const paginatedChatters = chatters.slice(
+    (safeChatterPage - 1) *
+      CHATTER_LIST_PAGE_SIZE,
+    safeChatterPage *
+      CHATTER_LIST_PAGE_SIZE
+  );
+
+  const chatterRangeStart =
+    chatters.length === 0
+      ? 0
+      : (safeChatterPage - 1) *
+          CHATTER_LIST_PAGE_SIZE +
+        1;
+
+  const chatterRangeEnd = Math.min(
+    safeChatterPage *
+      CHATTER_LIST_PAGE_SIZE,
+    chatters.length
+  );
+
   return (
     <div className="page">
       <header className="page-header">
@@ -1587,7 +1626,7 @@ function ChattersPage() {
               </thead>
 
               <tbody>
-                {chatters.map(
+                {paginatedChatters.map(
                   (chatter) => (
                     <tr
                       key={
@@ -1654,6 +1693,51 @@ function ChattersPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!isLoading &&
+          chatters.length > 0 &&
+          chatterPageCount > 1 && (
+          <div
+            className="compact-table-pagination"
+            aria-label="Chatter table pagination"
+          >
+            <span>
+              {chatterRangeStart}–{chatterRangeEnd} of {chatters.length}
+            </span>
+
+            <div>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={safeChatterPage <= 1}
+                onClick={() =>
+                  setChatterPage(
+                    Math.max(1, safeChatterPage - 1)
+                  )
+                }
+              >
+                Previous
+              </button>
+
+              <strong>
+                Page {safeChatterPage} of {chatterPageCount}
+              </strong>
+
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={safeChatterPage >= chatterPageCount}
+                onClick={() =>
+                  setChatterPage(
+                    Math.min(chatterPageCount, safeChatterPage + 1)
+                  )
+                }
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </section>

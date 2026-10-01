@@ -72,6 +72,7 @@ type StrikeLadderPayload = {
 
 type LadderDraftStep = {
   clientId: string;
+  isImplicitBase: boolean;
   standingLabel: string;
   deductionPercent: string;
 };
@@ -1790,34 +1791,51 @@ function ConfigurationPage() {
       )
     );
 
+    const orderedSteps =
+      [...currentLadder.steps].sort(
+        (first, second) =>
+          first.minActiveStrikes -
+          second.minActiveStrikes
+      );
+
+    const draftSteps:
+      LadderDraftStep[] =
+      orderedSteps.map(
+        (step) => ({
+          clientId:
+            nextLadderDraftId(),
+
+          isImplicitBase:
+            step.minActiveStrikes === 0,
+
+          standingLabel:
+            step.standingLabel,
+
+          deductionPercent:
+            step.minActiveStrikes === 0
+              ? "0"
+              : String(
+                  step.deductionPercent
+                ),
+        })
+      );
+
+    if (
+      !draftSteps.some(
+        (step) => step.isImplicitBase
+      )
+    ) {
+      draftSteps.unshift({
+        clientId:
+          nextLadderDraftId(),
+        isImplicitBase: true,
+        standingLabel: "Clear",
+        deductionPercent: "0",
+      });
+    }
+
     setLadderDraftSteps(
-      [...currentLadder.steps]
-        .sort(
-          (first, second) =>
-            first.minActiveStrikes -
-            second.minActiveStrikes
-        )
-        .map(
-          (step, index) => ({
-            clientId:
-              nextLadderDraftId(),
-
-            standingLabel:
-              step.standingLabel,
-
-            /*
-             * The base 0-strike row always carries a fixed
-             * 0% deduction. Historical data is therefore
-             * normalized in the editor as well.
-             */
-            deductionPercent:
-              index === 0
-                ? "0"
-                : String(
-                    step.deductionPercent
-                  ),
-          })
-        )
+      draftSteps
     );
 
     setShowLadderEditor(
@@ -1937,6 +1955,8 @@ function ConfigurationPage() {
         {
           clientId:
             newStepId,
+
+          isImplicitBase: false,
 
           standingLabel:
             "New Standing",
@@ -4019,7 +4039,7 @@ function ConfigurationPage() {
                     step,
                     index
                   ) =>
-                    index === 0
+                    step.isImplicitBase
                       ? null
                       : (
                     <div

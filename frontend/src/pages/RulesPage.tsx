@@ -104,6 +104,8 @@ type PendingConfirmation =
       rule: Rule;
     };
 
+const RULES_PAGE_SIZE = 6;
+
 function RulesPage() {
   const toast = useToast();
 
@@ -131,6 +133,11 @@ function RulesPage() {
     search,
     setSearch,
   ] = useState("");
+
+  const [
+    rulePage,
+    setRulePage,
+  ] = useState(1);
 
   const [
     isLoading,
@@ -360,6 +367,38 @@ function RulesPage() {
       activeRules,
       search,
     ]);
+
+  const rulePageCount = Math.max(
+    1,
+    Math.ceil(
+      visibleRules.length /
+        RULES_PAGE_SIZE
+    )
+  );
+
+  const safeRulePage = Math.min(
+    rulePage,
+    rulePageCount
+  );
+
+  const paginatedRules = visibleRules.slice(
+    (safeRulePage - 1) *
+      RULES_PAGE_SIZE,
+    safeRulePage *
+      RULES_PAGE_SIZE
+  );
+
+  const ruleRangeStart =
+    visibleRules.length === 0
+      ? 0
+      : (safeRulePage - 1) *
+          RULES_PAGE_SIZE +
+        1;
+
+  const ruleRangeEnd = Math.min(
+    safeRulePage * RULES_PAGE_SIZE,
+    visibleRules.length
+  );
 
   function openArchivedRules() {
     setShowArchivedRules(true);
@@ -1077,7 +1116,7 @@ function RulesPage() {
               </thead>
 
               <tbody>
-                {visibleRules.map(
+                {paginatedRules.map(
                   (rule) => {
                     const version =
                       rule.currentVersion;
@@ -1215,6 +1254,51 @@ function RulesPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!isLoading &&
+          visibleRules.length > 0 &&
+          rulePageCount > 1 && (
+          <div
+            className="compact-table-pagination"
+            aria-label="Rules table pagination"
+          >
+            <span>
+              {ruleRangeStart}–{ruleRangeEnd} of {visibleRules.length}
+            </span>
+
+            <div>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={safeRulePage <= 1}
+                onClick={() =>
+                  setRulePage(
+                    Math.max(1, safeRulePage - 1)
+                  )
+                }
+              >
+                Previous
+              </button>
+
+              <strong>
+                Page {safeRulePage} of {rulePageCount}
+              </strong>
+
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={safeRulePage >= rulePageCount}
+                onClick={() =>
+                  setRulePage(
+                    Math.min(rulePageCount, safeRulePage + 1)
+                  )
+                }
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </section>

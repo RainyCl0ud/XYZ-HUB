@@ -21,6 +21,8 @@ import "./AuditPage.css";
 const CENTRAL_TIME_ZONE =
   "America/Chicago";
 
+const AUDIT_PAGE_SIZE = 8;
+
 type AuditParty = {
   label: string;
   secondary: string | null;
@@ -197,6 +199,11 @@ function AuditPage() {
     useState(
       ""
     );
+
+  const [
+    auditPage,
+    setAuditPage,
+  ] = useState(1);
 
   const loadAudit =
     useCallback(
@@ -386,6 +393,38 @@ function AuditPage() {
     ]
   );
 
+  const auditPageCount = Math.max(
+    1,
+    Math.ceil(
+      events.length /
+        AUDIT_PAGE_SIZE
+    )
+  );
+
+  const safeAuditPage = Math.min(
+    auditPage,
+    auditPageCount
+  );
+
+  const paginatedAuditEvents = events.slice(
+    (safeAuditPage - 1) *
+      AUDIT_PAGE_SIZE,
+    safeAuditPage *
+      AUDIT_PAGE_SIZE
+  );
+
+  const auditRangeStart =
+    events.length === 0
+      ? 0
+      : (safeAuditPage - 1) *
+          AUDIT_PAGE_SIZE +
+        1;
+
+  const auditRangeEnd = Math.min(
+    safeAuditPage * AUDIT_PAGE_SIZE,
+    events.length
+  );
+
   useEffect(
     () => {
       if (
@@ -551,16 +590,6 @@ function AuditPage() {
         </select>
       </section>
 
-      <div className="audit-readonly-note">
-        <strong>
-          Read-only history
-        </strong>
-
-        <span>
-          Audit records cannot be edited or deleted.
-        </span>
-      </div>
-
       {error && (
         <div className="audit-error">
           {error}
@@ -609,7 +638,7 @@ function AuditPage() {
               </span>
             </div>
 
-            {events.map(
+            {paginatedAuditEvents.map(
               (
                 event
               ) => (
@@ -683,6 +712,51 @@ function AuditPage() {
                 </button>
               )
             )}
+          </div>
+        )}
+
+        {!loading &&
+          events.length > 0 &&
+          auditPageCount > 1 && (
+          <div
+            className="compact-table-pagination"
+            aria-label="Audit log pagination"
+          >
+            <span>
+              {auditRangeStart}–{auditRangeEnd} of {events.length}
+            </span>
+
+            <div>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={safeAuditPage <= 1}
+                onClick={() =>
+                  setAuditPage(
+                    Math.max(1, safeAuditPage - 1)
+                  )
+                }
+              >
+                Previous
+              </button>
+
+              <strong>
+                Page {safeAuditPage} of {auditPageCount}
+              </strong>
+
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={safeAuditPage >= auditPageCount}
+                onClick={() =>
+                  setAuditPage(
+                    Math.min(auditPageCount, safeAuditPage + 1)
+                  )
+                }
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </section>
