@@ -87,13 +87,6 @@ export default function PeopleQaPanel({
 
   useEffect(
     () => {
-      setHistoryPage(1);
-    },
-    [personId]
-  );
-
-  useEffect(
-    () => {
       let active = true;
 
       async function load() {
@@ -107,6 +100,17 @@ export default function PeopleQaPanel({
             );
 
           if (active) {
+            const resolvedPage =
+              response.qa?.historyPage ??
+              1;
+
+            setHistoryPage(
+              (current) =>
+                current === resolvedPage
+                  ? current
+                  : resolvedPage
+            );
+
             setQa(
               response.qa
             );
