@@ -6,10 +6,25 @@ const file = path.join(
   "frontend/src/pages/ConfigurationPage.tsx"
 );
 
-const original = fs.readFileSync(
+const originalRaw = fs.readFileSync(
   file,
   "utf8"
 );
+const eol = originalRaw.includes("\r\n")
+  ? "\r\n"
+  : "\n";
+const original = originalRaw.replace(/\r\n/g, "\n");
+
+function write(content) {
+  const normalized = content.replace(/\r\n/g, "\n");
+  fs.writeFileSync(
+    file,
+    eol === "\r\n"
+      ? normalized.replace(/\n/g, "\r\n")
+      : normalized,
+    "utf8"
+  );
+}
 
 function replaceOnce(
   source,
@@ -60,21 +75,13 @@ try {
     "hidden baseline editor copy"
   );
 
-  fs.writeFileSync(
-    file,
-    source,
-    "utf8"
-  );
+  write(source);
 
   console.log(
     "✓ Strike Ladder presentation hides the system baseline consistently."
   );
 } catch (error) {
-  fs.writeFileSync(
-    file,
-    original,
-    "utf8"
-  );
+  write(original);
 
   console.error(
     "F.4 configuration codemod aborted; source was restored."
