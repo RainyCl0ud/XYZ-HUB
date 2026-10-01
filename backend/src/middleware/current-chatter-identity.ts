@@ -11,6 +11,10 @@ import type {
   AuthenticatedRequest,
 } from "./access.js";
 
+import {
+  reconcileQaChatterProfiles,
+} from "../services/qa-chatter-profile-sync.js";
+
 export function rewriteCurrentChatterNames(
   value: unknown,
   currentNames: ReadonlyMap<string, string>
@@ -103,6 +107,23 @@ export async function presentCurrentChatterIdentity(
   }
 
   try {
+    /*
+     * A People record with Chatter / Trial Chatter role must appear in QA
+     * even before the first incident exists. Reconcile only on chatter GETs
+     * so ordinary incident/dashboard requests do not carry this maintenance
+     * cost.
+     */
+    if (
+      req.method === "GET" &&
+      req.originalUrl
+        .split("?", 1)[0]
+        .startsWith(
+          "/api/chatters"
+        )
+    ) {
+      await reconcileQaChatterProfiles();
+    }
+
     const linkedChatters =
       await prisma.chatter.findMany({
         where: {
