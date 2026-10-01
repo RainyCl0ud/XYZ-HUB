@@ -34,7 +34,9 @@ function incidentModelWhere(
 
 export async function getPersonQaSummary(
   userId: string,
-  access: AccessContext
+  access: AccessContext,
+  historyPage = 1,
+  historyPageSize = 5
 ) {
   await reconcileQaChatterProfiles();
 
@@ -55,6 +57,24 @@ export async function getPersonQaSummary(
   ) {
     return null;
   }
+
+  const safeHistoryPage =
+    Math.max(
+      1,
+      Math.floor(
+        historyPage
+      )
+    );
+  const safeHistoryPageSize =
+    Math.min(
+      20,
+      Math.max(
+        1,
+        Math.floor(
+          historyPageSize
+        )
+      )
+    );
 
   const now =
     new Date();
@@ -118,7 +138,11 @@ export async function getPersonQaSummary(
         occurredAt:
           "desc",
       },
-      take: 5,
+      skip:
+        (safeHistoryPage - 1) *
+        safeHistoryPageSize,
+      take:
+        safeHistoryPageSize,
     }),
 
     prisma.incident.count({
@@ -193,5 +217,17 @@ export async function getPersonQaSummary(
         })
       ),
     totalIncidentCount,
+    historyPage:
+      safeHistoryPage,
+    historyPageSize:
+      safeHistoryPageSize,
+    historyPageCount:
+      Math.max(
+        1,
+        Math.ceil(
+          totalIncidentCount /
+          safeHistoryPageSize
+        )
+      ),
   };
 }
