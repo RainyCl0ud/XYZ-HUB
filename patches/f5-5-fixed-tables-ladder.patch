@@ -1,10 +1,12 @@
 diff --git a/frontend/src/F5QaCleanup.css b/frontend/src/F5QaCleanup.css
 --- a/frontend/src/F5QaCleanup.css
 +++ b/frontend/src/F5QaCleanup.css
-@@ -3,4 +3,51 @@
- }
- 
- /*
+@@ -25,7 +25,54 @@
+ .incidents-table tbody tr {
+   height: 56px;
++}
++
++/*
 + * Keep Team Management → Chatters visually stable even when a
 + * filter/search leaves fewer than seven records on the page.
 + * The compact desktop footprint also keeps the page inside the
@@ -49,14 +51,15 @@ diff --git a/frontend/src/F5QaCleanup.css b/frontend/src/F5QaCleanup.css
 +
 +.audit-table-row {
 +  min-height: 54px;
-+}
-+
-+/*
+ }
+ 
+ /*
   * Base styles declare `.incident-detail-top > div` as a column.
+  * These more-specific selectors intentionally restore the F.5 top row layout.
 diff --git a/frontend/src/pages/ConfigurationPage.tsx b/frontend/src/pages/ConfigurationPage.tsx
 --- a/frontend/src/pages/ConfigurationPage.tsx
 +++ b/frontend/src/pages/ConfigurationPage.tsx
-@@ -1,8 +1,38 @@
+@@ -1791,27 +1791,57 @@
 +    /*
 +     * The only hidden/default row is the system Clear base state.
 +     * A threshold of 0 alone must not hide another standing such as
@@ -98,7 +101,10 @@ diff --git a/frontend/src/pages/ConfigurationPage.tsx b/frontend/src/pages/Confi
        );
  
      const draftSteps:
-@@ -13,13 +43,13 @@
+       LadderDraftStep[] =
+       orderedSteps.map(
+         (step) => ({
+           clientId:
              nextLadderDraftId(),
  
            isImplicitBase:
@@ -114,3 +120,11 @@ diff --git a/frontend/src/pages/ConfigurationPage.tsx b/frontend/src/pages/Confi
                ? "0"
                : String(
                    step.deductionPercent
+                 ),
+         })
+       );
+ 
+     if (
+       !draftSteps.some(
+         (step) => step.isImplicitBase
+       )
