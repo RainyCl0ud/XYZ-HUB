@@ -50,7 +50,9 @@ type AuthContextValue = {
   user: AuthUser | null;
   access: AuthAccess | null;
   loading: boolean;
+  authError: string | null;
   refreshAuth: () => Promise<boolean>;
+  retryAuth: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -74,6 +76,10 @@ export function AuthProvider({
     );
   const [loading, setLoading] =
     useState(true);
+  const [authError, setAuthError] =
+    useState<string | null>(
+      null
+    );
 
   const clearAuth =
     useCallback(
@@ -95,6 +101,7 @@ export function AuthProvider({
 
           setUser(result.user);
           setAccess(result.access);
+          setAuthError(null);
           return true;
         } catch (error) {
           if (
@@ -102,6 +109,7 @@ export function AuthProvider({
             error.status === 401
           ) {
             clearAuth();
+            setAuthError(null);
             return false;
           }
 
@@ -111,11 +119,38 @@ export function AuthProvider({
       [clearAuth]
     );
 
+  const retryAuth =
+    useCallback(
+      async () => {
+        setLoading(true);
+        setAuthError(null);
+
+        try {
+          await refreshAuth();
+        } catch (error) {
+          console.error(
+            "Unable to restore authentication:",
+            error
+          );
+
+          setAuthError(
+            error instanceof Error
+              ? error.message
+              : "Unable to reach the XYZ Management API."
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      [refreshAuth]
+    );
+
   useEffect(
     () => {
       const handleAuthExpired =
         () => {
           clearAuth();
+          setAuthError(null);
         };
 
       window.addEventListener(
@@ -148,6 +183,11 @@ export function AuthProvider({
 
           if (active) {
             clearAuth();
+            setAuthError(
+              error instanceof Error
+                ? error.message
+                : "Unable to reach the XYZ Management API."
+            );
           }
         } finally {
           if (active) {
@@ -273,6 +313,7 @@ export function AuthProvider({
             currentUserId
           ) {
             clearAuth();
+            setAuthError(null);
           }
         };
 
@@ -322,6 +363,7 @@ export function AuthProvider({
           );
         } finally {
           clearAuth();
+          setAuthError(null);
         }
       },
       [clearAuth]
@@ -333,14 +375,18 @@ export function AuthProvider({
         user,
         access,
         loading,
+        authError,
         refreshAuth,
+        retryAuth,
         logout,
       }),
       [
         user,
         access,
         loading,
+        authError,
         refreshAuth,
+        retryAuth,
         logout,
       ]
     );
