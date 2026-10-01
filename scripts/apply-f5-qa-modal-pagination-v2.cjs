@@ -421,8 +421,9 @@ function IncidentsPage() {
 
   incidents = replaceRegexOne(
     incidents,
-    /\n\s*<button\n\s*type="button"\n\s*className="secondary-button"[\s\S]*?View Chatter Profile\n\s*<\/button>\n\n\s*\{selectedIncident\.chatter\.userId && \([\s\S]*?View Employee Profile\n\s*<\/button>\n\s*\)\}\n/,
-`\n`,
+    /(<div className="incident-detail-actions">)\n\s*<button\n\s*type="button"\n\s*className="secondary-button"[\s\S]*?View Chatter Profile\n\s*<\/button>\n\n\s*\{selectedIncident\.chatter\.userId && \([\s\S]*?View Employee Profile\n\s*<\/button>\n\s*\)\}\n/,
+`$1
+`,
     "Incident footer profile buttons"
   );
 
