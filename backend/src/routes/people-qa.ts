@@ -79,6 +79,27 @@ router.get(
       return;
     }
 
+    const requestedPage =
+      Array.isArray(
+        req.query.page
+      )
+        ? req.query.page[0]
+        : req.query.page;
+    const parsedPage =
+      typeof requestedPage === "string"
+        ? Number.parseInt(
+            requestedPage,
+            10
+          )
+        : 1;
+    const historyPage =
+      Number.isFinite(
+        parsedPage
+      ) &&
+      parsedPage > 0
+        ? parsedPage
+        : 1;
+
     try {
       /*
        * Reuse the established People visibility rules first. This keeps
@@ -92,7 +113,9 @@ router.get(
       const qa =
         await getPersonQaSummary(
           userId,
-          req.access
+          req.access,
+          historyPage,
+          5
         );
 
       res.status(200).json({
