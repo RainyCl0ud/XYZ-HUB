@@ -10,6 +10,11 @@ import type {
 } from "react";
 
 import {
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+
+import {
   apiRequest,
   MODEL_CONTEXT_CHANGED_EVENT,
 } from "../lib/api";
@@ -42,6 +47,7 @@ type StrikeActivityStatus =
 
 type Chatter = {
   id: string;
+  userId?: string | null;
   name: string;
   status:
     | "ACTIVE"
@@ -218,6 +224,16 @@ type PendingConfirmation =
 
 function IncidentsPage() {
   const toast = useToast();
+  const navigate =
+    useNavigate();
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+  const requestedIncidentId =
+    searchParams.get(
+      "incidentId"
+    );
 
   const { access } = useAuth();
 
@@ -973,8 +989,13 @@ function IncidentsPage() {
    */
 
   async function openIncidentDetails(
-    incident: Incident
+    incident: Incident | string
   ) {
+    const incidentId =
+      typeof incident === "string"
+        ? incident
+        : incident.id;
+
     try {
       setDetailLoading(true);
 
@@ -982,7 +1003,7 @@ function IncidentsPage() {
 
       const response =
         await apiRequest<IncidentDetailResponse>(
-          `/api/incidents/${incident.id}`
+          `/api/incidents/${incidentId}`
         );
 
       setSelectedIncident(
@@ -1005,12 +1026,49 @@ function IncidentsPage() {
     }
   }
 
+  useEffect(() => {
+    if (
+      !requestedIncidentId ||
+      selectedIncident?.id ===
+        requestedIncidentId
+    ) {
+      return;
+    }
+
+    void openIncidentDetails(
+      requestedIncidentId
+    );
+    // The detail loader is intentionally driven by the incidentId URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    requestedIncidentId,
+    selectedIncident?.id,
+  ]);
+
   function closeIncidentDetails() {
     if (detailLoading) {
       return;
     }
 
     setSelectedIncident(null);
+
+    if (
+      requestedIncidentId
+    ) {
+      const nextParams =
+        new URLSearchParams(
+          searchParams
+        );
+      nextParams.delete(
+        "incidentId"
+      );
+      setSearchParams(
+        nextParams,
+        {
+          replace: true,
+        }
+      );
+    }
   }
 
   /*
@@ -2720,6 +2778,36 @@ function IncidentsPage() {
                     )}
 
                     <div className="incident-detail-actions">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() =>
+                          navigate(
+                            `/chatters?chatterId=${encodeURIComponent(
+                              selectedIncident.chatter.id
+                            )}`
+                          )
+                        }
+                      >
+                        View Chatter Profile
+                      </button>
+
+                      {selectedIncident.chatter.userId && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() =>
+                            navigate(
+                              `/people?personId=${encodeURIComponent(
+                                selectedIncident.chatter.userId ?? ""
+                              )}`
+                            )
+                          }
+                        >
+                          View Employee Profile
+                        </button>
+                      )}
+
                       {canManageQaIncidents && selectedIncident.status ===
                         "OPEN" && (
                         <button

@@ -13,11 +13,16 @@ import type {
 } from "react";
 
 import {
+  useSearchParams,
+} from "react-router-dom";
+
+import {
   PEOPLE_CHANGED_EVENT,
   apiRequest,
 } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastProvider";
+import PeopleQaPanel from "../components/PeopleQaPanel";
 
 import "./PeoplePage.css";
 
@@ -118,7 +123,7 @@ type TeamContextMenu = {
 
 const TEXAS_TIME_ZONE = "America/Chicago";
 const EMPTY_TEAMS: TeamGroup[] = [];
-const PEOPLE_PAGE_SIZE = 7;
+const PEOPLE_PAGE_SIZE = 10;
 const EXISTING_PAGE_SIZE = 6;
 const COLOR_PRESETS = [
   "#7C8CFF",
@@ -182,6 +187,14 @@ function collectDescendants(
 function PeoplePage() {
   const toast = useToast();
   const { user } = useAuth();
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+  const requestedPersonId =
+    searchParams.get(
+      "personId"
+    );
 
   const [people, setPeople] = useState<Person[]>([]);
   const [options, setOptions] = useState<PeopleOptions | null>(null);
@@ -599,6 +612,57 @@ function PeoplePage() {
     }
   }
 
+  useEffect(() => {
+    if (
+      !requestedPersonId ||
+      loading ||
+      selectedPerson?.id ===
+        requestedPersonId
+    ) {
+      return;
+    }
+
+    const requestedPerson =
+      people.find(
+        (person) =>
+          person.id ===
+          requestedPersonId
+      );
+
+    if (requestedPerson) {
+      void openPerson(
+        requestedPerson
+      );
+    }
+    // This effect intentionally opens a visible employee from the URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    requestedPersonId,
+    loading,
+    people,
+    selectedPerson?.id,
+  ]);
+
+  function closePersonProfile() {
+    setSelectedPerson(null);
+
+    if (requestedPersonId) {
+      const nextParams =
+        new URLSearchParams(
+          searchParams
+        );
+      nextParams.delete(
+        "personId"
+      );
+      setSearchParams(
+        nextParams,
+        {
+          replace: true,
+        }
+      );
+    }
+  }
+
   async function refreshPerson(userId: string) {
     const [response] = await Promise.all([
       apiRequest<{ person: Person }>(`/api/people/${userId}`),
@@ -805,7 +869,7 @@ function PeoplePage() {
           method: "DELETE",
           body: JSON.stringify({ confirmEmail: deleteConfirmation }),
         });
-        if (selectedPerson?.id === actionPerson.id) setSelectedPerson(null);
+        if (selectedPerson?.id === actionPerson.id) closePersonProfile();
         setSelectedPersonIds((current) => current.filter((id) => id !== actionPerson.id));
         await Promise.all([loadPeople(), loadOptions()]);
         toast.success("The account and tied QA history were permanently deleted.", "User deleted");
@@ -1312,7 +1376,7 @@ function PeoplePage() {
           className="people-overlay"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setSelectedPerson(null);
+            if (event.target === event.currentTarget) closePersonProfile();
           }}
         >
           <section
@@ -1390,6 +1454,10 @@ function PeoplePage() {
                       : "This profile is visible to you, but one or more assignments are outside the access you may change."}
                   </p>
                 )}
+
+                <PeopleQaPanel
+                  personId={selectedPerson.id}
+                />
 
                 <div className="people-detail-section">
                   <div className="people-detail-section-heading">

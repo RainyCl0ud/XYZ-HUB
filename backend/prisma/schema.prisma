@@ -134,7 +134,8 @@ model Role {
    */
   systemKey String? @unique
 
-  name String @unique
+  name        String  @unique
+  description String?
 
   rank      Int?
   dataScope RoleDataScope

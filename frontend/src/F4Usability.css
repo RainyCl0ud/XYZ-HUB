@@ -1,0 +1,393 @@
+/* =========================================================
+   F.4 — QA / PEOPLE USABILITY
+   =========================================================
+   Focused overrides that improve readability and management
+   layout without changing the existing visual identity.
+   ========================================================= */
+
+/* ---------- Readability ---------- */
+
+body {
+  font-size: 14px;
+}
+
+.page-description,
+.card-header p,
+.content-card p,
+.empty-state span,
+.alert,
+.dependency-warning,
+.modal-header p,
+.detail-body,
+.form-helper,
+.confirmation-body,
+.confirmation-summary,
+.action-context,
+.chatter-profile-header p,
+.chatter-profile-member-since,
+.chatter-standing-primary p,
+.chatter-incident-meta,
+.people-email-notice span,
+.people-org-help,
+.people-batch-bar span,
+.people-inline-error,
+.people-person-cell small,
+.people-muted-cell,
+.people-check-option small,
+.people-confirm-impact p,
+.people-confirm-body p,
+.role-settings-description,
+.role-settings-pagination,
+.role-settings-modal p,
+.role-settings-modal small {
+  font-size: 12px !important;
+  line-height: 1.55;
+}
+
+.data-table td,
+.people-table-row,
+.people-existing-row,
+.role-settings-table td,
+.config-item,
+.strike-ladder-table-row,
+.chatter-incident-item {
+  font-size: 13px !important;
+}
+
+.data-table th,
+.people-table-head,
+.people-existing-head,
+.role-settings-table th,
+.strike-ladder-table-header,
+.people-section-label,
+.detail-label,
+.preview-label {
+  font-size: 11px !important;
+}
+
+button,
+input,
+select,
+textarea,
+.toolbar-select,
+.search-input,
+.filter-button,
+.text-button,
+.primary-button,
+.secondary-button,
+.danger-button,
+.role-settings-link-button {
+  font-size: 12.5px !important;
+}
+
+.page-eyebrow {
+  font-size: 10px !important;
+}
+
+/* ---------- Configuration hierarchy ---------- */
+
+/*
+ * The strike ladder explains the QA consequence model, so it is shown
+ * before the severity/weight configuration cards. :has() keeps this
+ * scoped to Configuration without requiring a structural rewrite.
+ */
+.page:has(> .strike-ladder-card) {
+  display: flex;
+  flex-direction: column;
+}
+
+.page:has(> .strike-ladder-card) > .page-header {
+  order: 0;
+}
+
+.page:has(> .strike-ladder-card) > .page-alert,
+.page:has(> .strike-ladder-card) > .alert {
+  order: 1;
+}
+
+.page:has(> .strike-ladder-card) > .strike-ladder-card {
+  order: 2;
+  margin-top: 0;
+  margin-bottom: 22px;
+}
+
+.page:has(> .strike-ladder-card) > .two-column-grid {
+  order: 3;
+}
+
+/*
+ * The zero-strike Clear / 0% step is a permanent system baseline.
+ * Keep it in data/calculation logic, but do not expose it as something
+ * management can view or edit.
+ */
+.strike-ladder-table .strike-ladder-table-row:first-child,
+.strike-ladder-editor-list .strike-ladder-editor-row:first-child {
+  display: none !important;
+}
+
+/* ---------- Chatters ownership ---------- */
+
+/* Employee identity/lifecycle is managed from People Management. */
+.chatter-profile-actions {
+  display: none !important;
+}
+
+/* ---------- People pagination ---------- */
+
+/* Do not clip the directory at a fixed seven-row viewport. */
+.people-table-wrap {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+.people-pagination {
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
+  min-height: 54px !important;
+  border-top: 1px solid var(--border) !important;
+  background: color-mix(in srgb, var(--surface-deep) 96%, black 4%) !important;
+  font-size: 12px !important;
+}
+
+.people-pagination-controls strong {
+  min-width: 110px !important;
+  font-size: 12px !important;
+}
+
+.people-pagination-controls button {
+  width: 34px !important;
+  height: 34px !important;
+  font-size: 20px !important;
+}
+
+/* ---------- Employee QA standing ---------- */
+
+.people-qa-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.people-qa-standing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.people-qa-standing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  min-height: 92px;
+  padding: 13px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: var(--surface-deep);
+}
+
+.people-qa-standing-card.primary {
+  border-color: rgba(232, 216, 178, 0.25);
+  background: var(--accent-soft);
+}
+
+.people-qa-standing-card > span {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.people-qa-standing-card > strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+}
+
+.people-qa-standing-card > small {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.people-qa-history-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.people-qa-history-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.people-qa-history-heading strong {
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.people-qa-history-heading > span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.people-qa-history-list {
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+}
+
+.people-qa-incident-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-deep);
+  color: inherit;
+  text-align: left;
+}
+
+.people-qa-incident-row:last-child {
+  border-bottom: 0;
+}
+
+.people-qa-incident-row:hover,
+.people-qa-incident-row:focus-visible {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.people-qa-incident-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.people-qa-incident-main strong {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-qa-incident-main small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.people-qa-incident-status {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.people-qa-incident-arrow {
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.people-qa-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  border: 1px dashed var(--border-soft);
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.people-qa-empty strong {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.people-qa-empty.compact {
+  padding: 12px 14px;
+}
+
+/* ---------- Role Settings containment ---------- */
+
+.role-settings-table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.role-settings-rank-table {
+  width: 100%;
+  min-width: 900px;
+  table-layout: fixed;
+}
+
+.role-settings-rank-table th:last-child,
+.role-settings-rank-table td:last-child {
+  width: 230px;
+}
+
+.role-settings-operations {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.role-settings-link-button {
+  white-space: nowrap;
+}
+
+.role-settings-rank-table tbody tr[role="button"] {
+  cursor: pointer;
+}
+
+.role-settings-rank-table tbody tr[role="button"]:hover,
+.role-settings-rank-table tbody tr[role="button"]:focus-visible {
+  background: rgba(255, 255, 255, 0.035);
+  outline: none;
+}
+
+@media (max-width: 900px) {
+  .people-qa-standing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  body {
+    font-size: 13.5px;
+  }
+
+  .page-description,
+  .card-header p,
+  .content-card p,
+  .modal-header p,
+  .people-person-cell small,
+  .chatter-incident-meta {
+    font-size: 11.5px !important;
+  }
+
+  .people-qa-standing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .people-qa-history-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

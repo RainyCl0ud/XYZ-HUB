@@ -19,6 +19,9 @@ import {
 export type RoleBuilderInput = {
   name: string;
 
+  description?:
+    string | null;
+
   rank:
     number | null;
 
@@ -293,6 +296,9 @@ const roleSelect = {
   name:
     true,
 
+  description:
+    true,
+
   rank:
     true,
 
@@ -359,6 +365,7 @@ type RoleWithBuilderData = {
   id: string;
   systemKey: string | null;
   name: string;
+  description: string | null;
   rank: number | null;
   dataScope: RoleDataScope;
   landingPath: string | null;
@@ -394,6 +401,9 @@ function serializeRole(
 
     name:
       role.name,
+
+    description:
+      role.description,
 
     rank:
       role.rank,
@@ -577,6 +587,10 @@ export async function createRole(
 
         name,
 
+        description:
+          input.description?.trim() ||
+          null,
+
         rank:
           input.rank,
 
@@ -699,6 +713,10 @@ export async function updateRole(
 
           data: {
             name,
+
+            description:
+              input.description?.trim() ||
+              null,
 
             rank:
               input.rank,

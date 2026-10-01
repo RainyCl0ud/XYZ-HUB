@@ -16,6 +16,10 @@ import {
 } from "./middleware/audit-http.js";
 
 import {
+  qaAuditHttpMiddleware,
+} from "./middleware/qa-audit-http.js";
+
+import {
   requireQaConfigurationForWrites,
   requireQaView,
 } from "./middleware/qa-access.js";
@@ -35,6 +39,7 @@ import {
 } from "./middleware/rate-limit.js";
 
 import peopleRoutes from "./routes/people.js";
+import peopleQaRoutes from "./routes/people-qa.js";
 import teamGroupRoutes from "./routes/team-groups.js";
 import modelRoutes from "./routes/models.js";
 import roleRoutes from "./routes/roles.js";
@@ -164,6 +169,15 @@ app.use(
   auditHttpMiddleware
 );
 
+/*
+ * QA mutations have their own focused audit classifier. It records
+ * configuration, rules, incident workflow, and legacy chatter writes
+ * without duplicating ordinary read traffic.
+ */
+app.use(
+  qaAuditHttpMiddleware
+);
+
 app.use(
   "/api/auth/login",
   loginRateLimit
@@ -202,6 +216,11 @@ app.use(
 app.use(
   "/api/audit",
   auditRoutes
+);
+
+app.use(
+  "/api/people",
+  peopleQaRoutes
 );
 
 app.use(

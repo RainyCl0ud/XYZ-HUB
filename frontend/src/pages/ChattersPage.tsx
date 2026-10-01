@@ -11,6 +11,11 @@ import type {
 } from "react";
 
 import {
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+
+import {
   apiRequest,
   MODEL_CONTEXT_CHANGED_EVENT,
 } from "../lib/api";
@@ -224,6 +229,16 @@ function formatPercentage(
 
 function ChattersPage() {
   const toast = useToast();
+  const navigate =
+    useNavigate();
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+  const requestedChatterId =
+    searchParams.get(
+      "chatterId"
+    );
 
   const {
     access,
@@ -604,6 +619,39 @@ function ChattersPage() {
     }
   }
 
+  useEffect(() => {
+    if (
+      !requestedChatterId ||
+      isLoading ||
+      selectedChatter?.id ===
+        requestedChatterId
+    ) {
+      return;
+    }
+
+    const requestedChatter =
+      chatters.find(
+        (chatter) =>
+          chatter.id ===
+          requestedChatterId
+      );
+
+    if (
+      requestedChatter
+    ) {
+      void openChatterDetails(
+        requestedChatter
+      );
+    }
+    // The detail loader is intentionally driven by the URL + loaded list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    requestedChatterId,
+    isLoading,
+    chatters,
+    selectedChatter?.id,
+  ]);
+
   function closeChatterDetails() {
     if (
       actionId !== null ||
@@ -613,6 +661,22 @@ function ChattersPage() {
     }
 
     resetChatterProfile();
+
+    if (requestedChatterId) {
+      const nextParams =
+        new URLSearchParams(
+          searchParams
+        );
+      nextParams.delete(
+        "chatterId"
+      );
+      setSearchParams(
+        nextParams,
+        {
+          replace: true,
+        }
+      );
+    }
   }
 
   function handleRowKeyDown(
@@ -694,24 +758,26 @@ function ChattersPage() {
 
   const visibleIncidents =
     useMemo(() => {
-      return chatterIncidents.filter(
-        (incident) => {
-          const matchesIncidentStatus =
-            incidentFilter === "ALL" ||
-            incident.status ===
-              incidentFilter;
+      return chatterIncidents
+        .filter(
+          (incident) => {
+            const matchesIncidentStatus =
+              incidentFilter === "ALL" ||
+              incident.status ===
+                incidentFilter;
 
-          const matchesStrikeStatus =
-            strikeFilter === "ALL" ||
-            incident.strikeActivityStatus ===
-              strikeFilter;
+            const matchesStrikeStatus =
+              strikeFilter === "ALL" ||
+              incident.strikeActivityStatus ===
+                strikeFilter;
 
-          return (
-            matchesIncidentStatus &&
-            matchesStrikeStatus
-          );
-        }
-      );
+            return (
+              matchesIncidentStatus &&
+              matchesStrikeStatus
+            );
+          }
+        )
+        .slice(0, 5);
     }, [
       chatterIncidents,
       incidentFilter,
@@ -2067,11 +2133,16 @@ function ChattersPage() {
                             <button
                               type="button"
                               className="chatter-incident-summary"
-                              onClick={() =>
+                              onClick={() => {
                                 toggleIncident(
                                   incident.id
-                                )
-                              }
+                                );
+                                navigate(
+                                  `/incidents?incidentId=${encodeURIComponent(
+                                    incident.id
+                                  )}`
+                                );
+                              }}
                               aria-expanded={
                                 isExpanded
                               }
