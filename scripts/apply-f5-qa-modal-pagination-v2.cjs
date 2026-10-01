@@ -532,7 +532,7 @@ const CHATTER_HISTORY_PAGE_SIZE = 5;`,
     );
 
     setHistoryPage(1);`,
-    3,
+    2,
     "Chatter history resets"
   );
 
