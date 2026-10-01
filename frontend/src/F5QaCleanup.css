@@ -17,9 +17,22 @@ body:has(.modal-backdrop) {
   overscroll-behavior: contain;
 }
 
-/* Keep incident workflow + strike status readable on one row. */
-.incident-detail-statuses {
+/* Keep the Incident Records footprint stable across all paginated pages. */
+.table-wrapper:has(> .incidents-table) {
+  min-height: 458px;
+}
+
+.incidents-table tbody tr {
+  height: 56px;
+}
+
+/*
+ * Base styles declare `.incident-detail-top > div` as a column.
+ * These more-specific selectors intentionally restore the F.5 top row layout.
+ */
+.incident-detail-top > .incident-detail-statuses {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -27,15 +40,23 @@ body:has(.modal-backdrop) {
   white-space: nowrap;
 }
 
+.incident-detail-statuses > * {
+  flex: 0 0 auto;
+}
+
 /* QA profile access sits beside the chatter identity, not in the footer. */
-.incident-detail-chatter-row {
+.incident-detail-top > .incident-detail-chatter-row {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   min-width: 0;
 }
 
 .incident-detail-chatter-row > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -89,13 +110,14 @@ body:has(.modal-backdrop) {
     align-items: flex-start;
   }
 
-  .incident-detail-chatter-row {
+  .incident-detail-top > .incident-detail-chatter-row {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .incident-detail-statuses {
+  .incident-detail-top > .incident-detail-statuses {
     align-self: flex-start;
+    flex-direction: row;
   }
 
   .qa-history-pagination,
