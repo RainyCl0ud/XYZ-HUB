@@ -25,6 +25,10 @@ import {
 } from "./middleware/current-chatter-identity.js";
 
 import {
+  requestPerformanceMiddleware,
+} from "./middleware/request-performance.js";
+
+import {
   loginRateLimit,
   passwordResetRateLimit,
   twoFactorRateLimit,
@@ -132,6 +136,10 @@ app.use(
     credentials:
       true,
   })
+);
+
+app.use(
+  requestPerformanceMiddleware
 );
 
 app.use(
@@ -303,6 +311,45 @@ app.get(
       message:
         "XYZ Hub API is running",
     });
+  }
+);
+
+app.get(
+  "/health/ready",
+  async (
+    _req,
+    res
+  ) => {
+    const startedAt =
+      Date.now();
+
+    try {
+      await prisma.$queryRaw`
+        SELECT 1
+      `;
+
+      res.status(200).json({
+        status:
+          "ok",
+        message:
+          "XYZ Hub API and database are ready",
+        databaseLatencyMs:
+          Date.now() -
+          startedAt,
+      });
+    } catch (error) {
+      console.error(
+        "Readiness check failed:",
+        error
+      );
+
+      res.status(503).json({
+        status:
+          "error",
+        message:
+          "XYZ Hub database is not ready",
+      });
+    }
   }
 );
 

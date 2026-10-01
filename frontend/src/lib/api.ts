@@ -23,6 +23,9 @@ export const PEOPLE_CHANGED_EVENT =
 export const SIGNED_OUT_STORAGE_KEY =
   "xyz_signed_out_at";
 
+export const DEFAULT_API_TIMEOUT_MS =
+  12_000;
+
 type ApiErrorResponse = {
   error?: string;
   message?: string;
@@ -62,19 +65,56 @@ export class ApiError extends Error {
   }
 }
 
+export class ApiUnavailableError extends Error {
+  readonly reason:
+    | "timeout"
+    | "network";
+
+  constructor(
+    reason:
+      | "timeout"
+      | "network",
+    message:
+      string
+  ) {
+    super(
+      message
+    );
+
+    this.name =
+      "ApiUnavailableError";
+
+    this.reason =
+      reason;
+  }
+}
+
+type ApiRequestOptions =
+  RequestInit & {
+    timeoutMs?: number;
+  };
+
 export async function apiRequest<T>(
   path:
     string,
   options:
-    RequestInit = {}
+    ApiRequestOptions = {}
 ): Promise<T> {
+  const {
+    timeoutMs =
+      DEFAULT_API_TIMEOUT_MS,
+    signal:
+      callerSignal,
+    ...fetchOptions
+  } = options;
+
   const headers =
     new Headers(
-      options.headers
+      fetchOptions.headers
     );
 
   if (
-    options.body &&
+    fetchOptions.body &&
     !headers.has(
       "Content-Type"
     )
@@ -114,16 +154,96 @@ export async function apiRequest<T>(
     }
   }
 
-  const response =
-    await fetch(
-      `${API_BASE_URL}${path}`,
+  const controller =
+    new AbortController();
+  let timedOut =
+    false;
+
+  const handleCallerAbort =
+    () => {
+      controller.abort(
+        callerSignal?.reason
+      );
+    };
+
+  if (
+    callerSignal?.aborted
+  ) {
+    handleCallerAbort();
+  } else {
+    callerSignal?.addEventListener(
+      "abort",
+      handleCallerAbort,
       {
-        ...options,
-        headers,
-        credentials:
-          "include",
+        once: true,
       }
     );
+  }
+
+  const requestTimeout =
+    Math.max(
+      1_000,
+      timeoutMs
+    );
+
+  const timeoutId =
+    globalThis.setTimeout(
+      () => {
+        timedOut = true;
+        controller.abort();
+      },
+      requestTimeout
+    );
+
+  let response:
+    Response;
+
+  try {
+    response =
+      await fetch(
+        `${API_BASE_URL}${path}`,
+        {
+          ...fetchOptions,
+          headers,
+          credentials:
+            "include",
+          signal:
+            controller.signal,
+        }
+      );
+  } catch (error) {
+    if (timedOut) {
+      throw new ApiUnavailableError(
+        "timeout",
+        "The XYZ Management API took too long to respond. Please try again."
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.name ===
+        "AbortError"
+    ) {
+      throw new ApiUnavailableError(
+        "network",
+        "The request was interrupted before the XYZ Management API responded."
+      );
+    }
+
+    throw new ApiUnavailableError(
+      "network",
+      "Unable to reach the XYZ Management API. Check the connection and try again."
+    );
+  } finally {
+    globalThis.clearTimeout(
+      timeoutId
+    );
+
+    callerSignal?.removeEventListener(
+      "abort",
+      handleCallerAbort
+    );
+  }
 
   if (
     !response.ok
