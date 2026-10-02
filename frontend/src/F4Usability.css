@@ -115,16 +115,6 @@ textarea,
   order: 3;
 }
 
-/*
- * The zero-strike Clear / 0% step is a permanent system baseline.
- * Keep it in data/calculation logic, but do not expose it as something
- * management can view or edit.
- */
-.strike-ladder-table .strike-ladder-table-row:first-child,
-.strike-ladder-editor-list .strike-ladder-editor-row:first-child {
-  display: none !important;
-}
-
 /* ---------- Chatters ownership ---------- */
 
 /* Employee identity/lifecycle is managed from People Management. */
