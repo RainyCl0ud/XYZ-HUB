@@ -72,7 +72,6 @@ type StrikeLadderPayload = {
 
 type LadderDraftStep = {
   clientId: string;
-  isImplicitBase: boolean;
   standingLabel: string;
   deductionPercent: string;
 };
@@ -1830,39 +1829,25 @@ function ConfigurationPage() {
 
     const draftSteps:
       LadderDraftStep[] =
-      orderedSteps.map(
-        (step) => ({
-          clientId:
-            nextLadderDraftId(),
+      orderedSteps
+        .filter(
+          (step) =>
+            !isClearBaseStep(step)
+        )
+        .map(
+          (step) => ({
+            clientId:
+              nextLadderDraftId(),
 
-          isImplicitBase:
-            isClearBaseStep(step),
+            standingLabel:
+              step.standingLabel,
 
-          standingLabel:
-            step.standingLabel,
-
-          deductionPercent:
-            isClearBaseStep(step)
-              ? "0"
-              : String(
-                  step.deductionPercent
-                ),
-        })
-      );
-
-    if (
-      !draftSteps.some(
-        (step) => step.isImplicitBase
-      )
-    ) {
-      draftSteps.unshift({
-        clientId:
-          nextLadderDraftId(),
-        isImplicitBase: true,
-        standingLabel: "Clear",
-        deductionPercent: "0",
-      });
-    }
+            deductionPercent:
+              String(
+                step.deductionPercent
+              ),
+          })
+        );
 
     setLadderDraftSteps(
       draftSteps
@@ -1903,27 +1888,8 @@ function ConfigurationPage() {
     value: string
   ) {
     setLadderDraftSteps(
-      (current) => {
-        const targetIndex =
-          current.findIndex(
-            (step) =>
-              step.clientId ===
-              clientId
-          );
-
-        /*
-         * The base row's deduction is a protected system
-         * rule. Even an accidental UI call cannot change it.
-         */
-        if (
-          targetIndex === 0 &&
-          field ===
-            "deductionPercent"
-        ) {
-          return current;
-        }
-
-        return current.map(
+      (current) =>
+        current.map(
           (step) =>
             step.clientId ===
             clientId
@@ -1933,8 +1899,7 @@ function ConfigurationPage() {
                     value,
                 }
               : step
-        );
-      }
+        )
     );
 
     if (ladderFormError) {
@@ -1944,16 +1909,16 @@ function ConfigurationPage() {
 
   function addLadderStep() {
     /*
-     * The backend accepts a maximum of 50 steps. Keep the
-     * editor aligned with that same rule and give management
-     * immediate feedback instead of silently doing nothing.
+     * The backend accepts a maximum of 50 total steps.
+     * Clear occupies system index 0, leaving up to 49
+     * management-configurable standings in the editor.
      */
     if (
       ladderDraftSteps.length >=
-      50
+      49
     ) {
       const message =
-        "The strike ladder cannot contain more than 50 steps.";
+        "The strike ladder cannot contain more than 49 configurable steps.";
 
       setLadderFormError(
         message
@@ -1969,14 +1934,14 @@ function ConfigurationPage() {
 
     /*
      * Active-strike numbers are system controlled.
-     * The new row automatically becomes the next sequential
-     * strike number because its array index is the threshold.
+     * Visible rows start at strike 1 because Clear is
+     * excluded from the editable draft.
      */
     const newStepId =
       nextLadderDraftId();
 
     const newStepNumber =
-      ladderDraftSteps.length;
+      ladderDraftSteps.length + 1;
 
     setLadderDraftSteps(
       (current) => [
@@ -1985,8 +1950,6 @@ function ConfigurationPage() {
         {
           clientId:
             newStepId,
-
-          isImplicitBase: false,
 
           standingLabel:
             "New Standing",
@@ -2019,35 +1982,15 @@ function ConfigurationPage() {
           clientId
       );
 
-    /*
-     * Index 0 is the permanent base state.
-     * Management may edit its label and deduction,
-     * but the base row itself can never be removed.
-     */
-    if (targetIndex === 0) {
-      const message =
-        "The 0-strike base step cannot be removed.";
-
-      setLadderFormError(
-        message
-      );
-
-      toast.error(
-        message,
-        "Base step required"
-      );
-
-      return;
-    }
 
     if (targetIndex < 0) {
       return;
     }
 
     /*
-     * No threshold renumbering is stored in the draft.
-     * Once a row is removed, the remaining array indexes
-     * immediately become 0, 1, 2, 3... in the UI and API.
+     * Visible strike numbers are derived from index + 1.
+     * Removing a row automatically renumbers the remaining
+     * management-configurable standings.
      */
     setLadderDraftSteps(
       (current) =>
@@ -2112,43 +2055,16 @@ function ConfigurationPage() {
       return;
     }
 
-    /*
-     * Step 0 is permanent, so a valid editor state
-     * must always contain at least that base row.
-     */
-    if (
-      ladderDraftSteps.length ===
-      0
-    ) {
-      showLadderError(
-        "The 0-strike base step is required."
-      );
-
-      return;
-    }
 
     const parsedSteps:
       StrikeLadderPayloadStep[] =
       [];
 
-    for (
-      const [
-        index,
-        draft,
-      ] of
-        ladderDraftSteps.entries()
-    ) {
-      /*
-       * 0 active strikes is the permanent default state,
-       * so its deduction is always 0%. Management may only
-       * change the wording of that base standing.
-       */
+    for (const draft of ladderDraftSteps) {
       const deduction =
-        index === 0
-          ? 0
-          : Number(
-              draft.deductionPercent
-            );
+        Number(
+          draft.deductionPercent
+        );
 
       const label =
         draft.standingLabel.trim();
@@ -2204,8 +2120,15 @@ function ConfigurationPage() {
     const payload:
       StrikeLadderPayload = {
       durationDays,
-      steps:
-        parsedSteps,
+      steps: [
+        {
+          standingLabel:
+            "Clear",
+          deductionPercent:
+            0,
+        },
+        ...parsedSteps,
+      ],
     };
 
     if (
@@ -4068,10 +3991,7 @@ function ConfigurationPage() {
                   (
                     step,
                     index
-                  ) =>
-                    step.isImplicitBase
-                      ? null
-                      : (
+                  ) => (
                     <div
                       className={[
                         "strike-ladder-editor-row",
@@ -4105,14 +4025,8 @@ function ConfigurationPage() {
                         </span>
 
                         <strong>
-                          {index}
+                          {index + 1}
                         </strong>
-
-                        {index === 0 && (
-                          <small>
-                            Required base
-                          </small>
-                        )}
                       </div>
 
                       <label className="form-field strike-ladder-label-field">
@@ -4145,72 +4059,50 @@ function ConfigurationPage() {
                         />
                       </label>
 
-                      {index === 0 ? (
-                        <div className="strike-ladder-fixed-deduction">
-                          <span>
-                            Deduction %
-                          </span>
-
-                          <strong>
-                            0%
-                          </strong>
-
-                          <small>
-                            Fixed default
-                          </small>
-                        </div>
-                      ) : (
-                        <label className="form-field strike-ladder-deduction-field">
-                          <span>
-                            Deduction %
-                          </span>
-
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={
-                              step.deductionPercent
-                            }
-                            onChange={(
-                              event
-                            ) =>
-                              updateLadderDraftStep(
-                                step.clientId,
-                                "deductionPercent",
-                                event.target
-                                  .value
-                              )
-                            }
-                            disabled={
-                              isSavingLadder
-                            }
-                          />
-                        </label>
-                      )}
-
-                      {index === 0 ? (
-                        <span className="strike-ladder-base-step">
-                          Base
+                      <label className="form-field strike-ladder-deduction-field">
+                        <span>
+                          Deduction %
                         </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="text-button danger strike-ladder-remove-step"
-                          onClick={() =>
-                            removeLadderStep(
-                              step.clientId
+
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={
+                            step.deductionPercent
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            updateLadderDraftStep(
+                              step.clientId,
+                              "deductionPercent",
+                              event.target
+                                .value
                             )
                           }
                           disabled={
                             isSavingLadder
                           }
-                          title="Remove ladder step"
-                        >
-                          Remove
-                        </button>
-                      )}
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        className="text-button danger strike-ladder-remove-step"
+                        onClick={() =>
+                          removeLadderStep(
+                            step.clientId
+                          )
+                        }
+                        disabled={
+                          isSavingLadder
+                        }
+                        title="Remove ladder step"
+                      >
+                        Remove
+                      </button>
                     </div>
                   )
                 )}
