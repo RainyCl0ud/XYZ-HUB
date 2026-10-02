@@ -1849,13 +1849,6 @@ function ConfigurationPage() {
           })
         );
 
-    console.log("[F5.6 DEBUG] editor opened", {
-      currentSteps: currentLadder.steps,
-      orderedSteps,
-      draftSteps,
-      draftLength: draftSteps.length,
-    });
-
     setLadderDraftSteps(
       draftSteps
     );
@@ -1944,12 +1937,6 @@ function ConfigurationPage() {
      * Visible rows start at strike 1 because Clear is
      * excluded from the editable draft.
      */
-    console.log("[F5.6 DEBUG] before Add Step", {
-      draft: ladderDraftSteps,
-      draftLength: ladderDraftSteps.length,
-      draftEntries: Array.from(ladderDraftSteps.entries()),
-    });
-
     const newStepId =
       nextLadderDraftId();
 
