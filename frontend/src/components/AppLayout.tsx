@@ -1189,6 +1189,12 @@ function AppLayout() {
             </div>
           </div>
         )}
+        <footer
+          className="hub-confidentiality-footer"
+          aria-label="Confidentiality notice"
+        >
+          XYZ MGMT &mdash; Confidential &amp; For Internal Use Only
+        </footer>
       </main>
     </div>
   );

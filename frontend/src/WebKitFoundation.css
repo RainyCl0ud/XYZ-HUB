@@ -1,0 +1,202 @@
+/* ==========================================================================
+   XYZ Management Hub — Web Kit Foundation
+   Phase 1
+
+   Dim's XYZ Web Kit v1.0 is the visual reference only.
+   This project does not import or depend on xyz-tokens.css.
+
+   Foundation rules:
+   - Monochrome only
+   - White on black
+   - Near-square 2px geometry
+   - Helvetica-first typography
+   ========================================================================== */
+
+:root {
+  font-family:
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    "Segoe UI",
+    sans-serif;
+
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg: #000000;
+  --bg-elevated: #0d0d0d;
+
+  --sidebar: #000000;
+  --sidebar-hover: #1a1a1a;
+  --sidebar-active: #141414;
+
+  --surface: #141414;
+  --surface-soft: #141414;
+  --surface-hover: #1a1a1a;
+  --surface-deep: #0d0d0d;
+
+  /* Borders */
+  --border: #333333;
+  --border-soft: #333333;
+  --border-strong: #666666;
+
+  /* Text */
+  --text: #ffffff;
+  --text-secondary: #cccccc;
+  --text-muted: #999999;
+  --text-soft: #8e8e8e;
+
+  /* Primary emphasis */
+  --accent: #ffffff;
+  --accent-strong: #ffffff;
+  --accent-text: #000000;
+  --accent-soft: rgba(255, 255, 255, 0.08);
+
+  /*
+   * Existing semantic variables remain available so current components
+   * do not break, but Phase 1 removes hue from them.
+   */
+  --success: #ffffff;
+  --success-bg: rgba(255, 255, 255, 0.08);
+
+  --warning: #ffffff;
+  --warning-bg: rgba(255, 255, 255, 0.08);
+
+  --danger: #ffffff;
+  --danger-strong: #ffffff;
+  --danger-bg: rgba(255, 255, 255, 0.08);
+
+  --info: #ffffff;
+  --info-bg: rgba(255, 255, 255, 0.08);
+
+  /* Shape */
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+
+  /* Dim's system uses borders and spacing instead of elevation. */
+  --shadow-soft: none;
+  --shadow-modal: none;
+
+  /* Phase 1 reference values for later component passes. */
+  --hub-content-max: 1200px;
+  --hub-label-tracking: 0.16em;
+}
+
+html {
+  background: #000000;
+}
+
+body {
+  background: #000000;
+  color: var(--text);
+  font-family:
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    "Segoe UI",
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.app-shell {
+  background: #000000;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+::selection {
+  background: #ffffff;
+  color: #000000;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border: 2px solid #000000;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666666;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* Official XYZ white logo is already white; do not invert it. */
+.portal-sidebar-logo,
+.auth-brand-logo {
+  filter: none;
+}
+/* ==========================================================================
+   Global confidentiality notice
+   Required across authenticated and authentication surfaces.
+   ========================================================================== */
+
+.hub-confidentiality-footer {
+  width: min(100%, var(--hub-content-max));
+  margin: 48px auto 0;
+  padding: 14px 0 0;
+
+  border-top: 1px solid #ffffff;
+
+  color: var(--text-muted);
+
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 700;
+  letter-spacing: var(--hub-label-tracking);
+  text-transform: uppercase;
+}
+
+.hub-confidentiality-footer-auth {
+  width: 100%;
+  margin-top: 28px;
+
+  font-size: 9px;
+  text-align: center;
+}
+/* ==========================================================================
+   Authentication surfaces
+   Remove legacy colored decoration while preserving auth behavior/layout.
+   ========================================================================== */
+
+.auth-page {
+  background: #000000;
+}
+
+.auth-background-glow {
+  display: none;
+}
+
+.auth-card {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.auth-message-error,
+.auth-message-success,
+.auth-message-info {
+  border-color: var(--border-strong);
+  background: var(--surface-deep);
+  color: var(--text-secondary);
+}
