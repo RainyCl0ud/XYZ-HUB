@@ -768,9 +768,7 @@ router.post(
 
   requireAuth,
 
-  requirePermission(
-    "people.deactivate"
-  ),
+  requireOwner,
 
   async (
     req: AuthenticatedRequest,
@@ -822,7 +820,6 @@ router.post(
         switch (
           error.code
         ) {
-          case "PEOPLE_DEACTIVATE_REQUIRED":
           case "ROLE_NOT_MANAGEABLE":
           case "MODEL_NOT_MANAGEABLE":
           case "TEAM_GROUP_NOT_MANAGEABLE":
@@ -944,7 +941,6 @@ router.post(
           error.code
         ) {
           case "OWNER_REQUIRED":
-          case "PEOPLE_DEACTIVATE_REQUIRED":
           case "ROLE_NOT_MANAGEABLE":
           case "MODEL_NOT_MANAGEABLE":
           case "TEAM_GROUP_NOT_MANAGEABLE":
@@ -1183,10 +1179,6 @@ router.delete(
 
   requireOwner,
 
-  requirePermission(
-    "people.delete"
-  ),
-
   async (
     req: AuthenticatedRequest,
     res
@@ -1263,7 +1255,6 @@ router.delete(
           error.code
         ) {
           case "OWNER_REQUIRED":
-          case "PEOPLE_DELETE_REQUIRED":
             res.status(403).json({
               error:
                 error.code,

@@ -3,7 +3,6 @@ import {
 } from "../lib/prisma.js";
 
 import {
-  hasPermission,
   isOwner,
   type AccessContext,
 } from "./access-control.js";
@@ -19,7 +18,6 @@ export type DeletePersonInput = {
 
 export type PeopleDeleteErrorCode =
   | "OWNER_REQUIRED"
-  | "PEOPLE_DELETE_REQUIRED"
   | "CANNOT_DELETE_SELF"
   | "USER_NOT_FOUND"
   | "CONFIRMATION_MISMATCH";
@@ -61,17 +59,6 @@ export async function deletePerson(
     );
   }
 
-  if (
-    !hasPermission(
-      access,
-      "people.delete"
-    )
-  ) {
-    throw new PeopleDeleteError(
-      "PEOPLE_DELETE_REQUIRED",
-      "You do not have permission to permanently delete users."
-    );
-  }
 
   if (
     input.userId ===

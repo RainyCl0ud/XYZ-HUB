@@ -878,6 +878,10 @@
   border-radius: var(--radius-sm);
 }
 
+.people-danger-action + .people-danger-action {
+  margin-top: 10px;
+}
+
 .people-danger-zone .people-detail-section-heading h4 {
   color: var(--danger);
 }

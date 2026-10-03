@@ -64,6 +64,8 @@ async function main() {
     ownerRole,
     managerRole,
     peopleManage,
+    peopleDeactivate,
+    peopleDelete,
   ] =
     await Promise.all([
       prisma.role.findUnique({
@@ -86,11 +88,27 @@ async function main() {
             "people.manage",
         },
       }),
+
+      prisma.permission.findUnique({
+        where: {
+          key:
+            "people.deactivate",
+        },
+      }),
+
+      prisma.permission.findUnique({
+        where: {
+          key:
+            "people.delete",
+        },
+      }),
     ]);
 
   assert.ok(ownerRole);
   assert.ok(managerRole);
   assert.ok(peopleManage);
+  assert.ok(peopleDeactivate);
+  assert.ok(peopleDelete);
 
   const owner =
     await prisma.user.create({
@@ -163,6 +181,70 @@ async function main() {
       await getRoleBuilderData(
         ownerAccess
       );
+
+    const builderPermissionKeys =
+      new Set(
+        builder.permissions.map(
+          (permission) =>
+            permission.key
+        )
+      );
+
+    assert.equal(
+      builderPermissionKeys.has(
+        "people.deactivate"
+      ),
+      false
+    );
+
+    assert.equal(
+      builderPermissionKeys.has(
+        "people.delete"
+      ),
+      false
+    );
+
+    assert.equal(
+      builder.roles.some(
+        (role) =>
+          role.permissions.some(
+            (permission) =>
+              permission.key ===
+                "people.deactivate" ||
+              permission.key ===
+                "people.delete"
+          )
+      ),
+      false
+    );
+
+    console.log(
+      "✓ Owner-only destructive actions are hidden from Role Settings"
+    );
+
+    await expectRoleError(
+      () =>
+        createRole(
+          {
+            name:
+              `Forbidden Destructive Role ${suffix}`,
+            rank:
+              9,
+            dataScope:
+              RoleDataScope.SELF,
+            permissionIds: [
+              peopleDeactivate.id,
+              peopleDelete.id,
+            ],
+          },
+          ownerAccess
+        ),
+      "INVALID_PERMISSIONS"
+    );
+
+    console.log(
+      "✓ destructive Owner-only permissions cannot be assigned through the role service"
+    );
 
     assert.ok(
       builder.roles.length >=

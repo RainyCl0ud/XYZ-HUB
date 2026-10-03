@@ -367,6 +367,13 @@ function PeoplePage() {
     ? teamById.get(selectedTeamId) ?? null
     : null;
 
+  const organizationRootTeam =
+    options?.organization.rootGroupId
+      ? teamById.get(
+          options.organization.rootGroupId
+        ) ?? null
+      : null;
+
   const selectedTeamScopeIds = useMemo(() => {
     if (!selectedTeamId) return new Set(teams.map((team) => team.id));
     return collectDescendants(childrenByParent, selectedTeamId);
@@ -1188,11 +1195,11 @@ function PeoplePage() {
               <strong>Teams</strong>
             </div>
 
-            {options?.capabilities.canManageOrganization && selectedTeam?.isRoot && (
+            {options?.capabilities.canManageOrganization && organizationRootTeam && (
               <button
                 type="button"
                 className="people-org-add"
-                onClick={() => openTeamAction("create", selectedTeam)}
+                onClick={() => openTeamAction("create", organizationRootTeam)}
               >
                 + Add team
               </button>
@@ -1479,13 +1486,6 @@ function PeoplePage() {
                       </div>
                     )}
 
-                    {selectedPerson.status === "ACTIVE" && !isSelectedSelf && options?.capabilities.canDeactivate && (
-                      <div className="people-account-action-card warning">
-                        <div><strong>Deactivate account</strong><span>Blocks sign-in and revokes active sessions while preserving assignments and history.</span></div>
-                        <button type="button" className="danger-button" onClick={() => requestConfirmedAction(selectedPerson, "deactivate")} disabled={saving || !canManageSelected}>Deactivate account</button>
-                      </div>
-                    )}
-
                     {selectedPerson.status === "DEACTIVATED" && options?.capabilities.isOwner && (
                       <div className="people-account-action-card restore">
                         <div><strong>Reactivate account</strong><span>Restores sign-in access. Previously revoked sessions stay revoked.</span></div>
@@ -1495,13 +1495,34 @@ function PeoplePage() {
                   </div>
                 </div>
 
-                {options?.capabilities.canDelete && selectedPerson.id !== user?.id && (
+                {options?.capabilities.isOwner && selectedPerson.id !== user?.id && (
                   <div className="people-detail-section people-danger-zone">
-                    <div className="people-detail-section-heading"><div><h4>Danger zone</h4><p>Permanent deletion removes the account and tied QA history.</p></div></div>
-                    <div className="people-danger-action">
-                      <div><strong>Permanently delete account</strong><span>This cannot be undone and requires the account email as confirmation.</span></div>
-                      <button type="button" className="danger-button" onClick={() => requestConfirmedAction(selectedPerson, "delete")} disabled={saving}>Permanently delete</button>
+                    <div className="people-detail-section-heading">
+                      <div>
+                        <h4>Owner-only danger zone</h4>
+                        <p>Only Owners can deactivate or permanently delete people. These actions cannot be granted through Role Settings.</p>
+                      </div>
                     </div>
+
+                    {selectedPerson.status === "ACTIVE" && options.capabilities.canDeactivate && (
+                      <div className="people-danger-action">
+                        <div>
+                          <strong>Deactivate account</strong>
+                          <span>Immediately blocks sign-in and revokes active sessions while preserving assignments and history.</span>
+                        </div>
+                        <button type="button" className="danger-button" onClick={() => requestConfirmedAction(selectedPerson, "deactivate")} disabled={saving || !canManageSelected}>Deactivate account</button>
+                      </div>
+                    )}
+
+                    {options.capabilities.canDelete && (
+                      <div className="people-danger-action">
+                        <div>
+                          <strong>Permanently delete account</strong>
+                          <span>Deletes the account and tied QA history. This cannot be undone and requires the account email as confirmation.</span>
+                        </div>
+                        <button type="button" className="danger-button" onClick={() => requestConfirmedAction(selectedPerson, "delete")} disabled={saving}>Permanently delete</button>
+                      </div>
+                    )}
                   </div>
                 )}
 

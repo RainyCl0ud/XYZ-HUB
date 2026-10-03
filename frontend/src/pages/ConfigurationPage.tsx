@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -416,6 +417,77 @@ function ConfigurationPage() {
     useRef<
       Map<string, HTMLDivElement>
     >(new Map());
+
+  const ladderHasChanges =
+    useMemo(
+      () => {
+        if (
+          !showLadderEditor ||
+          !currentLadder
+        ) {
+          return false;
+        }
+
+        if (
+          Number(
+            ladderDuration
+          ) !==
+          currentLadder.durationDays
+        ) {
+          return true;
+        }
+
+        const currentEditableSteps =
+          [...currentLadder.steps]
+            .filter(
+              (step) =>
+                !(
+                  step.minActiveStrikes ===
+                    0 &&
+                  step.standingLabel
+                    .trim()
+                    .toLowerCase() ===
+                    "clear"
+                )
+            )
+            .sort(
+              (first, second) =>
+                first.minActiveStrikes -
+                second.minActiveStrikes
+            );
+
+        if (
+          currentEditableSteps.length !==
+          ladderDraftSteps.length
+        ) {
+          return true;
+        }
+
+        return currentEditableSteps.some(
+          (step, index) => {
+            const draft =
+              ladderDraftSteps[index];
+
+            return (
+              step.minActiveStrikes !==
+                index + 1 ||
+              step.standingLabel.trim() !==
+                draft.standingLabel.trim() ||
+              step.deductionPercent !==
+                Number(
+                  draft.deductionPercent
+                )
+            );
+          }
+        );
+      },
+      [
+        currentLadder,
+        ladderDraftSteps,
+        ladderDuration,
+        showLadderEditor,
+      ]
+    );
 
   /*
    * =========================================================
@@ -4145,17 +4217,19 @@ function ConfigurationPage() {
                   Cancel
                 </button>
 
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={
-                    isSavingLadder
-                  }
-                >
-                  {isSavingLadder
-                    ? "Saving..."
-                    : "Save New Version"}
-                </button>
+                {ladderHasChanges && (
+                  <button
+                    type="submit"
+                    className="primary-button"
+                    disabled={
+                      isSavingLadder
+                    }
+                  >
+                    {isSavingLadder
+                      ? "Saving..."
+                      : "Save New Version"}
+                  </button>
+                )}
               </div>
             </form>
           </div>

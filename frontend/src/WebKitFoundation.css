@@ -155,7 +155,7 @@ a:focus-visible {
 
 .hub-confidentiality-footer {
   width: min(100%, var(--hub-content-max));
-  margin: 48px auto 0;
+  margin: auto auto 0;
   padding: 14px 0 0;
 
   border-top: 1px solid #ffffff;
