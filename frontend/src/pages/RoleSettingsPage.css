@@ -620,7 +620,11 @@
 @media (min-width: 781px) {
   .role-settings-page {
     display: flex;
-    height: calc(100dvh - 76px);
+    height: calc(
+      100dvh -
+      76px -
+      var(--portal-footer-height)
+    );
     min-height: 0;
     flex-direction: column;
     overflow: hidden;

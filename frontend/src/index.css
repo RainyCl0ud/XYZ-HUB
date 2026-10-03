@@ -1600,7 +1600,11 @@ select:disabled {
 .modal {
   width: 100%;
   max-width: 500px;
-  max-height: calc(100vh - 48px);
+  max-height: calc(
+    100dvh -
+    var(--portal-footer-height, 0px) -
+    48px
+  );
 
   overflow-y: auto;
 
@@ -1913,7 +1917,11 @@ select:disabled {
 
   .modal {
     max-width: none;
-    max-height: calc(100vh - 24px);
+    max-height: calc(
+      100dvh -
+      var(--portal-footer-height, 0px) -
+      24px
+    );
 
     border-radius: 2px;
   }

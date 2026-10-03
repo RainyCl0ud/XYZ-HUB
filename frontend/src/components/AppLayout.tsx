@@ -875,6 +875,23 @@ function AppLayout() {
         )}
 
         <div className="portal-command-meta">
+          <div
+            className="portal-command-role"
+            aria-label="Current signed-in role"
+          >
+            <span className="portal-command-label">
+              Current role
+            </span>
+
+            <strong
+              title={
+                roleNames
+              }
+            >
+              {roleNames}
+            </strong>
+          </div>
+
           <div className="portal-command-time">
             <span className="portal-command-label">
               US Central
@@ -1189,13 +1206,14 @@ function AppLayout() {
             </div>
           </div>
         )}
-        <footer
-          className="hub-confidentiality-footer"
-          aria-label="Confidentiality notice"
-        >
-          XYZ MGMT &mdash; Confidential &amp; For Internal Use Only
-        </footer>
       </main>
+
+      <footer
+        className="hub-confidentiality-footer portal-persistent-footer"
+        aria-label="Confidentiality notice"
+      >
+        XYZ MGMT &mdash; Confidential &amp; For Internal Use Only
+      </footer>
     </div>
   );
 }

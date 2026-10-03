@@ -6,7 +6,11 @@
   .people-page {
     display: flex;
     flex-direction: column;
-    height: calc(100dvh - 76px);
+    height: calc(
+      100dvh -
+      76px -
+      var(--portal-footer-height)
+    );
     min-height: 0;
     overflow: hidden;
     padding-top: 26px;
