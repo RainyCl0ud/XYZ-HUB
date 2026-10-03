@@ -20,8 +20,8 @@
 .sidebar-model-context select {
   width: 100%;
   min-height: 34px;
-  border: 1px solid var(--border-soft);
-  border-radius: 7px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background-color: var(--surface);
   color: var(--text-secondary);
   font-size: 9px;
@@ -36,8 +36,8 @@
   min-height: 34px;
   padding: 0 9px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 7px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
   background: var(--surface);
   color: var(--text-secondary);
@@ -84,7 +84,7 @@
 }
 
 .sidebar-module-toggle:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 2px;
 }
 
@@ -1178,7 +1178,7 @@
 }
 
 .portal-account-avatar-button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 3px;
 }
 
@@ -1281,7 +1281,7 @@
 .portal-account-dropdown-profile span {
   margin-top: 5px;
 
-  color: var(--accent);
+  color: var(--text-secondary);
 
   font-size: 8px;
   font-weight: 700;
@@ -1333,7 +1333,7 @@
 }
 
 .portal-account-dropdown-item:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: -2px;
 }
 

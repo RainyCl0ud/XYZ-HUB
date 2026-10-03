@@ -81,13 +81,13 @@
 
 .hub-nav-link.active .hub-nav-icon,
 .hub-nav-group.active > .hub-nav-group-summary .hub-nav-icon {
-  color: var(--accent);
+  color: var(--text);
 }
 
 .hub-nav-link:focus-visible,
 .hub-nav-group-summary:focus-visible,
 .hub-nav-child-link:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 2px;
 }
 

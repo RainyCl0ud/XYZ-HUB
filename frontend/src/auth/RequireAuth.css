@@ -32,8 +32,8 @@
 .auth-service-copy .auth-service-detail {
   margin-top: 14px;
   padding: 10px 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
   color: var(--text-soft);
 }
@@ -43,10 +43,10 @@
   min-height: 42px;
   margin-top: 18px;
   padding: 0 18px;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--accent-text);
+  border: 1px solid var(--text);
+  border-radius: 2px;
+  background: var(--text);
+  color: var(--bg);
   font-size: 11px;
   font-weight: 750;
   cursor: pointer;
@@ -57,8 +57,8 @@
 }
 
 .auth-service-retry:hover {
-  background: var(--accent-strong);
-  border-color: var(--accent-strong);
+  background: var(--text-secondary);
+  border-color: var(--text-secondary);
 }
 
 .auth-service-retry:active {
@@ -66,6 +66,6 @@
 }
 
 .auth-service-retry:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 3px;
 }

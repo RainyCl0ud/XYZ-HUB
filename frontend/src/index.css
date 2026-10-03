@@ -2347,12 +2347,7 @@ body {
 .reorder-list.active {
   position: relative;
 
-  background:
-    linear-gradient(
-      180deg,
-      rgba(232, 216, 178, 0.025),
-      transparent 35%
-    );
+  background: transparent;
 }
 
 /*
@@ -2379,7 +2374,7 @@ body {
 }
 
 .reorder-item:hover {
-  background: rgba(232, 216, 178, 0.025);
+  background: var(--surface-hover);
 }
 
 .reorder-item:active {
@@ -2413,8 +2408,8 @@ body {
   width: 25px;
   height: 34px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
   background: var(--surface-deep);
   color: var(--text-secondary);
@@ -2430,10 +2425,10 @@ body {
 }
 
 .reorder-item:hover .drag-grip {
-  border-color: #716957;
+  border-color: var(--border-strong);
 
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--surface-hover);
+  color: var(--text);
 }
 
 .reorder-position {
@@ -2458,9 +2453,9 @@ body {
 
   opacity: 0.35;
 
-  background: rgba(232, 216, 178, 0.045);
+  background: var(--surface-hover);
 
-  border-color: rgba(232, 216, 178, 0.18);
+  border-color: var(--border);
 }
 
 /*
@@ -2470,11 +2465,9 @@ body {
  * effect before the item is dropped.
  */
 .reorder-item.drag-over {
-  background: rgba(232, 216, 178, 0.055);
+  background: var(--surface-hover);
 
-  box-shadow:
-    inset 0 2px 0 var(--accent),
-    0 -7px 18px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
 }
 
 .reorder-item.drag-over::before {
@@ -2489,13 +2482,11 @@ body {
 
   height: 2px;
 
-  border-radius: 999px;
+  border-radius: 2px;
 
-  background: var(--accent);
+  background: var(--text);
 
-  box-shadow:
-    0 0 0 1px rgba(232, 216, 178, 0.08),
-    0 0 10px rgba(232, 216, 178, 0.2);
+  box-shadow: none;
 }
 
 /* Small circular ends on the insertion line */
@@ -2512,9 +2503,9 @@ body {
   width: 7px;
   height: 7px;
 
-  border-radius: 50%;
+  border-radius: 2px;
 
-  background: var(--accent);
+  background: var(--text);
 }
 
 /* Reorder controls */
@@ -2541,16 +2532,10 @@ body {
 
   padding: 12px 13px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
-  background:
-    linear-gradient(
-      135deg,
-      rgba(232, 216, 178, 0.04),
-      transparent 75%
-    ),
-    var(--surface-deep);
+  background: var(--surface-deep);
 }
 
 .reorder-form-note strong {
@@ -2664,21 +2649,13 @@ body {
   padding: 13px 13px 13px 14px;
 
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: 2px;
 
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.025),
-      transparent 60%
-    ),
-    #202023;
+  background: var(--surface);
 
   color: var(--text);
 
-  box-shadow:
-    0 18px 45px rgba(0, 0, 0, 0.42),
-    0 4px 14px rgba(0, 0, 0, 0.24);
+  box-shadow: none;
 
   pointer-events: auto;
 
@@ -2698,7 +2675,7 @@ body {
 
   width: 3px;
 
-  border-radius: 0 999px 999px 0;
+  border-radius: 0 2px 2px 0;
 }
 
 .toast-success::before {
@@ -2725,8 +2702,8 @@ body {
   width: 32px;
   height: 32px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
   background: var(--surface-deep);
 
@@ -2805,7 +2782,7 @@ body {
   padding: 0;
 
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 2px;
 
   background: transparent;
   color: var(--text-muted);
@@ -2820,9 +2797,9 @@ body {
 }
 
 .toast-close:hover {
-  border-color: var(--border-soft);
+  border-color: var(--border);
 
-  background: var(--surface);
+  background: var(--surface-hover);
   color: var(--text);
 }
 
@@ -2907,9 +2884,9 @@ body {
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 8px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
@@ -3769,14 +3746,14 @@ body {
   padding: 0;
 
   border: 1px solid
-    rgba(232, 216, 178, 0.18);
+    var(--border);
 
-  border-radius: 6px;
+  border-radius: 2px;
 
   background:
-    rgba(232, 216, 178, 0.07);
+    var(--surface-deep);
 
-  color: var(--accent);
+  color: var(--text-secondary);
 
   font-size: 10px;
   font-weight: 700;
@@ -3964,15 +3941,15 @@ body {
 
   border:
     1px solid
-    rgba(232, 216, 178, 0.18);
+    var(--border);
 
-  border-radius: 6px;
+  border-radius: 2px;
 
   background:
-    rgba(232, 216, 178, 0.07);
+    var(--surface-deep);
 
   color:
-    var(--accent);
+    var(--text-secondary);
 
   font-size: 10px;
   line-height: 1;
@@ -4035,11 +4012,9 @@ body {
     translateY(-2px);
 
   border-color:
-    rgba(232, 216, 178, 0.24);
+    var(--border-strong);
 
-  box-shadow:
-    0 9px 25px
-    rgba(0, 0, 0, 0.18);
+  box-shadow: none;
 }
 
 
@@ -4051,37 +4026,7 @@ body {
  */
 .dashboard-stat-grid
   .stat-card::after {
-  content: "";
-
-  position: absolute;
-
-  top: -45%;
-  left: -45%;
-
-  width: 46%;
-  height: 190%;
-
-  pointer-events: none;
-
-  opacity: 0.09;
-
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      rgba(232, 216, 178, 0.3),
-      transparent
-    );
-
-  transform:
-    rotate(14deg)
-    translateX(-240%);
-
-  animation:
-    dashboard-ambient-drift
-    11s
-    ease-in-out
-    infinite;
+  display: none;
 }
 
 .dashboard-stat-grid
@@ -4320,14 +4265,14 @@ body {
 
   border:
     1px solid
-    rgba(232, 216, 178, 0.18);
+    var(--border);
 
-  border-radius: 6px;
+  border-radius: 2px;
 
   background:
-    rgba(232, 216, 178, 0.07);
+    var(--surface-deep);
 
-  color: var(--accent);
+  color: var(--text-secondary);
 
   font-size: 10px;
   line-height: 1;
@@ -4505,11 +4450,11 @@ body {
   height: 27px;
   padding: 0;
 
-  border: 1px solid rgba(232, 216, 178, 0.18);
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
-  background: rgba(232, 216, 178, 0.07);
-  color: var(--accent);
+  background: var(--surface-deep);
+  color: var(--text-secondary);
 
   font-size: 10px;
   line-height: 1;
@@ -5566,7 +5511,7 @@ td:nth-child(-n + 4)::after {
 
   height: 3px;
 
-  border-radius: 999px;
+  border-radius: 2px;
 
   background:
     rgba(
