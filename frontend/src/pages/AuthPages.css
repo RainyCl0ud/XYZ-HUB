@@ -14,29 +14,11 @@
 
   overflow: hidden;
 
-  background:
-    radial-gradient(
-      circle at 18% 12%,
-      rgba(232, 216, 178, 0.055),
-      transparent 29%
-    ),
-    radial-gradient(
-      circle at 83% 82%,
-      rgba(174, 188, 224, 0.035),
-      transparent 30%
-    ),
-    var(--bg);
+  background: var(--bg);
 }
 
 .auth-background-glow {
-  position: absolute;
-
-  pointer-events: none;
-
-  border-radius: 999px;
-  filter: blur(100px);
-
-  opacity: 0.23;
+  display: none;
 }
 
 .auth-background-glow-one {
@@ -78,19 +60,12 @@
 
   padding: 34px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 18px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
-  background:
-    linear-gradient(
-      145deg,
-      rgba(42, 42, 46, 0.97),
-      rgba(27, 27, 30, 0.98)
-    );
+  background: var(--surface);
 
-  box-shadow:
-    0 30px 90px rgba(0, 0, 0, 0.48),
-    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  box-shadow: none;
 }
 
 .auth-brand {
@@ -100,7 +75,7 @@
 
   padding-bottom: 25px;
 
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .auth-brand-official {
@@ -135,12 +110,12 @@
 .auth-eyebrow {
   margin: 0 0 9px;
 
-  color: var(--accent);
+  color: var(--text-muted);
 
   font-size: 9px;
   font-weight: 750;
 
-  letter-spacing: 0.18em;
+  letter-spacing: var(--hub-label-tracking);
   text-transform: uppercase;
 }
 
@@ -203,7 +178,7 @@
   padding: 0 13px;
 
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 2px;
 
   background: var(--surface-deep);
   color: var(--text);
@@ -224,9 +199,9 @@
 }
 
 .auth-input:focus {
-  border-color: var(--accent);
+  border-color: var(--text);
 
-  background: #1f1f22;
+  background: var(--surface-hover);
 }
 
 .auth-code-input {
@@ -244,7 +219,7 @@
   border: 0;
 
   background: transparent;
-  color: var(--accent);
+  color: var(--text-secondary);
 
   font-size: 10px;
   font-weight: 650;
@@ -253,7 +228,7 @@
 }
 
 .auth-link:hover {
-  color: var(--accent-strong);
+  color: var(--text);
 }
 
 .auth-submit {
@@ -266,11 +241,11 @@
 
   margin-top: 5px;
 
-  border: 1px solid var(--accent);
-  border-radius: 8px;
+  border: 1px solid var(--text);
+  border-radius: 2px;
 
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--text);
+  color: var(--bg);
 
   font-size: 11px;
   font-weight: 750;
@@ -282,8 +257,8 @@
 }
 
 .auth-submit:hover:not(:disabled) {
-  background: var(--accent-strong);
-  border-color: var(--accent-strong);
+  background: var(--text-secondary);
+  border-color: var(--text-secondary);
 }
 
 .auth-submit:active:not(:disabled) {
@@ -293,8 +268,8 @@
 .auth-message {
   padding: 11px 12px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
   font-size: 11px;
   line-height: 1.55;
@@ -325,7 +300,7 @@
   margin-top: 25px;
   padding-top: 20px;
 
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border);
 
   color: var(--text-muted);
 
@@ -336,7 +311,7 @@
 }
 
 .auth-footer a {
-  color: var(--accent);
+  color: var(--text-secondary);
   font-weight: 650;
 }
 
@@ -344,10 +319,10 @@
   margin-bottom: 20px;
   padding: 13px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 9px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
-  background: rgba(0, 0, 0, 0.13);
+  background: var(--surface-deep);
 }
 
 .auth-account-name {
@@ -391,7 +366,7 @@
   margin-bottom: 13px;
 
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 2px;
 
   background: var(--surface);
 
@@ -470,7 +445,7 @@
   transform: translateY(-50%);
 
   border: 0;
-  border-radius: 7px;
+  border-radius: 2px;
 
   background: transparent;
   color: var(--text-muted);
@@ -483,12 +458,12 @@
 }
 
 .auth-password-toggle:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--surface-hover);
   color: var(--text);
 }
 
 .auth-password-toggle:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 1px;
 }
 

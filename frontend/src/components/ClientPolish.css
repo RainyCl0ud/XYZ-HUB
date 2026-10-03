@@ -179,16 +179,10 @@ body {
   place-items: center;
   width: 68px;
   height: 68px;
-  border: 1px solid rgba(232, 216, 178, 0.28);
-  border-radius: 50%;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(232, 216, 178, 0.13),
-      rgba(255, 255, 255, 0.02)
-    ),
-    var(--surface-deep);
-  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface-deep);
+  color: var(--text);
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -204,7 +198,7 @@ body {
   width: 27px;
   height: 27px;
   border: 3px solid var(--surface);
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--success-bg);
   color: var(--success);
   font-size: 13px;
@@ -288,7 +282,7 @@ body {
     min-height: 26px !important;
     padding: 0 9px !important;
     border: 1px solid rgba(157, 213, 168, 0.2) !important;
-    border-radius: 999px !important;
+    border-radius: 2px !important;
     background: var(--success-bg) !important;
     color: var(--success) !important;
     white-space: nowrap;
