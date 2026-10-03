@@ -1226,7 +1226,7 @@ select:disabled {
 .history-item {
   padding: 20px 0;
 
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .history-item:last-child {
@@ -1315,15 +1315,10 @@ select:disabled {
 .rule-preview {
   padding: 15px;
 
-  border: 1px solid #4d493e;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
   background:
-    linear-gradient(
-      135deg,
-      rgba(232, 216, 178, 0.055),
-      transparent 60%
-    ),
     var(--surface-deep);
 }
 
@@ -1340,7 +1335,16 @@ select:disabled {
   gap: 4px;
 }
 
-.preview-label,
+.preview-label {
+  color: var(--text-muted);
+
+  font-size: 8px;
+  font-weight: 750;
+
+  letter-spacing: var(--hub-label-tracking);
+  text-transform: uppercase;
+}
+
 .detail-label {
   color: var(--accent);
 
@@ -5751,7 +5755,7 @@ td:nth-child(-n + 4)::after {
     1px solid
     rgba(157, 213, 168, 0.18);
 
-  border-radius: 999px;
+  border-radius: 2px;
 
   background:
     var(--success-bg);
@@ -5804,9 +5808,9 @@ td:nth-child(-n + 4)::after {
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 9px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
@@ -5841,9 +5845,9 @@ td:nth-child(-n + 4)::after {
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 10px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
@@ -5869,15 +5873,10 @@ td:nth-child(-n + 4)::after {
 .strike-ladder-table-header {
   border-bottom:
     1px solid
-    var(--border-soft);
+    var(--border);
 
   background:
-    rgba(
-      255,
-      255,
-      255,
-      0.018
-    );
+    var(--surface);
 
   color:
     var(--text-soft);
@@ -5885,7 +5884,9 @@ td:nth-child(-n + 4)::after {
   font-size: 8.5px;
   font-weight: 750;
 
-  letter-spacing: 0.08em;
+  letter-spacing:
+    var(--hub-label-tracking);
+
   text-transform: uppercase;
 }
 
@@ -5894,7 +5895,7 @@ td:nth-child(-n + 4)::after {
 
   border-bottom:
     1px solid
-    var(--border-soft);
+    var(--border);
 }
 
 .strike-ladder-table-row:last-child {
@@ -5903,17 +5904,12 @@ td:nth-child(-n + 4)::after {
 
 .strike-ladder-table-row:hover {
   background:
-    rgba(
-      255,
-      255,
-      255,
-      0.012
-    );
+    var(--surface-hover);
 }
 
 .strike-ladder-threshold {
   color:
-    var(--accent);
+    var(--text);
 
   font-size: 11px;
   font-weight: 750;
@@ -6077,9 +6073,9 @@ td:nth-child(-n + 4)::after {
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 9px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
@@ -6139,16 +6135,15 @@ td:nth-child(-n + 4)::after {
 
   border:
     1px solid
-    rgba(232, 216, 178, 0.16);
+    var(--border);
 
-  border-radius:
-    var(--radius-sm);
+  border-radius: 2px;
 
   background:
-    var(--accent-soft);
+    var(--surface);
 
   color:
-    var(--accent);
+    var(--text);
 
   font-size: 12px;
   font-weight: 750;
@@ -6201,16 +6196,15 @@ td:nth-child(-n + 4)::after {
 
   border:
     1px solid
-    rgba(157, 213, 168, 0.18);
+    var(--border);
 
-  border-radius:
-    var(--radius-sm);
+  border-radius: 2px;
 
   background:
-    var(--success-bg);
+    var(--surface);
 
   color:
-    var(--success);
+    var(--text);
 
   font-size: 11px;
   font-weight: 750;
@@ -6238,21 +6232,13 @@ td:nth-child(-n + 4)::after {
  */
 .strike-ladder-editor-row.newly-added {
   border-color:
-    rgba(232, 216, 178, 0.58);
+    var(--border-strong);
 
   background:
-    linear-gradient(
-      90deg,
-      rgba(232, 216, 178, 0.1),
-      rgba(232, 216, 178, 0.025)
-    ),
-    var(--surface-deep);
+    var(--surface-hover);
 
   box-shadow:
-    0 0 0 1px
-      rgba(232, 216, 178, 0.08),
-    0 0 22px
-      rgba(232, 216, 178, 0.08);
+    none;
 
   animation:
     strike-ladder-step-added
@@ -6265,7 +6251,7 @@ td:nth-child(-n + 4)::after {
       translateY(4px);
 
     border-color:
-      rgba(232, 216, 178, 0.72);
+      var(--text);
   }
 
   45% {
@@ -6273,7 +6259,7 @@ td:nth-child(-n + 4)::after {
       translateY(0);
 
     border-color:
-      rgba(232, 216, 178, 0.34);
+      var(--border-strong);
   }
 
   100% {
@@ -6281,7 +6267,7 @@ td:nth-child(-n + 4)::after {
       translateY(0);
 
     border-color:
-      var(--border-soft);
+      var(--border);
   }
 }
 
@@ -6302,25 +6288,15 @@ td:nth-child(-n + 4)::after {
 
   border:
     1px solid
-    rgba(
-      232,
-      216,
-      178,
-      0.14
-    );
+    var(--border);
 
-  border-radius: 999px;
+  border-radius: 2px;
 
   background:
-    rgba(
-      232,
-      216,
-      178,
-      0.045
-    );
+    var(--surface);
 
   color:
-    var(--text-soft);
+    var(--text-secondary);
 
   font-size: 8px;
   font-weight: 750;
@@ -6339,27 +6315,17 @@ td:nth-child(-n + 4)::after {
 
   border:
     1px solid
-    rgba(
-      232,
-      216,
-      178,
-      0.14
-    );
+    var(--border);
 
-  border-radius: 8px;
+  border-radius: 2px;
 
   background:
-    rgba(
-      232,
-      216,
-      178,
-      0.035
-    );
+    var(--surface-deep);
 }
 
 .strike-ladder-editor-note strong {
   color:
-    var(--accent);
+    var(--text-secondary);
 
   font-size: 9px;
   font-weight: 750;
@@ -6405,9 +6371,9 @@ td:nth-child(-n + 4)::after {
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 10px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
@@ -6436,15 +6402,10 @@ td:nth-child(-n + 4)::after {
 
   border-bottom:
     1px solid
-    var(--border-soft);
+    var(--border);
 
   background:
-    rgba(
-      255,
-      255,
-      255,
-      0.012
-    );
+    var(--surface);
 }
 
 .strike-ladder-history-item-header
@@ -6511,7 +6472,7 @@ td:nth-child(-n + 4)::after {
 
   border-bottom:
     1px solid
-    var(--border-soft);
+    var(--border);
 
   color:
     var(--text-secondary);
@@ -6526,7 +6487,7 @@ td:nth-child(-n + 4)::after {
 .strike-ladder-history-step
   > strong:first-child {
   color:
-    var(--accent);
+    var(--text);
 
   font-variant-numeric:
     tabular-nums;
