@@ -879,10 +879,6 @@ function AppLayout() {
             className="portal-command-role"
             aria-label="Current signed-in role"
           >
-            <span className="portal-command-label">
-              Current role
-            </span>
-
             <strong
               title={
                 roleNames
@@ -890,6 +886,10 @@ function AppLayout() {
             >
               {roleNames}
             </strong>
+
+            <span className="portal-command-label">
+              Role
+            </span>
           </div>
 
           <div className="portal-command-time">
