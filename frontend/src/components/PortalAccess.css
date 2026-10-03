@@ -755,7 +755,7 @@
     flex-end;
 
   gap:
-    26px;
+    18px;
 
   min-width:
     0;
@@ -1105,7 +1105,7 @@
 
   justify-items: end;
 
-  min-width: 210px;
+  min-width: 115px;
 }
 
 .portal-command-time .portal-command-label {
@@ -1167,7 +1167,7 @@
   }
 
   .portal-command-time {
-    min-width: 175px;
+    min-width: 110px;
   }
 
   .portal-clock-time {
