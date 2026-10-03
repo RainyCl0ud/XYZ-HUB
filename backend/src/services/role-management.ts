@@ -105,6 +105,17 @@ function normalizePermissionIds(
   ];
 }
 
+const ownerOnlyPermissionKeys =
+  [
+    "people.deactivate",
+    "people.delete",
+  ] as const;
+
+const ownerOnlyPermissionKeySet =
+  new Set<string>(
+    ownerOnlyPermissionKeys
+  );
+
 const rankedSystemRoleKeys =
   new Set([
     "OWNER",
@@ -263,23 +274,45 @@ async function validatePermissionIds(
     return normalized;
   }
 
-  const existingCount =
-    await prisma.permission.count({
+  const existingPermissions =
+    await prisma.permission.findMany({
       where: {
         id: {
           in:
             normalized,
         },
       },
+
+      select: {
+        id:
+          true,
+
+        key:
+          true,
+      },
     });
 
   if (
-    existingCount !==
+    existingPermissions.length !==
     normalized.length
   ) {
     throw new RoleManagementError(
       "INVALID_PERMISSIONS",
       "One or more selected permissions are invalid."
+    );
+  }
+
+  if (
+    existingPermissions.some(
+      (permission) =>
+        ownerOnlyPermissionKeySet.has(
+          permission.key
+        )
+    )
+  ) {
+    throw new RoleManagementError(
+      "INVALID_PERMISSIONS",
+      "Deactivate and permanent-delete actions are reserved for Owners and cannot be assigned to roles."
     );
   }
 
@@ -421,12 +454,19 @@ function serializeRole(
       role._count.userRoles,
 
     permissions:
-      role.rolePermissions.map(
-        (
-          rolePermission
-        ) =>
-          rolePermission.permission
-      ),
+      role.rolePermissions
+        .map(
+          (
+            rolePermission
+          ) =>
+            rolePermission.permission
+        )
+        .filter(
+          (permission) =>
+            !ownerOnlyPermissionKeySet.has(
+              permission.key
+            )
+        ),
 
     createdAt:
       role.createdAt,
@@ -482,6 +522,13 @@ export async function getRoleBuilderData(
       }),
 
       prisma.permission.findMany({
+        where: {
+          key: {
+            notIn:
+              [...ownerOnlyPermissionKeys],
+          },
+        },
+
         select: {
           id:
             true,

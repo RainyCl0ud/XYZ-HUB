@@ -304,10 +304,24 @@ async function runTests() {
       "✓ active Chatter session is valid"
     );
 
+    await expectStatusError(
+      () =>
+        deactivatePerson(
+          chatter.id,
+          managerAccess
+        ),
+
+      "OWNER_REQUIRED"
+    );
+
+    console.log(
+      "✓ Manager cannot deactivate users because deactivation is Owner-only"
+    );
+
     const deactivated =
       await deactivatePerson(
         chatter.id,
-        managerAccess
+        ownerAccess
       );
 
     assert.equal(
@@ -320,7 +334,7 @@ async function runTests() {
     );
 
     console.log(
-      "✓ Manager can deactivate lower-ranked Chatter"
+      "✓ Owner can deactivate another user"
     );
 
     assert.equal(
@@ -358,15 +372,15 @@ async function runTests() {
     await expectStatusError(
       () =>
         deactivatePerson(
-          manager.id,
-          managerAccess
+          owner.id,
+          ownerAccess
         ),
 
       "CANNOT_DEACTIVATE_SELF"
     );
 
     console.log(
-      "✓ user cannot deactivate their own account"
+      "✓ Owner cannot deactivate their own account"
     );
 
     await expectStatusError(
@@ -376,11 +390,11 @@ async function runTests() {
           managerAccess
         ),
 
-      "MODEL_NOT_MANAGEABLE"
+      "OWNER_REQUIRED"
     );
 
     console.log(
-      "✓ Manager cannot deactivate Chatter on an inaccessible model"
+      "✓ Manager cannot bypass Owner-only deactivation through model scope"
     );
 
     await expectStatusError(
@@ -390,11 +404,11 @@ async function runTests() {
           qcAccess
         ),
 
-      "PEOPLE_DEACTIVATE_REQUIRED"
+      "OWNER_REQUIRED"
     );
 
     console.log(
-      "✓ QC cannot deactivate users"
+      "✓ QC cannot deactivate users because deactivation is Owner-only"
     );
 
     const reactivated =

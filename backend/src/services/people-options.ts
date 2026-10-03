@@ -143,17 +143,10 @@ export async function getPeopleManagementOptions(
         isOwnerUser,
 
       canDeactivate:
-        hasPermission(
-          access,
-          "people.deactivate"
-        ),
+        isOwnerUser,
 
       canDelete:
-        isOwnerUser &&
-        hasPermission(
-          access,
-          "people.delete"
-        ),
+        isOwnerUser,
 
       canResetTwoFactor:
         isOwnerUser &&

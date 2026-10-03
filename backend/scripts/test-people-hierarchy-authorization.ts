@@ -666,7 +666,7 @@ async function main() {
           managerAccess
         ),
       PeopleStatusError,
-      "TEAM_GROUP_NOT_MANAGEABLE"
+      "OWNER_REQUIRED"
     );
 
     await expectCode(
@@ -680,7 +680,7 @@ async function main() {
     );
 
     console.log(
-      "✓ direct-ID People mutations cannot bypass hierarchy scope"
+      "✓ direct-ID People mutations respect Owner-only and hierarchy authorization"
     );
 
     const moved =
