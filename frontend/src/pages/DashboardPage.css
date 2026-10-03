@@ -397,8 +397,8 @@
   margin-bottom: 18px;
   padding: 4px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 9px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
   background: var(--surface-deep);
 }
@@ -412,7 +412,7 @@
   padding: 0 12px;
 
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 2px;
 
   color: var(--text-muted);
 
@@ -425,10 +425,10 @@
 }
 
 .qa-local-nav a.active {
-  border-color: #4c4c51;
+  border-color: var(--border-strong);
 
-  background: var(--surface-hover);
-  color: var(--accent);
+  background: var(--surface);
+  color: var(--text);
 }
 
 .qa-activity-list {
@@ -450,7 +450,7 @@
   min-height: 70px;
   padding: 12px 18px;
 
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 
   transition: background 120ms ease;
 }
@@ -460,7 +460,7 @@
 }
 
 .qa-activity-row:hover {
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--surface-hover);
 }
 
 .qa-activity-primary,
