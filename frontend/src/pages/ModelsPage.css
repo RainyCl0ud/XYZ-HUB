@@ -15,7 +15,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 16px 18px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .models-toolbar .search-input {
@@ -50,7 +50,7 @@
 }
 
 .models-table-head {
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
   color: var(--text-soft);
   font-size: 9px;
   font-weight: 700;
@@ -59,7 +59,7 @@
 }
 
 .models-table-row {
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .models-table-row:last-child {
@@ -99,7 +99,7 @@
   align-items: center;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: 2px;
   font-size: 9px;
   font-weight: 700;
 }
@@ -126,8 +126,8 @@
   gap: 5px;
   margin-top: 14px;
   padding: 13px 15px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
 }
 
@@ -161,9 +161,9 @@
   width: min(560px, 100%);
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 2px;
   background: var(--surface);
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
 }
 
 .models-modal-header {
@@ -172,7 +172,7 @@
   justify-content: space-between;
   gap: 18px;
   padding: 22px 24px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .models-modal-header h3 {
@@ -184,8 +184,8 @@
 .models-close {
   width: 34px;
   height: 34px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
   color: var(--text-secondary);
   font-size: 19px;
@@ -204,7 +204,7 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 16px 24px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border);
   background: var(--surface-deep);
 }
 
@@ -218,7 +218,7 @@
   gap: 5px;
   padding: 12px 13px;
   border: 1px solid rgba(225, 189, 119, 0.24);
-  border-radius: var(--radius-sm);
+  border-radius: 2px;
   background: var(--warning-bg);
 }
 
