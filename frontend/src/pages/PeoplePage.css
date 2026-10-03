@@ -622,9 +622,9 @@
   max-height: min(88vh, 920px);
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 2px;
   background: var(--surface);
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
 }
 
 .people-detail-panel {
@@ -646,7 +646,7 @@
   justify-content: space-between;
   gap: 18px;
   padding: 22px 24px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .people-profile-header {
@@ -697,8 +697,8 @@
   align-items: center;
   min-height: 25px;
   padding: 0 9px;
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
   color: var(--text-secondary);
   font-size: 9.5px;
@@ -706,9 +706,9 @@
 }
 
 .people-profile-role-badge {
-  border-color: rgba(232, 216, 178, 0.2);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--border);
+  background: var(--surface-deep);
+  color: var(--text-secondary);
 }
 
 .people-profile-header-status {
@@ -733,8 +733,8 @@
   flex: 0 0 auto;
   width: 34px;
   height: 34px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
   color: var(--text-secondary);
   font-size: 19px;
@@ -758,7 +758,7 @@
 .people-detail-section {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border);
 }
 
 .people-access-section {
@@ -807,8 +807,8 @@
 .people-access-grid > div {
   min-width: 0;
   padding: 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
 }
 
@@ -887,15 +887,15 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 22px;
   overflow: hidden;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
 }
 
 .people-profile-facts-bottom > div {
   min-width: 0;
   padding: 13px 14px;
-  border-right: 1px solid var(--border-soft);
+  border-right: 1px solid var(--border);
 }
 
 .people-profile-facts-bottom > div:last-child {
@@ -931,8 +931,8 @@
   gap: 10px;
   min-height: 58px;
   padding: 11px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
   cursor: pointer;
 }
@@ -967,8 +967,8 @@
   gap: 12px;
   align-items: end;
   padding: 15px 18px;
-  border-bottom: 1px solid var(--border-soft);
-  background: rgba(0, 0, 0, 0.075);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-deep);
 }
 
 .people-existing-table-wrap {
@@ -1000,12 +1000,12 @@
 
 .people-existing-row {
   min-height: 62px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
 
 .people-existing-row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-hover);
 }
 
 .people-color-picker-row {
