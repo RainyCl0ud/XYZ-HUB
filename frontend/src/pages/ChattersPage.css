@@ -19,28 +19,19 @@
   cursor: pointer;
 
   transition:
-    background 160ms ease,
-    box-shadow 160ms ease;
+    background 160ms ease;
 }
 
 .chatter-clickable-row:hover {
-  background:
-    linear-gradient(
-      90deg,
-      rgba(232, 216, 178, 0.04),
-      rgba(232, 216, 178, 0.01)
-    );
+  background: var(--surface-hover);
 }
 
 .chatter-clickable-row:focus-visible {
-  outline:
-    1px solid
-    rgba(232, 216, 178, 0.45);
+  outline: 1px solid var(--text);
 
   outline-offset: -1px;
 
-  background:
-    rgba(232, 216, 178, 0.04);
+  background: var(--surface-hover);
 }
 
 
@@ -78,7 +69,7 @@
 
 .chatter-clickable-row:hover
   .chatter-name-content strong {
-  color: var(--accent);
+  color: var(--text);
 }
 
 
@@ -96,9 +87,6 @@
   background:
     rgba(0, 0, 0, 0.82)
     !important;
-
-  backdrop-filter:
-    blur(7px);
 }
 
 
@@ -112,9 +100,6 @@
   background:
     rgba(0, 0, 0, 0.66)
     !important;
-
-  backdrop-filter:
-    blur(4px);
 }
 
 
@@ -141,30 +126,18 @@
     hidden;
 
   border:
-    1px solid #49494f
+    1px solid var(--border)
     !important;
 
   border-radius:
-    16px !important;
+    2px !important;
 
   background:
-    linear-gradient(
-      155deg,
-      rgba(
-        255,
-        255,
-        255,
-        0.018
-      ),
-      transparent 35%
-    ),
-    #202023 !important;
+    var(--surface)
+    !important;
 
   box-shadow:
-    0 35px 90px
-      rgba(0, 0, 0, 0.58),
-    0 8px 25px
-      rgba(0, 0, 0, 0.34);
+    none;
 
   animation:
     chatter-profile-open
@@ -217,18 +190,10 @@
 
   border-bottom:
     1px solid
-    var(--border-soft);
+    var(--border);
 
   background:
-    rgba(
-      32,
-      32,
-      35,
-      0.97
-    );
-
-  backdrop-filter:
-    blur(14px);
+    var(--surface);
 }
 
 .chatter-profile-identity {
@@ -369,13 +334,13 @@
   margin-bottom: 4px;
 
   color:
-    var(--accent);
+    var(--text-muted);
 
   font-size: 8.5px;
   font-weight: 750;
 
   letter-spacing:
-    0.11em;
+    var(--hub-label-tracking);
 
   text-transform:
     uppercase;
@@ -406,20 +371,15 @@
 
   border:
     1px solid
-    rgba(
-      232,
-      216,
-      178,
-      0.2
-    );
+    var(--border);
 
-  border-radius: 999px;
+  border-radius: 2px;
 
   background:
-    var(--accent-soft);
+    var(--surface-deep);
 
   color:
-    var(--accent);
+    var(--text-secondary);
 
   font-size: 8.5px;
   line-height: 1;
@@ -443,21 +403,11 @@
 .chatter-standing-metrics {
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 10px;
+  border-radius: 2px;
 
   background:
-    linear-gradient(
-      145deg,
-      rgba(
-        232,
-        216,
-        178,
-        0.035
-      ),
-      transparent 62%
-    ),
     var(--surface-deep);
 }
 
@@ -484,10 +434,10 @@
   right: 0;
   bottom: 0;
 
-  width: 3px;
+  width: 1px;
 
   background:
-    var(--accent);
+    var(--border-strong);
 }
 
 .chatter-standing-primary > span,
@@ -510,7 +460,7 @@
   margin-top: 11px;
 
   color:
-    var(--accent);
+    var(--text);
 
   font-size: 21px;
   line-height: 1.18;
@@ -554,11 +504,11 @@
 
   border-right:
     1px solid
-    var(--border-soft);
+    var(--border);
 
   border-bottom:
     1px solid
-    var(--border-soft);
+    var(--border);
 }
 
 .chatter-standing-metric:nth-child(2n) {
@@ -640,25 +590,14 @@
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 10px;
+  border-radius: 2px;
 
   background:
-    linear-gradient(
-      145deg,
-      rgba(
-        255,
-        255,
-        255,
-        0.018
-      ),
-      transparent 65%
-    ),
     var(--surface-deep);
 
   transition:
-    transform 150ms ease,
     border-color 150ms ease;
 
   animation:
@@ -703,9 +642,6 @@
 }
 
 .chatter-stat-card:hover {
-  transform:
-    translateY(-2px);
-
   border-color:
     var(--border-strong);
 }
@@ -810,7 +746,7 @@
 
   border-top:
     1px solid
-    var(--border-soft);
+    var(--border);
 }
 
 .incident-history-heading {
@@ -849,44 +785,32 @@
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 9px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
 
   transition:
     border-color 150ms ease,
-    background 150ms ease,
-    box-shadow 150ms ease;
+    background 150ms ease;
 }
 
 .chatter-incident-item:hover {
   border-color:
-    #505057;
+    var(--border-strong);
 }
 
 .chatter-incident-item.expanded {
   border-color:
-    rgba(
-      232,
-      216,
-      178,
-      0.25
-    );
+    var(--border-strong);
 
   background:
-    #1d1d20;
+    var(--surface-hover);
 
   box-shadow:
-    0 9px 24px
-      rgba(
-        0,
-        0,
-        0,
-        0.18
-      );
+    none;
 }
 
 
@@ -931,12 +855,7 @@
 
 .chatter-incident-summary:hover {
   background:
-    rgba(
-      255,
-      255,
-      255,
-      0.02
-    )
+    var(--surface-hover)
     !important;
 }
 
@@ -1061,9 +980,9 @@
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 7px;
+  border-radius: 2px;
 
   background:
     transparent;
@@ -1091,31 +1010,21 @@
 .chatter-incident-summary:hover
   .chatter-incident-chevron {
   border-color:
-    rgba(
-      232,
-      216,
-      178,
-      0.25
-    );
+    var(--border-strong);
 
   background:
-    var(--accent-soft);
+    var(--surface-hover);
 
   color:
-    var(--accent);
+    var(--text);
 }
 
 .chatter-incident-chevron.expanded {
   border-color:
-    rgba(
-      232,
-      216,
-      178,
-      0.32
-    );
+    var(--border-strong);
 
   color:
-    var(--accent);
+    var(--text);
 }
 
 .chatter-incident-chevron.expanded
@@ -1135,7 +1044,7 @@
 
   border-top:
     1px solid
-    var(--border-soft);
+    var(--border);
 
   animation:
     chatter-incident-open
@@ -1171,14 +1080,14 @@
   margin-bottom: 6px;
 
   color:
-    var(--accent);
+    var(--text-muted);
 
   font-size: 8px;
   line-height: 1;
   font-weight: 750;
 
   letter-spacing:
-    0.09em;
+    var(--hub-label-tracking);
 
   text-transform:
     uppercase;
@@ -1210,7 +1119,7 @@
   padding: 13px;
 
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 2px;
 }
 
 .chatter-incident-strike.active {
@@ -1289,7 +1198,7 @@
   border:
     1px solid transparent;
 
-  border-radius: 8px;
+  border-radius: 2px;
 }
 
 .chatter-incident-lifecycle.resolved {
@@ -1358,9 +1267,9 @@
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 10px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
@@ -1396,15 +1305,10 @@
     1px dashed
     var(--border);
 
-  border-radius: 10px;
+  border-radius: 2px;
 
   background:
-    rgba(
-      0,
-      0,
-      0,
-      0.1
-    );
+    var(--surface-deep);
 
   text-align: center;
 }
