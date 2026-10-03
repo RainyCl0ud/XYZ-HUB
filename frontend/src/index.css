@@ -161,13 +161,7 @@ a:focus-visible {
   display: flex;
   min-height: 100vh;
 
-  background:
-    radial-gradient(
-      circle at 78% 0%,
-      rgba(255, 255, 255, 0.018),
-      transparent 32%
-    ),
-    var(--bg);
+  background: #000000;
 }
 
 .sidebar {
@@ -185,7 +179,7 @@ a:focus-visible {
   background: var(--sidebar);
   color: var(--text);
 
-  border-right: 1px solid #252529;
+  border-right: 1px solid var(--border);
 }
 
 .sidebar-header {
@@ -309,7 +303,7 @@ a:focus-visible {
 
 .page {
   width: 100%;
-  max-width: 1460px;
+  max-width: var(--hub-content-max);
 
   margin: 0 auto;
   padding: 42px 48px 64px;
