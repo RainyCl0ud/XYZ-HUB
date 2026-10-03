@@ -24,8 +24,8 @@
   gap: 8px;
   margin-bottom: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
 }
 
@@ -43,7 +43,7 @@
   margin-bottom: 12px;
   padding: 11px 12px;
   border: 1px solid rgba(229, 141, 135, 0.24);
-  border-radius: var(--radius-sm);
+  border-radius: 2px;
   background: var(--danger-bg);
   color: var(--danger);
   font-size: 9px;
@@ -72,7 +72,7 @@
 }
 
 .audit-table-head {
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
   color: var(--text-soft);
   font-size: 8px;
   font-weight: 700;
@@ -83,7 +83,7 @@
 .audit-table-row {
   width: 100%;
   border: 0;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
   background: transparent;
   color: inherit;
   text-align: left;
@@ -94,11 +94,11 @@
 }
 
 .audit-table-row:hover {
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--surface-hover);
 }
 
 .audit-table-row:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: -2px;
 }
 
@@ -166,7 +166,7 @@
   align-items: center;
   min-height: 22px;
   padding: 0 7px;
-  border-radius: 999px;
+  border-radius: 2px;
   font-size: 8px;
   font-weight: 700;
 }
@@ -217,9 +217,9 @@
   max-height: min(88vh, 920px);
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 2px;
   background: var(--surface);
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
 }
 
 .audit-detail-header {
@@ -228,7 +228,7 @@
   justify-content: space-between;
   gap: 18px;
   padding: 22px 24px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .audit-detail-header h3 {
@@ -249,8 +249,8 @@
   width: 34px;
   height: 34px;
   flex: 0 0 auto;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
   color: var(--text-secondary);
   font-size: 19px;
@@ -272,15 +272,15 @@
       minmax(0, 1fr)
     );
   overflow: hidden;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
 }
 
 .audit-detail-facts > div {
   min-width: 0;
   padding: 12px 14px;
-  border-right: 1px solid var(--border-soft);
+  border-right: 1px solid var(--border);
 }
 
 .audit-detail-facts > div:last-child {
@@ -329,7 +329,7 @@
 .audit-detail-section {
   margin-top: 20px;
   padding-top: 18px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border);
 }
 
 .audit-detail-section-heading {
@@ -363,8 +363,8 @@
   align-items: start;
   gap: 16px;
   padding: 12px 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
 }
 
@@ -417,9 +417,9 @@
 .audit-change-value {
   min-width: 0;
   padding: 10px 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface);
 }
 
 .audit-change-value.before {
@@ -473,7 +473,7 @@
   justify-content: center;
   width: 18px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: 2px;
   font-size: 12px;
   line-height: 1;
 }
@@ -500,8 +500,8 @@
   align-items: center;
   min-height: 25px;
   padding: 0 9px;
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   font-size: 8.5px;
   font-weight: 650;
   line-height: 1.25;
@@ -521,8 +521,8 @@
 
 .audit-detail-empty {
   padding: 13px 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
   color: var(--text-muted);
   font-size: 9px;
@@ -540,8 +540,8 @@
 .audit-source-grid > div {
   min-width: 0;
   padding: 12px 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface-deep);
 }
 
@@ -567,7 +567,7 @@
   }
 
   .audit-detail-facts > div:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border);
   }
 }
 
@@ -598,7 +598,7 @@
 
   .audit-detail-facts > div {
     border-right: 0;
-    border-bottom: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border);
   }
 
   .audit-detail-facts > div:nth-child(2) {
