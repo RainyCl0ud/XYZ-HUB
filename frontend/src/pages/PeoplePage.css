@@ -18,7 +18,7 @@
   margin: 0 0 16px;
   padding: 13px 15px;
   border: 1px solid rgba(225, 189, 119, 0.24);
-  border-radius: var(--radius-sm);
+  border-radius: 2px;
   background: var(--warning-bg);
 }
 
@@ -39,17 +39,17 @@
   min-height: 620px;
   overflow: visible;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 2px;
   background: var(--surface);
-  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
 }
 
 .people-organization-panel {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border-right: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--surface-deep) 90%, black 10%);
+  border-right: 1px solid var(--border);
+  background: var(--surface-deep);
 }
 
 .people-org-header {
@@ -59,7 +59,7 @@
   gap: 12px;
   min-height: 76px;
   padding: 16px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .people-org-header .people-section-label {
@@ -76,18 +76,19 @@
 .people-org-add {
   min-height: 34px;
   padding: 0 10px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface);
-  color: var(--accent);
+  color: var(--text-secondary);
   font-size: 10.5px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .people-org-add:hover {
-  border-color: rgba(232, 216, 178, 0.25);
-  background: var(--accent-soft);
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
 }
 
 .people-org-tree {
@@ -247,7 +248,7 @@
 
 .people-org-help {
   padding: 11px 14px 13px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border);
   color: var(--text-soft);
   font-size: 9.5px;
   line-height: 1.45;
@@ -261,16 +262,16 @@
   width: 190px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: 2px;
   background: var(--surface);
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
 }
 
 .people-context-menu button {
   min-height: 39px;
   padding: 0 12px;
   border: 0;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
   background: transparent;
   color: var(--text-secondary);
   font-size: 11px;
@@ -284,7 +285,7 @@
 }
 
 .people-context-menu button:hover {
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--surface-hover);
   color: var(--text);
 }
 
@@ -294,7 +295,7 @@
 
 .people-directory {
   min-width: 0;
-  background: color-mix(in srgb, var(--surface) 96%, white 4%);
+  background: var(--surface);
 }
 
 .people-directory-header {
@@ -304,7 +305,7 @@
   gap: 16px;
   min-height: 76px;
   padding: 15px 18px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .people-directory-title-row {
@@ -326,8 +327,8 @@
   align-items: center;
   min-height: 24px;
   padding: 0 8px;
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   color: var(--text-muted);
   font-size: 10px;
   font-weight: 700;
@@ -351,8 +352,8 @@
   align-items: end;
   gap: 10px;
   padding: 15px 18px;
-  border-bottom: 1px solid var(--border-soft);
-  background: rgba(0, 0, 0, 0.075);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-deep);
 }
 
 .people-search-field {
@@ -388,8 +389,8 @@
   width: 100%;
   min-height: 40px;
   padding: 0 34px 0 11px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   outline: none;
   background: var(--surface-deep);
   color: var(--text-secondary);
@@ -400,8 +401,8 @@
 .people-reset-filters {
   min-height: 40px;
   padding: 0 11px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: transparent;
   color: var(--text-secondary);
   font-size: 10.5px;
@@ -420,8 +421,8 @@
   justify-content: space-between;
   gap: 14px;
   padding: 11px 18px;
-  border-bottom: 1px solid rgba(232, 216, 178, 0.15);
-  background: var(--accent-soft);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-deep);
 }
 
 .people-batch-bar > div:first-child {
@@ -431,7 +432,7 @@
 }
 
 .people-batch-bar strong {
-  color: var(--accent);
+  color: var(--text);
   font-size: 11.5px;
 }
 
@@ -474,7 +475,7 @@
   z-index: 4;
   min-height: 42px;
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface-deep) 90%, white 10%);
+  background: var(--surface-deep);
   color: var(--text-muted);
   font-size: 9.5px;
   font-weight: 780;
@@ -484,21 +485,22 @@
 
 .people-table-row {
   min-height: 66px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
   background: transparent;
   color: inherit;
   cursor: pointer;
   outline: none;
-  transition: background 120ms ease, box-shadow 120ms ease;
+  transition: background 120ms ease;
 }
 
 .people-table-row:hover,
 .people-table-row:focus-visible {
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--surface-hover);
 }
 
 .people-table-row:focus-visible {
-  box-shadow: inset 3px 0 0 var(--accent);
+  outline: 1px solid var(--text);
+  outline-offset: -1px;
 }
 
 .people-select-cell {
@@ -513,7 +515,7 @@
   width: 15px;
   height: 15px;
   margin: 0;
-  accent-color: var(--accent);
+  accent-color: var(--text);
 }
 
 .people-person-cell {
@@ -562,9 +564,9 @@
   place-items: center;
   min-height: 23px;
   padding: 0 7px;
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface-deep);
   color: var(--text-muted);
   font-size: 9.5px;
   font-weight: 720;
@@ -576,7 +578,7 @@
   align-items: center;
   min-height: 27px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: 2px;
   font-size: 10px;
   font-weight: 760;
   white-space: nowrap;
@@ -1430,8 +1432,8 @@
   gap: 16px;
   min-height: 48px;
   padding: 8px 18px;
-  border-top: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--surface-deep) 92%, black 8%);
+  border-top: 1px solid var(--border);
+  background: var(--surface-deep);
   color: var(--text-muted);
   font-size: 10px;
 }
@@ -1456,8 +1458,8 @@
   width: 30px;
   height: 30px;
   padding: 0;
-  border: 1px solid var(--border-soft);
-  border-radius: 7px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
   background: var(--surface);
   color: var(--text-secondary);
   font-size: 18px;
@@ -1466,8 +1468,9 @@
 }
 
 .people-pagination-controls button:hover:not(:disabled) {
-  border-color: rgba(232, 216, 178, 0.28);
-  color: var(--accent);
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
 }
 
 .people-pagination-controls button:disabled {
@@ -1510,21 +1513,21 @@
   min-height: 42px;
   padding: 0 46px 0 13px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 2px;
   outline: none;
   appearance: none;
-  background: color-mix(in srgb, var(--surface-deep) 94%, white 6%);
+  background: var(--surface-deep);
   color: var(--text-secondary);
   font: inherit;
   font-size: 11px;
   font-weight: 620;
   cursor: pointer;
-  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  transition: border-color 120ms ease, background 120ms ease;
 }
 
 .people-select-shell select:hover {
-  border-color: rgba(232, 216, 178, 0.24);
-  background: color-mix(in srgb, var(--surface-deep) 90%, white 10%);
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
 }
 
 .people-select-shell select:focus {
