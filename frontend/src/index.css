@@ -1404,7 +1404,7 @@ select:disabled {
 
   padding-bottom: 20px;
 
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .incident-detail-top > div {
@@ -1422,7 +1422,7 @@ select:disabled {
 .detail-section {
   padding: 20px 0;
 
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .detail-section:last-of-type {
@@ -1469,8 +1469,8 @@ select:disabled {
   min-width: 0;
   padding: 12px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
   background: var(--surface-deep);
 }
@@ -1496,7 +1496,7 @@ select:disabled {
 
   margin-top: 8px;
 
-  color: var(--accent);
+  color: var(--text-secondary);
 
   font-size: 10px;
   font-weight: 650;
@@ -1511,7 +1511,7 @@ select:disabled {
   padding: 15px;
 
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: 2px;
 }
 
 .lifecycle-section.resolved {
@@ -1552,8 +1552,8 @@ select:disabled {
   margin-bottom: 18px;
   padding: 12px 14px;
 
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 
   background: var(--surface-deep);
 }
@@ -3887,38 +3887,28 @@ body {
   cursor: pointer;
 
   transition:
-    background 150ms ease,
-    box-shadow 150ms ease;
+    background 150ms ease;
 }
 
 .incident-clickable-row:hover {
-  background:
-    linear-gradient(
-      90deg,
-      rgba(232, 216, 178, 0.04),
-      rgba(232, 216, 178, 0.012)
-    );
+  background: var(--surface-hover);
 }
 
 .incident-clickable-row:hover td {
-  border-bottom-color:
-    rgba(232, 216, 178, 0.1);
+  border-bottom-color: var(--border-strong);
 }
 
 .incident-clickable-row:focus-visible {
-  outline:
-    1px solid
-    rgba(232, 216, 178, 0.45);
+  outline: 1px solid var(--text);
 
   outline-offset: -2px;
 
-  background:
-    rgba(232, 216, 178, 0.04);
+  background: var(--surface-hover);
 }
 
 .incident-clickable-row:hover
   .incident-rule-cell strong {
-  color: var(--accent);
+  color: var(--text);
 }
 
 .incident-rule-cell strong {
@@ -3950,15 +3940,15 @@ body {
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 8px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
 
   color:
-    var(--accent);
+    var(--text-secondary);
 
   text-decoration: none;
 
@@ -3969,14 +3959,13 @@ body {
 }
 
 .incident-evidence-link:hover {
-  border-color:
-    rgba(232, 216, 178, 0.32);
+  border-color: var(--border-strong);
 
   background:
-    var(--accent-soft);
+    var(--surface-hover);
 
   color:
-    var(--accent-strong);
+    var(--text);
 }
 
 .incident-evidence-url {
@@ -4002,17 +3991,13 @@ body {
     var(--text-muted);
 
   transition:
-    color 140ms ease,
-    transform 140ms ease;
+    color 140ms ease;
 }
 
 .incident-evidence-link:hover
   .incident-evidence-icon {
   color:
-    var(--accent);
-
-  transform:
-    translate(1px, -1px);
+    var(--text);
 }
 
 
