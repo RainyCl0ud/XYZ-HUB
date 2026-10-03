@@ -116,7 +116,11 @@
     980px !important;
 
   max-height:
-    calc(100vh - 56px)
+    calc(
+      100dvh -
+      var(--portal-footer-height, 0px) -
+      56px
+    )
     !important;
 
   overflow-y:
@@ -1391,7 +1395,11 @@
 
   .chatter-profile-modal {
     max-height:
-      calc(100vh - 20px)
+      calc(
+        100dvh -
+        var(--portal-footer-height, 0px) -
+        20px
+      )
       !important;
   }
 

@@ -12,7 +12,11 @@ body:has(.modal-backdrop) {
 }
 
 .modal-backdrop > .modal {
-  max-height: calc(100dvh - 32px);
+  max-height: calc(
+    100dvh -
+    var(--portal-footer-height, 0px) -
+    32px
+  );
   overflow-y: auto;
   overscroll-behavior: contain;
 }

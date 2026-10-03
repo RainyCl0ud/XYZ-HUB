@@ -169,6 +169,18 @@
 
 /* XYZ HUB MANAGEMENT SHELL */
 
+.portal-shell {
+  --portal-footer-height: 58px;
+}
+
+.portal-shell .modal-backdrop {
+  inset:
+    0
+    0
+    var(--portal-footer-height)
+    0;
+}
+
 .portal-command-bar {
   position: fixed;
   inset: 0 0 auto 0;
@@ -311,7 +323,7 @@
 
 .portal-sidebar {
   top: 76px;
-  bottom: 0;
+  bottom: var(--portal-footer-height);
 
   height: auto;
 
@@ -343,7 +355,17 @@
 }
 
 .portal-shell .main-content {
+  height: calc(
+    100dvh -
+    var(--portal-footer-height)
+  );
+  min-height: 0;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
   padding-top: 76px;
+  padding-bottom: 0;
 }
 
 .owner-command-page {
@@ -589,11 +611,21 @@
 
   .portal-sidebar {
     position: fixed;
-    inset: 0 auto 0 0;
+    inset:
+      0
+      auto
+      var(--portal-footer-height)
+      0;
 
     width: min(86vw, 320px);
-    min-height: 100dvh;
-    height: 100dvh;
+    min-height: calc(
+      100dvh -
+      var(--portal-footer-height)
+    );
+    height: calc(
+      100dvh -
+      var(--portal-footer-height)
+    );
 
     padding: 18px 14px;
 
@@ -1027,6 +1059,34 @@
   font-size: 10px;
 }
 
+.portal-command-role {
+  display: grid;
+  justify-items: end;
+
+  min-width: 170px;
+  max-width: 220px;
+
+  text-align: right;
+}
+
+.portal-command-role .portal-command-label {
+  margin-bottom: 3px;
+}
+
+.portal-command-role strong {
+  display: block;
+
+  width: 100%;
+  overflow: hidden;
+
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 750;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .portal-command-time {
   display: grid;
 
@@ -1085,6 +1145,15 @@
       minmax(240px, 1fr);
   }
 
+  .portal-command-role {
+    min-width: 120px;
+    max-width: 160px;
+  }
+
+  .portal-command-role strong {
+    font-size: 9px;
+  }
+
   .portal-command-time {
     min-width: 175px;
   }
@@ -1128,6 +1197,7 @@
   }
 
   .portal-command-time .portal-command-label,
+  .portal-command-role,
   .portal-account-slot {
     display: none;
   }
@@ -1361,7 +1431,11 @@
 
 .portal-account-confirm-overlay {
   position: fixed;
-  inset: 0;
+  inset:
+    0
+    0
+    var(--portal-footer-height)
+    0;
 
   z-index: 240;
 
