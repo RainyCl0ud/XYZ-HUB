@@ -322,7 +322,7 @@
 }
 
 .portal-sidebar {
-  top: 76px;
+  top: 0;
   bottom: var(--portal-footer-height);
 
   height: auto;
@@ -704,6 +704,9 @@
 }
 
 .portal-page-context {
+  display:
+    none;
+
   min-width:
     0;
 }
@@ -755,7 +758,7 @@
     flex-end;
 
   gap:
-    18px;
+    12px;
 
   min-width:
     0;
@@ -895,6 +898,9 @@
   }
 
   .portal-page-context {
+    display:
+      block;
+
     grid-column:
       2;
 
@@ -1040,8 +1046,9 @@
    ========================================================= */
 
 .portal-command-bar-v2 {
+  left: 248px;
+
   grid-template-columns:
-    minmax(190px, 240px)
     minmax(240px, 340px)
     minmax(310px, 1fr);
 }
@@ -1105,7 +1112,7 @@
 
   justify-items: end;
 
-  min-width: 115px;
+  min-width: 105px;
 }
 
 .portal-command-time .portal-command-label {
@@ -1150,7 +1157,6 @@
 @media (max-width: 1100px) {
   .portal-command-bar-v2 {
     grid-template-columns:
-      minmax(170px, 210px)
       minmax(210px, 280px)
       minmax(240px, 1fr);
   }
@@ -1167,7 +1173,7 @@
   }
 
   .portal-command-time {
-    min-width: 110px;
+    min-width: 100px;
   }
 
   .portal-clock-time {
@@ -1182,6 +1188,15 @@
 }
 
 @media (max-width: 720px) {
+  .portal-command-bar-v2 {
+    left: 0;
+
+    grid-template-columns:
+      42px
+      minmax(0, 1fr)
+      auto;
+  }
+
   .portal-command-time {
     min-width: auto;
   }
