@@ -1094,7 +1094,7 @@ select:disabled {
   min-height: 116px;
   padding: 17px 20px;
 
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 
   transition: background 110ms ease;
 }
@@ -1104,7 +1104,7 @@ select:disabled {
 }
 
 .config-item:hover {
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--surface-hover);
 }
 
 .config-item-main {
@@ -2572,12 +2572,11 @@ body {
 .config-item {
   transition:
     background 120ms ease,
-    opacity 120ms ease,
-    box-shadow 120ms ease;
+    opacity 120ms ease;
 }
 
 .config-item:not(.reorder-item):hover {
-  background: rgba(255, 255, 255, 0.022);
+  background: var(--surface-hover);
 }
 
 /*
@@ -2987,8 +2986,7 @@ body {
     1px solid
     var(--border-strong);
 
-  border-radius:
-    var(--radius-sm);
+  border-radius: 2px;
 
   background:
     var(--surface);
@@ -3004,13 +3002,14 @@ body {
 }
 
 .configuration-gear-button:hover:not(:disabled) {
-  border-color: #716957;
+  border-color:
+    var(--text);
 
   background:
     var(--surface-hover);
 
   color:
-    var(--accent);
+    var(--text);
 }
 
 .configuration-gear-button:active:not(:disabled) {
@@ -3020,13 +3019,13 @@ body {
 
 .configuration-gear-button[aria-expanded="true"] {
   border-color:
-    rgba(232, 216, 178, 0.5);
+    var(--text);
 
   background:
-    var(--accent-soft);
+    var(--surface-hover);
 
   color:
-    var(--accent);
+    var(--text);
 }
 
 
@@ -3050,16 +3049,13 @@ body {
     1px solid
     var(--border-strong);
 
-  border-radius: 9px;
+  border-radius: 2px;
 
   background:
-    #202023;
+    var(--surface);
 
   box-shadow:
-    0 18px 45px
-      rgba(0, 0, 0, 0.48),
-    0 4px 14px
-      rgba(0, 0, 0, 0.25);
+    none;
 
   animation:
     settings-menu-enter
@@ -3076,7 +3072,7 @@ body {
   padding: 0 11px;
 
   border: 0;
-  border-radius: 6px;
+  border-radius: 2px;
 
   background:
     transparent;
@@ -3100,7 +3096,7 @@ body {
     var(--surface-hover);
 
   color:
-    var(--accent);
+    var(--text);
 }
 
 .settings-item-icon {
@@ -3113,9 +3109,9 @@ body {
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 6px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
@@ -3132,10 +3128,10 @@ body {
 .configuration-settings-item:hover:not(:disabled)
   .settings-item-icon {
   border-color:
-    rgba(232, 216, 178, 0.25);
+    var(--border-strong);
 
   color:
-    var(--accent);
+    var(--text-secondary);
 }
 
 @keyframes settings-menu-enter {
@@ -3198,16 +3194,7 @@ body {
   position: relative;
 
   background:
-    linear-gradient(
-      180deg,
-      rgba(
-        232,
-        216,
-        178,
-        0.025
-      ),
-      transparent 35%
-    );
+    var(--surface-deep);
 }
 
 .reorder-item {
@@ -3223,18 +3210,12 @@ body {
     background 150ms ease,
     border-color 150ms ease,
     opacity 150ms ease,
-    transform 150ms ease,
-    box-shadow 150ms ease;
+    transform 150ms ease;
 }
 
 .reorder-item:hover {
   background:
-    rgba(
-      232,
-      216,
-      178,
-      0.025
-    );
+    var(--surface-hover);
 }
 
 
@@ -3262,7 +3243,7 @@ body {
 
   border-left:
     1px solid
-    var(--border-soft);
+    var(--border);
 
   border-right: 0;
 
@@ -3283,10 +3264,10 @@ body {
 
 .drag-handle:hover {
   border-left-color:
-    #716957;
+    var(--border-strong);
 
   color:
-    var(--accent);
+    var(--text);
 }
 
 .drag-grip {
@@ -3299,9 +3280,9 @@ body {
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 7px;
+  border-radius: 2px;
 
   background:
     var(--surface-deep);
@@ -3318,34 +3299,22 @@ body {
     border-color 120ms ease,
     background 120ms ease,
     color 120ms ease,
-    transform 120ms ease,
-    box-shadow 120ms ease;
+    transform 120ms ease;
 }
 
 .drag-handle:hover
   .drag-grip {
   border-color:
-    rgba(
-      232,
-      216,
-      178,
-      0.35
-    );
+    var(--border-strong);
 
   background:
-    var(--accent-soft);
+    var(--surface-hover);
 
   color:
-    var(--accent);
+    var(--text);
 
   box-shadow:
-    0 0 0 3px
-      rgba(
-        232,
-        216,
-        178,
-        0.035
-      );
+    none;
 }
 
 .reorder-position {
@@ -3379,40 +3348,22 @@ body {
     scale(0.992);
 
   background:
-    rgba(
-      232,
-      216,
-      178,
-      0.055
-    );
+    var(--surface-hover);
 
   box-shadow:
-    inset 0 0 0 1px
-      rgba(
-        232,
-        216,
-        178,
-        0.16
-      ),
-    0 10px 24px
-      rgba(
-        0,
-        0,
-        0,
-        0.2
-      );
+    none;
 }
 
 .reorder-item.dragging
   .drag-grip {
   border-color:
-    var(--accent);
+    var(--text);
 
   background:
-    var(--accent-soft);
+    var(--surface);
 
   color:
-    var(--accent);
+    var(--text);
 }
 
 
@@ -3422,23 +3373,10 @@ body {
 
 .reorder-item.drag-over {
   background:
-    rgba(
-      232,
-      216,
-      178,
-      0.06
-    );
+    var(--surface-hover);
 
   box-shadow:
-    inset 0 2px 0
-      var(--accent),
-    0 -7px 18px
-      rgba(
-        0,
-        0,
-        0,
-        0.12
-      );
+    none;
 }
 
 .reorder-item.drag-over::before {
@@ -3453,26 +3391,13 @@ body {
 
   height: 2px;
 
-  border-radius: 999px;
+  border-radius: 2px;
 
   background:
-    var(--accent);
+    var(--text);
 
   box-shadow:
-    0 0 0 1px
-      rgba(
-        232,
-        216,
-        178,
-        0.08
-      ),
-    0 0 10px
-      rgba(
-        232,
-        216,
-        178,
-        0.2
-      );
+    none;
 }
 
 .reorder-item.drag-over::after {
@@ -3487,10 +3412,10 @@ body {
   width: 7px;
   height: 7px;
 
-  border-radius: 50%;
+  border-radius: 2px;
 
   background:
-    var(--accent);
+    var(--text);
 }
 
 
@@ -3532,8 +3457,7 @@ body {
       0.24
     );
 
-  border-radius:
-    999px;
+  border-radius: 2px;
 
   background:
     rgba(
@@ -3564,16 +3488,7 @@ body {
 @keyframes reorder-settle {
   0% {
     background:
-      rgba(
-        232,
-        216,
-        178,
-        0.13
-      );
-
-    box-shadow:
-      inset 3px 0 0
-        var(--accent);
+      var(--surface-hover);
 
     transform:
       scale(1.008);
@@ -3587,10 +3502,6 @@ body {
   100% {
     background:
       transparent;
-
-    box-shadow:
-      inset 3px 0 0
-        transparent;
 
     transform:
       scale(1);
@@ -3636,21 +3547,11 @@ body {
 
   border:
     1px solid
-    var(--border-soft);
+    var(--border);
 
-  border-radius: 8px;
+  border-radius: 2px;
 
   background:
-    linear-gradient(
-      135deg,
-      rgba(
-        232,
-        216,
-        178,
-        0.04
-      ),
-      transparent 75%
-    ),
     var(--surface-deep);
 }
 
@@ -5019,7 +4920,7 @@ body {
 .configuration-archive-modal
   .modal-header {
   background:
-    rgba(255, 255, 255, 0.012);
+    var(--surface);
 }
 
 .configuration-archive-modal
@@ -5068,7 +4969,7 @@ body {
 
 .configuration-archive-item:hover {
   background:
-    rgba(255, 255, 255, 0.018);
+    var(--surface-hover);
 }
 
 .configuration-archive-item
@@ -5154,8 +5055,7 @@ body {
   padding:
     6px 8px;
 
-  border-radius:
-    6px;
+  border-radius: 2px;
 
   background:
     rgba(91, 168, 107, 0.055);
