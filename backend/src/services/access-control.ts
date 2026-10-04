@@ -184,6 +184,22 @@ export async function getAccessContext(
   );
 
   /*
+   * Audit Log is a system-level Owner capability.
+   *
+   * Legacy or stale role-permission records must never
+   * grant Audit access to a non-Owner account.
+   */
+  if (
+    !systemKeys.has(
+      "OWNER"
+    )
+  ) {
+    permissions.delete(
+      "audit.view"
+    );
+  }
+
+  /*
    * Per the build brief:
    *
    * Owner, Ops Manager and Dev see every model

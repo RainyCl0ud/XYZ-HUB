@@ -290,6 +290,11 @@ async function runTests() {
     const req = {
       access:
         createAccessContext({
+          permissions:
+            new Set([
+              "audit.view",
+            ]),
+
           roles: [
             {
               id: "manager-role",
@@ -327,7 +332,7 @@ async function runTests() {
     );
 
     console.log(
-      "✓ non-Owner returns 403"
+      "✓ non-Owner returns 403 even with legacy audit.view permission"
     );
   }
 
