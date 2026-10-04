@@ -109,6 +109,7 @@ const ownerOnlyPermissionKeys =
   [
     "people.deactivate",
     "people.delete",
+    "audit.view",
   ] as const;
 
 const ownerOnlyPermissionKeySet =
@@ -312,7 +313,7 @@ async function validatePermissionIds(
   ) {
     throw new RoleManagementError(
       "INVALID_PERMISSIONS",
-      "Deactivate and permanent-delete actions are reserved for Owners and cannot be assigned to roles."
+      "This permission is reserved for Owners and cannot be assigned to roles."
     );
   }
 

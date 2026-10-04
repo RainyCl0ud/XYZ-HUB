@@ -66,6 +66,7 @@ async function main() {
     peopleManage,
     peopleDeactivate,
     peopleDelete,
+    auditView,
   ] =
     await Promise.all([
       prisma.role.findUnique({
@@ -102,6 +103,13 @@ async function main() {
             "people.delete",
         },
       }),
+
+      prisma.permission.findUnique({
+        where: {
+          key:
+            "audit.view",
+        },
+      }),
     ]);
 
   assert.ok(ownerRole);
@@ -109,6 +117,7 @@ async function main() {
   assert.ok(peopleManage);
   assert.ok(peopleDeactivate);
   assert.ok(peopleDelete);
+  assert.ok(auditView);
 
   const owner =
     await prisma.user.create({
@@ -205,6 +214,13 @@ async function main() {
     );
 
     assert.equal(
+      builderPermissionKeys.has(
+        "audit.view"
+      ),
+      false
+    );
+
+    assert.equal(
       builder.roles.some(
         (role) =>
           role.permissions.some(
@@ -212,14 +228,16 @@ async function main() {
               permission.key ===
                 "people.deactivate" ||
               permission.key ===
-                "people.delete"
+                "people.delete" ||
+              permission.key ===
+                "audit.view"
           )
       ),
       false
     );
 
     console.log(
-      "✓ Owner-only destructive actions are hidden from Role Settings"
+      "✓ Owner-only permissions are hidden from Role Settings"
     );
 
     await expectRoleError(
@@ -244,6 +262,29 @@ async function main() {
 
     console.log(
       "✓ destructive Owner-only permissions cannot be assigned through the role service"
+    );
+
+    await expectRoleError(
+      () =>
+        createRole(
+          {
+            name:
+              `Forbidden Audit Role ${suffix}`,
+            rank:
+              10,
+            dataScope:
+              RoleDataScope.SELF,
+            permissionIds: [
+              auditView.id,
+            ],
+          },
+          ownerAccess
+        ),
+      "INVALID_PERMISSIONS"
+    );
+
+    console.log(
+      "✓ Audit Log permission cannot be assigned through the role service"
     );
 
     assert.ok(

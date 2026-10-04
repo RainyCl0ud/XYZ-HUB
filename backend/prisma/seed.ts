@@ -153,9 +153,7 @@ const defaultRolePermissions: Record<
   QC: [],
   CHATTER: [],
   TRIAL_CHATTER: [],
-  DEV: [
-    "audit.view",
-  ],
+  DEV: [],
   ACCOUNTANT: [],
   MODEL: [],
   GENERAL_STAFF: [],

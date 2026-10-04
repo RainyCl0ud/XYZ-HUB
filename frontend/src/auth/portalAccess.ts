@@ -105,15 +105,11 @@ export function getPortalCapabilities(
     );
 
   /*
-   * Audit visibility follows the effective permission
-   * set returned by /auth/me so Role Builder edits are
-   * authoritative for already-assigned roles.
+   * Audit Log is permanently reserved for the
+   * system-managed Owner role and is not delegable.
    */
   const canViewAudit =
-    access?.permissions.includes(
-      "audit.view"
-    ) ??
-    false;
+    isOwner;
 
   return {
     isOwner,
@@ -133,8 +129,7 @@ export function getPortalCapabilities(
 
 export type PortalModule =
   | "qa"
-  | "qa-config"
-  | "audit";
+  | "qa-config";
 
 export function canAccessPortalModule(
   access:
@@ -157,10 +152,6 @@ export function canAccessPortalModule(
     case "qa-config":
       return capabilities
         .canConfigureQa;
-
-    case "audit":
-      return capabilities
-        .canViewAudit;
 
     default:
       return false;

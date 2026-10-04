@@ -174,9 +174,13 @@ function App() {
           <Route
             path="/audit"
             element={
-              <RequirePortalModule module="audit">
+              <RequireSystemRole
+                roles={[
+                  "OWNER",
+                ]}
+              >
                 <AuditPage />
-              </RequirePortalModule>
+              </RequireSystemRole>
             }
           />
 
