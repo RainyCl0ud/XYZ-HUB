@@ -202,3 +202,525 @@
     min-width: 980px;
   }
 }
+
+/* ROLE PERMISSIONS MODAL — MONOCHROME NAVIGATION */
+
+.role-settings-rank-page
+.role-settings-permissions-modal {
+  display: flex;
+  flex-direction: column;
+
+  width: min(1040px, 100%);
+  height: min(720px, 86vh);
+  max-height: 86vh;
+
+  background: var(--surface);
+}
+
+.role-settings-rank-page
+.role-settings-permissions-modal
+.role-settings-modal-header {
+  flex: 0 0 auto;
+
+  padding:
+    24px
+    28px
+    22px;
+}
+
+.role-settings-permission-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  gap: 8px;
+
+  margin-top: 14px;
+}
+
+.role-settings-permission-meta span {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 30px;
+
+  padding:
+    0
+    10px;
+
+  border: 1px solid var(--border);
+  border-radius: 2px;
+
+  background: var(--surface-deep);
+  color: var(--text-secondary);
+
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.role-settings-rank-page
+.role-settings-modal-header
+.role-settings-permission-description {
+  max-width: 720px;
+
+  margin-top: 12px;
+
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.role-settings-permission-layout {
+  display: grid;
+
+  grid-template-columns:
+    300px
+    minmax(0, 1fr);
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  overflow: hidden;
+}
+
+.role-settings-permission-categories {
+  min-width: 0;
+
+  overflow-y: auto;
+
+  padding:
+    22px
+    0;
+
+  border-right: 1px solid var(--border);
+
+  background: var(--surface-deep);
+}
+
+.role-settings-permission-nav-label {
+  display: block;
+
+  padding:
+    0
+    18px
+    12px;
+
+  color: var(--text-muted);
+
+  font-size: 8.5px;
+  font-weight: 750;
+
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.role-settings-permission-category-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.role-settings-permission-category {
+  position: relative;
+
+  display: grid;
+
+  grid-template-columns:
+    34px
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 11px;
+
+  width: 100%;
+  min-height: 70px;
+
+  padding:
+    11px
+    16px;
+
+  border: 0;
+  border-bottom: 1px solid var(--border);
+
+  background: transparent;
+  color: var(--text-secondary);
+
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.role-settings-permission-category:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.role-settings-permission-category:hover {
+  background: var(--surface-hover);
+}
+
+.role-settings-permission-category.active {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.role-settings-permission-category.active::before {
+  position: absolute;
+
+  inset:
+    0
+    auto
+    0
+    0;
+
+  width: 3px;
+
+  background: var(--text);
+
+  content: "";
+}
+
+.role-settings-permission-category-mark {
+  display: inline-grid;
+  place-items: center;
+
+  width: 32px;
+  height: 32px;
+
+  border: 1px solid var(--border);
+  border-radius: 2px;
+
+  background: transparent;
+  color: var(--text-secondary);
+
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.role-settings-permission-category.active
+.role-settings-permission-category-mark {
+  border-color: var(--border-strong);
+
+  color: var(--text);
+}
+
+.role-settings-permission-category-copy {
+  display: flex;
+
+  min-width: 0;
+
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+.role-settings-permission-category-copy strong {
+  overflow: hidden;
+
+  color: inherit;
+
+  font-size: 11.5px;
+  font-weight: 750;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-settings-permission-category-copy small {
+  color: var(--text-muted);
+
+  font-size: 9.5px !important;
+  line-height: 1.35;
+}
+
+.role-settings-permission-category
+.role-settings-permission-count {
+  min-width: 38px;
+  height: 26px;
+
+  background: transparent;
+
+  color: var(--text-muted);
+}
+
+.role-settings-permission-category.active
+.role-settings-permission-count {
+  border-color: var(--border-strong);
+
+  color: var(--text-secondary);
+}
+
+.role-settings-permission-panel {
+  min-width: 0;
+
+  overflow-y: auto;
+
+  padding:
+    26px
+    28px;
+
+  background: var(--surface);
+}
+
+.role-settings-permission-panel-header {
+  display: flex;
+
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 24px;
+
+  padding-bottom: 20px;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.role-settings-permission-panel-header h4 {
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 19px;
+  line-height: 1.2;
+  font-weight: 750;
+}
+
+.role-settings-permission-panel-header p {
+  margin:
+    6px
+    0
+    0;
+
+  color: var(--text-muted);
+
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.role-settings-permission-select-all {
+  display: inline-flex;
+
+  flex: 0 0 auto;
+
+  align-items: center;
+
+  gap: 9px;
+
+  min-height: 38px;
+
+  padding:
+    0
+    12px;
+
+  border: 1px solid var(--border);
+  border-radius: 2px;
+
+  background: var(--surface-deep);
+  color: var(--text-secondary);
+
+  font-size: 10.5px;
+
+  cursor: pointer;
+}
+
+.role-settings-permission-select-all:hover {
+  border-color: var(--border-strong);
+
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.role-settings-permission-select-all input,
+.role-settings-permission-item input {
+  width: 15px;
+  height: 15px;
+
+  margin: 0;
+
+  accent-color: var(--text);
+}
+
+.role-settings-permission-items {
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+
+  padding-top: 20px;
+}
+
+.role-settings-permission-item {
+  display: grid;
+
+  grid-template-columns:
+    18px
+    minmax(0, 1fr);
+
+  align-items: start;
+
+  gap: 12px;
+
+  min-height: 74px;
+
+  padding:
+    15px
+    16px;
+
+  border: 1px solid var(--border);
+  border-radius: 2px;
+
+  background: var(--surface-deep);
+
+  cursor: pointer;
+}
+
+.role-settings-permission-item:hover {
+  border-color: var(--border-strong);
+
+  background: var(--surface-hover);
+}
+
+.role-settings-permission-item input {
+  margin-top: 2px;
+}
+
+.role-settings-permission-item > span {
+  display: flex;
+
+  min-width: 0;
+
+  flex-direction: column;
+
+  gap: 5px;
+}
+
+.role-settings-permission-item strong {
+  color: var(--text);
+
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+.role-settings-permission-item small {
+  color: var(--text-muted);
+
+  font-size: 10px !important;
+  line-height: 1.5;
+}
+
+.role-settings-permission-empty {
+  display: grid;
+  place-items: center;
+
+  min-height: 240px;
+
+  color: var(--text-muted);
+
+  font-size: 11px;
+}
+
+.role-settings-rank-page
+.role-settings-permissions-modal
+.role-settings-modal-footer {
+  flex: 0 0 auto;
+
+  padding:
+    15px
+    28px;
+}
+
+@media (max-width: 780px) {
+  .role-settings-rank-page
+  .role-settings-permissions-modal {
+    height: min(90vh, 760px);
+    max-height: 90vh;
+  }
+
+  .role-settings-permission-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows:
+      auto
+      minmax(0, 1fr);
+  }
+
+  .role-settings-permission-categories {
+    max-height: 210px;
+
+    padding:
+      16px
+      0;
+
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .role-settings-permission-category-list {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    padding:
+      0
+      12px;
+
+    gap: 6px;
+  }
+
+  .role-settings-permission-category,
+  .role-settings-permission-category:first-child {
+    min-height: 62px;
+
+    border: 1px solid var(--border);
+  }
+
+  .role-settings-permission-category.active::before {
+    inset:
+      0
+      auto
+      0
+      0;
+  }
+
+  .role-settings-permission-panel {
+    padding:
+      20px
+      18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .role-settings-permission-category-list {
+    grid-template-columns: 1fr;
+  }
+
+  .role-settings-permission-panel-header {
+    flex-direction: column;
+  }
+
+  .role-settings-permission-select-all {
+    width: 100%;
+  }
+
+  .role-settings-permission-meta span {
+    flex: 1 1 auto;
+
+    justify-content: center;
+  }
+
+  .role-settings-rank-page
+  .role-settings-permissions-modal
+  .role-settings-modal-header {
+    padding:
+      18px
+      16px;
+  }
+
+  .role-settings-rank-page
+  .role-settings-permissions-modal
+  .role-settings-modal-footer {
+    padding:
+      13px
+      16px;
+  }
+}
