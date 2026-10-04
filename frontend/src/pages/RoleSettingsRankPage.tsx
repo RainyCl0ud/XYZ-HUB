@@ -216,6 +216,11 @@ function RoleSettingsRankPage() {
     useState<string[]>([]);
   const [deleteRoleId, setDeleteRoleId] =
     useState<string | null>(null);
+  const [
+    activePermissionGroupLabel,
+    setActivePermissionGroupLabel,
+  ] =
+    useState<string | null>(null);
 
   const loadRoles =
     useCallback(
@@ -373,6 +378,42 @@ function RoleSettingsRankPage() {
       [permissions]
     );
 
+  const activePermissionGroup =
+    permissionGroups.find(
+      ([label]) =>
+        label ===
+        activePermissionGroupLabel
+    ) ??
+    permissionGroups[0] ??
+    null;
+
+  const activePermissionGroupLabelResolved =
+    activePermissionGroup?.[0] ?? "";
+
+  const activePermissionGroupPermissions =
+    activePermissionGroup?.[1] ?? [];
+
+  const activePermissionGroupTitle =
+    activePermissionGroupPermissions[0]
+      ?.categoryKey ??
+    activePermissionGroupPermissions[0]
+      ?.pageKey ??
+    activePermissionGroupLabelResolved;
+
+  const activePermissionSelectedCount =
+    activePermissionGroupPermissions.filter(
+      (permission) =>
+        permissionDraft.includes(
+          permission.id
+        )
+    ).length;
+
+  const activePermissionAllSelected =
+    activePermissionGroupPermissions.length >
+      0 &&
+    activePermissionSelectedCount ===
+      activePermissionGroupPermissions.length;
+
   function applyFilters(
     event: FormEvent
   ) {
@@ -436,6 +477,10 @@ function RoleSettingsRankPage() {
           permission.id
       )
     );
+    setActivePermissionGroupLabel(
+      permissionGroups[0]?.[0] ??
+        null
+    );
   }
 
   function closeEditor() {
@@ -449,7 +494,42 @@ function RoleSettingsRankPage() {
     if (!saving) {
       setPermissionRoleId(null);
       setPermissionDraft([]);
+      setActivePermissionGroupLabel(
+        null
+      );
     }
+  }
+
+  function setPermissionGroupSelection(
+    group: Permission[],
+    selected: boolean
+  ) {
+    const groupIds =
+      group.map(
+        (permission) =>
+          permission.id
+      );
+
+    const groupIdSet =
+      new Set(groupIds);
+
+    setPermissionDraft(
+      (current) => {
+        if (!selected) {
+          return current.filter(
+            (id) =>
+              !groupIdSet.has(id)
+          );
+        }
+
+        return Array.from(
+          new Set([
+            ...current,
+            ...groupIds,
+          ])
+        );
+      }
+    );
   }
 
   function parseRank() {
@@ -1050,11 +1130,25 @@ function RoleSettingsRankPage() {
               <div>
                 <span className="page-eyebrow">Role details & permissions</span>
                 <h3>{permissionRole.name}</h3>
-                <p>
-                  Rank {permissionRole.rank ?? "Unranked"} · {scopeLabel(permissionRole.dataScope)} · {permissionRole.affectedUserCount} user{permissionRole.affectedUserCount === 1 ? "" : "s"}
-                </p>
-                <p>
-                  {permissionRole.description || "No description provided."} · {permissionDraft.length} permission{permissionDraft.length === 1 ? "" : "s"} selected
+
+                <div
+                  className="role-settings-permission-meta"
+                  aria-label="Role summary"
+                >
+                  <span>
+                    Rank {permissionRole.rank ?? "Unranked"}
+                  </span>
+                  <span>
+                    {scopeLabel(permissionRole.dataScope)}
+                  </span>
+                  <span>
+                    {permissionRole.affectedUserCount} user{permissionRole.affectedUserCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                <p className="role-settings-permission-description">
+                  {permissionRole.description ||
+                    "No description provided."}
                 </p>
               </div>
               <button
@@ -1067,62 +1161,164 @@ function RoleSettingsRankPage() {
               </button>
             </div>
 
-            <div className="role-settings-permission-body">
-              {permissionGroups.map(
-                ([label, group], index) => {
-                  const selectedCount =
-                    group.filter(
-                      (permission) =>
-                        permissionDraft.includes(
-                          permission.id
-                        )
-                    ).length;
+            <div className="role-settings-permission-layout">
+              <nav
+                className="role-settings-permission-categories"
+                aria-label="Permission categories"
+              >
+                <span className="role-settings-permission-nav-label">
+                  Permission categories
+                </span>
 
-                  return (
-                    <details
-                      key={label}
-                      className="role-settings-permission-group"
-                      open={index === 0}
-                    >
-                      <summary>
-                        <span>
-                          <strong>{label}</strong>
-                          <small>{selectedCount} of {group.length} selected</small>
-                        </span>
-                        <span className="role-settings-permission-count">
-                          {selectedCount}/{group.length}
-                        </span>
-                      </summary>
-                      <div className="role-settings-permission-list">
-                        {group.map(
-                          (permission) => (
-                            <label
-                              key={permission.id}
-                              className="role-settings-permission-option"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={permissionDraft.includes(permission.id)}
-                                onChange={() =>
-                                  setPermissionDraft((current) =>
-                                    current.includes(permission.id)
-                                      ? current.filter((id) => id !== permission.id)
-                                      : [...current, permission.id]
-                                  )
-                                }
-                              />
-                              <span>
-                                <strong>{permission.name}</strong>
-                                <small>{permission.description ?? permission.key}</small>
-                              </span>
-                            </label>
-                          )
-                        )}
+                <div className="role-settings-permission-category-list">
+                  {permissionGroups.map(
+                    ([label, group]) => {
+                      const selectedCount =
+                        group.filter(
+                          (permission) =>
+                            permissionDraft.includes(
+                              permission.id
+                            )
+                        ).length;
+
+                      const categoryName =
+                        group[0]?.categoryKey ??
+                        group[0]?.pageKey ??
+                        label;
+
+                      const active =
+                        label ===
+                        activePermissionGroupLabelResolved;
+
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          className={
+                            active
+                              ? "role-settings-permission-category active"
+                              : "role-settings-permission-category"
+                          }
+                          aria-pressed={active}
+                          onClick={() =>
+                            setActivePermissionGroupLabel(
+                              label
+                            )
+                          }
+                        >
+                          <span
+                            className="role-settings-permission-category-mark"
+                            aria-hidden="true"
+                          >
+                            {categoryName
+                              .slice(0, 1)
+                              .toUpperCase()}
+                          </span>
+
+                          <span className="role-settings-permission-category-copy">
+                            <strong>
+                              {categoryName}
+                            </strong>
+                            <small>
+                              {group.length} permission{group.length === 1 ? "" : "s"}
+                            </small>
+                          </span>
+
+                          <span className="role-settings-permission-count">
+                            {selectedCount}/{group.length}
+                          </span>
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+              </nav>
+
+              <section className="role-settings-permission-panel">
+                {activePermissionGroup ? (
+                  <>
+                    <header className="role-settings-permission-panel-header">
+                      <div>
+                        <h4>
+                          {activePermissionGroupTitle}
+                        </h4>
+                        <p>
+                          Manage access to {activePermissionGroupTitle.toLowerCase()} actions for this role.
+                        </p>
                       </div>
-                    </details>
-                  );
-                }
-              )}
+
+                      <label className="role-settings-permission-select-all">
+                        <input
+                          type="checkbox"
+                          checked={
+                            activePermissionAllSelected
+                          }
+                          onChange={(event) =>
+                            setPermissionGroupSelection(
+                              activePermissionGroupPermissions,
+                              event.target.checked
+                            )
+                          }
+                        />
+                        <span>
+                          Select all in category
+                        </span>
+                      </label>
+                    </header>
+
+                    <div className="role-settings-permission-items">
+                      {activePermissionGroupPermissions.map(
+                        (permission) => (
+                          <label
+                            key={permission.id}
+                            className="role-settings-permission-item"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={
+                                permissionDraft.includes(
+                                  permission.id
+                                )
+                              }
+                              onChange={() =>
+                                setPermissionDraft(
+                                  (current) =>
+                                    current.includes(
+                                      permission.id
+                                    )
+                                      ? current.filter(
+                                          (id) =>
+                                            id !==
+                                            permission.id
+                                        )
+                                      : [
+                                          ...current,
+                                          permission.id,
+                                        ]
+                                )
+                              }
+                            />
+
+                            <span>
+                              <strong>
+                                {permission.name}
+                              </strong>
+                              <small>
+                                {permission.description ??
+                                  permission.key}
+                              </small>
+                            </span>
+                          </label>
+                        )
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="role-settings-permission-empty">
+                    No permission categories are available.
+                  </div>
+                )}
+              </section>
             </div>
 
             <div className="role-settings-modal-footer">
