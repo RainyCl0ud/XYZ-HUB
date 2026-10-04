@@ -268,6 +268,20 @@ function actionLabel(
       "QA rule reactivated",
     "qa.strike_ladder.version_created":
       "Strike ladder version created",
+    "strike.issued":
+      "Strike issued",
+    "strike.voided":
+      "Strike voided",
+    "strike.reason.created":
+      "Strike reason created",
+    "strike.reason.updated":
+      "Strike reason updated",
+    "strike.reason.archived":
+      "Strike reason archived",
+    "strike.reason.reactivated":
+      "Strike reason reactivated",
+    "strike.ladder.version_created":
+      "Strike ladder version created",
     "qa.incident.logged":
       "Incident logged",
     "qa.incident.updated":

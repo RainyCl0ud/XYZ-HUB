@@ -45,6 +45,42 @@ const permissions = [
     actionKey: "manage",
   },
   {
+    key: "strikes.view",
+    name: "View Strikes",
+    description:
+      "View disciplinary Strike records within the user's allowed organization scope.",
+    pageKey: "strikes",
+    categoryKey: "strikes",
+    actionKey: "view",
+  },
+  {
+    key: "strikes.issue",
+    name: "Issue Strikes",
+    description:
+      "Issue disciplinary Strikes to eligible employees within the user's allowed organization and rank scope.",
+    pageKey: "strikes",
+    categoryKey: "strikes",
+    actionKey: "issue",
+  },
+  {
+    key: "strikes.void",
+    name: "Void Strikes",
+    description:
+      "Void previously issued disciplinary Strikes within the user's allowed organization and rank scope.",
+    pageKey: "strikes",
+    categoryKey: "strikes",
+    actionKey: "void",
+  },
+  {
+    key: "strikes.configure",
+    name: "Configure Strikes",
+    description:
+      "Manage Strike reasons and Strike policy configuration.",
+    pageKey: "strikes",
+    categoryKey: "strikes",
+    actionKey: "configure",
+  },
+  {
     key: "audit.view",
     name: "View Audit Log",
     description:
@@ -136,6 +172,10 @@ const defaultRolePermissions: Record<
     "people.deactivate",
     "people.delete",
     "roles.manage",
+    "strikes.view",
+    "strikes.issue",
+    "strikes.void",
+    "strikes.configure",
     "audit.view",
     "two_factor.reset",
   ],
@@ -143,11 +183,17 @@ const defaultRolePermissions: Record<
   OPS_MANAGER: [
     "people.manage",
     "people.deactivate",
+    "strikes.view",
+    "strikes.issue",
+    "strikes.void",
+    "strikes.configure",
   ],
 
   MANAGER: [
     "people.manage",
     "people.deactivate",
+    "strikes.view",
+    "strikes.issue",
   ],
 
   QC: [],

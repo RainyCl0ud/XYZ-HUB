@@ -20,6 +20,10 @@ import {
 } from "./middleware/qa-audit-http.js";
 
 import {
+  strikeAuditHttpMiddleware,
+} from "./middleware/strike-audit-http.js";
+
+import {
   requireQaConfigurationForWrites,
   requireQaView,
 } from "./middleware/qa-access.js";
@@ -47,6 +51,8 @@ import inviteRoutes from "./routes/invites.js";
 import authRoutes from "./routes/auth.js";
 import accessRoutes from "./routes/access.js";
 import auditRoutes from "./routes/audit.js";
+import strikeRoutes from "./routes/strikes.js";
+import strikeReasonRoutes from "./routes/strike-reasons.js";
 import liveRoutes from "./routes/live.js";
 import legacyMaintenanceRoutes from "./routes/legacy-maintenance.js";
 
@@ -179,6 +185,10 @@ app.use(
 );
 
 app.use(
+  strikeAuditHttpMiddleware
+);
+
+app.use(
   "/api/auth/login",
   loginRateLimit
 );
@@ -216,6 +226,24 @@ app.use(
 app.use(
   "/api/audit",
   auditRoutes
+);
+
+/*
+ * Strike Management is intentionally independent from QA.
+ *
+ * Only Login Gate authentication and Strike permissions apply.
+ * QA view/configuration middleware must never guard this module.
+ */
+app.use(
+  "/api/strikes",
+  requireAuth,
+  strikeRoutes
+);
+
+app.use(
+  "/api/strike-reasons",
+  requireAuth,
+  strikeReasonRoutes
 );
 
 app.use(

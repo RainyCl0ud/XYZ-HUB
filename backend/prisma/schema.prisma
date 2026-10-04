@@ -35,7 +35,7 @@ enum TwoFactorMethodType {
   AUTHENTICATOR
 }
 
-/*
+/**
  * =========================================================
  * LOGIN GATE — USERS
  * =========================================================
@@ -52,8 +52,8 @@ model User {
   status UserStatus @default(PENDING_SETUP)
 
   emailVerifiedAt DateTime?
-  lastSignInAt     DateTime?
-  deactivatedAt    DateTime?
+  lastSignInAt    DateTime?
+  deactivatedAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -77,16 +77,19 @@ model User {
 
   chatterProfile Chatter?
 
+  strikesReceived Strike[] @relation("StrikeTarget")
+  strikesIssued   Strike[] @relation("StrikeIssuer")
+  strikesVoided   Strike[] @relation("StrikeVoider")
+
   @@index([status])
   @@index([teamGroupId])
   @@index([createdAt])
 }
 
-/*
+/**
  * =========================================================
  * TEAM MANAGEMENT — ORGANIZATION GROUPS
  * =========================================================
- *
  * Groups form the reporting hierarchy used by the
  * Self + subordinates data scope. Every group except
  * the agency root has a parent.
@@ -113,7 +116,7 @@ model TeamGroup {
   @@index([isRoot])
 }
 
-/*
+/**
  * =========================================================
  * LOGIN GATE — ROLES
  * =========================================================
@@ -122,14 +125,12 @@ model TeamGroup {
 model Role {
   id String @id @default(cuid())
 
-  /*
+  /**
    * Permanent internal identifier for default roles.
-   *
    * Examples:
    * OWNER
    * OPS_MANAGER
    * MANAGER
-   *
    * Custom roles use null.
    */
   systemKey String? @unique
@@ -174,7 +175,7 @@ model UserRole {
   @@index([assignedByUserId])
 }
 
-/*
+/**
  * =========================================================
  * LOGIN GATE — PERMISSIONS
  * =========================================================
@@ -218,7 +219,7 @@ model RolePermission {
   @@index([permissionId])
 }
 
-/*
+/**
  * =========================================================
  * LOGIN GATE — MODELS
  * =========================================================
@@ -260,7 +261,7 @@ model UserModelAssignment {
   @@index([assignedByUserId])
 }
 
-/*
+/**
  * =========================================================
  * LOGIN GATE — INVITES
  * =========================================================
@@ -293,7 +294,7 @@ model Invite {
   @@index([revokedAt])
 }
 
-/*
+/**
  * =========================================================
  * LOGIN GATE — SESSIONS
  * =========================================================
@@ -309,7 +310,7 @@ model Session {
   userAgent String?
   ipAddress String?
 
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
   lastSeenAt DateTime?
 
   expiresAt DateTime
@@ -322,7 +323,7 @@ model Session {
   @@index([revokedAt])
 }
 
-/*
+/**
  * =========================================================
  * LOGIN GATE — PASSWORD RESET
  * =========================================================
@@ -347,7 +348,7 @@ model PasswordResetToken {
   @@index([usedAt])
 }
 
-/*
+/**
  * =========================================================
  * LOGIN GATE — TWO-FACTOR AUTHENTICATION
  * =========================================================
@@ -364,7 +365,7 @@ model UserTwoFactorMethod {
 
   verifiedAt DateTime?
 
-  /*
+  /**
    * Reserved for future authenticator application support.
    */
   secretEncrypted String?
@@ -403,7 +404,7 @@ model TwoFactorChallenge {
   @@index([consumedAt])
 }
 
-/*
+/**
  * =========================================================
  * EXISTING QA / STRIKE SYSTEM
  * =========================================================
@@ -412,7 +413,7 @@ model TwoFactorChallenge {
 model Chatter {
   id String @id @default(cuid())
 
-  /*
+  /**
    * Temporary bridge between the existing QA chatter record
    * and the Login Gate user identity.
    */
@@ -522,9 +523,8 @@ model Incident {
   chatterId     String
   ruleVersionId String
 
-  /*
+  /**
    * Optional during the QA → Login Gate transition.
-   *
    * New incidents will later require model context.
    */
   modelId String?
@@ -562,7 +562,7 @@ model Incident {
   @@index([expiresAt])
 }
 
-/*
+/**
  * =========================================================
  * STRIKE LADDER CONFIGURATION
  * =========================================================
@@ -579,7 +579,8 @@ model StrikeLadderVersion {
 
   createdAt DateTime @default(now())
 
-  steps StrikeLadderStep[]
+  steps   StrikeLadderStep[]
+  strikes Strike[]
 
   @@index([isCurrent])
   @@index([createdAt])
@@ -603,11 +604,123 @@ model StrikeLadderStep {
   @@index([minActiveStrikes])
 }
 
-/*
+/**
+ * =========================================================
+ * STRIKE MANAGEMENT
+ * =========================================================
+ * Strikes are deliberate disciplinary actions.
+ * They are intentionally independent from QA Incidents.
+ * Logging a QA Incident does not create or imply a Strike.
+ */
+
+model StrikeReason {
+  id String @id @default(cuid())
+
+  name        String  @unique
+  description String?
+
+  sortOrder Int @default(0)
+
+  isActive   Boolean   @default(true)
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  strikes Strike[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model Strike {
+  id String @id @default(cuid())
+
+  /**
+   * The employee receiving the Strike.
+   * Nullable by design: if a person is permanently deleted
+   * later, the historical disciplinary record survives using
+   * the identity snapshots below.
+   */
+  userId String?
+
+  userNameSnapshot  String
+  userEmailSnapshot String
+
+  /**
+   * Management user who issued the Strike.
+   * Also nullable for the same historical-integrity reason.
+   */
+  issuedByUserId String?
+
+  issuedByNameSnapshot String
+
+  reasonId String
+
+  reasonNameSnapshot        String
+  reasonDescriptionSnapshot String?
+
+  details     String
+  evidenceUrl String?
+
+  issuedAt  DateTime @default(now())
+  expiresAt DateTime
+
+  /**
+   * Policy version in effect when the Strike was issued.
+   */
+  ladderVersionId String
+
+  /**
+   * Consequence snapshot at issuance time.
+   * Current standing is still derived from currently-active
+   * Strike records. These values answer the historical question:
+   * "What did this Strike produce when it was issued?"
+   */
+  activeStrikeCountAfterIssue Int
+  standingLabelSnapshot       String
+  deductionPercentSnapshot    Float
+
+  /**
+   * Strike status is derived:
+   * voidedAt != null  -> VOIDED
+   * expiresAt <= now  -> EXPIRED
+   * otherwise         -> ACTIVE
+   */
+  voidedAt DateTime?
+
+  voidedByUserId String?
+
+  voidedByNameSnapshot String?
+
+  voidReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation("StrikeTarget", fields: [userId], references: [id], onDelete: SetNull)
+
+  issuedBy User? @relation("StrikeIssuer", fields: [issuedByUserId], references: [id], onDelete: SetNull)
+
+  voidedBy User? @relation("StrikeVoider", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+
+  reason StrikeReason @relation(fields: [reasonId], references: [id], onDelete: Restrict)
+
+  ladderVersion StrikeLadderVersion @relation(fields: [ladderVersionId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([issuedByUserId])
+  @@index([reasonId])
+  @@index([ladderVersionId])
+  @@index([issuedAt])
+  @@index([expiresAt])
+  @@index([voidedAt])
+}
+
+/**
  * =========================================================
  * AUDIT LOG
  * =========================================================
- *
  * Durable append-only audit history. Application code only
  * exposes create/read operations; no edit or delete route is
  * provided.

@@ -281,29 +281,6 @@ function describeQaMutation(
     }
   }
 
-  if (
-    resource === "strike-ladder" &&
-    method === "POST"
-  ) {
-    return {
-      action:
-        "qa.strike_ladder.version_created",
-      targetType:
-        "strike_ladder",
-      targetId:
-        null,
-      metadata: {
-        durationDays:
-          typeof req.body?.durationDays === "number"
-            ? req.body.durationDays
-            : null,
-        stepCount:
-          Array.isArray(req.body?.steps)
-            ? req.body.steps.length
-            : null,
-      },
-    };
-  }
 
   if (
     resource === "incidents"
