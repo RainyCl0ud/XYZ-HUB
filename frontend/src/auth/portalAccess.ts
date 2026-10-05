@@ -95,6 +95,30 @@ export function getPortalCapabilities(
       isOps
     );
 
+  const canViewStrikes =
+    access?.permissions.includes(
+      "strikes.view"
+    ) ??
+    false;
+
+  const canIssueStrikes =
+    access?.permissions.includes(
+      "strikes.issue"
+    ) ??
+    false;
+
+  const canVoidStrikes =
+    access?.permissions.includes(
+      "strikes.void"
+    ) ??
+    false;
+
+  const canConfigureStrikes =
+    access?.permissions.includes(
+      "strikes.configure"
+    ) ??
+    false;
+
   const canManageRoles =
     isOwner &&
     (
@@ -122,6 +146,10 @@ export function getPortalCapabilities(
     canManageQaIncidents,
     canManagePeople,
     canManageModels,
+    canViewStrikes,
+    canIssueStrikes,
+    canVoidStrikes,
+    canConfigureStrikes,
     canManageRoles,
     canViewAudit,
   };

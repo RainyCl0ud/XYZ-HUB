@@ -25,6 +25,7 @@ import IncidentsPage from "./pages/IncidentsPage";
 import RulesPage from "./pages/RulesPage";
 import ChattersPage from "./pages/ChattersPage";
 import ConfigurationPage from "./pages/ConfigurationPage";
+import StrikesPage from "./pages/StrikesPage";
 import PeoplePage from "./pages/PeoplePage";
 import ModelsPage from "./pages/ModelsPage";
 import RoleBuilderPage from "./pages/RoleSettingsPage";
@@ -128,6 +129,15 @@ function App() {
               <RequirePortalModule module="qa-config">
                 <ConfigurationPage />
               </RequirePortalModule>
+            }
+          />
+
+          <Route
+            path="/strikes"
+            element={
+              <RequirePermission permission="strikes.view">
+                <StrikesPage />
+              </RequirePermission>
             }
           />
 

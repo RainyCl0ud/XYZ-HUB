@@ -78,6 +78,8 @@ const PAGE_TITLES:
     "Rules & Strike Reasons",
   "/configuration":
     "QA Configuration",
+  "/strikes":
+    "Strikes",
   "/people":
     "People",
   "/models":

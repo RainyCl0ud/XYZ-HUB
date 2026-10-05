@@ -1,0 +1,3258 @@
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  type FormEvent,
+} from "react";
+
+import {
+  useAuth,
+} from "../auth/AuthContext";
+
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
+
+import {
+  apiRequest,
+} from "../lib/api";
+
+import {
+  formatCentralDateTime,
+} from "../lib/time";
+
+import {
+  useToast,
+} from "../components/ToastProvider";
+
+import "./StrikesPage.css";
+
+type StrikeStatus =
+  | "ACTIVE"
+  | "EXPIRED"
+  | "VOIDED";
+
+type StrikeRecord = {
+  id: string;
+
+  status:
+    StrikeStatus;
+
+  userId:
+    string | null;
+
+  userNameSnapshot:
+    string;
+
+  userEmailSnapshot:
+    string;
+
+  currentUser:
+    | {
+        id: string;
+        name: string;
+        email: string;
+        status: string;
+      }
+    | null;
+
+  issuedByUserId:
+    string | null;
+
+  issuedByNameSnapshot:
+    string;
+
+  reasonId:
+    string;
+
+  reasonNameSnapshot:
+    string;
+
+  reasonDescriptionSnapshot:
+    string | null;
+
+  details:
+    string;
+
+  evidenceUrl:
+    string | null;
+
+  issuedAt:
+    string;
+
+  expiresAt:
+    string;
+
+  ladderVersionId:
+    string;
+
+  ladderVersion:
+    number;
+
+  activeStrikeCountAfterIssue:
+    number;
+
+  standingLabelSnapshot:
+    string;
+
+  deductionPercentSnapshot:
+    number;
+
+  voidedAt:
+    string | null;
+
+  voidedByUserId:
+    string | null;
+
+  voidedByNameSnapshot:
+    string | null;
+
+  voidReason:
+    string | null;
+
+  createdAt:
+    string;
+
+  updatedAt:
+    string;
+};
+
+type EligibleStrikeTarget = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type StrikeReason = {
+  id: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+type StrikePreview = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+
+  currentActiveStrikeCount:
+    number;
+
+  activeStrikeCountAfterIssue:
+    number;
+
+  standingLabel:
+    string;
+
+  deductionPercent:
+    number;
+
+  issuedAt:
+    string;
+
+  expiresAt:
+    string;
+
+  ladderVersionId:
+    string;
+
+  ladderVersion:
+    number;
+
+  durationDays:
+    number;
+};
+
+type DataResponse<T> = {
+  data: T;
+};
+
+type MutationResponse<T> = {
+  message: string;
+  data: T;
+};
+
+type StatusFilter =
+  | "ALL"
+  | StrikeStatus;
+
+function getStatusLabel(
+  status:
+    StrikeStatus
+) {
+  switch (
+    status
+  ) {
+    case "ACTIVE":
+      return "Active";
+
+    case "EXPIRED":
+      return "Expired";
+
+    case "VOIDED":
+      return "Voided";
+
+    default:
+      return status;
+  }
+}
+
+function getStatusClass(
+  status:
+    StrikeStatus
+) {
+  return `strike-status strike-status-${status.toLowerCase()}`;
+}
+
+function sortStrikeReasons(
+  values:
+    StrikeReason[]
+) {
+  return [
+    ...values,
+  ].sort(
+    (
+      first,
+      second
+    ) => {
+      if (
+        first.isActive !==
+        second.isActive
+      ) {
+        return first.isActive
+          ? -1
+          : 1;
+      }
+
+      if (
+        first.sortOrder !==
+        second.sortOrder
+      ) {
+        return (
+          first.sortOrder -
+          second.sortOrder
+        );
+      }
+
+      return first.name.localeCompare(
+        second.name
+      );
+    }
+  );
+}
+
+function StrikesPage() {
+  const toast =
+    useToast();
+
+  const {
+    access,
+  } =
+    useAuth();
+
+  const capabilities =
+    getPortalCapabilities(
+      access
+    );
+
+  /*
+   * Async request generations prevent responses from an
+   * older modal session or employee selection from
+   * overwriting the newest UI state.
+   */
+  const issueDataRequestIdRef =
+    useRef(
+      0
+    );
+
+  const previewRequestIdRef =
+    useRef(
+      0
+    );
+
+  const reasonManagerRequestIdRef =
+    useRef(
+      0
+    );
+
+  const [
+    strikes,
+    setStrikes,
+  ] =
+    useState<
+      StrikeRecord[]
+    >([]);
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(
+      true
+    );
+
+  const [
+    pageError,
+    setPageError,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    search,
+    setSearch,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] =
+    useState<StatusFilter>(
+      "ALL"
+    );
+
+  const [
+    employeeFilter,
+    setEmployeeFilter,
+  ] =
+    useState(
+      "ALL"
+    );
+
+  const [
+    reasonFilter,
+    setReasonFilter,
+  ] =
+    useState(
+      "ALL"
+    );
+
+  const [
+    selectedStrike,
+    setSelectedStrike,
+  ] =
+    useState<
+      StrikeRecord | null
+    >(
+      null
+    );
+
+  const [
+    issueOpen,
+    setIssueOpen,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    issueDataLoading,
+    setIssueDataLoading,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    eligibleUsers,
+    setEligibleUsers,
+  ] =
+    useState<
+      EligibleStrikeTarget[]
+    >([]);
+
+  const [
+    reasons,
+    setReasons,
+  ] =
+    useState<
+      StrikeReason[]
+    >([]);
+
+  const [
+    issueUserId,
+    setIssueUserId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    issueReasonId,
+    setIssueReasonId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    issueDetails,
+    setIssueDetails,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    issueEvidenceUrl,
+    setIssueEvidenceUrl,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    issuePreview,
+    setIssuePreview,
+  ] =
+    useState<
+      StrikePreview | null
+    >(
+      null
+    );
+
+  const [
+    previewLoading,
+    setPreviewLoading,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    issuing,
+    setIssuing,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    issueError,
+    setIssueError,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    voidTarget,
+    setVoidTarget,
+  ] =
+    useState<
+      StrikeRecord | null
+    >(
+      null
+    );
+
+  const [
+    voidReason,
+    setVoidReason,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    voidError,
+    setVoidError,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    voiding,
+    setVoiding,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    reasonManagerOpen,
+    setReasonManagerOpen,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    managedReasons,
+    setManagedReasons,
+  ] =
+    useState<
+      StrikeReason[]
+    >([]);
+
+  const [
+    reasonManagerLoading,
+    setReasonManagerLoading,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    reasonSaving,
+    setReasonSaving,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    reasonActionId,
+    setReasonActionId,
+  ] =
+    useState<
+      string | null
+    >(
+      null
+    );
+
+  const [
+    editingReasonId,
+    setEditingReasonId,
+  ] =
+    useState<
+      string | null
+    >(
+      null
+    );
+
+  const [
+    reasonName,
+    setReasonName,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    reasonDescription,
+    setReasonDescription,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    reasonSortOrder,
+    setReasonSortOrder,
+  ] =
+    useState(
+      "0"
+    );
+
+  const [
+    reasonError,
+    setReasonError,
+  ] =
+    useState(
+      ""
+    );
+
+  const loadStrikes =
+    useCallback(
+      async () => {
+        try {
+          setLoading(
+            true
+          );
+
+          setPageError(
+            ""
+          );
+
+          const response =
+            await apiRequest<
+              DataResponse<
+                StrikeRecord[]
+              >
+            >(
+              "/api/strikes"
+            );
+
+          setStrikes(
+            response.data
+          );
+        } catch (
+          error
+        ) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to load Strikes.";
+
+          setPageError(
+            message
+          );
+
+          toast.error(
+            message,
+            "Unable to load Strikes"
+          );
+        } finally {
+          setLoading(
+            false
+          );
+        }
+      },
+      [
+        toast,
+      ]
+    );
+
+  useEffect(
+    () => {
+      const timerId =
+        window.setTimeout(
+          () => {
+            void loadStrikes();
+          },
+          0
+        );
+
+      return () => {
+        window.clearTimeout(
+          timerId
+        );
+      };
+    },
+    [
+      loadStrikes,
+    ]
+  );
+
+  const activeCount =
+    useMemo(
+      () =>
+        strikes.filter(
+          (
+            strike
+          ) =>
+            strike.status ===
+            "ACTIVE"
+        ).length,
+      [
+        strikes,
+      ]
+    );
+
+  const expiredCount =
+    useMemo(
+      () =>
+        strikes.filter(
+          (
+            strike
+          ) =>
+            strike.status ===
+            "EXPIRED"
+        ).length,
+      [
+        strikes,
+      ]
+    );
+
+  const voidedCount =
+    useMemo(
+      () =>
+        strikes.filter(
+          (
+            strike
+          ) =>
+            strike.status ===
+            "VOIDED"
+        ).length,
+      [
+        strikes,
+      ]
+    );
+
+  const employees =
+    useMemo(
+      () => {
+        const map =
+          new Map<
+            string,
+            string
+          >();
+
+        for (
+          const strike of strikes
+        ) {
+          map.set(
+            strike.userEmailSnapshot,
+            strike.userNameSnapshot
+          );
+        }
+
+        return Array.from(
+          map.entries()
+        )
+          .map(
+            (
+              [
+                email,
+                name,
+              ]
+            ) => ({
+              email,
+              name,
+            })
+          )
+          .sort(
+            (
+              first,
+              second
+            ) =>
+              first.name.localeCompare(
+                second.name
+              )
+          );
+      },
+      [
+        strikes,
+      ]
+    );
+
+  const reasonOptions =
+    useMemo(
+      () => {
+        const map =
+          new Map<
+            string,
+            string
+          >();
+
+        for (
+          const strike of strikes
+        ) {
+          map.set(
+            strike.reasonId,
+            strike.reasonNameSnapshot
+          );
+        }
+
+        return Array.from(
+          map.entries()
+        )
+          .map(
+            (
+              [
+                id,
+                name,
+              ]
+            ) => ({
+              id,
+              name,
+            })
+          )
+          .sort(
+            (
+              first,
+              second
+            ) =>
+              first.name.localeCompare(
+                second.name
+              )
+          );
+      },
+      [
+        strikes,
+      ]
+    );
+
+  const filteredStrikes =
+    useMemo(
+      () => {
+        const query =
+          search
+            .trim()
+            .toLowerCase();
+
+        return strikes.filter(
+          (
+            strike
+          ) => {
+            if (
+              statusFilter !==
+                "ALL" &&
+              strike.status !==
+                statusFilter
+            ) {
+              return false;
+            }
+
+            if (
+              employeeFilter !==
+                "ALL" &&
+              strike.userEmailSnapshot !==
+                employeeFilter
+            ) {
+              return false;
+            }
+
+            if (
+              reasonFilter !==
+                "ALL" &&
+              strike.reasonId !==
+                reasonFilter
+            ) {
+              return false;
+            }
+
+            if (
+              !query
+            ) {
+              return true;
+            }
+
+            return [
+              strike.userNameSnapshot,
+              strike.userEmailSnapshot,
+              strike.reasonNameSnapshot,
+              strike.issuedByNameSnapshot,
+              strike.details,
+              strike.standingLabelSnapshot,
+            ]
+              .filter(
+                Boolean
+              )
+              .some(
+                (
+                  value
+                ) =>
+                  value
+                    .toLowerCase()
+                    .includes(
+                      query
+                    )
+              );
+          }
+        );
+      },
+      [
+        strikes,
+        search,
+        statusFilter,
+        employeeFilter,
+        reasonFilter,
+      ]
+    );
+
+  function resetIssueForm() {
+    previewRequestIdRef.current +=
+      1;
+
+    setPreviewLoading(
+      false
+    );
+
+    setIssueUserId(
+      ""
+    );
+
+    setIssueReasonId(
+      ""
+    );
+
+    setIssueDetails(
+      ""
+    );
+
+    setIssueEvidenceUrl(
+      ""
+    );
+
+    setIssuePreview(
+      null
+    );
+
+    setIssueError(
+      ""
+    );
+  }
+
+  async function openIssueModal() {
+    const requestId =
+      issueDataRequestIdRef.current +
+      1;
+
+    issueDataRequestIdRef.current =
+      requestId;
+
+    resetIssueForm();
+
+    /*
+     * Never fall back to data from a previous modal
+     * session if the fresh request fails.
+     */
+    setEligibleUsers(
+      []
+    );
+
+    setReasons(
+      []
+    );
+
+    setIssueOpen(
+      true
+    );
+
+    setIssueDataLoading(
+      true
+    );
+
+    try {
+      const [
+        usersResponse,
+        reasonsResponse,
+      ] =
+        await Promise.all([
+          apiRequest<
+            DataResponse<
+              EligibleStrikeTarget[]
+            >
+          >(
+            "/api/strikes/eligible-users"
+          ),
+
+          apiRequest<
+            DataResponse<
+              StrikeReason[]
+            >
+          >(
+            "/api/strike-reasons"
+          ),
+        ]);
+
+      if (
+        requestId !==
+        issueDataRequestIdRef.current
+      ) {
+        return;
+      }
+
+      setEligibleUsers(
+        usersResponse.data
+      );
+
+      setReasons(
+        reasonsResponse.data
+      );
+    } catch (
+      error
+    ) {
+      if (
+        requestId !==
+        issueDataRequestIdRef.current
+      ) {
+        return;
+      }
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to load Strike issuance data.";
+
+      setIssueError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Unable to prepare Strike"
+      );
+    } finally {
+      if (
+        requestId ===
+        issueDataRequestIdRef.current
+      ) {
+        setIssueDataLoading(
+          false
+        );
+      }
+    }
+  }
+
+  function closeIssueModal() {
+    if (
+      issuing
+    ) {
+      return;
+    }
+
+    issueDataRequestIdRef.current +=
+      1;
+
+    previewRequestIdRef.current +=
+      1;
+
+    setIssueDataLoading(
+      false
+    );
+
+    setPreviewLoading(
+      false
+    );
+
+    setIssueOpen(
+      false
+    );
+
+    resetIssueForm();
+  }
+
+  async function handleIssueUserChange(
+    userId:
+      string
+  ) {
+    const requestId =
+      previewRequestIdRef.current +
+      1;
+
+    previewRequestIdRef.current =
+      requestId;
+
+    setIssueUserId(
+      userId
+    );
+
+    setIssuePreview(
+      null
+    );
+
+    setIssueError(
+      ""
+    );
+
+    if (
+      !userId
+    ) {
+      setPreviewLoading(
+        false
+      );
+
+      return;
+    }
+
+    setPreviewLoading(
+      true
+    );
+
+    try {
+      const response =
+        await apiRequest<
+          DataResponse<
+            StrikePreview
+          >
+        >(
+          "/api/strikes/preview",
+          {
+            method:
+              "POST",
+
+            body:
+              JSON.stringify({
+                userId,
+              }),
+          }
+        );
+
+      if (
+        requestId !==
+        previewRequestIdRef.current
+      ) {
+        return;
+      }
+
+      /*
+       * The server returns the employee identity as part
+       * of the preview. Refuse to display a preview that
+       * does not belong to the request that produced it.
+       */
+      if (
+        response.data.user.id !==
+        userId
+      ) {
+        setIssuePreview(
+          null
+        );
+
+        setIssueError(
+          "The Strike preview did not match the selected employee. Please select the employee again."
+        );
+
+        return;
+      }
+
+      setIssuePreview(
+        response.data
+      );
+    } catch (
+      error
+    ) {
+      if (
+        requestId !==
+        previewRequestIdRef.current
+      ) {
+        return;
+      }
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to preview this Strike.";
+
+      setIssueError(
+        message
+      );
+    } finally {
+      if (
+        requestId ===
+        previewRequestIdRef.current
+      ) {
+        setPreviewLoading(
+          false
+        );
+      }
+    }
+  }
+
+  async function submitStrike(
+    event:
+      FormEvent
+  ) {
+    event.preventDefault();
+
+    if (
+      !issueUserId ||
+      !issueReasonId ||
+      !issueDetails.trim()
+    ) {
+      setIssueError(
+        "Employee, reason, and Strike details are required."
+      );
+
+      return;
+    }
+
+    if (
+      !issuePreview ||
+      issuePreview.user.id !==
+        issueUserId
+    ) {
+      setIssueError(
+        "Wait for the current employee's Strike consequence preview before issuing."
+      );
+
+      return;
+    }
+
+    setIssuing(
+      true
+    );
+
+    setIssueError(
+      ""
+    );
+
+    try {
+      const response =
+        await apiRequest<
+          MutationResponse<
+            StrikeRecord
+          >
+        >(
+          "/api/strikes",
+          {
+            method:
+              "POST",
+
+            body:
+              JSON.stringify({
+                userId:
+                  issueUserId,
+
+                reasonId:
+                  issueReasonId,
+
+                details:
+                  issueDetails.trim(),
+
+                evidenceUrl:
+                  issueEvidenceUrl.trim() ||
+                  null,
+              }),
+          }
+        );
+
+      setStrikes(
+        (
+          current
+        ) => [
+          response.data,
+          ...current,
+        ]
+      );
+
+      setIssueOpen(
+        false
+      );
+
+      resetIssueForm();
+
+      toast.success(
+        "The disciplinary Strike was issued and recorded.",
+        "Strike issued"
+      );
+    } catch (
+      error
+    ) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to issue Strike.";
+
+      setIssueError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Strike was not issued"
+      );
+    } finally {
+      setIssuing(
+        false
+      );
+    }
+  }
+
+  function openVoidModal(
+    strike:
+      StrikeRecord
+  ) {
+    /*
+     * Do not leave the record-detail dialog mounted
+     * underneath the destructive confirmation dialog.
+     */
+    setSelectedStrike(
+      null
+    );
+
+    setVoidTarget(
+      strike
+    );
+
+    setVoidReason(
+      ""
+    );
+
+    setVoidError(
+      ""
+    );
+  }
+
+  function closeVoidModal() {
+    if (
+      voiding
+    ) {
+      return;
+    }
+
+    setVoidTarget(
+      null
+    );
+
+    setVoidReason(
+      ""
+    );
+
+    setVoidError(
+      ""
+    );
+  }
+
+  async function submitVoid(
+    event:
+      FormEvent
+  ) {
+    event.preventDefault();
+
+    if (
+      !voidTarget
+    ) {
+      return;
+    }
+
+    const normalizedReason =
+      voidReason.trim();
+
+    if (
+      normalizedReason.length <
+      3
+    ) {
+      setVoidError(
+        "Void reason must be at least 3 characters."
+      );
+
+      return;
+    }
+
+    setVoiding(
+      true
+    );
+
+    setVoidError(
+      ""
+    );
+
+    try {
+      const response =
+        await apiRequest<
+          MutationResponse<
+            StrikeRecord
+          >
+        >(
+          `/api/strikes/${voidTarget.id}/void`,
+          {
+            method:
+              "POST",
+
+            body:
+              JSON.stringify({
+                reason:
+                  normalizedReason,
+              }),
+          }
+        );
+
+      setStrikes(
+        (
+          current
+        ) =>
+          current.map(
+            (
+              strike
+            ) =>
+              strike.id ===
+              response.data.id
+                ? response.data
+                : strike
+          )
+      );
+
+      setSelectedStrike(
+        (
+          current
+        ) =>
+          current?.id ===
+          response.data.id
+            ? response.data
+            : current
+      );
+
+      setVoidTarget(
+        null
+      );
+
+      setVoidReason(
+        ""
+      );
+
+      toast.success(
+        "The Strike was voided and preserved in disciplinary history.",
+        "Strike voided"
+      );
+    } catch (
+      error
+    ) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to void Strike.";
+
+      setVoidError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Strike was not voided"
+      );
+    } finally {
+      setVoiding(
+        false
+      );
+    }
+  }
+
+  function resetReasonForm() {
+    setEditingReasonId(
+      null
+    );
+
+    setReasonName(
+      ""
+    );
+
+    setReasonDescription(
+      ""
+    );
+
+    setReasonSortOrder(
+      "0"
+    );
+
+    setReasonError(
+      ""
+    );
+  }
+
+  async function openReasonManager() {
+    const requestId =
+      reasonManagerRequestIdRef.current +
+      1;
+
+    reasonManagerRequestIdRef.current =
+      requestId;
+
+    resetReasonForm();
+
+    setManagedReasons(
+      []
+    );
+
+    setReasonManagerOpen(
+      true
+    );
+
+    setReasonManagerLoading(
+      true
+    );
+
+    try {
+      const response =
+        await apiRequest<
+          DataResponse<
+            StrikeReason[]
+          >
+        >(
+          "/api/strike-reasons/manage"
+        );
+
+      if (
+        requestId !==
+        reasonManagerRequestIdRef.current
+      ) {
+        return;
+      }
+
+      setManagedReasons(
+        sortStrikeReasons(
+          response.data
+        )
+      );
+    } catch (
+      error
+    ) {
+      if (
+        requestId !==
+        reasonManagerRequestIdRef.current
+      ) {
+        return;
+      }
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to load Strike reasons.";
+
+      setReasonError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Unable to load Strike reasons"
+      );
+    } finally {
+      if (
+        requestId ===
+        reasonManagerRequestIdRef.current
+      ) {
+        setReasonManagerLoading(
+          false
+        );
+      }
+    }
+  }
+
+  function closeReasonManager() {
+    if (
+      reasonSaving ||
+      reasonActionId
+    ) {
+      return;
+    }
+
+    reasonManagerRequestIdRef.current +=
+      1;
+
+    setReasonManagerLoading(
+      false
+    );
+
+    setReasonManagerOpen(
+      false
+    );
+
+    resetReasonForm();
+  }
+
+  function beginEditReason(
+    reason:
+      StrikeReason
+  ) {
+    setEditingReasonId(
+      reason.id
+    );
+
+    setReasonName(
+      reason.name
+    );
+
+    setReasonDescription(
+      reason.description ??
+      ""
+    );
+
+    setReasonSortOrder(
+      String(
+        reason.sortOrder
+      )
+    );
+
+    setReasonError(
+      ""
+    );
+  }
+
+  async function saveReason(
+    event:
+      FormEvent
+  ) {
+    event.preventDefault();
+
+    if (
+      reasonManagerLoading ||
+      reasonActionId
+    ) {
+      return;
+    }
+
+    const normalizedName =
+      reasonName
+        .trim()
+        .replace(
+          /\s+/g,
+          " "
+        );
+
+    const parsedSortOrder =
+      Number(
+        reasonSortOrder
+      );
+
+    if (
+      !normalizedName
+    ) {
+      setReasonError(
+        "Strike reason name is required."
+      );
+
+      return;
+    }
+
+    if (
+      !Number.isInteger(
+        parsedSortOrder
+      ) ||
+      parsedSortOrder <
+        0 ||
+      parsedSortOrder >
+        10000
+    ) {
+      setReasonError(
+        "Sort order must be a whole number from 0 to 10000."
+      );
+
+      return;
+    }
+
+    setReasonSaving(
+      true
+    );
+
+    setReasonError(
+      ""
+    );
+
+    try {
+      const isEditing =
+        Boolean(
+          editingReasonId
+        );
+
+      const response =
+        await apiRequest<
+          MutationResponse<
+            StrikeReason
+          >
+        >(
+          isEditing
+            ? `/api/strike-reasons/${editingReasonId}`
+            : "/api/strike-reasons",
+          {
+            method:
+              isEditing
+                ? "PATCH"
+                : "POST",
+
+            body:
+              JSON.stringify({
+                name:
+                  normalizedName,
+
+                description:
+                  reasonDescription.trim() ||
+                  null,
+
+                sortOrder:
+                  parsedSortOrder,
+              }),
+          }
+        );
+
+      setManagedReasons(
+        (
+          current
+        ) => {
+          const exists =
+            current.some(
+              (
+                reason
+              ) =>
+                reason.id ===
+                response.data.id
+            );
+
+          const next =
+            exists
+              ? current.map(
+                  (
+                    reason
+                  ) =>
+                    reason.id ===
+                    response.data.id
+                      ? response.data
+                      : reason
+                )
+              : [
+                  ...current,
+                  response.data,
+                ];
+
+          return sortStrikeReasons(
+            next
+          );
+        }
+      );
+
+      resetReasonForm();
+
+      toast.success(
+        isEditing
+          ? "Strike reason updated successfully."
+          : "Strike reason created successfully.",
+        isEditing
+          ? "Reason updated"
+          : "Reason created"
+      );
+    } catch (
+      error
+    ) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to save Strike reason.";
+
+      setReasonError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Reason was not saved"
+      );
+    } finally {
+      setReasonSaving(
+        false
+      );
+    }
+  }
+
+  async function changeReasonStatus(
+    reason:
+      StrikeReason
+  ) {
+    setReasonActionId(
+      reason.id
+    );
+
+    setReasonError(
+      ""
+    );
+
+    const action =
+      reason.isActive
+        ? "archive"
+        : "reactivate";
+
+    try {
+      const response =
+        await apiRequest<
+          MutationResponse<
+            StrikeReason
+          >
+        >(
+          `/api/strike-reasons/${reason.id}/${action}`,
+          {
+            method:
+              "POST",
+          }
+        );
+
+      setManagedReasons(
+        (
+          current
+        ) =>
+          sortStrikeReasons(
+            current.map(
+              (
+                item
+              ) =>
+                item.id ===
+                response.data.id
+                  ? response.data
+                  : item
+            )
+          )
+      );
+
+      if (
+        editingReasonId ===
+        response.data.id
+      ) {
+        resetReasonForm();
+      }
+
+      toast.success(
+        response.data.isActive
+          ? "Strike reason reactivated."
+          : "Strike reason archived.",
+        "Reason status updated"
+      );
+    } catch (
+      error
+    ) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to change Strike reason status.";
+
+      setReasonError(
+        message
+      );
+
+      toast.error(
+        message,
+        "Reason status unchanged"
+      );
+    } finally {
+      setReasonActionId(
+        null
+      );
+    }
+  }
+
+  return (
+    <div className="page strikes-page">
+      <header className="page-header strikes-page-header">
+        <div>
+          <p className="page-eyebrow">
+            Disciplinary management
+          </p>
+
+          <h2>
+            Strike Management
+          </h2>
+
+          <p className="page-description">
+            Issue and review disciplinary Strikes independently from Quality & Incidents.
+          </p>
+        </div>
+
+        {(capabilities.canConfigureStrikes ||
+          capabilities.canIssueStrikes) && (
+          <div className="strikes-header-actions">
+            {capabilities.canConfigureStrikes && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  void openReasonManager();
+                }}
+              >
+                Manage Reasons
+              </button>
+            )}
+
+            {capabilities.canIssueStrikes && (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  void openIssueModal();
+                }}
+              >
+                Issue Strike
+              </button>
+            )}
+          </div>
+        )}
+      </header>
+
+      <section className="strikes-summary-grid">
+        <article className="stat-card">
+          <span className="stat-label">
+            Total records
+          </span>
+
+          <strong className="stat-value">
+            {strikes.length}
+          </strong>
+
+          <span className="stat-help">
+            All visible disciplinary Strike records.
+          </span>
+        </article>
+
+        <article className="stat-card">
+          <span className="stat-label">
+            Active
+          </span>
+
+          <strong className="stat-value">
+            {activeCount}
+          </strong>
+
+          <span className="stat-help">
+            Currently counting toward disciplinary standing.
+          </span>
+        </article>
+
+        <article className="stat-card">
+          <span className="stat-label">
+            Expired
+          </span>
+
+          <strong className="stat-value">
+            {expiredCount}
+          </strong>
+
+          <span className="stat-help">
+            Preserved history outside the active window.
+          </span>
+        </article>
+
+        <article className="stat-card">
+          <span className="stat-label">
+            Voided
+          </span>
+
+          <strong className="stat-value">
+            {voidedCount}
+          </strong>
+
+          <span className="stat-help">
+            Cancelled records retained for audit history.
+          </span>
+        </article>
+      </section>
+
+      <section className="content-card strikes-content-card">
+        <div className="strikes-toolbar">
+          <input
+            type="search"
+            className="search-input strikes-search"
+            placeholder="Search employee, reason, issuer, or details"
+            aria-label="Search Strikes"
+            value={
+              search
+            }
+            onChange={(
+              event
+            ) =>
+              setSearch(
+                event.target.value
+              )
+            }
+          />
+
+          <select
+            className="strikes-filter-select"
+            aria-label="Filter by employee"
+            value={
+              employeeFilter
+            }
+            onChange={(
+              event
+            ) =>
+              setEmployeeFilter(
+                event.target.value
+              )
+            }
+          >
+            <option value="ALL">
+              All employees
+            </option>
+
+            {employees.map(
+              (
+                employee
+              ) => (
+                <option
+                  key={
+                    employee.email
+                  }
+                  value={
+                    employee.email
+                  }
+                >
+                  {employee.name}
+                </option>
+              )
+            )}
+          </select>
+
+          <select
+            className="strikes-filter-select"
+            aria-label="Filter by reason"
+            value={
+              reasonFilter
+            }
+            onChange={(
+              event
+            ) =>
+              setReasonFilter(
+                event.target.value
+              )
+            }
+          >
+            <option value="ALL">
+              All reasons
+            </option>
+
+            {reasonOptions.map(
+              (
+                reason
+              ) => (
+                <option
+                  key={
+                    reason.id
+                  }
+                  value={
+                    reason.id
+                  }
+                >
+                  {reason.name}
+                </option>
+              )
+            )}
+          </select>
+
+          <select
+            className="strikes-filter-select"
+            aria-label="Filter by Strike status"
+            value={
+              statusFilter
+            }
+            onChange={(
+              event
+            ) =>
+              setStatusFilter(
+                event.target.value as
+                  StatusFilter
+              )
+            }
+          >
+            <option value="ALL">
+              All statuses
+            </option>
+
+            <option value="ACTIVE">
+              Active
+            </option>
+
+            <option value="EXPIRED">
+              Expired
+            </option>
+
+            <option value="VOIDED">
+              Voided
+            </option>
+          </select>
+        </div>
+
+        {pageError && (
+          <div className="strikes-inline-error">
+            {pageError}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="empty-state">
+            <strong>
+              Loading Strikes…
+            </strong>
+          </div>
+        ) : filteredStrikes.length ===
+          0 ? (
+          <div className="empty-state">
+            <strong>
+              No matching Strikes
+            </strong>
+
+            <span>
+              Try another search or filter selection.
+            </span>
+          </div>
+        ) : (
+          <div className="strikes-table-wrap">
+            <div className="strikes-table strikes-table-head">
+              <span>
+                Employee
+              </span>
+
+              <span>
+                Reason
+              </span>
+
+              <span>
+                Status
+              </span>
+
+              <span>
+                Standing
+              </span>
+
+              <span>
+                Issued
+              </span>
+
+              <span>
+                Action
+              </span>
+            </div>
+
+            {filteredStrikes.map(
+              (
+                strike
+              ) => (
+                <div
+                  key={
+                    strike.id
+                  }
+                  className="strikes-table strikes-table-row"
+                >
+                  <div className="strikes-person-cell">
+                    <strong>
+                      {strike.userNameSnapshot}
+                    </strong>
+
+                    <span>
+                      {strike.userEmailSnapshot}
+                    </span>
+                  </div>
+
+                  <div className="strikes-reason-cell">
+                    <strong>
+                      {strike.reasonNameSnapshot}
+                    </strong>
+
+                    <span>
+                      Strike #{strike.activeStrikeCountAfterIssue} at issuance
+                    </span>
+                  </div>
+
+                  <div>
+                    <span
+                      className={
+                        getStatusClass(
+                          strike.status
+                        )
+                      }
+                    >
+                      {getStatusLabel(
+                        strike.status
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="strikes-standing-cell">
+                    <strong>
+                      {strike.standingLabelSnapshot}
+                    </strong>
+
+                    <span>
+                      {strike.deductionPercentSnapshot > 0
+                        ? `${strike.deductionPercentSnapshot}% deduction`
+                        : "No deduction"}
+                    </span>
+                  </div>
+
+                  <div className="strikes-date-cell">
+                    <strong>
+                      {formatCentralDateTime(
+                        strike.issuedAt
+                      )}
+                    </strong>
+
+                    <span>
+                      by {strike.issuedByNameSnapshot}
+                    </span>
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      className="secondary-button strikes-view-button"
+                      onClick={() =>
+                        setSelectedStrike(
+                          strike
+                        )
+                      }
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </section>
+
+      {selectedStrike && (
+        <div
+          className="strikes-overlay"
+          role="presentation"
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setSelectedStrike(
+                null
+              );
+            }
+          }}
+        >
+          <section
+            className="strikes-modal strikes-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="strike-detail-title"
+          >
+            <div className="strikes-modal-header">
+              <div>
+                <span className="page-eyebrow">
+                  Strike record
+                </span>
+
+                <h3 id="strike-detail-title">
+                  {selectedStrike.userNameSnapshot}
+                </h3>
+
+                <p>
+                  {selectedStrike.userEmailSnapshot}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="strikes-close"
+                aria-label="Close Strike details"
+                onClick={() =>
+                  setSelectedStrike(
+                    null
+                  )
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="strikes-modal-body">
+              <div className="strikes-detail-summary">
+                <div>
+                  <span>
+                    Status
+                  </span>
+
+                  <strong
+                    className={
+                      getStatusClass(
+                        selectedStrike.status
+                      )
+                    }
+                  >
+                    {getStatusLabel(
+                      selectedStrike.status
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Standing
+                  </span>
+
+                  <strong>
+                    {selectedStrike.standingLabelSnapshot}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Active count after issue
+                  </span>
+
+                  <strong>
+                    {selectedStrike.activeStrikeCountAfterIssue}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Commission deduction
+                  </span>
+
+                  <strong>
+                    {selectedStrike.deductionPercentSnapshot}%
+                  </strong>
+                </div>
+              </div>
+
+              <div className="strikes-detail-grid">
+                <div>
+                  <span>
+                    Reason
+                  </span>
+
+                  <strong>
+                    {selectedStrike.reasonNameSnapshot}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Issued by
+                  </span>
+
+                  <strong>
+                    {selectedStrike.issuedByNameSnapshot}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Issued
+                  </span>
+
+                  <strong>
+                    {formatCentralDateTime(
+                      selectedStrike.issuedAt
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Expires
+                  </span>
+
+                  <strong>
+                    {formatCentralDateTime(
+                      selectedStrike.expiresAt
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Ladder version
+                  </span>
+
+                  <strong>
+                    v{selectedStrike.ladderVersion}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Employee record
+                  </span>
+
+                  <strong>
+                    {selectedStrike.currentUser
+                      ? "Current account available"
+                      : "Historical snapshot"}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="strikes-detail-section">
+                <span>
+                  Details
+                </span>
+
+                <p>
+                  {selectedStrike.details}
+                </p>
+              </div>
+
+              {selectedStrike.reasonDescriptionSnapshot && (
+                <div className="strikes-detail-section">
+                  <span>
+                    Reason description at issuance
+                  </span>
+
+                  <p>
+                    {selectedStrike.reasonDescriptionSnapshot}
+                  </p>
+                </div>
+              )}
+
+              {selectedStrike.evidenceUrl && (
+                <div className="strikes-detail-section">
+                  <span>
+                    Evidence
+                  </span>
+
+                  <a
+                    href={
+                      selectedStrike.evidenceUrl
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open evidence link
+                  </a>
+                </div>
+              )}
+
+              {selectedStrike.status ===
+                "VOIDED" && (
+                <div className="strikes-void-history">
+                  <strong>
+                    Strike voided
+                  </strong>
+
+                  <span>
+                    {selectedStrike.voidedAt
+                      ? formatCentralDateTime(
+                          selectedStrike.voidedAt
+                        )
+                      : "—"}
+                    {selectedStrike.voidedByNameSnapshot
+                      ? ` by ${selectedStrike.voidedByNameSnapshot}`
+                      : ""}
+                  </span>
+
+                  {selectedStrike.voidReason && (
+                    <p>
+                      {selectedStrike.voidReason}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="strikes-modal-footer">
+              {capabilities.canVoidStrikes &&
+                selectedStrike.status !==
+                  "VOIDED" &&
+                (
+                  selectedStrike.currentUser !==
+                    null ||
+                  capabilities.isOwner
+                ) && (
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={() =>
+                      openVoidModal(
+                        selectedStrike
+                      )
+                    }
+                  >
+                    Void Strike
+                  </button>
+                )}
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setSelectedStrike(
+                    null
+                  )
+                }
+              >
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {voidTarget && (
+        <div
+          className="strikes-overlay"
+          role="presentation"
+        >
+          <form
+            className="strikes-modal strikes-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="strike-void-title"
+            onSubmit={
+              submitVoid
+            }
+          >
+            <div className="strikes-modal-header">
+              <div>
+                <span className="page-eyebrow">
+                  Disciplinary correction
+                </span>
+
+                <h3 id="strike-void-title">
+                  Void Strike?
+                </h3>
+
+                <p>
+                  The record will remain visible in history but will no longer count as an active Strike.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="strikes-close"
+                aria-label="Close Void Strike"
+                disabled={
+                  voiding
+                }
+                onClick={
+                  closeVoidModal
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="strikes-modal-body">
+              <div className="strikes-warning-box">
+                <strong>
+                  {voidTarget.userNameSnapshot}
+                </strong>
+
+                <span>
+                  {voidTarget.reasonNameSnapshot} · {voidTarget.standingLabelSnapshot}
+                </span>
+              </div>
+
+              <label className="form-field">
+                <span>
+                  Reason for voiding
+                </span>
+
+                <textarea
+                  rows={
+                    4
+                  }
+                  minLength={
+                    3
+                  }
+                  maxLength={
+                    2000
+                  }
+                  value={
+                    voidReason
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setVoidReason(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Explain why this Strike is being voided."
+                  disabled={
+                    voiding
+                  }
+                  autoFocus
+                />
+              </label>
+
+              {voidError && (
+                <div className="strikes-inline-error">
+                  {voidError}
+                </div>
+              )}
+            </div>
+
+            <div className="strikes-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={
+                  closeVoidModal
+                }
+                disabled={
+                  voiding
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="danger-button"
+                disabled={
+                  voiding ||
+                  voidReason.trim().length <
+                    3
+                }
+              >
+                {voiding
+                  ? "Voiding…"
+                  : "Confirm void"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {reasonManagerOpen && (
+        <div
+          className="strikes-overlay"
+          role="presentation"
+        >
+          <section
+            className="strikes-modal strikes-reasons-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="strike-reasons-title"
+          >
+            <div className="strikes-modal-header">
+              <div>
+                <span className="page-eyebrow">
+                  Strike configuration
+                </span>
+
+                <h3 id="strike-reasons-title">
+                  Strike Reasons
+                </h3>
+
+                <p>
+                  Maintain the disciplinary reasons available when issuing a Strike.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="strikes-close"
+                aria-label="Close Strike Reasons"
+                disabled={
+                  reasonSaving ||
+                  Boolean(
+                    reasonActionId
+                  )
+                }
+                onClick={
+                  closeReasonManager
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="strikes-modal-body">
+              <form
+                className="strikes-reason-form"
+                onSubmit={
+                  saveReason
+                }
+              >
+                <div className="strikes-reason-form-heading">
+                  <div>
+                    <strong>
+                      {editingReasonId
+                        ? "Edit reason"
+                        : "Add reason"}
+                    </strong>
+
+                    <span>
+                      Changes affect future Strike issuance only.
+                    </span>
+                  </div>
+
+                  {editingReasonId && (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={
+                        resetReasonForm
+                      }
+                      disabled={
+                        reasonSaving
+                      }
+                    >
+                      Cancel edit
+                    </button>
+                  )}
+                </div>
+
+                <div className="strikes-form-grid">
+                  <label className="form-field">
+                    <span>
+                      Reason name
+                    </span>
+
+                    <input
+                      value={
+                        reasonName
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setReasonName(
+                          event.target.value
+                        )
+                      }
+                      maxLength={
+                        120
+                      }
+                      placeholder="e.g. Repeated policy violation"
+                      disabled={
+                        reasonSaving
+                      }
+                    />
+                  </label>
+
+                  <label className="form-field">
+                    <span>
+                      Sort order
+                    </span>
+
+                    <input
+                      type="number"
+                      min={
+                        0
+                      }
+                      max={
+                        10000
+                      }
+                      step={
+                        1
+                      }
+                      value={
+                        reasonSortOrder
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setReasonSortOrder(
+                          event.target.value
+                        )
+                      }
+                      disabled={
+                        reasonSaving
+                      }
+                    />
+                  </label>
+                </div>
+
+                <label className="form-field">
+                  <span>
+                    Description
+                    <small>
+                      Optional
+                    </small>
+                  </span>
+
+                  <textarea
+                    rows={
+                      3
+                    }
+                    maxLength={
+                      1000
+                    }
+                    value={
+                      reasonDescription
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setReasonDescription(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Clarify when this reason should be used."
+                    disabled={
+                      reasonSaving
+                    }
+                  />
+                </label>
+
+                <div className="strikes-reason-form-actions">
+                  <button
+                    type="submit"
+                    className="primary-button"
+                    disabled={
+                      reasonManagerLoading ||
+                      reasonSaving ||
+                      Boolean(
+                        reasonActionId
+                      ) ||
+                      !reasonName.trim()
+                    }
+                  >
+                    {reasonSaving
+                      ? "Saving…"
+                      : editingReasonId
+                        ? "Save changes"
+                        : "Add reason"}
+                  </button>
+                </div>
+              </form>
+
+              {reasonError && (
+                <div className="strikes-inline-error">
+                  {reasonError}
+                </div>
+              )}
+
+              <div className="strikes-reason-list">
+                <div className="strikes-reason-list-header">
+                  <strong>
+                    Configured reasons
+                  </strong>
+
+                  <span>
+                    {managedReasons.length} total
+                  </span>
+                </div>
+
+                {reasonManagerLoading ? (
+                  <div className="empty-state">
+                    <strong>
+                      Loading Strike reasons…
+                    </strong>
+                  </div>
+                ) : managedReasons.length ===
+                  0 ? (
+                  <div className="empty-state">
+                    <strong>
+                      No Strike reasons configured
+                    </strong>
+
+                    <span>
+                      Add the first reason above.
+                    </span>
+                  </div>
+                ) : (
+                  managedReasons.map(
+                    (
+                      reason
+                    ) => (
+                      <div
+                        key={
+                          reason.id
+                        }
+                        className="strikes-reason-row"
+                      >
+                        <div className="strikes-reason-main">
+                          <div className="strikes-reason-title">
+                            <strong>
+                              {reason.name}
+                            </strong>
+
+                            <span
+                              className={
+                                reason.isActive
+                                  ? "strike-reason-state active"
+                                  : "strike-reason-state archived"
+                              }
+                            >
+                              {reason.isActive
+                                ? "Active"
+                                : "Archived"}
+                            </span>
+                          </div>
+
+                          <span>
+                            {reason.description ||
+                              "No description"}
+                          </span>
+
+                          <small>
+                            Sort order {reason.sortOrder}
+                          </small>
+                        </div>
+
+                        <div className="strikes-reason-actions">
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() =>
+                              beginEditReason(
+                                reason
+                              )
+                            }
+                            disabled={
+                              reasonSaving ||
+                              Boolean(
+                                reasonActionId
+                              )
+                            }
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            className={
+                              reason.isActive
+                                ? "danger-button"
+                                : "secondary-button"
+                            }
+                            onClick={() => {
+                              void changeReasonStatus(
+                                reason
+                              );
+                            }}
+                            disabled={
+                              reasonSaving ||
+                              Boolean(
+                                reasonActionId
+                              )
+                            }
+                          >
+                            {reasonActionId ===
+                            reason.id
+                              ? "Working…"
+                              : reason.isActive
+                                ? "Archive"
+                                : "Reactivate"}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )
+                )}
+              </div>
+            </div>
+
+            <div className="strikes-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={
+                  closeReasonManager
+                }
+                disabled={
+                  reasonSaving ||
+                  Boolean(
+                    reasonActionId
+                  )
+                }
+              >
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {issueOpen && (
+        <div
+          className="strikes-overlay"
+          role="presentation"
+        >
+          <form
+            className="strikes-modal strikes-issue-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="strike-issue-title"
+            onSubmit={
+              submitStrike
+            }
+          >
+            <div className="strikes-modal-header">
+              <div>
+                <span className="page-eyebrow">
+                  Disciplinary action
+                </span>
+
+                <h3 id="strike-issue-title">
+                  Issue Strike
+                </h3>
+
+                <p>
+                  Review the resulting standing before confirming.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="strikes-close"
+                aria-label="Close Issue Strike"
+                disabled={
+                  issuing
+                }
+                onClick={
+                  closeIssueModal
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="strikes-modal-body">
+              {issueDataLoading ? (
+                <div className="empty-state">
+                  <strong>
+                    Preparing Strike form…
+                  </strong>
+                </div>
+              ) : (
+                <>
+                  <div className="strikes-form-grid">
+                    <label className="form-field">
+                      <span>
+                        Employee
+                      </span>
+
+                      <select
+                        value={
+                          issueUserId
+                        }
+                        onChange={(
+                          event
+                        ) => {
+                          void handleIssueUserChange(
+                            event.target.value
+                          );
+                        }}
+                        disabled={
+                          issuing
+                        }
+                      >
+                        <option value="">
+                          Select employee
+                        </option>
+
+                        {eligibleUsers.map(
+                          (
+                            employee
+                          ) => (
+                            <option
+                              key={
+                                employee.id
+                              }
+                              value={
+                                employee.id
+                              }
+                            >
+                              {employee.name} — {employee.email}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </label>
+
+                    <label className="form-field">
+                      <span>
+                        Strike reason
+                      </span>
+
+                      <select
+                        value={
+                          issueReasonId
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setIssueReasonId(
+                            event.target.value
+                          )
+                        }
+                        disabled={
+                          issuing
+                        }
+                      >
+                        <option value="">
+                          Select reason
+                        </option>
+
+                        {reasons.map(
+                          (
+                            reason
+                          ) => (
+                            <option
+                              key={
+                                reason.id
+                              }
+                              value={
+                                reason.id
+                              }
+                            >
+                              {reason.name}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </label>
+                  </div>
+
+                  <label className="form-field">
+                    <span>
+                      Strike details
+                    </span>
+
+                    <textarea
+                      rows={
+                        5
+                      }
+                      maxLength={
+                        5000
+                      }
+                      placeholder="Describe the disciplinary basis and relevant context."
+                      value={
+                        issueDetails
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setIssueDetails(
+                          event.target.value
+                        )
+                      }
+                      disabled={
+                        issuing
+                      }
+                    />
+                  </label>
+
+                  <label className="form-field">
+                    <span>
+                      Evidence URL
+                      <small>
+                        Optional
+                      </small>
+                    </span>
+
+                    <input
+                      type="url"
+                      placeholder="https://"
+                      value={
+                        issueEvidenceUrl
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setIssueEvidenceUrl(
+                          event.target.value
+                        )
+                      }
+                      disabled={
+                        issuing
+                      }
+                    />
+                  </label>
+
+                  <div className="strikes-preview">
+                    <div className="strikes-preview-header">
+                      <div>
+                        <span className="page-eyebrow">
+                          Consequence preview
+                        </span>
+
+                        <strong>
+                          Result after issuance
+                        </strong>
+                      </div>
+
+                      {previewLoading && (
+                        <span className="strikes-preview-loading">
+                          Calculating…
+                        </span>
+                      )}
+                    </div>
+
+                    {!issueUserId ? (
+                      <p className="strikes-preview-empty">
+                        Select an employee to calculate their resulting Strike standing.
+                      </p>
+                    ) : previewLoading ? (
+                      <p className="strikes-preview-empty">
+                        Checking current active Strikes and ladder state…
+                      </p>
+                    ) : issuePreview ? (
+                      <>
+                        <div className="strikes-preview-grid">
+                          <div>
+                            <span>
+                              Current active
+                            </span>
+
+                            <strong>
+                              {issuePreview.currentActiveStrikeCount}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>
+                              After issue
+                            </span>
+
+                            <strong>
+                              {issuePreview.activeStrikeCountAfterIssue}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>
+                              New standing
+                            </span>
+
+                            <strong>
+                              {issuePreview.standingLabel}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>
+                              Deduction
+                            </span>
+
+                            <strong>
+                              {issuePreview.deductionPercent}%
+                            </strong>
+                          </div>
+                        </div>
+
+                        <div className="strikes-preview-meta">
+                          <span>
+                            Expires {formatCentralDateTime(
+                              issuePreview.expiresAt
+                            )}
+                          </span>
+
+                          <span>
+                            {issuePreview.durationDays}-day window
+                          </span>
+
+                          <span>
+                            Ladder v{issuePreview.ladderVersion}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="strikes-preview-empty">
+                        Preview unavailable.
+                      </p>
+                    )}
+                  </div>
+
+                  {issueError && (
+                    <div className="strikes-inline-error">
+                      {issueError}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="strikes-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={
+                  closeIssueModal
+                }
+                disabled={
+                  issuing
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="danger-button"
+                disabled={
+                  issueDataLoading ||
+                  issuing ||
+                  previewLoading ||
+                  !issueUserId ||
+                  !issueReasonId ||
+                  !issueDetails.trim() ||
+                  !issuePreview ||
+                  issuePreview.user.id !==
+                    issueUserId
+                }
+              >
+                {issuing
+                  ? "Issuing…"
+                  : "Confirm & issue Strike"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default StrikesPage;
