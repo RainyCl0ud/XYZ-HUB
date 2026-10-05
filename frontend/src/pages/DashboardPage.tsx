@@ -84,10 +84,6 @@ type QaDashboardResponse = {
         "OPEN" |
         "RESOLVED" |
         "VOIDED";
-      strikeActivityStatus:
-        "ACTIVE" |
-        "EXPIRED" |
-        "NOT_APPLICABLE";
       chatter: {
         id: string;
         name: string;
@@ -107,10 +103,6 @@ type QaDashboardResponse = {
         "OPEN" |
         "RESOLVED" |
         "VOIDED";
-      strikeActivityStatus:
-        "ACTIVE" |
-        "EXPIRED" |
-        "NOT_APPLICABLE";
       chatter: {
         id: string;
         name: string;
@@ -755,11 +747,11 @@ function DashboardPage() {
             <div className="card-header">
               <div>
                 <h3>
-                  Current strikes & incidents
+                  Open QA incidents
                 </h3>
 
                 <p>
-                  People with open incidents or active strikes in your current creator access.
+                  QA incidents requiring attention in your current creator access.
                 </p>
               </div>
 
@@ -781,7 +773,7 @@ function DashboardPage() {
               0 ? (
               <div className="empty-state dashboard-empty">
                 <strong>
-                  No current strikes or open incidents
+                  No open QA incidents
                 </strong>
 
                 <span>
@@ -824,13 +816,7 @@ function DashboardPage() {
 
                       <div className="agency-incident-state">
                         <strong>
-                          {incident.strikeActivityStatus ===
-                          "ACTIVE"
-                            ? "Active strike"
-                            : incident.status ===
-                                "OPEN"
-                              ? "Open incident"
-                              : "Resolved"}
+                          Open incident
                         </strong>
 
                         <span>

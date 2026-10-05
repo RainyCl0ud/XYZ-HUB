@@ -10,6 +10,7 @@ import type {
 } from "react";
 
 import {
+  useNavigate,
   useSearchParams,
 } from "react-router-dom";
 
@@ -41,10 +42,6 @@ type IncidentStatus =
   | "RESOLVED"
   | "VOIDED";
 
-type StrikeActivityStatus =
-  | "ACTIVE"
-  | "EXPIRED"
-  | "NOT_APPLICABLE";
 
 type Chatter = {
   id: string;
@@ -113,10 +110,6 @@ type Incident = {
     | null;
 
   occurredAt: string;
-  expiresAt: string;
-
-  strikeActivityStatus:
-    StrikeActivityStatus;
 
   details: string;
 
@@ -162,6 +155,24 @@ type IncidentDetailResponse = {
   data: Incident;
 };
 
+type LinkedStrike = {
+  id: string;
+
+  status:
+    | "ACTIVE"
+    | "EXPIRED"
+    | "VOIDED";
+
+  sourceIncidentId:
+    string | null;
+};
+
+type LinkedStrikeResponse = {
+  data:
+    | LinkedStrike
+    | null;
+};
+
 type ChatterListResponse = {
   data: Chatter[];
 };
@@ -170,16 +181,6 @@ type RuleListResponse = {
   data: Rule[];
 };
 
-type StrikeLadderVersion = {
-  id: string;
-  versionNumber: number;
-  durationDays: number;
-  isCurrent: boolean;
-};
-
-type StrikeLadderResponse = {
-  data: StrikeLadderVersion;
-};
 
 type IncidentMutationResponse = {
   message: string;
@@ -190,10 +191,6 @@ type IncidentFilter =
   | "ALL"
   | IncidentStatus;
 
-type StrikeActivityFilter =
-  | "ALL"
-  | "ACTIVE"
-  | "EXPIRED";
 
 type ActionType =
   | "resolve"
@@ -227,6 +224,9 @@ const INCIDENTS_PAGE_SIZE = 5;
 
 function IncidentsPage() {
   const toast = useToast();
+
+  const navigate =
+    useNavigate();
   const [
     searchParams,
     setSearchParams,
@@ -238,7 +238,11 @@ function IncidentsPage() {
 
   const { access } = useAuth();
 
-  const { canManageQaIncidents } =
+  const {
+    canManageQaIncidents,
+    canViewStrikes,
+    canIssueStrikes,
+  } =
     getPortalCapabilities(access);
 
   const [
@@ -266,13 +270,6 @@ function IncidentsPage() {
     setAllRules,
   ] = useState<Rule[]>([]);
 
-  const [
-    currentStrikeLadder,
-    setCurrentStrikeLadder,
-  ] =
-    useState<StrikeLadderVersion | null>(
-      null
-    );
 
   const [
     statusFilter,
@@ -282,13 +279,6 @@ function IncidentsPage() {
       "ALL"
     );
 
-  const [
-    strikeActivityFilter,
-    setStrikeActivityFilter,
-  ] =
-    useState<StrikeActivityFilter>(
-      "ALL"
-    );
 
   const [
     chatterFilter,
@@ -391,6 +381,30 @@ function IncidentsPage() {
   ] = useState(false);
 
   const [
+    linkedStrike,
+    setLinkedStrike,
+  ] =
+    useState<LinkedStrike | null>(
+      null
+    );
+
+  const [
+    linkedStrikeLoading,
+    setLinkedStrikeLoading,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    linkedStrikeError,
+    setLinkedStrikeError,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
     qaProfileChatterId,
     setQaProfileChatterId,
   ] = useState<string | null>(
@@ -466,7 +480,6 @@ function IncidentsPage() {
         const [
           chatterResponse,
           ruleResponse,
-          ladderResponse,
         ] = await Promise.all([
           apiRequest<ChatterListResponse>(
             "/api/chatters"
@@ -474,10 +487,6 @@ function IncidentsPage() {
 
           apiRequest<RuleListResponse>(
             "/api/rules"
-          ),
-
-          apiRequest<StrikeLadderResponse>(
-            "/api/strike-ladder"
           ),
         ]);
 
@@ -499,9 +508,6 @@ function IncidentsPage() {
           completeRules
         );
 
-        setCurrentStrikeLadder(
-          ladderResponse.data
-        );
 
         setActiveChatters(
           completeChatters.filter(
@@ -637,6 +643,9 @@ function IncidentsPage() {
         setFormError("");
         setShowLogModal(false);
         setSelectedIncident(null);
+        setLinkedStrike(null);
+        setLinkedStrikeLoading(false);
+        setLinkedStrikeError("");
         setQaProfileChatterId(null);
         setActionType(null);
         setActionIncident(null);
@@ -698,7 +707,7 @@ function IncidentsPage() {
 
   /*
    * =========================================================
-   * SEARCH + STRIKE FILTER
+   * SEARCH + FILTER
    * =========================================================
    */
 
@@ -710,16 +719,6 @@ function IncidentsPage() {
 
       return incidents.filter(
         (incident) => {
-          if (
-            strikeActivityFilter !==
-              "ALL" &&
-            incident
-              .strikeActivityStatus !==
-              strikeActivityFilter
-          ) {
-            return false;
-          }
-
           if (!query) {
             return true;
           }
@@ -749,21 +748,11 @@ function IncidentsPage() {
               incident.status
             ),
 
-            incident
-              .strikeActivityStatus,
-
-            formatStrikeActivityStatus(
-              incident
-                .strikeActivityStatus
-            ),
 
             incident.occurredAt,
 
             formatCentralDateTime(incident.occurredAt),
 
-            incident.expiresAt,
-
-            formatCentralDateTime(incident.expiresAt),
 
             incident
               .resolutionNotes,
@@ -782,7 +771,6 @@ function IncidentsPage() {
     }, [
       incidents,
       search,
-      strikeActivityFilter,
     ]);
 
   const incidentPageCount =
@@ -817,7 +805,6 @@ function IncidentsPage() {
     chatterFilter,
     ruleFilter,
     statusFilter,
-    strikeActivityFilter,
     modelContextRevision,
   ]);
 
@@ -1060,6 +1047,18 @@ function IncidentsPage() {
         ? incident
         : incident.id;
 
+    setLinkedStrike(
+      null
+    );
+
+    setLinkedStrikeError(
+      ""
+    );
+
+    setLinkedStrikeLoading(
+      false
+    );
+
     try {
       setDetailLoading(true);
 
@@ -1073,6 +1072,49 @@ function IncidentsPage() {
       setSelectedIncident(
         response.data
       );
+
+      if (
+        canViewStrikes
+      ) {
+        setLinkedStrikeLoading(
+          true
+        );
+
+        try {
+          const strikeResponse =
+            await apiRequest<LinkedStrikeResponse>(
+              `/api/strikes/source-incident/${incidentId}`
+            );
+
+          setLinkedStrike(
+            strikeResponse.data
+          );
+        } catch (
+          strikeError
+        ) {
+          const message =
+            strikeError instanceof Error
+              ? strikeError.message
+              : "Unable to check whether this QA incident already has a linked Strike.";
+
+          setLinkedStrike(
+            null
+          );
+
+          setLinkedStrikeError(
+            message
+          );
+
+          toast.error(
+            message,
+            "Unable to check linked Strike"
+          );
+        } finally {
+          setLinkedStrikeLoading(
+            false
+          );
+        }
+      }
     } catch (error) {
       const message =
         error instanceof Error
@@ -1116,6 +1158,9 @@ function IncidentsPage() {
 
     setQaProfileChatterId(null);
     setSelectedIncident(null);
+    setLinkedStrike(null);
+    setLinkedStrikeLoading(false);
+    setLinkedStrikeError("");
 
     if (
       requestedIncidentId
@@ -1141,6 +1186,65 @@ function IncidentsPage() {
    * RESOLVE / VOID
    * =========================================================
    */
+
+  function issueStrikeFromIncident() {
+    if (
+      !canIssueStrikes ||
+      !canViewStrikes ||
+      !selectedIncident ||
+      selectedIncident.status ===
+        "VOIDED" ||
+      !selectedIncident.chatter.userId ||
+      linkedStrike ||
+      linkedStrikeLoading ||
+      linkedStrikeError
+    ) {
+      return;
+    }
+
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "action",
+      "issue"
+    );
+
+    params.set(
+      "sourceIncidentId",
+      selectedIncident.id
+    );
+
+    params.set(
+      "userId",
+      selectedIncident.chatter.userId
+    );
+
+    navigate(
+      `/strikes?${params.toString()}`
+    );
+  }
+
+  function viewLinkedStrike() {
+    if (
+      !canViewStrikes ||
+      !linkedStrike
+    ) {
+      return;
+    }
+
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "strikeId",
+      linkedStrike.id
+    );
+
+    navigate(
+      `/strikes?${params.toString()}`
+    );
+  }
 
   function openAction(
     type: ActionType,
@@ -1526,56 +1630,6 @@ function IncidentsPage() {
     return "Voided";
   }
 
-  function getStrikeActivityClass(
-    status: StrikeActivityStatus
-  ) {
-    if (
-      status === "ACTIVE"
-    ) {
-      return "incident-status resolved";
-    }
-
-    if (
-      status === "EXPIRED"
-    ) {
-      return "incident-status open";
-    }
-
-    return "";
-  }
-
-  function formatStrikeActivityStatus(
-    status: StrikeActivityStatus
-  ) {
-    if (
-      status === "ACTIVE"
-    ) {
-      return "Active";
-    }
-
-    if (
-      status === "EXPIRED"
-    ) {
-      return "Expired";
-    }
-
-    return "—";
-  }
-
-  function formatExpiryLabel(
-    status: StrikeActivityStatus
-  ) {
-    if (
-      status === "NOT_APPLICABLE"
-    ) {
-      return "Expiry";
-    }
-
-    return status === "EXPIRED"
-      ? "Expired"
-      : "Expires";
-  }
-
   /*
    * =========================================================
    * PAGE
@@ -1598,12 +1652,7 @@ function IncidentsPage() {
             {canManageQaIncidents ? "Manage" : "View"} chatter
             incidents, preserve
             historical rule data,
-            and track each strike
-            through its automatic{" "}
-            {currentStrikeLadder
-              ? `${currentStrikeLadder.durationDays}-day`
-              : "configured"}{" "}
-            lifecycle.
+            and track QA outcomes.
           </p>
         </div>
 
@@ -1616,7 +1665,6 @@ function IncidentsPage() {
             }
             disabled={
               dependenciesLoading ||
-              !currentStrikeLadder ||
               activeChatters.length ===
                 0 ||
               activeRules.length ===
@@ -1630,7 +1678,7 @@ function IncidentsPage() {
 
       {!canManageQaIncidents && (
         <div className="alert alert-info page-alert">
-          You have read-only access to QA incidents. You can view records and strike history.
+          You have read-only access to QA incidents. You can view incident records and QA history.
         </div>
       )}
 
@@ -1769,31 +1817,6 @@ function IncidentsPage() {
               )}
             </select>
 
-            <select
-              className="toolbar-select"
-              value={
-                strikeActivityFilter
-              }
-              onChange={(event) =>
-                setStrikeActivityFilter(
-                  event.target
-                    .value as StrikeActivityFilter
-                )
-              }
-              aria-label="Filter by strike status"
-            >
-              <option value="ALL">
-                All Strike Statuses
-              </option>
-
-              <option value="ACTIVE">
-                Active Strikes
-              </option>
-
-              <option value="EXPIRED">
-                Expired Strikes
-              </option>
-            </select>
 
             <div className="filter-group">
               {(
@@ -1863,8 +1886,6 @@ function IncidentsPage() {
               chatterFilter ||
               ruleFilter ||
               statusFilter !==
-                "ALL" ||
-              strikeActivityFilter !==
                 "ALL"
                 ? "No incident records match the current search or filters."
                 : "Incident records will appear here after they are logged."}
@@ -1900,15 +1921,7 @@ function IncidentsPage() {
                   </th>
 
                   <th>
-                    Expires
-                  </th>
-
-                  <th>
                     Incident Status
-                  </th>
-
-                  <th>
-                    Strike Status
                   </th>
                 </tr>
               </thead>
@@ -1916,26 +1929,12 @@ function IncidentsPage() {
               <tbody>
                 {paginatedIncidents.map(
                   (incident) => {
-                    const isExpired =
-                      incident
-                        .strikeActivityStatus ===
-                      "EXPIRED";
-
                     return (
                       <tr
                         key={
                           incident.id
                         }
-                        className={[
-                          "incident-clickable-row",
-                          isExpired
-                            ? "incident-row-expired"
-                            : "",
-                        ]
-                          .filter(
-                            Boolean
-                          )
-                          .join(" ")}
+                        className="incident-clickable-row"
                         tabIndex={0}
                         role="button"
                         aria-label={`View ${incident.ruleTitleSnapshot} incident for ${incident.chatter.name}`}
@@ -2011,29 +2010,6 @@ function IncidentsPage() {
                           {formatCentralDateTime(incident.occurredAt)}
                         </td>
 
-                        <td className="incident-date-cell">
-                          {incident
-                            .strikeActivityStatus ===
-                          "NOT_APPLICABLE" ? (
-                            <span>
-                              —
-                            </span>
-                          ) : (
-                            <span className="incident-expiry-date">
-                              <span className="incident-expiry-label">
-                                {incident
-                                  .strikeActivityStatus ===
-                                "EXPIRED"
-                                  ? "Expired"
-                                  : "Expires"}
-                              </span>
-
-                              <span>
-                                {formatCentralDateTime(incident.expiresAt)}
-                              </span>
-                            </span>
-                          )}
-                        </td>
 
                         <td>
                           <span
@@ -2047,27 +2023,6 @@ function IncidentsPage() {
                           </span>
                         </td>
 
-                        <td>
-                          {incident
-                            .strikeActivityStatus ===
-                          "NOT_APPLICABLE" ? (
-                            <span>
-                              —
-                            </span>
-                          ) : (
-                            <span
-                              className={getStrikeActivityClass(
-                                incident
-                                  .strikeActivityStatus
-                              )}
-                            >
-                              {formatStrikeActivityStatus(
-                                incident
-                                  .strikeActivityStatus
-                              )}
-                            </span>
-                          )}
-                        </td>
                       </tr>
                     );
                   }
@@ -2154,16 +2109,11 @@ function IncidentsPage() {
 
                 <p>
                   Select a chatter
-                  and rule.
+                  and QA rule.
                   Severity, weight,
-                  the exact rule
-                  version, and the{" "}
-                  {currentStrikeLadder
-                    ? `${currentStrikeLadder.durationDays}-day`
-                    : "configured"}{" "}
-                  strike expiry are
-                  captured
-                  automatically.
+                  and the exact rule
+                  version are captured
+                  with the incident.
                 </p>
               </div>
 
@@ -2247,8 +2197,7 @@ function IncidentsPage() {
 
                   <label className="form-field">
                     <span>
-                      Rule / Strike
-                      Reason
+                      Rule
                     </span>
 
                     <select
@@ -2503,34 +2452,13 @@ function IncidentsPage() {
           }
         >
           <div
-            className={[
-              "modal",
-              "modal-history",
-              "incident-detail-modal-card",
-              selectedIncident
-                ?.strikeActivityStatus ===
-              "EXPIRED"
-                ? "incident-detail-modal-card--expired"
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
+            className="modal modal-history incident-detail-modal-card"
             onMouseDown={(
               event
             ) =>
               event.stopPropagation()
             }
           >
-            {selectedIncident
-              ?.strikeActivityStatus ===
-              "EXPIRED" && (
-              <div
-                className="incident-expired-watermark"
-                aria-hidden="true"
-              >
-                EXPIRED
-              </div>
-            )}
 
             <div className="incident-detail-modal-content">
               <div className="modal-header">
@@ -2618,22 +2546,6 @@ function IncidentsPage() {
                           )}
                         </span>
 
-                        {selectedIncident
-                          .strikeActivityStatus !==
-                          "NOT_APPLICABLE" && (
-                          <span
-                            className={getStrikeActivityClass(
-                              selectedIncident
-                                .strikeActivityStatus
-                            )}
-                            title="Current strike activity status"
-                          >
-                            {formatStrikeActivityStatus(
-                              selectedIncident
-                                .strikeActivityStatus
-                            )}
-                          </span>
-                        )}
                       </div>
                     </div>
 
@@ -2701,39 +2613,7 @@ function IncidentsPage() {
                           </strong>
                         </div>
 
-                        <div>
-                          <span>
-                            {formatExpiryLabel(
-                              selectedIncident
-                                .strikeActivityStatus
-                            )}
-                          </span>
 
-                          <strong>
-                            {selectedIncident
-                              .strikeActivityStatus ===
-                            "NOT_APPLICABLE"
-                              ? "Not applicable"
-                              : formatCentralDateTime(selectedIncident.expiresAt)}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Strike Status
-                          </span>
-
-                          <strong>
-                            {selectedIncident
-                              .strikeActivityStatus ===
-                            "NOT_APPLICABLE"
-                              ? "—"
-                              : formatStrikeActivityStatus(
-                                  selectedIncident
-                                    .strikeActivityStatus
-                                )}
-                          </strong>
-                        </div>
                       </div>
                     </div>
 
@@ -2850,6 +2730,53 @@ function IncidentsPage() {
                     )}
 
                     <div className="incident-detail-actions">
+
+                      {canViewStrikes &&
+                        linkedStrike && (
+                        <button
+                          type="button"
+                          className="primary-button"
+                          onClick={
+                            viewLinkedStrike
+                          }
+                        >
+                          View Strike
+                        </button>
+                      )}
+
+                      {canViewStrikes &&
+                        linkedStrikeLoading && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled
+                        >
+                          Checking Strike...
+                        </button>
+                      )}
+
+                      {canIssueStrikes &&
+                        canViewStrikes &&
+                        !linkedStrike &&
+                        !linkedStrikeLoading &&
+                        !linkedStrikeError &&
+                        selectedIncident.status !==
+                          "VOIDED" &&
+                        Boolean(
+                          selectedIncident
+                            .chatter
+                            .userId
+                        ) && (
+                        <button
+                          type="button"
+                          className="primary-button"
+                          onClick={
+                            issueStrikeFromIncident
+                          }
+                        >
+                          Issue Strike
+                        </button>
+                      )}
 
                       {canManageQaIncidents && selectedIncident.status ===
                         "OPEN" && (
@@ -3235,22 +3162,6 @@ function IncidentsPage() {
                       </strong>
                     </div>
 
-                    <div>
-                      <span>
-                        Strike Duration
-                      </span>
-
-                      <strong>
-                        {currentStrikeLadder
-                          ? `${currentStrikeLadder.durationDays} ${
-                              currentStrikeLadder.durationDays ===
-                              1
-                                ? "day"
-                                : "days"
-                            }`
-                          : "—"}
-                      </strong>
-                    </div>
 
                     <div>
                       <span>

@@ -196,7 +196,10 @@ const defaultRolePermissions: Record<
     "strikes.issue",
   ],
 
-  QC: [],
+  QC: [
+    "strikes.view",
+    "strikes.issue",
+  ],
   CHATTER: [],
   TRIAL_CHATTER: [],
   DEV: [],

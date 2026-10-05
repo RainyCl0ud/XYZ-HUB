@@ -14,6 +14,7 @@ import {
 
 import {
   getStrike,
+  getStrikeBySourceIncident,
   issueStrike,
   listEligibleStrikeTargets,
   listStrikes,
@@ -85,6 +86,14 @@ const issueSchema =
 
     evidenceUrl:
       httpUrlSchema
+        .nullable()
+        .optional(),
+
+    sourceIncidentId:
+      z
+        .string()
+        .trim()
+        .min(1)
         .nullable()
         .optional(),
   });
@@ -161,7 +170,9 @@ function handleStrikeError(
     error.code ===
       "REASON_NOT_FOUND" ||
     error.code ===
-      "STRIKE_NOT_FOUND"
+      "STRIKE_NOT_FOUND" ||
+    error.code ===
+      "SOURCE_INCIDENT_NOT_FOUND"
       ? 404
       : error.code ===
           "TARGET_NOT_MANAGEABLE" ||
@@ -175,7 +186,9 @@ function handleStrikeError(
           "STRIKES_VOID_REQUIRED"
         ? 403
         : error.code ===
-            "STRIKE_ALREADY_VOIDED"
+            "STRIKE_ALREADY_VOIDED" ||
+          error.code ===
+            "SOURCE_INCIDENT_ALREADY_LINKED"
           ? 409
           : 400;
 
@@ -423,6 +436,95 @@ router.get(
   }
 );
 
+/*
+ * =========================================================
+ * LINKED STRIKE BY QA INCIDENT
+ * =========================================================
+ */
+
+router.get(
+  "/source-incident/:incidentId",
+
+  requirePermission(
+    "strikes.view"
+  ),
+
+  async (
+    req:
+      AuthenticatedRequest,
+    res
+  ) => {
+    const access =
+      requireAccess(
+        req,
+        res
+      );
+
+    if (
+      !access
+    ) {
+      return;
+    }
+
+    const incidentId =
+      getRouteParam(
+        req.params.incidentId
+      );
+
+    if (
+      !incidentId
+    ) {
+      res.status(
+        400
+      ).json({
+        error:
+          "INVALID_SOURCE_INCIDENT_ID",
+        message:
+          "A QA Incident ID is required.",
+      });
+
+      return;
+    }
+
+    try {
+      const strike =
+        await getStrikeBySourceIncident(
+          incidentId,
+          access
+        );
+
+      res.status(
+        200
+      ).json({
+        data:
+          strike,
+      });
+    } catch (
+      error
+    ) {
+      if (
+        handleStrikeError(
+          error,
+          res
+        )
+      ) {
+        return;
+      }
+
+      console.error(
+        "Failed to load Strike linked to QA Incident:",
+        error
+      );
+
+      res.status(
+        500
+      ).json({
+        message:
+          "Failed to load linked Strike.",
+      });
+    }
+  }
+);
 /*
  * =========================================================
  * ISSUE STRIKE

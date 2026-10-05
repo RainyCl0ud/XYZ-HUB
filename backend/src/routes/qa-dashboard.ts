@@ -18,10 +18,6 @@ import {
   resolveQaModelScope,
 } from "../services/qa-access.js";
 
-import {
-  getStrikeActivityStatus,
-} from "../services/strike-ladder.js";
-
 const router =
   Router();
 
@@ -59,8 +55,6 @@ router.get(
         buildChatterModelWhere(
           scope
         );
-      const now =
-        new Date();
 
       const incidentSelect = {
         id: true,
@@ -70,7 +64,6 @@ router.get(
         weightNameSnapshot: true,
         weightValueSnapshot: true,
         occurredAt: true,
-        expiresAt: true,
         status: true,
         chatter: {
           select: {
@@ -148,19 +141,8 @@ router.get(
           prisma.incident.findMany({
             where: {
               ...incidentWhere,
-              OR: [
-                {
-                  status: "OPEN",
-                },
-                {
-                  status: {
-                    not: "VOIDED",
-                  },
-                  expiresAt: {
-                    gt: now,
-                  },
-                },
-              ],
+              status:
+                "OPEN",
             },
             take: 6,
             orderBy: [
@@ -184,11 +166,6 @@ router.get(
             name:
               incident.chatter.name,
           },
-          strikeActivityStatus:
-            getStrikeActivityStatus(
-              incident,
-              now
-            ),
         });
 
       res.status(200).json({

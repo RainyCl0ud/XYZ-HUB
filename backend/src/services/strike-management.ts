@@ -10,7 +10,6 @@ import {
 
 import {
   canAccessModel,
-  canAssignRole,
   hasPermission,
   isOwner,
   type AccessContext,
@@ -43,7 +42,11 @@ export type StrikeManagementErrorCode =
   | "REASON_INACTIVE"
   | "STRIKE_NOT_FOUND"
   | "STRIKE_NOT_MANAGEABLE"
-  | "STRIKE_ALREADY_VOIDED";
+  | "STRIKE_ALREADY_VOIDED"
+  | "SOURCE_INCIDENT_NOT_FOUND"
+  | "SOURCE_INCIDENT_TARGET_MISMATCH"
+  | "SOURCE_INCIDENT_NOT_ELIGIBLE"
+  | "SOURCE_INCIDENT_ALREADY_LINKED";
 
 export class StrikeManagementError
   extends Error {
@@ -425,28 +428,18 @@ async function canManageTarget(
   }
 
   /*
-   * Reuse the existing People role-management policy.
+   * Strike authority is intentionally independent from
+   * People role-assignment authority.
    *
-   * This also ensures strikes.issue alone cannot be used
-   * to bypass people.manage / rank restrictions.
+   * The caller must already hold the relevant Strike
+   * permission (strikes.issue / strikes.void), while
+   * canViewTarget above enforces team hierarchy, rank,
+   * data scope, Owner protection, and model access.
+   *
+   * Requiring People role-management permission here would incorrectly block
+   * QC users who are explicitly authorized to issue
+   * disciplinary Strikes.
    */
-  const rolesManageable =
-    target
-      .roleMemberships
-      .every(
-        (membership) =>
-          canAssignRole(
-            access,
-            membership.role
-          )
-      );
-
-  if (
-    !rolesManageable
-  ) {
-    return false;
-  }
-
   return target
     .modelAssignments
     .every(
@@ -648,6 +641,10 @@ function serializeStrike(
     evidenceUrl:
       strike.evidenceUrl,
 
+
+    sourceIncidentId:
+      strike.sourceIncidentId,
+
     issuedAt:
       strike.issuedAt,
 
@@ -813,6 +810,40 @@ export async function getStrike(
   );
 }
 
+export async function getStrikeBySourceIncident(
+  sourceIncidentId:
+    string,
+  access:
+    AccessContext
+) {
+  assertViewAccess(
+    access
+  );
+
+  const strike =
+    await prisma.strike.findUnique({
+      where: {
+        sourceIncidentId,
+      },
+
+      include:
+        strikeInclude,
+    });
+
+  if (
+    !strike ||
+    !await canViewStrikeRecord(
+      strike,
+      access
+    )
+  ) {
+    return null;
+  }
+
+  return serializeStrike(
+    strike
+  );
+}
 export async function listEligibleStrikeTargets(
   access:
     AccessContext
@@ -979,6 +1010,9 @@ export async function issueStrike(
 
     evidenceUrl?:
       string | null;
+
+    sourceIncidentId?:
+      string | null;
   },
   access:
     AccessContext
@@ -1059,6 +1093,104 @@ export async function issueStrike(
              * Strike issues from silently recording the same
              * "count after issue" snapshot.
              */
+            /*
+             * QA escalation is optional.
+             *
+             * A QA Incident remains a QA record.
+             * sourceIncidentId only records which QA Incident
+             * management deliberately used as the basis for
+             * this Strike.
+             */
+            if (
+              input.sourceIncidentId
+            ) {
+              const sourceIncident =
+                await tx.incident.findUnique({
+                  where: {
+                    id:
+                      input.sourceIncidentId,
+                  },
+
+                  select: {
+                    id:
+                      true,
+
+                    modelId:
+                      true,
+
+                    status:
+                      true,
+
+                    chatter: {
+                      select: {
+                        userId:
+                          true,
+                      },
+                    },
+                  },
+                });
+
+              if (
+                !sourceIncident ||
+                (
+                  sourceIncident.modelId !==
+                    null &&
+                  !canAccessModel(
+                    access,
+                    sourceIncident.modelId
+                  )
+                )
+              ) {
+                throw new StrikeManagementError(
+                  "SOURCE_INCIDENT_NOT_FOUND",
+                  "The selected QA Incident is unavailable."
+                );
+              }
+
+              if (
+                sourceIncident
+                  .chatter
+                  .userId !==
+                target.id
+              ) {
+                throw new StrikeManagementError(
+                  "SOURCE_INCIDENT_TARGET_MISMATCH",
+                  "The selected QA Incident does not belong to this employee."
+                );
+              }
+
+              if (
+                sourceIncident.status ===
+                "VOIDED"
+              ) {
+                throw new StrikeManagementError(
+                  "SOURCE_INCIDENT_NOT_ELIGIBLE",
+                  "A voided QA Incident cannot be used to issue a Strike."
+                );
+              }
+
+              const existingLinkedStrike =
+                await tx.strike.findUnique({
+                  where: {
+                    sourceIncidentId:
+                      input.sourceIncidentId,
+                  },
+
+                  select: {
+                    id:
+                      true,
+                  },
+                });
+
+              if (
+                existingLinkedStrike
+              ) {
+                throw new StrikeManagementError(
+                  "SOURCE_INCIDENT_ALREADY_LINKED",
+                  "This QA Incident already has a linked Strike."
+                );
+              }
+            }
             const activeStrikeCount =
               await tx.strike.count({
                 where: {
@@ -1118,6 +1250,12 @@ export async function issueStrike(
                     ?.trim() ||
                   null,
 
+
+                sourceIncidentId:
+                  input.sourceIncidentId
+                    ?.trim() ||
+                  null,
+
                 issuedAt,
                 expiresAt,
 
@@ -1154,6 +1292,18 @@ export async function issueStrike(
     } catch (
       error
     ) {
+      if (
+        error instanceof
+          Prisma.PrismaClientKnownRequestError &&
+        error.code ===
+          "P2002" &&
+        input.sourceIncidentId
+      ) {
+        throw new StrikeManagementError(
+          "SOURCE_INCIDENT_ALREADY_LINKED",
+          "This QA Incident already has a linked Strike."
+        );
+      }
       if (
         error instanceof
           Prisma.PrismaClientKnownRequestError &&

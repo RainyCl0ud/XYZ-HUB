@@ -226,40 +226,38 @@ router.get("/:id", async (req, res) => {
 
     const [
       strikeLadder,
-      activeStrikeIncidents,
+      activeStrikes,
     ] = await Promise.all([
       getCurrentStrikeLadder(),
 
-      prisma.incident.findMany({
-        where: {
-          chatterId:
-            chatter.id,
+      chatter.userId
+        ? prisma.strike.findMany({
+            where: {
+              userId:
+                chatter.userId,
 
-          /*
-           * RESOLVED incidents still count until expiry.
-           * VOIDED incidents never count.
-           */
-          status: {
-            not: "VOIDED",
-          },
+              voidedAt:
+                null,
 
-          expiresAt: {
-            gt: now,
-          },
-        },
+              expiresAt: {
+                gt: now,
+              },
+            },
 
-        select: {
-          expiresAt: true,
-        },
+            select: {
+              expiresAt: true,
+            },
 
-        orderBy: {
-          expiresAt: "asc",
-        },
-      }),
+            orderBy: {
+              expiresAt:
+                "asc",
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     const activeStrikeCount =
-      activeStrikeIncidents.length;
+      activeStrikes.length;
 
     /*
      * The current standing uses the CURRENT ladder version.
@@ -304,7 +302,7 @@ router.get("/:id", async (req, res) => {
         0,
 
       nextExpiryAt:
-        activeStrikeIncidents[0]
+        activeStrikes[0]
           ?.expiresAt ?? null,
 
       ladderVersionId:

@@ -3,56 +3,7 @@ import { z } from "zod";
 
 import { prisma } from "../lib/prisma.js";
 
-import {
-  calculateExpiryDate,
-  getCurrentStrikeLadder,
-  getStrikeActivityStatus,
-} from "../services/strike-ladder.js";
-
-import type {
-  IncidentWorkflowStatus,
-} from "../services/strike-ladder.js";
-
 const router = Router();
-
-/*
- * =========================
- * STRIKE ACTIVITY HELPERS
- * =========================
- */
-
-/**
- * Adds the calculated strike activity status to an incident
- * without modifying the stored incident record.
- *
- * Workflow status and strike activity remain separate:
- *
- * Workflow:
- * OPEN / RESOLVED / VOIDED
- *
- * Strike activity:
- * ACTIVE / EXPIRED / NOT_APPLICABLE
- *
- * OPEN and RESOLVED incidents can remain active strikes until
- * their individually stored expiry timestamp has passed.
- *
- * VOIDED incidents remain in history but never count as strikes.
- */
-function withStrikeActivity<
-  T extends {
-    status: IncidentWorkflowStatus;
-    expiresAt: Date;
-  },
->(incident: T) {
-  return {
-    ...incident,
-
-    strikeActivityStatus:
-      getStrikeActivityStatus(
-        incident
-      ),
-  };
-}
 
 /*
  * =========================
@@ -210,6 +161,7 @@ router.get(
                 select: {
                   id: true,
                   name: true,
+                  userId: true,
                   status: true,
                 },
               },
@@ -233,10 +185,7 @@ router.get(
         );
 
       res.status(200).json({
-        data:
-          incidents.map(
-            withStrikeActivity
-          ),
+        data: incidents,
       });
     } catch (error) {
       console.error(
@@ -297,9 +246,7 @@ router.get(
 
       res.status(200).json({
         data:
-          withStrikeActivity(
-            incident
-          ),
+          incident,
       });
     } catch (error) {
       console.error(
@@ -442,35 +389,6 @@ router.post(
       }
 
       /*
-       * -------------------------------------------------------
-       * CURRENT STRIKE LADDER
-       * -------------------------------------------------------
-       *
-       * The strike duration is no longer hardcoded here.
-       *
-       * Management controls the duration through:
-       *
-       * System Configuration
-       * → Strike Ladder
-       *
-       * The CURRENT ladder configuration is read when the
-       * incident is created.
-       *
-       * Example:
-       *
-       * Ladder duration = 30 days
-       * Incident created today
-       * → expires exactly 30 x 24 hours later
-       *
-       * If management later changes the duration to 45 days,
-       * this incident keeps its already stored expiry date.
-       * Only newly created incidents use the new duration.
-       */
-
-      const strikeLadder =
-        await getCurrentStrikeLadder();
-
-      /*
        * occurredAt is generated on the server.
        *
        * The frontend cannot choose or override the incident
@@ -478,12 +396,6 @@ router.post(
        */
       const occurredAt =
         new Date();
-
-      const expiresAt =
-        calculateExpiryDate(
-          occurredAt,
-          strikeLadder.durationDays
-        );
 
       /*
        * -------------------------------------------------------
@@ -529,15 +441,6 @@ router.post(
 
               occurredAt,
 
-              /*
-               * The actual expiration timestamp is stored
-               * permanently on the incident.
-               *
-               * We intentionally do NOT recalculate this later
-               * from whatever the current ladder duration becomes.
-               */
-              expiresAt,
-
               details:
                 result.data
                   .details,
@@ -553,6 +456,7 @@ router.post(
                 select: {
                   id: true,
                   name: true,
+                  userId: true,
                   status: true,
                 },
               },
@@ -575,9 +479,7 @@ router.post(
           "Incident logged successfully",
 
         data:
-          withStrikeActivity(
-            incident
-          ),
+          incident,
       });
     } catch (error) {
       console.error(
@@ -690,6 +592,7 @@ router.patch(
                 select: {
                   id: true,
                   name: true,
+                  userId: true,
                   status: true,
                 },
               },
@@ -712,9 +615,7 @@ router.patch(
           "Incident resolved successfully",
 
         data:
-          withStrikeActivity(
-            incident
-          ),
+          incident,
       });
     } catch (error) {
       console.error(
@@ -825,6 +726,7 @@ router.patch(
                 select: {
                   id: true,
                   name: true,
+                  userId: true,
                   status: true,
                 },
               },
@@ -847,9 +749,7 @@ router.patch(
           "Incident voided successfully",
 
         data:
-          withStrikeActivity(
-            incident
-          ),
+          incident,
       });
     } catch (error) {
       console.error(

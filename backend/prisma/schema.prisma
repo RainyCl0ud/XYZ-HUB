@@ -537,8 +537,6 @@ model Incident {
 
   occurredAt DateTime @default(now())
 
-  expiresAt DateTime
-
   details     String
   evidenceUrl String?
 
@@ -559,7 +557,6 @@ model Incident {
   @@index([modelId])
   @@index([status])
   @@index([occurredAt])
-  @@index([expiresAt])
 }
 
 /**
@@ -662,6 +659,13 @@ model Strike {
 
   details     String
   evidenceUrl String?
+
+  /**
+   * Optional QA Incident that prompted this disciplinary action.
+   * This is intentionally a traceability reference only.
+   * A QA Incident never automatically becomes or counts as a Strike.
+   */
+  sourceIncidentId String? @unique
 
   issuedAt  DateTime @default(now())
   expiresAt DateTime

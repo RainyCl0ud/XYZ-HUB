@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -9,6 +10,10 @@ import {
 import {
   type FormEvent,
 } from "react";
+
+import {
+  useSearchParams,
+} from "react-router-dom";
 
 import {
   useAuth,
@@ -253,6 +258,12 @@ function StrikesPage() {
   const toast =
     useToast();
 
+  const [
+    searchParams,
+    setSearchParams,
+  ] =
+    useSearchParams();
+
   const {
     access,
   } =
@@ -281,6 +292,11 @@ function StrikesPage() {
   const reasonManagerRequestIdRef =
     useRef(
       0
+    );
+
+  const handoffKeyRef =
+    useRef(
+      ""
     );
 
   const [
@@ -445,6 +461,16 @@ function StrikesPage() {
   ] =
     useState(
       ""
+    );
+
+  const [
+    issueSourceIncidentId,
+    setIssueSourceIncidentId,
+  ] =
+    useState<
+      string | null
+    >(
+      null
     );
 
   const [
@@ -878,6 +904,9 @@ function StrikesPage() {
       ""
     );
 
+    setIssueSourceIncidentId(
+      null
+    );
     setIssuePreview(
       null
     );
@@ -887,7 +916,12 @@ function StrikesPage() {
     );
   }
 
-  async function openIssueModal() {
+  async function openIssueModal(
+    preselectedUserId?:
+      string,
+    sourceIncidentId?:
+      string
+  ) {
     const requestId =
       issueDataRequestIdRef.current +
       1;
@@ -896,6 +930,11 @@ function StrikesPage() {
       requestId;
 
     resetIssueForm();
+
+    setIssueSourceIncidentId(
+      sourceIncidentId ||
+        null
+    );
 
     /*
      * Never fall back to data from a previous modal
@@ -954,6 +993,33 @@ function StrikesPage() {
       setReasons(
         reasonsResponse.data
       );
+
+      if (
+        preselectedUserId
+      ) {
+        const employeeIsEligible =
+          usersResponse.data.some(
+            (
+              user
+            ) =>
+              user.id ===
+              preselectedUserId
+          );
+
+        if (
+          !employeeIsEligible
+        ) {
+          setIssueError(
+            "The employee linked to this QA incident is not currently eligible to receive a Strike."
+          );
+
+          return;
+        }
+
+        await handleIssueUserChange(
+          preselectedUserId
+        );
+      }
     } catch (
       error
     ) {
@@ -1133,6 +1199,220 @@ function StrikesPage() {
     }
   }
 
+  const openIssueFromHandoff =
+    useEffectEvent(
+      (
+        userId:
+          string,
+        sourceIncidentId:
+          string
+      ) => {
+        void openIssueModal(
+          userId,
+          sourceIncidentId
+        );
+      }
+    );
+
+  const openStrikeFromHandoff =
+    useEffectEvent(
+      (
+        strike:
+          StrikeRecord
+      ) => {
+        setSelectedStrike(
+          strike
+        );
+      }
+    );
+
+  useEffect(
+    () => {
+      const action =
+        searchParams.get(
+          "action"
+        );
+
+      const sourceIncidentId =
+        searchParams.get(
+          "sourceIncidentId"
+        );
+
+      const userId =
+        searchParams.get(
+          "userId"
+        );
+
+      const strikeId =
+        searchParams.get(
+          "strikeId"
+        );
+
+      if (
+        !action &&
+        !strikeId
+      ) {
+        return;
+      }
+
+      const handoffKey =
+        [
+          action || "",
+          sourceIncidentId || "",
+          userId || "",
+          strikeId || "",
+        ].join(
+          "|"
+        );
+
+      function clearHandoffParams() {
+        const nextParams =
+          new URLSearchParams(
+            searchParams
+          );
+
+        nextParams.delete(
+          "action"
+        );
+
+        nextParams.delete(
+          "sourceIncidentId"
+        );
+
+        nextParams.delete(
+          "userId"
+        );
+
+        nextParams.delete(
+          "strikeId"
+        );
+
+        setSearchParams(
+          nextParams,
+          {
+            replace:
+              true,
+          }
+        );
+      }
+
+      if (
+        strikeId
+      ) {
+        if (
+          loading
+        ) {
+          return;
+        }
+
+        if (
+          handoffKeyRef.current ===
+          handoffKey
+        ) {
+          return;
+        }
+
+        handoffKeyRef.current =
+          handoffKey;
+
+        const strike =
+          strikes.find(
+            (
+              candidate
+            ) =>
+              candidate.id ===
+              strikeId
+          );
+
+        if (
+          !strike
+        ) {
+          toast.error(
+            "The linked Strike could not be found or is no longer available.",
+            "Unable to open Strike"
+          );
+        } else {
+          window.setTimeout(
+            () => {
+              openStrikeFromHandoff(
+                strike
+              );
+            },
+            0
+          );
+        }
+
+        clearHandoffParams();
+
+        return;
+      }
+
+      if (
+        action !==
+        "issue"
+      ) {
+        return;
+      }
+
+      if (
+        handoffKeyRef.current ===
+        handoffKey
+      ) {
+        return;
+      }
+
+      handoffKeyRef.current =
+        handoffKey;
+
+      if (
+        !sourceIncidentId ||
+        !userId
+      ) {
+        toast.error(
+          "The QA-to-Strike handoff is missing required incident or employee information.",
+          "Unable to issue Strike"
+        );
+
+        clearHandoffParams();
+
+        return;
+      }
+
+      if (
+        !capabilities.canIssueStrikes
+      ) {
+        toast.error(
+          "You do not have permission to issue Strikes.",
+          "Strike access denied"
+        );
+
+        clearHandoffParams();
+
+        return;
+      }
+
+      window.setTimeout(
+        () => {
+          openIssueFromHandoff(
+            userId,
+            sourceIncidentId
+          );
+        },
+        0
+      );
+
+      clearHandoffParams();
+    },
+    [
+      capabilities.canIssueStrikes,
+      loading,
+      searchParams,
+      setSearchParams,
+      strikes,
+      toast,
+    ]
+  );
+
   async function submitStrike(
     event:
       FormEvent
@@ -1197,6 +1477,13 @@ function StrikesPage() {
                 evidenceUrl:
                   issueEvidenceUrl.trim() ||
                   null,
+
+                ...(issueSourceIncidentId
+                  ? {
+                      sourceIncidentId:
+                        issueSourceIncidentId,
+                    }
+                  : {}),
               }),
           }
         );

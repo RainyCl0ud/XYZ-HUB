@@ -36,12 +36,7 @@ type QaSummary = {
     weightNameSnapshot: string | null;
     weightValueSnapshot: number | null;
     occurredAt: string;
-    expiresAt: string;
     status: "OPEN" | "RESOLVED" | "VOIDED";
-    strikeActivityStatus:
-      | "ACTIVE"
-      | "EXPIRED"
-      | "NOT_APPLICABLE";
   }>;
   totalIncidentCount: number;
   historyPage: number;

@@ -42,10 +42,6 @@ type IncidentStatus =
   | "RESOLVED"
   | "VOIDED";
 
-type StrikeActivityStatus =
-  | "ACTIVE"
-  | "EXPIRED"
-  | "NOT_APPLICABLE";
 
 type Chatter = {
   id: string;
@@ -88,10 +84,6 @@ type ChatterIncident = {
     | null;
 
   occurredAt: string;
-  expiresAt: string;
-
-  strikeActivityStatus:
-    StrikeActivityStatus;
 
   details: string;
 
@@ -152,10 +144,6 @@ type IncidentFilter =
   | "ALL"
   | IncidentStatus;
 
-type StrikeFilter =
-  | "ALL"
-  | "ACTIVE"
-  | "EXPIRED";
 
 type ChatterPayload = {
   name: string;
@@ -366,12 +354,6 @@ function ChattersPage() {
       "ALL"
     );
 
-  const [
-    strikeFilter,
-    setStrikeFilter,
-  ] = useState<StrikeFilter>(
-    "ALL"
-  );
 
   const [
     expandedIncidentId,
@@ -503,8 +485,7 @@ function ChattersPage() {
         setChatterIncidents([]);
         setDetailsError("");
         setIncidentFilter("ALL");
-        setStrikeFilter("ALL");
-        setExpandedIncidentId(null);
+                setExpandedIncidentId(null);
         setPendingConfirmation(null);
 
         setModelContextRevision(
@@ -547,10 +528,6 @@ function ChattersPage() {
       "ALL"
     );
 
-    setStrikeFilter(
-      "ALL"
-    );
-
     setExpandedIncidentId(
       null
     );
@@ -572,10 +549,6 @@ function ChattersPage() {
     setChatterIncidents([]);
 
     setIncidentFilter(
-      "ALL"
-    );
-
-    setStrikeFilter(
       "ALL"
     );
 
@@ -726,8 +699,6 @@ function ChattersPage() {
         open: 0,
         resolved: 0,
         voided: 0,
-        activeStrikes: 0,
-        expiredStrikes: 0,
       };
 
       for (
@@ -755,19 +726,6 @@ function ChattersPage() {
           stats.voided += 1;
         }
 
-        if (
-          incident.strikeActivityStatus ===
-          "ACTIVE"
-        ) {
-          stats.activeStrikes += 1;
-        }
-
-        if (
-          incident.strikeActivityStatus ===
-          "EXPIRED"
-        ) {
-          stats.expiredStrikes += 1;
-        }
       }
 
       return stats;
@@ -776,27 +734,14 @@ function ChattersPage() {
   const filteredIncidents =
     useMemo(() => {
       return chatterIncidents.filter(
-        (incident) => {
-          const matchesIncidentStatus =
-            incidentFilter === "ALL" ||
-            incident.status ===
-              incidentFilter;
-
-          const matchesStrikeStatus =
-            strikeFilter === "ALL" ||
-            incident.strikeActivityStatus ===
-              strikeFilter;
-
-          return (
-            matchesIncidentStatus &&
-            matchesStrikeStatus
-          );
-        }
+        (incident) =>
+          incidentFilter === "ALL" ||
+          incident.status ===
+            incidentFilter
       );
     }, [
       chatterIncidents,
       incidentFilter,
-      strikeFilter,
     ]);
 
   const historyPageCount =
@@ -831,7 +776,6 @@ function ChattersPage() {
     );
   }, [
     incidentFilter,
-    strikeFilter,
     selectedChatter?.id,
   ]);
 
@@ -853,10 +797,6 @@ function ChattersPage() {
     filter: IncidentFilter
   ) {
     setIncidentFilter(filter);
-
-    if (filter === "VOIDED") {
-      setStrikeFilter("ALL");
-    }
   }
 
   /*
@@ -1367,55 +1307,6 @@ function ChattersPage() {
     }
 
     return "incident-status voided";
-  }
-
-  function formatStrikeStatus(
-    status: StrikeActivityStatus
-  ) {
-    if (status === "ACTIVE") {
-      return "Active";
-    }
-
-    if (status === "EXPIRED") {
-      return "Expired";
-    }
-
-    return "—";
-  }
-
-  function getStrikeStatusClass(
-    status: StrikeActivityStatus
-  ) {
-    if (status === "ACTIVE") {
-      return "chatter-strike-status active";
-    }
-
-    if (status === "EXPIRED") {
-      return "chatter-strike-status expired";
-    }
-
-    return "chatter-strike-status not-applicable";
-  }
-
-  function formatStrikeExpiry(
-    incident: ChatterIncident
-  ) {
-    if (
-      incident.strikeActivityStatus ===
-      "NOT_APPLICABLE"
-    ) {
-      return null;
-    }
-
-    const formattedDate =
-      formatTexasDateTime(
-        incident.expiresAt
-      );
-
-    return incident.strikeActivityStatus ===
-      "EXPIRED"
-      ? `Expired ${formattedDate}`
-      : `Expires ${formattedDate}`;
   }
 
   function toggleIncident(
@@ -2077,31 +1968,6 @@ function ChattersPage() {
                       </strong>
                     </div>
 
-                    <div className="chatter-stat-card active-strikes">
-                      <span>
-                        Active
-                        Strikes
-                      </span>
-
-                      <strong>
-                        {
-                          incidentStats.activeStrikes
-                        }
-                      </strong>
-                    </div>
-
-                    <div className="chatter-stat-card expired-strikes">
-                      <span>
-                        Expired
-                        Strikes
-                      </span>
-
-                      <strong>
-                        {
-                          incidentStats.expiredStrikes
-                        }
-                      </strong>
-                    </div>
                   </div>
                 )}
               </section>
@@ -2119,32 +1985,6 @@ function ChattersPage() {
                   </div>
 
                   <div className="chatter-history-controls">
-                    <select
-                      className="toolbar-select chatter-strike-filter"
-                      value={strikeFilter}
-                      onChange={(event) =>
-                        setStrikeFilter(
-                          event.target.value as StrikeFilter
-                        )
-                      }
-                      disabled={
-                        incidentFilter ===
-                        "VOIDED"
-                      }
-                      aria-label="Filter chatter history by strike status"
-                    >
-                      <option value="ALL">
-                        All Strike Statuses
-                      </option>
-
-                      <option value="ACTIVE">
-                        Active Strikes
-                      </option>
-
-                      <option value="EXPIRED">
-                        Expired Strikes
-                      </option>
-                    </select>
 
                     <div className="filter-group chatter-incident-filters">
                       <button
@@ -2237,7 +2077,7 @@ function ChattersPage() {
                       {chatterIncidents.length ===
                       0
                         ? "This chatter currently has no incident history."
-                        : "Choose another incident or strike status to view other records."}
+                        : "Choose another incident status to view other records."}
                     </span>
                   </div>
                 ) : (
@@ -2296,18 +2136,6 @@ function ChattersPage() {
                                     )}
                                   </span>
 
-                                  {incident.strikeActivityStatus !==
-                                    "NOT_APPLICABLE" && (
-                                    <span
-                                      className={getStrikeStatusClass(
-                                        incident.strikeActivityStatus
-                                      )}
-                                    >
-                                      {formatStrikeStatus(
-                                        incident.strikeActivityStatus
-                                      )}
-                                    </span>
-                                  )}
                                 </div>
 
                                 <div className="chatter-incident-meta">
@@ -2337,21 +2165,12 @@ function ChattersPage() {
                                   </span>
 
                                   <time>
-                                    Issued{" "}
+                                    Occurred{" "}
                                     {formatTexasDateTime(
                                       incident.occurredAt
                                     )}
                                   </time>
 
-                                  {formatStrikeExpiry(
-                                    incident
-                                  ) && (
-                                    <span className="chatter-strike-expiry">
-                                      {formatStrikeExpiry(
-                                        incident
-                                      )}
-                                    </span>
-                                  )}
                                 </div>
                               </div>
 
@@ -2407,42 +2226,6 @@ function ChattersPage() {
                                   </p>
                                 </div>
 
-                                {incident.strikeActivityStatus !==
-                                  "NOT_APPLICABLE" && (
-                                  <div className={`chatter-incident-strike ${
-                                    incident.strikeActivityStatus ===
-                                    "ACTIVE"
-                                      ? "active"
-                                      : "expired"
-                                  }`}>
-                                    <div>
-                                      <span>
-                                        Strike Status
-                                      </span>
-
-                                      <strong>
-                                        {formatStrikeStatus(
-                                          incident.strikeActivityStatus
-                                        )}
-                                      </strong>
-                                    </div>
-
-                                    <small>
-                                      Issued{" "}
-                                      {formatTexasDateTime(
-                                        incident.occurredAt
-                                      )}
-                                      {" · "}
-                                      {incident.strikeActivityStatus ===
-                                      "EXPIRED"
-                                        ? "Expired"
-                                        : "Expires"}{" "}
-                                      {formatTexasDateTime(
-                                        incident.expiresAt
-                                      )}
-                                    </small>
-                                  </div>
-                                )}
 
                                 {incident.evidenceUrl && (
                                   <div className="chatter-incident-detail-block">

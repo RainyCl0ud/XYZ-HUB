@@ -12,16 +12,6 @@ import {
  * =========================================================
  */
 
-export type IncidentWorkflowStatus =
-  | "OPEN"
-  | "RESOLVED"
-  | "VOIDED";
-
-export type StrikeActivityStatus =
-  | "ACTIVE"
-  | "EXPIRED"
-  | "NOT_APPLICABLE";
-
 export type StrikeLadderStepValue = {
   minActiveStrikes: number;
   standingLabel: string;
@@ -90,50 +80,6 @@ export const DEFAULT_STRIKE_LADDER_STEPS:
       deductionPercent: 30,
     },
   ];
-
-/*
- * =========================================================
- * STRIKE ACTIVITY
- * =========================================================
- */
-
-export function getStrikeActivityStatus(
-  incident: {
-    status:
-      IncidentWorkflowStatus;
-
-    expiresAt: Date;
-  },
-  now = new Date()
-): StrikeActivityStatus {
-  /*
-   * Voiding invalidates the strike.
-   *
-   * It remains historically visible,
-   * but it must never count toward the
-   * current strike ladder.
-   */
-  if (
-    incident.status ===
-    "VOIDED"
-  ) {
-    return "NOT_APPLICABLE";
-  }
-
-  /*
-   * OPEN and RESOLVED incidents both
-   * continue to count until their own
-   * stored expiration timestamp.
-   */
-  if (
-    incident.expiresAt.getTime() <=
-    now.getTime()
-  ) {
-    return "EXPIRED";
-  }
-
-  return "ACTIVE";
-}
 
 /*
  * =========================================================

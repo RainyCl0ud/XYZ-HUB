@@ -23,7 +23,6 @@ import legacyChatterRoutes from "./chatters.js";
 
 import {
   buildChatterModelWhere,
-  buildIncidentModelWhere,
   QaAccessError,
   readRequestedModelId,
   resolveQaModelScope,
@@ -286,34 +285,37 @@ router.get(
 
       const [
         strikeLadder,
-        activeStrikeIncidents,
+        activeStrikes,
       ] =
         await Promise.all([
           getCurrentStrikeLadder(),
-          prisma.incident.findMany({
-            where: {
-              chatterId:
-                chatter.id,
-              ...buildIncidentModelWhere(
-                scope
-              ),
-              status: {
-                not:
-                  "VOIDED",
-              },
-              expiresAt: {
-                gt:
-                  now,
-              },
-            },
-            select: {
-              expiresAt: true,
-            },
-            orderBy: {
-              expiresAt:
-                "asc",
-            },
-          }),
+
+          chatter.userId
+            ? prisma.strike.findMany({
+                where: {
+                  userId:
+                    chatter.userId,
+
+                  voidedAt:
+                    null,
+
+                  expiresAt: {
+                    gt:
+                      now,
+                  },
+                },
+
+                select: {
+                  expiresAt:
+                    true,
+                },
+
+                orderBy: {
+                  expiresAt:
+                    "asc",
+                },
+              })
+            : Promise.resolve([]),
         ]);
 
       const orderedSteps =
@@ -327,7 +329,7 @@ router.get(
         );
 
       const activeStrikeCount =
-        activeStrikeIncidents.length;
+        activeStrikes.length;
 
       let matchedStep =
         orderedSteps[0] ??
@@ -369,7 +371,7 @@ router.get(
               matchedStep?.deductionPercent ??
               0,
             nextExpiryAt:
-              activeStrikeIncidents[0]
+              activeStrikes[0]
                 ?.expiresAt ??
               null,
             ladderVersionId:

@@ -12,10 +12,6 @@ import {
   formatCentralDateTime,
 } from "../lib/time";
 
-type StrikeActivityStatus =
-  | "ACTIVE"
-  | "EXPIRED"
-  | "NOT_APPLICABLE";
 
 type IncidentStatus =
   | "OPEN"
@@ -44,9 +40,7 @@ type QaIncident = {
   ruleTitleSnapshot: string;
   severityNameSnapshot: string | null;
   occurredAt: string;
-  expiresAt: string;
   status: IncidentStatus;
-  strikeActivityStatus: StrikeActivityStatus;
 };
 
 type ChatterDetailResponse = {

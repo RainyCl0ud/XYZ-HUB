@@ -33,16 +33,6 @@ import {
   resolveQaModelScope,
 } from "../services/qa-access.js";
 
-import {
-  calculateExpiryDate,
-  getCurrentStrikeLadder,
-  getStrikeActivityStatus,
-} from "../services/strike-ladder.js";
-
-import type {
-  IncidentWorkflowStatus,
-} from "../services/strike-ladder.js";
-
 const router =
   Router();
 
@@ -60,27 +50,6 @@ function getRouteParam(
   )
     ? value[0]
     : value;
-}
-
-function withStrikeActivity<
-  T extends {
-    status:
-      IncidentWorkflowStatus;
-    expiresAt:
-      Date;
-  },
->(
-  incident:
-    T
-) {
-  return {
-    ...incident,
-
-    strikeActivityStatus:
-      getStrikeActivityStatus(
-        incident
-      ),
-  };
 }
 
 const createIncidentSchema =
@@ -247,6 +216,7 @@ router.get(
                   true,
                 name:
                   true,
+                userId: true,
                 status:
                   true,
               },
@@ -282,10 +252,7 @@ router.get(
         });
 
       res.status(200).json({
-        data:
-          incidents.map(
-            withStrikeActivity
-          ),
+        data: incidents,
       });
     } catch (
       error
@@ -413,9 +380,7 @@ router.get(
 
       res.status(200).json({
         data:
-          withStrikeActivity(
-            incident
-          ),
+          incident,
       });
     } catch (
       error
@@ -564,17 +529,8 @@ router.post(
       const currentVersion =
         rule.versions[0];
 
-      const strikeLadder =
-        await getCurrentStrikeLadder();
-
       const occurredAt =
         new Date();
-
-      const expiresAt =
-        calculateExpiryDate(
-          occurredAt,
-          strikeLadder.durationDays
-        );
 
       const incident =
         await prisma.incident.create({
@@ -609,7 +565,6 @@ router.post(
                 .weightValueSnapshot,
 
             occurredAt,
-            expiresAt,
 
             details:
               parsed.data.details,
@@ -627,6 +582,7 @@ router.post(
                   true,
                 name:
                   true,
+                userId: true,
                 status:
                   true,
               },
@@ -661,9 +617,7 @@ router.post(
           "Incident logged successfully",
 
         data:
-          withStrikeActivity(
-            incident
-          ),
+          incident,
       });
     } catch (
       error

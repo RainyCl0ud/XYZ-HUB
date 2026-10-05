@@ -23,10 +23,6 @@ type IncidentStatus =
   | "RESOLVED"
   | "VOIDED";
 
-type StrikeActivityStatus =
-  | "ACTIVE"
-  | "EXPIRED"
-  | "NOT_APPLICABLE";
 
 type RecentIncident = {
   id: string;
@@ -34,7 +30,6 @@ type RecentIncident = {
   severityNameSnapshot: string | null;
   occurredAt: string;
   status: IncidentStatus;
-  strikeActivityStatus: StrikeActivityStatus;
   chatter: {
     id: string;
     name: string;
@@ -194,7 +189,7 @@ function QaOverviewPage() {
           </h2>
 
           <p className="page-description">
-            Review current quality workload, active chatters, strike rules, and recent incident activity.
+            Review current quality workload, active chatters, QA rules, and recent incident activity.
           </p>
         </div>
 
@@ -269,7 +264,7 @@ function QaOverviewPage() {
           </strong>
 
           <span className="stat-help">
-            Available strike reasons
+            Available QA rules
           </span>
         </div>
 

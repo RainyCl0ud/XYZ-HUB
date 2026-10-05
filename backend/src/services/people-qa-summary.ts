@@ -8,7 +8,6 @@ import type {
 
 import {
   getCurrentStrikeLadder,
-  getStrikeActivityStatus,
 } from "./strike-ladder.js";
 
 import {
@@ -47,6 +46,7 @@ export async function getPersonQaSummary(
       },
       select: {
         id: true,
+        userId: true,
         name: true,
         status: true,
       },
@@ -85,34 +85,36 @@ export async function getPersonQaSummary(
 
   const [
     strikeLadder,
-    activeStrikeIncidents,
+    activeStrikes,
     recentIncidents,
     totalIncidentCount,
   ] = await Promise.all([
     getCurrentStrikeLadder(),
 
-    prisma.incident.findMany({
-      where: {
-        chatterId:
-          chatter.id,
-        ...modelWhere,
-        status: {
-          not:
-            "VOIDED",
-        },
-        expiresAt: {
-          gt:
-            now,
-        },
-      },
-      select: {
-        expiresAt: true,
-      },
-      orderBy: {
-        expiresAt:
-          "asc",
-      },
-    }),
+    chatter.userId
+      ? prisma.strike.findMany({
+          where: {
+            userId:
+              chatter.userId,
+
+            voidedAt:
+              null,
+
+            expiresAt: {
+              gt:
+                now,
+            },
+          },
+
+          select: {
+          },
+
+          orderBy: {
+            expiresAt:
+              "asc",
+          },
+        })
+      : Promise.resolve([] as { expiresAt: Date }[]),
 
     prisma.incident.findMany({
       where: {
@@ -131,7 +133,6 @@ export async function getPersonQaSummary(
         weightValueSnapshot:
           true,
         occurredAt: true,
-        expiresAt: true,
         status: true,
       },
       orderBy: {
@@ -154,6 +155,13 @@ export async function getPersonQaSummary(
     }),
   ]);
 
+  const activeStrikeRows =
+    activeStrikes as
+      Array<{
+        expiresAt:
+          Date;
+      }>;
+
   const orderedSteps =
     [...strikeLadder.steps].sort(
       (
@@ -165,7 +173,7 @@ export async function getPersonQaSummary(
     );
 
   const activeStrikeCount =
-    activeStrikeIncidents.length;
+    activeStrikeRows.length;
 
   let matchedStep =
     orderedSteps[0] ??
@@ -198,7 +206,7 @@ export async function getPersonQaSummary(
         matchedStep?.deductionPercent ??
         0,
       nextExpiryAt:
-        activeStrikeIncidents[0]
+        activeStrikeRows[0]
           ?.expiresAt ??
         null,
       ladderVersionId:
@@ -206,16 +214,7 @@ export async function getPersonQaSummary(
       ladderVersion:
         strikeLadder.versionNumber,
     },
-    recentIncidents:
-      recentIncidents.map(
-        (incident) => ({
-          ...incident,
-          strikeActivityStatus:
-            getStrikeActivityStatus(
-              incident
-            ),
-        })
-      ),
+    recentIncidents,
     totalIncidentCount,
     historyPage:
       safeHistoryPage,
