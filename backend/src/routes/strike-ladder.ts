@@ -15,6 +15,10 @@ import {
 } from "../lib/prisma.js";
 
 import {
+  requirePermission,
+} from "../middleware/access.js";
+
+import {
   getCurrentStrikeLadder,
 } from "../services/strike-ladder.js";
 
@@ -402,6 +406,9 @@ router.get(
 // POST /api/strike-ladder
 router.post(
   "/",
+  requirePermission(
+    "strikes.configure"
+  ),
   async (req, res) => {
     const validation =
       ladderConfigurationSchema.safeParse(

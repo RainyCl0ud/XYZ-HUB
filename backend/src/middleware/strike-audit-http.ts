@@ -271,9 +271,8 @@ function describeStrikeMutation(
   }
 
   /*
-   * Strike Ladder is still served from its existing endpoint
-   * during the staged migration, but its audit ownership is now
-   * correctly assigned to the independent Strike domain.
+   * Strike Ladder configuration is owned and audited by the
+   * independent Strike domain.
    */
   if (
     resource ===

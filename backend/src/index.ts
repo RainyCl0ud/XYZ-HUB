@@ -9,6 +9,7 @@ import {
 import {
   requireAuth,
   requireOwner,
+  requirePermission,
 } from "./middleware/access.js";
 
 import {
@@ -340,11 +341,19 @@ app.use(
   dashboardRoutes
 );
 
+/*
+ * Strike Ladder belongs to the independent Strike domain.
+ *
+ * Reading ladder configuration requires Strike visibility.
+ * Mutation-level configuration permission is enforced by
+ * the Strike Ladder router itself.
+ */
 app.use(
   "/api/strike-ladder",
   requireAuth,
-  requireQaView,
-  requireQaConfigurationForWrites,
+  requirePermission(
+    "strikes.view"
+  ),
   strikeLadderRoutes
 );
 
