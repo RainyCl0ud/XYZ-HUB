@@ -297,16 +297,24 @@ function AppLayout() {
       !capabilities.canViewQa
     );
 
+  const isChatterDetailPage =
+    location.pathname.startsWith(
+      "/chatters/"
+    );
+
   const pageTitle =
-    PAGE_TITLES[
-      location.pathname
-    ] ??
-    "XYZ Management";
+    isChatterDetailPage
+      ? "Chatter QA"
+      : PAGE_TITLES[
+          location.pathname
+        ] ??
+        "XYZ Management";
 
   const isQaPage =
     QA_PATHS.has(
       location.pathname
-    );
+    ) ||
+    isChatterDetailPage;
 
   useEffect(
     () => {

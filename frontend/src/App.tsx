@@ -24,6 +24,7 @@ import QaOverviewPage from "./pages/QaOverviewPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import RulesPage from "./pages/RulesPage";
 import ChattersPage from "./pages/ChattersPage";
+import ChatterDetailPage from "./pages/ChatterDetailPage";
 import ConfigurationPage from "./pages/ConfigurationPage";
 import StrikesPage from "./pages/StrikesPage";
 import PeoplePage from "./pages/PeoplePage";
@@ -119,6 +120,15 @@ function App() {
             element={
               <RequirePortalModule module="qa">
                 <ChattersPage />
+              </RequirePortalModule>
+            }
+          />
+
+          <Route
+            path="/chatters/:chatterId"
+            element={
+              <RequirePortalModule module="qa">
+                <ChatterDetailPage />
               </RequirePortalModule>
             }
           />

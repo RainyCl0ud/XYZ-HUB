@@ -1504,3 +1504,81 @@
       none !important;
   }
 }
+
+
+/* =========================================================
+   ROUTE-BACKED CHATTER DETAIL PAGE
+   ========================================================= */
+
+.chatter-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chatter-detail-back {
+  align-self: flex-start;
+}
+
+.chatter-detail-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.chatter-detail-card
+  .chatter-profile-header {
+  position: static;
+}
+
+.chatter-detail-loading-card {
+  min-height: 180px;
+}
+
+.chatter-incident-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+@media (max-width: 720px) {
+  .chatter-detail-card
+    .chatter-profile-header {
+    align-items: flex-start;
+  }
+
+  .chatter-detail-page
+    .chatter-profile-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .chatter-incident-detail-actions {
+    justify-content: flex-start;
+  }
+}
+
+
+.chatter-linked-strike-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.chatter-linked-strike-badge {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.chatter-linked-strike-button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .chatter-linked-strike-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

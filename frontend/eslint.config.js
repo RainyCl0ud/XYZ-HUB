@@ -29,6 +29,7 @@ export default defineConfig([
   {
     files: [
       'src/pages/ChattersPage.tsx',
+      'src/pages/ChatterDetailPage.tsx',
       'src/pages/ConfigurationPage.tsx',
       'src/pages/DashboardPage.tsx',
       'src/pages/IncidentsPage.tsx',

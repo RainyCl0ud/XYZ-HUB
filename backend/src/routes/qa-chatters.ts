@@ -32,10 +32,6 @@ import {
   publishLiveUpdate,
 } from "../services/live-updates.js";
 
-import {
-  getCurrentStrikeLadder,
-} from "../services/strike-ladder.js";
-
 const router =
   Router();
 
@@ -280,76 +276,6 @@ router.get(
         return;
       }
 
-      const now =
-        new Date();
-
-      const [
-        strikeLadder,
-        activeStrikes,
-      ] =
-        await Promise.all([
-          getCurrentStrikeLadder(),
-
-          chatter.userId
-            ? prisma.strike.findMany({
-                where: {
-                  userId:
-                    chatter.userId,
-
-                  voidedAt:
-                    null,
-
-                  expiresAt: {
-                    gt:
-                      now,
-                  },
-                },
-
-                select: {
-                  expiresAt:
-                    true,
-                },
-
-                orderBy: {
-                  expiresAt:
-                    "asc",
-                },
-              })
-            : Promise.resolve([]),
-        ]);
-
-      const orderedSteps =
-        [...strikeLadder.steps].sort(
-          (
-            first,
-            second
-          ) =>
-            first.minActiveStrikes -
-            second.minActiveStrikes
-        );
-
-      const activeStrikeCount =
-        activeStrikes.length;
-
-      let matchedStep =
-        orderedSteps[0] ??
-        null;
-
-      for (
-        const step
-        of orderedSteps
-      ) {
-        if (
-          step.minActiveStrikes <=
-          activeStrikeCount
-        ) {
-          matchedStep =
-            step;
-          continue;
-        }
-        break;
-      }
-
       const {
         user,
         ...chatterData
@@ -362,23 +288,6 @@ router.get(
           ...chatterData,
           name:
             chatter.name,
-          strikeSummary: {
-            activeStrikeCount,
-            standingLabel:
-              matchedStep?.standingLabel ??
-              "Clear",
-            deductionPercent:
-              matchedStep?.deductionPercent ??
-              0,
-            nextExpiryAt:
-              activeStrikes[0]
-                ?.expiresAt ??
-              null,
-            ladderVersionId:
-              strikeLadder.id,
-            ladderVersion:
-              strikeLadder.versionNumber,
-          },
         },
       });
     } catch (error) {

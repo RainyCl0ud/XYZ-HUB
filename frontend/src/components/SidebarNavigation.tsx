@@ -157,6 +157,9 @@ function QualityNavigation({
   const active =
     QA_PATHS.has(
       pathname
+    ) ||
+    pathname.startsWith(
+      "/chatters/"
     );
 
   const visibleItems =
@@ -199,6 +202,13 @@ function QualityNavigation({
                   "/rules" &&
                 pathname ===
                   "/rules/settings"
+              ) ||
+              (
+                item.to ===
+                  "/chatters" &&
+                pathname.startsWith(
+                  "/chatters/"
+                )
               );
 
             return (
