@@ -1425,7 +1425,9 @@ function StrikesPage() {
       !issueDetails.trim()
     ) {
       setIssueError(
-        "Employee, reason, and Strike details are required."
+        issueSourceIncidentId
+          ? "Chatter, reason, and Strike details are required."
+          : "Employee, reason, and Strike details are required."
       );
 
       return;
@@ -2087,6 +2089,15 @@ function StrikesPage() {
       );
     }
   }
+
+  const selectedIssueEmployee =
+    eligibleUsers.find(
+      (
+        employee
+      ) =>
+        employee.id ===
+        issueUserId
+    ) ?? null;
 
   return (
     <div className="page strikes-page">
@@ -3226,7 +3237,9 @@ function StrikesPage() {
                 </h3>
 
                 <p>
-                  Review the resulting standing before confirming.
+                  {issueSourceIncidentId
+                    ? "Review the QA-linked disciplinary action and resulting standing before confirming."
+                    : "Review the resulting standing before confirming."}
                 </p>
               </div>
 
@@ -3255,48 +3268,67 @@ function StrikesPage() {
               ) : (
                 <>
                   <div className="strikes-form-grid">
-                    <label className="form-field">
-                      <span>
-                        Employee
-                      </span>
+                    {issueSourceIncidentId ? (
+                      <label className="form-field">
+                        <span>
+                          Chatter
+                        </span>
 
-                      <select
-                        value={
-                          issueUserId
-                        }
-                        onChange={(
-                          event
-                        ) => {
-                          void handleIssueUserChange(
-                            event.target.value
-                          );
-                        }}
-                        disabled={
-                          issuing
-                        }
-                      >
-                        <option value="">
-                          Select employee
-                        </option>
+                        <input
+                          type="text"
+                          value={
+                            selectedIssueEmployee
+                              ? `${selectedIssueEmployee.name} — ${selectedIssueEmployee.email}`
+                              : "Linked chatter unavailable"
+                          }
+                          readOnly
+                          aria-readonly="true"
+                        />
+                      </label>
+                    ) : (
+                      <label className="form-field">
+                        <span>
+                          Employee
+                        </span>
 
-                        {eligibleUsers.map(
-                          (
-                            employee
-                          ) => (
-                            <option
-                              key={
-                                employee.id
-                              }
-                              value={
-                                employee.id
-                              }
-                            >
-                              {employee.name} — {employee.email}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </label>
+                        <select
+                          value={
+                            issueUserId
+                          }
+                          onChange={(
+                            event
+                          ) => {
+                            void handleIssueUserChange(
+                              event.target.value
+                            );
+                          }}
+                          disabled={
+                            issuing
+                          }
+                        >
+                          <option value="">
+                            Select employee
+                          </option>
+
+                          {eligibleUsers.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {employee.name} — {employee.email}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                    )}
 
                     <label className="form-field">
                       <span>
@@ -3371,32 +3403,34 @@ function StrikesPage() {
                     />
                   </label>
 
-                  <label className="form-field">
-                    <span>
-                      Evidence URL
-                      <small>
-                        Optional
-                      </small>
-                    </span>
+                  {!issueSourceIncidentId && (
+                    <label className="form-field">
+                      <span>
+                        Evidence URL
+                        <small>
+                          Optional
+                        </small>
+                      </span>
 
-                    <input
-                      type="url"
-                      placeholder="https://"
-                      value={
-                        issueEvidenceUrl
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setIssueEvidenceUrl(
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        issuing
-                      }
-                    />
-                  </label>
+                      <input
+                        type="url"
+                        placeholder="https://"
+                        value={
+                          issueEvidenceUrl
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setIssueEvidenceUrl(
+                            event.target.value
+                          )
+                        }
+                        disabled={
+                          issuing
+                        }
+                      />
+                    </label>
+                  )}
 
                   <div className="strikes-preview">
                     <div className="strikes-preview-header">
