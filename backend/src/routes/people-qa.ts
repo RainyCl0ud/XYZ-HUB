@@ -57,7 +57,7 @@ router.get(
         error:
           "QA_ACCESS_REQUIRED",
         message:
-          "QA access is required to view employee strike standing and incident history.",
+          "QA access is required to view employee disciplinary standing and QA history.",
       });
       return;
     }
@@ -100,6 +100,30 @@ router.get(
         ? parsedPage
         : 1;
 
+    const requestedStrikePage =
+      Array.isArray(
+        req.query.strikePage
+      )
+        ? req.query.strikePage[0]
+        : req.query.strikePage;
+
+    const parsedStrikePage =
+      typeof requestedStrikePage ===
+        "string"
+        ? Number.parseInt(
+            requestedStrikePage,
+            10
+          )
+        : 1;
+
+    const strikeHistoryPage =
+      Number.isFinite(
+        parsedStrikePage
+      ) &&
+      parsedStrikePage > 0
+        ? parsedStrikePage
+        : 1;
+
     try {
       /*
        * Reuse the established People visibility rules first. This keeps
@@ -115,6 +139,8 @@ router.get(
           userId,
           req.access,
           historyPage,
+          5,
+          strikeHistoryPage,
           5
         );
 
@@ -157,7 +183,7 @@ router.get(
         error:
           "PEOPLE_QA_SUMMARY_FAILED",
         message:
-          "Unable to load this employee's QA standing.",
+          "Unable to load this employee's disciplinary standing and QA history.",
       });
     }
   }

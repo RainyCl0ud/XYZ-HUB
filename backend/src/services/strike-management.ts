@@ -771,6 +771,130 @@ export async function listStrikes(
   return visible;
 }
 
+export async function listStrikeHistoryForUser(
+  userId:
+    string,
+  access:
+    AccessContext,
+  historyPage = 1,
+  historyPageSize = 5
+) {
+  assertViewAccess(
+    access
+  );
+
+  const target =
+    await loadStrikeTarget(
+      userId
+    );
+
+  if (
+    !target ||
+    !await canViewTarget(
+      access,
+      target
+    )
+  ) {
+    return null;
+  }
+
+  const safeHistoryPage =
+    Math.max(
+      1,
+      Math.floor(
+        historyPage
+      )
+    );
+
+  const safeHistoryPageSize =
+    Math.min(
+      20,
+      Math.max(
+        1,
+        Math.floor(
+          historyPageSize
+        )
+      )
+    );
+
+  const total =
+    await prisma.strike.count({
+      where: {
+        userId,
+      },
+    });
+
+  const pageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        total /
+        safeHistoryPageSize
+      )
+    );
+
+  const resolvedPage =
+    Math.min(
+      safeHistoryPage,
+      pageCount
+    );
+
+  const strikes =
+    await prisma.strike.findMany({
+      where: {
+        userId,
+      },
+
+      include:
+        strikeInclude,
+
+      orderBy: [
+        {
+          issuedAt:
+            "desc",
+        },
+        {
+          createdAt:
+            "desc",
+        },
+      ],
+
+      skip:
+        (resolvedPage - 1) *
+        safeHistoryPageSize,
+
+      take:
+        safeHistoryPageSize,
+    });
+
+  const now =
+    new Date();
+
+  return {
+    records:
+      strikes.map(
+        (
+          strike
+        ) =>
+          serializeStrike(
+            strike,
+            now
+          )
+      ),
+
+    total,
+
+    page:
+      resolvedPage,
+
+    pageSize:
+      safeHistoryPageSize,
+
+    pageCount,
+  };
+}
+
+
 export async function getStrike(
   strikeId:
     string,

@@ -15,6 +15,29 @@ import {
   formatCentralDateTime,
 } from "../lib/time";
 
+type StrikeHistoryRecord = {
+  id: string;
+  status:
+    | "ACTIVE"
+    | "EXPIRED"
+    | "VOIDED";
+  reasonNameSnapshot: string;
+  issuedAt: string;
+  issuedByNameSnapshot: string;
+  standingLabelSnapshot: string;
+  deductionPercentSnapshot: number;
+  activeStrikeCountAfterIssue: number;
+  sourceIncidentId: string | null;
+};
+
+type DisciplinaryHistory = {
+  records: StrikeHistoryRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
+
 type QaSummary = {
   chatter: {
     id: string;
@@ -38,6 +61,8 @@ type QaSummary = {
     occurredAt: string;
     status: "OPEN" | "RESOLVED" | "VOIDED";
   }>;
+  disciplinaryHistory:
+    DisciplinaryHistory | null;
   totalIncidentCount: number;
   historyPage: number;
   historyPageSize: number;
@@ -80,6 +105,12 @@ export default function PeopleQaPanel({
   const [historyPage, setHistoryPage] =
     useState(1);
 
+  const [
+    strikeHistoryPage,
+    setStrikeHistoryPage,
+  ] =
+    useState(1);
+
   useEffect(
     () => {
       let active = true;
@@ -91,7 +122,7 @@ export default function PeopleQaPanel({
 
           const response =
             await apiRequest<QaSummaryResponse>(
-              `/api/people/${personId}/qa?page=${historyPage}`
+              `/api/people/${personId}/qa?page=${historyPage}&strikePage=${strikeHistoryPage}`
             );
 
           if (active) {
@@ -104,6 +135,22 @@ export default function PeopleQaPanel({
                 current === resolvedPage
                   ? current
                   : resolvedPage
+            );
+
+            const resolvedStrikePage =
+              response.qa
+                ?.disciplinaryHistory
+                ?.page ??
+              1;
+
+            setStrikeHistoryPage(
+              (
+                current
+              ) =>
+                current ===
+                resolvedStrikePage
+                  ? current
+                  : resolvedStrikePage
             );
 
             setQa(
@@ -135,6 +182,7 @@ export default function PeopleQaPanel({
     [
       personId,
       historyPage,
+      strikeHistoryPage,
     ]
   );
 
@@ -224,6 +272,168 @@ export default function PeopleQaPanel({
               </strong>
             </div>
           </div>
+
+          {qa.disciplinaryHistory && (
+            <>
+              <div className="people-qa-history-heading">
+                <div>
+                  <span className="people-section-label">
+                    Disciplinary history
+                  </span>
+
+                  <strong>
+                    Strike History
+                  </strong>
+                </div>
+
+                <span>
+                  {qa.disciplinaryHistory.total} total
+                </span>
+              </div>
+
+              {qa.disciplinaryHistory.records.length ===
+              0 ? (
+                <div className="people-qa-empty compact">
+                  No Strike records recorded.
+                </div>
+              ) : (
+                <div className="people-qa-history-list">
+                  {qa.disciplinaryHistory.records.map(
+                    (
+                      strike
+                    ) => (
+                      <button
+                        key={
+                          strike.id
+                        }
+                        type="button"
+                        className="people-qa-incident-row"
+                        onClick={() =>
+                          navigate(
+                            `/strikes?strikeId=${encodeURIComponent(
+                              strike.id
+                            )}`
+                          )
+                        }
+                      >
+                        <span className="people-qa-incident-main">
+                          <strong>
+                            {
+                              strike.reasonNameSnapshot
+                            }
+                          </strong>
+
+                          <small>
+                            {
+                              strike.standingLabelSnapshot
+                            }
+                            {" · "}
+                            {formatPercent(
+                              strike.deductionPercentSnapshot
+                            )}
+                            % deduction
+                            {" · "}
+                            {formatCentralDateTime(
+                              strike.issuedAt
+                            )}
+                            {" · "}
+                            by{" "}
+                            {
+                              strike.issuedByNameSnapshot
+                            }
+                          </small>
+                        </span>
+
+                        <span className="people-qa-incident-status">
+                          {strike.status ===
+                          "ACTIVE"
+                            ? "Active"
+                            : strike.status ===
+                                "EXPIRED"
+                              ? "Expired"
+                              : "Voided"}
+                        </span>
+
+                        <span
+                          className="people-qa-incident-arrow"
+                          aria-hidden="true"
+                        >
+                          →
+                        </span>
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
+
+              {qa.disciplinaryHistory.pageCount >
+                1 && (
+                <div
+                  className="qa-history-pagination"
+                  aria-label="Employee disciplinary history pagination"
+                >
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      setStrikeHistoryPage(
+                        (
+                          current
+                        ) =>
+                          Math.max(
+                            1,
+                            current - 1
+                          )
+                      )
+                    }
+                    disabled={
+                      loading ||
+                      qa.disciplinaryHistory.page <=
+                        1
+                    }
+                  >
+                    Previous
+                  </button>
+
+                  <span>
+                    Page{" "}
+                    {qa.disciplinaryHistory.page}{" "}
+                    of{" "}
+                    {
+                      qa.disciplinaryHistory
+                        .pageCount
+                    }
+                  </span>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      setStrikeHistoryPage(
+                        (
+                          current
+                        ) =>
+                          Math.min(
+                            qa.disciplinaryHistory
+                              ?.pageCount ??
+                              1,
+                            current + 1
+                          )
+                      )
+                    }
+                    disabled={
+                      loading ||
+                      qa.disciplinaryHistory.page >=
+                        qa.disciplinaryHistory
+                          .pageCount
+                    }
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
+          )}
 
           <div className="people-qa-history-heading">
             <div>

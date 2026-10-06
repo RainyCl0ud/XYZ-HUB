@@ -2,13 +2,18 @@ import {
   prisma,
 } from "../lib/prisma.js";
 
-import type {
-  AccessContext,
+import {
+  hasPermission,
+  type AccessContext,
 } from "./access-control.js";
 
 import {
   getCurrentStrikeLadder,
 } from "./strike-ladder.js";
+
+import {
+  listStrikeHistoryForUser,
+} from "./strike-management.js";
 
 import {
   reconcileQaChatterProfiles,
@@ -35,7 +40,9 @@ export async function getPersonQaSummary(
   userId: string,
   access: AccessContext,
   historyPage = 1,
-  historyPageSize = 5
+  historyPageSize = 5,
+  strikeHistoryPage = 1,
+  strikeHistoryPageSize = 5
 ) {
   await reconcileQaChatterProfiles();
 
@@ -76,6 +83,25 @@ export async function getPersonQaSummary(
       )
     );
 
+  const safeStrikeHistoryPage =
+    Math.max(
+      1,
+      Math.floor(
+        strikeHistoryPage
+      )
+    );
+
+  const safeStrikeHistoryPageSize =
+    Math.min(
+      20,
+      Math.max(
+        1,
+        Math.floor(
+          strikeHistoryPageSize
+        )
+      )
+    );
+
   const now =
     new Date();
   const modelWhere =
@@ -86,6 +112,7 @@ export async function getPersonQaSummary(
   const [
     strikeLadder,
     activeStrikes,
+    disciplinaryHistory,
     recentIncidents,
     totalIncidentCount,
   ] = await Promise.all([
@@ -107,6 +134,8 @@ export async function getPersonQaSummary(
           },
 
           select: {
+            expiresAt:
+              true,
           },
 
           orderBy: {
@@ -115,6 +144,21 @@ export async function getPersonQaSummary(
           },
         })
       : Promise.resolve([] as { expiresAt: Date }[]),
+
+    chatter.userId &&
+    hasPermission(
+      access,
+      "strikes.view"
+    )
+      ? listStrikeHistoryForUser(
+          chatter.userId,
+          access,
+          safeStrikeHistoryPage,
+          safeStrikeHistoryPageSize
+        )
+      : Promise.resolve(
+          null
+        ),
 
     prisma.incident.findMany({
       where: {
@@ -214,6 +258,7 @@ export async function getPersonQaSummary(
       ladderVersion:
         strikeLadder.versionNumber,
     },
+    disciplinaryHistory,
     recentIncidents,
     totalIncidentCount,
     historyPage:
