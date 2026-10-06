@@ -135,7 +135,16 @@ type PendingConfirmation =
       payload: StrikeLadderPayload;
     };
 
-function ConfigurationPage() {
+type ConfigurationMode =
+  | "rules"
+  | "strikes";
+
+function ConfigurationPage({
+  mode,
+}: {
+  mode:
+    ConfigurationMode;
+}) {
   const toast = useToast();
 
   /*
@@ -503,6 +512,49 @@ function ConfigurationPage() {
       null
     );
 
+  useEffect(() => {
+    /*
+     * Rule Settings and Strike Settings intentionally share
+     * this implementation component, but their transient UI
+     * must never leak across module ownership boundaries.
+     */
+    setPendingConfirmation(
+      null
+    );
+
+    setSettingsMenuKind(
+      null
+    );
+
+    setArchiveModalKind(
+      null
+    );
+
+    setModalKind(
+      null
+    );
+
+    setEditingOption(
+      null
+    );
+
+    setShowLadderEditor(
+      false
+    );
+
+    setShowLadderHistory(
+      false
+    );
+
+    setFormError(
+      ""
+    );
+
+    setLadderFormError(
+      ""
+    );
+  }, [mode]);
+
   /*
    * =========================================================
    * LOAD CONFIGURATION
@@ -515,52 +567,72 @@ function ConfigurationPage() {
         setIsLoading(true);
         setPageError("");
 
-        const [
-          severityResponse,
-          weightResponse,
-          ladderResponse,
-        ] = await Promise.all([
-          apiRequest<
-            OptionListResponse<
-              SeverityOption
-            >
-          >(
-            "/api/severity-options"
-          ),
+        if (
+          mode ===
+            "rules"
+        ) {
+          const [
+            severityResponse,
+            weightResponse,
+          ] = await Promise.all([
+            apiRequest<
+              OptionListResponse<
+                SeverityOption
+              >
+            >(
+              "/api/severity-options"
+            ),
 
-          apiRequest<
-            OptionListResponse<
-              WeightOption
-            >
-          >(
-            "/api/weight-options"
-          ),
+            apiRequest<
+              OptionListResponse<
+                WeightOption
+              >
+            >(
+              "/api/weight-options"
+            ),
+          ]);
 
-          apiRequest<
-            DataResponse<
-              StrikeLadderVersion
-            >
-          >(
-            "/api/strike-ladder"
-          ),
-        ]);
+          setSeverityOptions(
+            severityResponse.data
+          );
 
-        setSeverityOptions(
-          severityResponse.data
-        );
+          setWeightOptions(
+            weightResponse.data
+          );
 
-        setWeightOptions(
-          weightResponse.data
-        );
+          setCurrentLadder(
+            null
+          );
+        } else {
+          const ladderResponse =
+            await apiRequest<
+              DataResponse<
+                StrikeLadderVersion
+              >
+            >(
+              "/api/strike-ladder"
+            );
 
-        setCurrentLadder(
-          ladderResponse.data
-        );
+          setCurrentLadder(
+            ladderResponse.data
+          );
+
+          setSeverityOptions(
+            []
+          );
+
+          setWeightOptions(
+            []
+          );
+        }
       } catch (error) {
         const message =
           error instanceof Error
             ? error.message
-            : "Failed to load configuration";
+            : mode ===
+                "rules"
+              ? "Failed to load rule settings"
+              : "Failed to load Strike settings";
 
         setPageError(
           message
@@ -568,12 +640,18 @@ function ConfigurationPage() {
 
         toast.error(
           message,
-          "Unable to load configuration"
+          mode ===
+            "rules"
+            ? "Unable to load rule settings"
+            : "Unable to load Strike settings"
         );
       } finally {
         setIsLoading(false);
       }
-    }, [toast]);
+    }, [
+      mode,
+      toast,
+    ]);
 
   useEffect(() => {
     void loadConfiguration();
@@ -2549,7 +2627,7 @@ function ConfigurationPage() {
         pendingConfirmation.kind ===
         "severity"
           ? "Save the current severity level order? This will become the order shown throughout configuration."
-          : "Save the current strike weight order? This will become the order shown throughout configuration.",
+          : "Save the current weight order? This will become the order shown throughout rule configuration.",
 
       confirmLabel:
         "Save Order",
@@ -2560,6 +2638,16 @@ function ConfigurationPage() {
 
   const confirmationContent =
     getConfirmationContent();
+
+  const confirmationBelongsToMode =
+    pendingConfirmation
+      ? mode ===
+          "strikes"
+        ? pendingConfirmation.type ===
+          "ladder"
+        : pendingConfirmation.type !==
+          "ladder"
+      : false;
 
   const confirmationBusy =
     pendingConfirmation?.type ===
@@ -2789,7 +2877,7 @@ function ConfigurationPage() {
                   {kind ===
                   "severity"
                     ? "Reorder severity levels"
-                    : "Reorder strike weights"}
+                    : "Reorder weights"}
                 </span>
               </button>
 
@@ -2832,18 +2920,24 @@ function ConfigurationPage() {
       <header className="page-header">
         <div>
           <p className="page-eyebrow">
-            Configuration
+            {mode ===
+            "rules"
+              ? "Rule configuration"
+              : "Disciplinary configuration"}
           </p>
 
           <h2>
-            System Configuration
+            {mode ===
+            "rules"
+              ? "Rule Settings"
+              : "Strike Settings"}
           </h2>
 
           <p className="page-description">
-            Manage severity,
-            strike-weight, and
-            strike-ladder settings
-            used by QA workflows.
+            {mode ===
+            "rules"
+              ? "Manage severity and weight options used when configuring QA rules."
+              : "Manage the global Strike Ladder used to calculate disciplinary standing and deductions."}
           </p>
         </div>
       </header>
@@ -2854,7 +2948,8 @@ function ConfigurationPage() {
         </div>
       )}
 
-      <div className="two-column-grid">
+      {mode === "rules" && (
+        <div className="two-column-grid">
         {/* =================================================
             SEVERITY
             ================================================= */}
@@ -3077,7 +3172,7 @@ function ConfigurationPage() {
           <div className="card-header configuration-card-header">
             <div>
               <h3>
-                Strike Weights
+                Weights
               </h3>
 
               <p>
@@ -3291,13 +3386,11 @@ function ConfigurationPage() {
             </div>
           )}
         </section>
-      </div>
+        </div>
+      )}
 
-      {/* =====================================================
-          STRIKE LADDER
-          ===================================================== */}
-
-      <section className="content-card strike-ladder-card">
+      {mode === "strikes" && (
+        <section className="content-card strike-ladder-card">
         <div className="card-header configuration-card-header strike-ladder-card-header">
           <div>
             <div className="strike-ladder-title-line">
@@ -3499,13 +3592,15 @@ function ConfigurationPage() {
             </p>
           </div>
         )}
-      </section>
+        </section>
+      )}
 
       {/* =====================================================
           ARCHIVE MODAL
           ===================================================== */}
 
-      {archiveModalKind && (
+      {mode === "rules" &&
+        archiveModalKind && (
         <div
           className="modal-backdrop"
           onMouseDown={
@@ -3629,11 +3724,11 @@ function ConfigurationPage() {
               0 ? (
               <div className="empty-state">
                 <strong>
-                  No archived strike weights
+                  No archived weights
                 </strong>
 
                 <span>
-                  Strike weights you archive will appear here.
+                  Weights you archive will appear here.
                 </span>
               </div>
             ) : (
@@ -3707,7 +3802,8 @@ function ConfigurationPage() {
           ADD / EDIT SEVERITY OR WEIGHT
           ===================================================== */}
 
-      {modalKind && (
+      {mode === "rules" &&
+        modalKind && (
         <div
           className="modal-backdrop"
           onMouseDown={
@@ -3739,7 +3835,7 @@ function ConfigurationPage() {
                   {modalKind ===
                   "severity"
                     ? "Configure a severity level used by rules."
-                    : "Configure a strike-weight option used by rules."}
+                    : "Configure a weight option used by rules."}
                 </p>
               </div>
 
@@ -3927,7 +4023,8 @@ function ConfigurationPage() {
           STRIKE LADDER EDITOR
           ===================================================== */}
 
-      {showLadderEditor && (
+      {mode === "strikes" &&
+        showLadderEditor && (
         <div
           className="modal-backdrop"
           onMouseDown={
@@ -4021,12 +4118,10 @@ function ConfigurationPage() {
 
                 <p>
                   Changing the duration
-                  will apply to newly
-                  issued strikes once the
-                  incident integration is
-                  enabled. Existing
-                  incident expiry dates
-                  remain unchanged.
+                  applies to newly issued
+                  Strikes. Existing Strike
+                  expiry dates remain
+                  unchanged.
                 </p>
               </div>
 
@@ -4240,7 +4335,8 @@ function ConfigurationPage() {
           STRIKE LADDER HISTORY
           ===================================================== */}
 
-      {showLadderHistory && (
+      {mode === "strikes" &&
+        showLadderHistory && (
         <div
           className="modal-backdrop"
           onMouseDown={
@@ -4412,6 +4508,7 @@ function ConfigurationPage() {
           ===================================================== */}
 
       {pendingConfirmation &&
+        confirmationBelongsToMode &&
         confirmationContent && (
           <div
             className="modal-backdrop confirmation-backdrop"

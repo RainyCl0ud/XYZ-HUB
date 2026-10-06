@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import {
+  useNavigate,
   useSearchParams,
 } from "react-router-dom";
 
@@ -255,6 +256,9 @@ function sortStrikeReasons(
 }
 
 function StrikesPage() {
+  const navigate =
+    useNavigate();
+
   const toast =
     useToast();
 
@@ -2120,15 +2124,51 @@ function StrikesPage() {
           capabilities.canIssueStrikes) && (
           <div className="strikes-header-actions">
             {capabilities.canConfigureStrikes && (
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => {
-                  void openReasonManager();
-                }}
-              >
-                Manage Reasons
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    void openReasonManager();
+                  }}
+                >
+                  Manage Reasons
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() =>
+                    navigate(
+                      "/strikes/settings"
+                    )
+                  }
+                  aria-label="Strike settings"
+                  title="Strike settings"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="3"
+                    />
+
+                    <path
+                      d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z"
+                    />
+                  </svg>
+                </button>
+              </>
             )}
 
             {capabilities.canIssueStrikes && (

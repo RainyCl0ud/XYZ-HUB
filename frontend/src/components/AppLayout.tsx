@@ -58,7 +58,7 @@ const QA_PATHS =
     "/incidents",
     "/chatters",
     "/rules",
-    "/configuration",
+    "/rules/settings",
   ]);
 
 const PAGE_TITLES:
@@ -76,10 +76,12 @@ const PAGE_TITLES:
     "Chatters",
   "/rules":
     "Rules & Strike Reasons",
-  "/configuration":
-    "QA Configuration",
+  "/rules/settings":
+    "Rule Settings",
   "/strikes":
     "Strikes",
+  "/strikes/settings":
+    "Strike Settings",
   "/people":
     "People",
   "/models":

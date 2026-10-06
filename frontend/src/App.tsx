@@ -124,11 +124,36 @@ function App() {
           />
 
           <Route
-            path="/configuration"
+            path="/rules/settings"
             element={
               <RequirePortalModule module="qa-config">
-                <ConfigurationPage />
+                <ConfigurationPage
+                  mode="rules"
+                />
               </RequirePortalModule>
+            }
+          />
+
+          <Route
+            path="/configuration"
+            element={
+              <Navigate
+                to="/rules/settings"
+                replace
+              />
+            }
+          />
+
+          <Route
+            path="/strikes/settings"
+            element={
+              <RequirePermission permission="strikes.view">
+                <RequirePermission permission="strikes.configure">
+                  <ConfigurationPage
+                    mode="strikes"
+                  />
+                </RequirePermission>
+              </RequirePermission>
             }
           />
 

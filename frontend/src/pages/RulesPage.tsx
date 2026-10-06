@@ -9,6 +9,10 @@ import type {
   FormEvent,
 } from "react";
 
+import {
+  useNavigate,
+} from "react-router-dom";
+
 import { apiRequest } from "../lib/api";
 
 import {
@@ -107,6 +111,9 @@ type PendingConfirmation =
 const RULES_PAGE_SIZE = 6;
 
 function RulesPage() {
+  const navigate =
+    useNavigate();
+
   const toast = useToast();
 
   const [
@@ -1006,15 +1013,52 @@ function RulesPage() {
           </p>
         </div>
 
-        <button
-          className="primary-button"
-          type="button"
-          onClick={
-            openAddRule
-          }
-        >
-          Add Rule
-        </button>
+        <div className="toolbar-controls">
+          <button
+            className="primary-button"
+            type="button"
+            onClick={
+              openAddRule
+            }
+          >
+            Add Rule
+          </button>
+
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() =>
+              navigate(
+                "/rules/settings"
+              )
+            }
+            aria-label="Rule settings"
+            title="Rule settings"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="3"
+              />
+
+              <path
+                d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z"
+              />
+            </svg>
+
+          </button>
+        </div>
       </header>
 
       {pageError && (

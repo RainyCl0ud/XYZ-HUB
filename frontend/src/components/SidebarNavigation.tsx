@@ -55,18 +55,18 @@ const QA_CONFIGURATION_ITEMS: Array<{
     label: "Rules",
     to: "/rules",
   },
-  {
-    label: "Configuration",
-    to: "/configuration",
-  },
 ];
 
 const QA_PATHS = new Set([
-  ...QA_CORE_ITEMS,
-  ...QA_CONFIGURATION_ITEMS,
-].map(
-  (item) => item.to
-));
+  ...[
+    ...QA_CORE_ITEMS,
+    ...QA_CONFIGURATION_ITEMS,
+  ].map(
+    (item) => item.to
+  ),
+
+  "/rules/settings",
+]);
 
 function ModuleIcon({
   name,
@@ -193,7 +193,13 @@ function QualityNavigation({
           (item) => {
             const childActive =
               pathname ===
-              item.to;
+                item.to ||
+              (
+                item.to ===
+                  "/rules" &&
+                pathname ===
+                  "/rules/settings"
+              );
 
             return (
               <Link
@@ -303,6 +309,10 @@ export default function SidebarNavigation({
               id: "strikes",
               label: "Strikes",
               to: "/strikes",
+              activePaths: [
+                "/strikes",
+                "/strikes/settings",
+              ],
             }}
           />
         )}
