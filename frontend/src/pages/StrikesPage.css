@@ -60,9 +60,9 @@
   grid-template-columns:
     minmax(190px, 1.35fr)
     minmax(170px, 1.15fr)
-    minmax(90px, 0.6fr)
     minmax(150px, 1fr)
     minmax(190px, 1.2fr)
+    minmax(90px, 0.6fr)
     minmax(80px, 0.5fr);
   gap: 16px;
   align-items: center;
@@ -597,5 +597,54 @@
   .strikes-modal-body,
   .strikes-modal-footer {
     padding-inline: 16px;
+  }
+}
+
+/* =========================================================
+   COMPACT STRIKE SUMMARY
+   ========================================================= */
+
+.strikes-summary-grid {
+  gap: 8px;
+}
+
+.strikes-summary-grid .stat-card {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) auto;
+  grid-template-rows:
+    auto auto;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 3px;
+  min-height: 72px;
+  padding: 11px 13px;
+}
+
+.strikes-summary-grid .stat-label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.strikes-summary-grid .stat-value {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  margin: 0;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.strikes-summary-grid .stat-help {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 720px) {
+  .strikes-summary-grid .stat-card {
+    min-height: 66px;
   }
 }

@@ -38,6 +38,7 @@ export default defineConfig([
       'src/pages/PeopleDetailPage.tsx',
       'src/pages/RoleBuilderPage.tsx',
       'src/pages/RulesPage.tsx',
+      'src/pages/StrikeReasonsPage.tsx',
     ],
     rules: {
       'react-hooks/set-state-in-effect': 'off',

@@ -161,29 +161,6 @@ const TEXAS_TIME_ZONE =
 const CHATTER_HISTORY_PAGE_SIZE =
   5;
 
-function formatTexasDate(
-  value:
-    string
-) {
-  return new Intl.DateTimeFormat(
-    "en-US",
-    {
-      timeZone:
-        TEXAS_TIME_ZONE,
-      month:
-        "short",
-      day:
-        "numeric",
-      year:
-        "numeric",
-    }
-  ).format(
-    new Date(
-      value
-    )
-  );
-}
-
 function formatTexasDateTime(
   value:
     string
@@ -429,12 +406,26 @@ function ChatterDetailPage() {
       requestedReturnPath
         ?.startsWith(
           "/chatters?"
+        ) ||
+      requestedReturnPath ===
+        "/incidents" ||
+      requestedReturnPath
+        ?.startsWith(
+          "/incidents?"
         )
     ) {
       return requestedReturnPath;
     }
 
     return "/chatters";
+  }
+
+  function getReturnLabel() {
+    return getReturnPath().startsWith(
+      "/incidents"
+    )
+      ? "← Back to Incidents"
+      : "{getReturnLabel()}";
   }
 
   const loadDetails =
@@ -1160,11 +1151,11 @@ function ChatterDetailPage() {
             className="secondary-button chatter-detail-back"
             onClick={() =>
               navigate(
-                "/chatters"
+                getReturnPath()
               )
             }
           >
-            ← Back to Chatters
+            {getReturnLabel()}
           </button>
 
           <div className="alert alert-error">
@@ -1191,7 +1182,7 @@ function ChatterDetailPage() {
               )
             }
           >
-            ← Back to Chatters
+            {getReturnLabel()}
           </button>
 
           <section className="content-card chatter-detail-loading-card">
@@ -1222,7 +1213,7 @@ function ChatterDetailPage() {
               )
             }
           >
-            ← Back to Chatters
+            {getReturnLabel()}
           </button>
 
           <div className="alert alert-error">
@@ -1251,7 +1242,7 @@ function ChatterDetailPage() {
             showEdit
           }
         >
-          ← Back to Chatters
+          {getReturnLabel()}
         </button>
 
         <section className="content-card chatter-detail-card">
@@ -1283,12 +1274,6 @@ function ChatterDetailPage() {
                   and incident history
                 </p>
 
-                <span className="chatter-profile-member-since">
-                  Added{" "}
-                  {formatTexasDate(
-                    chatter.createdAt
-                  )}
-                </span>
               </div>
             </div>
           </div>

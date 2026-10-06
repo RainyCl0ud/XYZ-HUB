@@ -55,20 +55,6 @@ const reasonPayloadSchema =
         )
         .nullable()
         .optional(),
-
-    sortOrder:
-      z
-        .number()
-        .int()
-        .min(
-          0
-        )
-        .max(
-          10000
-        )
-        .default(
-          0
-        ),
   });
 
 function getRouteParam(

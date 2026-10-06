@@ -26,6 +26,7 @@ import ChattersPage from "./pages/ChattersPage";
 import ChatterDetailPage from "./pages/ChatterDetailPage";
 import ConfigurationPage from "./pages/ConfigurationPage";
 import StrikesPage from "./pages/StrikesPage";
+import StrikeReasonsPage from "./pages/StrikeReasonsPage";
 import PeoplePage from "./pages/PeoplePage";
 import PeopleDetailPage from "./pages/PeopleDetailPage";
 import ModelsPage from "./pages/ModelsPage";
@@ -152,6 +153,17 @@ function App() {
                 to="/rules/settings"
                 replace
               />
+            }
+          />
+
+          <Route
+            path="/strikes/reasons"
+            element={
+              <RequirePermission permission="strikes.view">
+                <RequirePermission permission="strikes.configure">
+                  <StrikeReasonsPage />
+                </RequirePermission>
+              </RequirePermission>
             }
           />
 

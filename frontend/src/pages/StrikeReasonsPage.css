@@ -1,0 +1,156 @@
+﻿.strike-reasons-page {
+  display: grid;
+  gap: 18px;
+}
+
+.strike-reasons-header {
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.strike-reasons-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.strike-reason-editor {
+  overflow: hidden;
+}
+
+.strike-reason-editor-heading {
+  align-items: flex-start;
+}
+
+.strike-reason-editor-form {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 0.8fr)
+    minmax(0, 1.4fr);
+  gap: 16px;
+}
+
+.strike-reason-editor-form
+  .form-field {
+  min-width: 0;
+}
+
+.strike-reason-editor-form
+  textarea {
+  resize: vertical;
+}
+
+.strike-reason-editor-form
+  .form-field
+  > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.strike-reason-editor-form
+  .form-field
+  small {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.strike-reason-editor-actions {
+  grid-column: 1 / -1;
+
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+
+  padding-top: 2px;
+}
+
+.strike-reasons-toolbar {
+  align-items: flex-end;
+}
+
+.strike-reasons-search {
+  width: min(
+    300px,
+    100%
+  );
+}
+
+.strike-reasons-table {
+  min-width: 760px;
+}
+
+.strike-reasons-table th:nth-child(1) {
+  width: 24%;
+}
+
+.strike-reasons-table th:nth-child(2) {
+  width: 42%;
+}
+
+.strike-reasons-table th:nth-child(3) {
+  width: 14%;
+}
+
+.strike-reasons-table th:nth-child(4) {
+  width: 20%;
+}
+
+.strike-reason-name {
+  color: var(--text);
+
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.strike-reason-description {
+  display: block;
+
+  max-width: 520px;
+
+  color: var(--text-muted);
+
+  font-size: 11px;
+  line-height: 1.5;
+
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (
+  max-width: 760px
+) {
+  .strike-reasons-header {
+    align-items: stretch;
+  }
+
+  .strike-reasons-header-actions {
+    width: 100%;
+  }
+
+  .strike-reasons-header-actions
+    > button {
+    flex: 1 1 160px;
+  }
+
+  .strike-reason-editor-form {
+    grid-template-columns:
+      1fr;
+  }
+
+  .strike-reason-editor-actions {
+    grid-column: auto;
+  }
+
+  .strike-reasons-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .strike-reasons-search {
+    width: 100%;
+  }
+}

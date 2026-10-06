@@ -159,10 +159,6 @@ export async function listActiveStrikeReasons(
 
     orderBy: [
       {
-        sortOrder:
-          "asc",
-      },
-      {
         name:
           "asc",
       },
@@ -185,10 +181,6 @@ export async function listManagedStrikeReasons(
           "desc",
       },
       {
-        sortOrder:
-          "asc",
-      },
-      {
         name:
           "asc",
       },
@@ -204,9 +196,6 @@ export async function createStrikeReason(
     description?:
       string |
       null;
-
-    sortOrder?:
-      number;
   },
   access:
     AccessContext
@@ -232,10 +221,6 @@ export async function createStrikeReason(
         normalizeDescription(
           input.description
         ),
-
-      sortOrder:
-        input.sortOrder ??
-        0,
     },
   });
 }
@@ -250,9 +235,6 @@ export async function updateStrikeReason(
     description?:
       string |
       null;
-
-    sortOrder:
-      number;
   },
   access:
     AccessContext
@@ -306,9 +288,6 @@ export async function updateStrikeReason(
         normalizeDescription(
           input.description
         ),
-
-      sortOrder:
-        input.sortOrder,
     },
   });
 }

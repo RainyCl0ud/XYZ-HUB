@@ -138,7 +138,6 @@ type StrikeReason = {
   id: string;
   name: string;
   description: string | null;
-  sortOrder: number;
   isActive: boolean;
 };
 
@@ -218,43 +217,6 @@ function getStatusClass(
   return `strike-status strike-status-${status.toLowerCase()}`;
 }
 
-function sortStrikeReasons(
-  values:
-    StrikeReason[]
-) {
-  return [
-    ...values,
-  ].sort(
-    (
-      first,
-      second
-    ) => {
-      if (
-        first.isActive !==
-        second.isActive
-      ) {
-        return first.isActive
-          ? -1
-          : 1;
-      }
-
-      if (
-        first.sortOrder !==
-        second.sortOrder
-      ) {
-        return (
-          first.sortOrder -
-          second.sortOrder
-        );
-      }
-
-      return first.name.localeCompare(
-        second.name
-      );
-    }
-  );
-}
-
 function StrikesPage() {
   const navigate =
     useNavigate();
@@ -301,11 +263,6 @@ function StrikesPage() {
   const issueSubmissionInFlightRef =
     useRef(
       false
-    );
-
-  const reasonManagerRequestIdRef =
-    useRef(
-      0
     );
 
   const handoffKeyRef =
@@ -527,90 +484,6 @@ function StrikesPage() {
   ] =
     useState(
       false
-    );
-
-  const [
-    reasonManagerOpen,
-    setReasonManagerOpen,
-  ] =
-    useState(
-      false
-    );
-
-  const [
-    managedReasons,
-    setManagedReasons,
-  ] =
-    useState<
-      StrikeReason[]
-    >([]);
-
-  const [
-    reasonManagerLoading,
-    setReasonManagerLoading,
-  ] =
-    useState(
-      false
-    );
-
-  const [
-    reasonSaving,
-    setReasonSaving,
-  ] =
-    useState(
-      false
-    );
-
-  const [
-    reasonActionId,
-    setReasonActionId,
-  ] =
-    useState<
-      string | null
-    >(
-      null
-    );
-
-  const [
-    editingReasonId,
-    setEditingReasonId,
-  ] =
-    useState<
-      string | null
-    >(
-      null
-    );
-
-  const [
-    reasonName,
-    setReasonName,
-  ] =
-    useState(
-      ""
-    );
-
-  const [
-    reasonDescription,
-    setReasonDescription,
-  ] =
-    useState(
-      ""
-    );
-
-  const [
-    reasonSortOrder,
-    setReasonSortOrder,
-  ] =
-    useState(
-      "0"
-    );
-
-  const [
-    reasonError,
-    setReasonError,
-  ] =
-    useState(
-      ""
     );
 
   const loadStrikes =
@@ -1828,405 +1701,6 @@ function StrikesPage() {
     }
   }
 
-  function resetReasonForm() {
-    setEditingReasonId(
-      null
-    );
-
-    setReasonName(
-      ""
-    );
-
-    setReasonDescription(
-      ""
-    );
-
-    setReasonSortOrder(
-      "0"
-    );
-
-    setReasonError(
-      ""
-    );
-  }
-
-  async function openReasonManager() {
-    const requestId =
-      reasonManagerRequestIdRef.current +
-      1;
-
-    reasonManagerRequestIdRef.current =
-      requestId;
-
-    resetReasonForm();
-
-    setManagedReasons(
-      []
-    );
-
-    setReasonManagerOpen(
-      true
-    );
-
-    setReasonManagerLoading(
-      true
-    );
-
-    try {
-      const response =
-        await apiRequest<
-          DataResponse<
-            StrikeReason[]
-          >
-        >(
-          "/api/strike-reasons/manage"
-        );
-
-      if (
-        requestId !==
-        reasonManagerRequestIdRef.current
-      ) {
-        return;
-      }
-
-      setManagedReasons(
-        sortStrikeReasons(
-          response.data
-        )
-      );
-    } catch (
-      error
-    ) {
-      if (
-        requestId !==
-        reasonManagerRequestIdRef.current
-      ) {
-        return;
-      }
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to load Strike reasons.";
-
-      setReasonError(
-        message
-      );
-
-      toast.error(
-        message,
-        "Unable to load Strike reasons"
-      );
-    } finally {
-      if (
-        requestId ===
-        reasonManagerRequestIdRef.current
-      ) {
-        setReasonManagerLoading(
-          false
-        );
-      }
-    }
-  }
-
-  function closeReasonManager() {
-    if (
-      reasonSaving ||
-      reasonActionId
-    ) {
-      return;
-    }
-
-    reasonManagerRequestIdRef.current +=
-      1;
-
-    setReasonManagerLoading(
-      false
-    );
-
-    setReasonManagerOpen(
-      false
-    );
-
-    resetReasonForm();
-  }
-
-  function beginEditReason(
-    reason:
-      StrikeReason
-  ) {
-    setEditingReasonId(
-      reason.id
-    );
-
-    setReasonName(
-      reason.name
-    );
-
-    setReasonDescription(
-      reason.description ??
-      ""
-    );
-
-    setReasonSortOrder(
-      String(
-        reason.sortOrder
-      )
-    );
-
-    setReasonError(
-      ""
-    );
-  }
-
-  async function saveReason(
-    event:
-      FormEvent
-  ) {
-    event.preventDefault();
-
-    if (
-      reasonManagerLoading ||
-      reasonActionId
-    ) {
-      return;
-    }
-
-    const normalizedName =
-      reasonName
-        .trim()
-        .replace(
-          /\s+/g,
-          " "
-        );
-
-    const parsedSortOrder =
-      Number(
-        reasonSortOrder
-      );
-
-    if (
-      !normalizedName
-    ) {
-      setReasonError(
-        "Strike reason name is required."
-      );
-
-      return;
-    }
-
-    if (
-      !Number.isInteger(
-        parsedSortOrder
-      ) ||
-      parsedSortOrder <
-        0 ||
-      parsedSortOrder >
-        10000
-    ) {
-      setReasonError(
-        "Sort order must be a whole number from 0 to 10000."
-      );
-
-      return;
-    }
-
-    setReasonSaving(
-      true
-    );
-
-    setReasonError(
-      ""
-    );
-
-    try {
-      const isEditing =
-        Boolean(
-          editingReasonId
-        );
-
-      const response =
-        await apiRequest<
-          MutationResponse<
-            StrikeReason
-          >
-        >(
-          isEditing
-            ? `/api/strike-reasons/${editingReasonId}`
-            : "/api/strike-reasons",
-          {
-            method:
-              isEditing
-                ? "PATCH"
-                : "POST",
-
-            body:
-              JSON.stringify({
-                name:
-                  normalizedName,
-
-                description:
-                  reasonDescription.trim() ||
-                  null,
-
-                sortOrder:
-                  parsedSortOrder,
-              }),
-          }
-        );
-
-      setManagedReasons(
-        (
-          current
-        ) => {
-          const exists =
-            current.some(
-              (
-                reason
-              ) =>
-                reason.id ===
-                response.data.id
-            );
-
-          const next =
-            exists
-              ? current.map(
-                  (
-                    reason
-                  ) =>
-                    reason.id ===
-                    response.data.id
-                      ? response.data
-                      : reason
-                )
-              : [
-                  ...current,
-                  response.data,
-                ];
-
-          return sortStrikeReasons(
-            next
-          );
-        }
-      );
-
-      resetReasonForm();
-
-      toast.success(
-        isEditing
-          ? "Strike reason updated successfully."
-          : "Strike reason created successfully.",
-        isEditing
-          ? "Reason updated"
-          : "Reason created"
-      );
-    } catch (
-      error
-    ) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to save Strike reason.";
-
-      setReasonError(
-        message
-      );
-
-      toast.error(
-        message,
-        "Reason was not saved"
-      );
-    } finally {
-      setReasonSaving(
-        false
-      );
-    }
-  }
-
-  async function changeReasonStatus(
-    reason:
-      StrikeReason
-  ) {
-    setReasonActionId(
-      reason.id
-    );
-
-    setReasonError(
-      ""
-    );
-
-    const action =
-      reason.isActive
-        ? "archive"
-        : "reactivate";
-
-    try {
-      const response =
-        await apiRequest<
-          MutationResponse<
-            StrikeReason
-          >
-        >(
-          `/api/strike-reasons/${reason.id}/${action}`,
-          {
-            method:
-              "POST",
-          }
-        );
-
-      setManagedReasons(
-        (
-          current
-        ) =>
-          sortStrikeReasons(
-            current.map(
-              (
-                item
-              ) =>
-                item.id ===
-                response.data.id
-                  ? response.data
-                  : item
-            )
-          )
-      );
-
-      if (
-        editingReasonId ===
-        response.data.id
-      ) {
-        resetReasonForm();
-      }
-
-      toast.success(
-        response.data.isActive
-          ? "Strike reason reactivated."
-          : "Strike reason archived.",
-        "Reason status updated"
-      );
-    } catch (
-      error
-    ) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to change Strike reason status.";
-
-      setReasonError(
-        message
-      );
-
-      toast.error(
-        message,
-        "Reason status unchanged"
-      );
-    } finally {
-      setReasonActionId(
-        null
-      );
-    }
-  }
-
   const selectedIssueEmployee =
     eligibleUsers.find(
       (
@@ -2265,14 +1739,27 @@ function StrikesPage() {
         {(capabilities.canConfigureStrikes ||
           capabilities.canIssueStrikes) && (
           <div className="strikes-header-actions">
+            {capabilities.canIssueStrikes && (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  void openIssueModal();
+                }}
+              >
+                Issue Strike
+              </button>
+            )}
             {capabilities.canConfigureStrikes && (
               <>
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={() => {
-                    void openReasonManager();
-                  }}
+                  onClick={() =>
+                    navigate(
+                      "/strikes/reasons"
+                    )
+                  }
                 >
                   Manage Reasons
                 </button>
@@ -2313,17 +1800,6 @@ function StrikesPage() {
               </>
             )}
 
-            {capabilities.canIssueStrikes && (
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => {
-                  void openIssueModal();
-                }}
-              >
-                Issue Strike
-              </button>
-            )}
           </div>
         )}
       </header>
@@ -2545,15 +2021,15 @@ function StrikesPage() {
               </span>
 
               <span>
-                Status
-              </span>
-
-              <span>
                 Standing
               </span>
 
               <span>
                 Issued
+              </span>
+
+              <span>
+                Status
               </span>
 
               <span>
@@ -2591,20 +2067,6 @@ function StrikesPage() {
                     </span>
                   </div>
 
-                  <div>
-                    <span
-                      className={
-                        getStatusClass(
-                          strike.status
-                        )
-                      }
-                    >
-                      {getStatusLabel(
-                        strike.status
-                      )}
-                    </span>
-                  </div>
-
                   <div className="strikes-standing-cell">
                     <strong>
                       {strike.standingLabelSnapshot}
@@ -2626,6 +2088,20 @@ function StrikesPage() {
 
                     <span>
                       by {strike.issuedByNameSnapshot}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span
+                      className={
+                        getStatusClass(
+                          strike.status
+                        )
+                      }
+                    >
+                      {getStatusLabel(
+                        strike.status
+                      )}
                     </span>
                   </div>
 
@@ -3049,348 +2525,6 @@ function StrikesPage() {
               </button>
             </div>
           </form>
-        </div>
-      )}
-
-      {reasonManagerOpen && (
-        <div
-          className="strikes-overlay"
-          role="presentation"
-        >
-          <section
-            className="strikes-modal strikes-reasons-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="strike-reasons-title"
-          >
-            <div className="strikes-modal-header">
-              <div>
-                <span className="page-eyebrow">
-                  Strike configuration
-                </span>
-
-                <h3 id="strike-reasons-title">
-                  Strike Reasons
-                </h3>
-
-                <p>
-                  Maintain the disciplinary reasons available when issuing a Strike.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="strikes-close"
-                aria-label="Close Strike Reasons"
-                disabled={
-                  reasonSaving ||
-                  Boolean(
-                    reasonActionId
-                  )
-                }
-                onClick={
-                  closeReasonManager
-                }
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="strikes-modal-body">
-              <form
-                className="strikes-reason-form"
-                onSubmit={
-                  saveReason
-                }
-              >
-                <div className="strikes-reason-form-heading">
-                  <div>
-                    <strong>
-                      {editingReasonId
-                        ? "Edit reason"
-                        : "Add reason"}
-                    </strong>
-
-                    <span>
-                      Changes affect future Strike issuance only.
-                    </span>
-                  </div>
-
-                  {editingReasonId && (
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={
-                        resetReasonForm
-                      }
-                      disabled={
-                        reasonSaving
-                      }
-                    >
-                      Cancel edit
-                    </button>
-                  )}
-                </div>
-
-                <div className="strikes-form-grid">
-                  <label className="form-field">
-                    <span>
-                      Reason name
-                    </span>
-
-                    <input
-                      value={
-                        reasonName
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setReasonName(
-                          event.target.value
-                        )
-                      }
-                      maxLength={
-                        120
-                      }
-                      placeholder="e.g. Repeated policy violation"
-                      disabled={
-                        reasonSaving
-                      }
-                    />
-                  </label>
-
-                  <label className="form-field">
-                    <span>
-                      Sort order
-                    </span>
-
-                    <input
-                      type="number"
-                      min={
-                        0
-                      }
-                      max={
-                        10000
-                      }
-                      step={
-                        1
-                      }
-                      value={
-                        reasonSortOrder
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setReasonSortOrder(
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        reasonSaving
-                      }
-                    />
-                  </label>
-                </div>
-
-                <label className="form-field">
-                  <span>
-                    Description
-                    <small>
-                      Optional
-                    </small>
-                  </span>
-
-                  <textarea
-                    rows={
-                      3
-                    }
-                    maxLength={
-                      1000
-                    }
-                    value={
-                      reasonDescription
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setReasonDescription(
-                        event.target.value
-                      )
-                    }
-                    placeholder="Clarify when this reason should be used."
-                    disabled={
-                      reasonSaving
-                    }
-                  />
-                </label>
-
-                <div className="strikes-reason-form-actions">
-                  <button
-                    type="submit"
-                    className="primary-button"
-                    disabled={
-                      reasonManagerLoading ||
-                      reasonSaving ||
-                      Boolean(
-                        reasonActionId
-                      ) ||
-                      !reasonName.trim()
-                    }
-                  >
-                    {reasonSaving
-                      ? "Saving…"
-                      : editingReasonId
-                        ? "Save changes"
-                        : "Add reason"}
-                  </button>
-                </div>
-              </form>
-
-              {reasonError && (
-                <div className="strikes-inline-error">
-                  {reasonError}
-                </div>
-              )}
-
-              <div className="strikes-reason-list">
-                <div className="strikes-reason-list-header">
-                  <strong>
-                    Configured reasons
-                  </strong>
-
-                  <span>
-                    {managedReasons.length} total
-                  </span>
-                </div>
-
-                {reasonManagerLoading ? (
-                  <div className="empty-state">
-                    <strong>
-                      Loading Strike reasons…
-                    </strong>
-                  </div>
-                ) : managedReasons.length ===
-                  0 ? (
-                  <div className="empty-state">
-                    <strong>
-                      No Strike reasons configured
-                    </strong>
-
-                    <span>
-                      Add the first reason above.
-                    </span>
-                  </div>
-                ) : (
-                  managedReasons.map(
-                    (
-                      reason
-                    ) => (
-                      <div
-                        key={
-                          reason.id
-                        }
-                        className="strikes-reason-row"
-                      >
-                        <div className="strikes-reason-main">
-                          <div className="strikes-reason-title">
-                            <strong>
-                              {reason.name}
-                            </strong>
-
-                            <span
-                              className={
-                                reason.isActive
-                                  ? "strike-reason-state active"
-                                  : "strike-reason-state archived"
-                              }
-                            >
-                              {reason.isActive
-                                ? "Active"
-                                : "Archived"}
-                            </span>
-                          </div>
-
-                          <span>
-                            {reason.description ||
-                              "No description"}
-                          </span>
-
-                          <small>
-                            Sort order {reason.sortOrder}
-                          </small>
-                        </div>
-
-                        <div className="strikes-reason-actions">
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            onClick={() =>
-                              beginEditReason(
-                                reason
-                              )
-                            }
-                            disabled={
-                              reasonSaving ||
-                              Boolean(
-                                reasonActionId
-                              )
-                            }
-                          >
-                            Edit
-                          </button>
-
-                          <button
-                            type="button"
-                            className={
-                              reason.isActive
-                                ? "danger-button"
-                                : "secondary-button"
-                            }
-                            onClick={() => {
-                              void changeReasonStatus(
-                                reason
-                              );
-                            }}
-                            disabled={
-                              reasonSaving ||
-                              Boolean(
-                                reasonActionId
-                              )
-                            }
-                          >
-                            {reasonActionId ===
-                            reason.id
-                              ? "Working…"
-                              : reason.isActive
-                                ? "Archive"
-                                : "Reactivate"}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  )
-                )}
-              </div>
-            </div>
-
-            <div className="strikes-modal-footer">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={
-                  closeReasonManager
-                }
-                disabled={
-                  reasonSaving ||
-                  Boolean(
-                    reasonActionId
-                  )
-                }
-              >
-                Close
-              </button>
-            </div>
-          </section>
         </div>
       )}
 

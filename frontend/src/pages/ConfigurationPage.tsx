@@ -11,6 +11,10 @@ import type {
   FormEvent,
 } from "react";
 
+import {
+  useNavigate,
+} from "react-router-dom";
+
 import { apiRequest } from "../lib/api";
 
 import {
@@ -146,6 +150,9 @@ function ConfigurationPage({
     ConfigurationMode;
 }) {
   const toast = useToast();
+
+  const navigate =
+    useNavigate();
 
   /*
    * =========================================================
@@ -2940,6 +2947,22 @@ function ConfigurationPage({
               : "Manage the global Strike Ladder used to calculate disciplinary standing and deductions."}
           </p>
         </div>
+
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() =>
+            navigate(
+              mode === "rules"
+                ? "/rules"
+                : "/strikes"
+            )
+          }
+        >
+          ← Back to {mode === "rules"
+            ? "Rules"
+            : "Strikes"}
+        </button>
       </header>
 
       {pageError && (
@@ -4605,4 +4628,3 @@ function ConfigurationPage({
 }
 
 export default ConfigurationPage;
-

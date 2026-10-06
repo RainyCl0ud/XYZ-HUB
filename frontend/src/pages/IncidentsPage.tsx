@@ -27,8 +27,6 @@ import {
   useToast,
 } from "../components/ToastProvider";
 
-import QaProfileModal from "../components/QaProfileModal";
-
 import {
   useAuth,
 } from "../auth/AuthContext";
@@ -404,13 +402,6 @@ function IncidentsPage() {
       ""
     );
 
-  const [
-    qaProfileChatterId,
-    setQaProfileChatterId,
-  ] = useState<string | null>(
-    null
-  );
-
   /*
    * =========================================================
    * RESOLVE / VOID
@@ -646,7 +637,6 @@ function IncidentsPage() {
         setLinkedStrike(null);
         setLinkedStrikeLoading(false);
         setLinkedStrikeError("");
-        setQaProfileChatterId(null);
         setActionType(null);
         setActionIncident(null);
         setActionNotes("");
@@ -1155,8 +1145,6 @@ function IncidentsPage() {
     if (detailLoading) {
       return;
     }
-
-    setQaProfileChatterId(null);
     setSelectedIncident(null);
     setLinkedStrike(null);
     setLinkedStrikeLoading(false);
@@ -2525,8 +2513,12 @@ function IncidentsPage() {
                           type="button"
                           className="secondary-button incident-qa-profile-button"
                           onClick={() =>
-                            setQaProfileChatterId(
-                              selectedIncident.chatter.id
+                            navigate(
+                              `/chatters/${encodeURIComponent(
+                                selectedIncident.chatter.id
+                              )}?from=${encodeURIComponent(
+                                "/incidents"
+                              )}`
                             )
                           }
                         >
@@ -2826,41 +2818,6 @@ function IncidentsPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {qaProfileChatterId && (
-        <QaProfileModal
-          chatterId={qaProfileChatterId}
-          onClose={() =>
-            setQaProfileChatterId(
-              null
-            )
-          }
-          onOpenIncident={(incidentId) => {
-            setQaProfileChatterId(
-              null
-            );
-
-            const nextParams =
-              new URLSearchParams(
-                searchParams
-              );
-            nextParams.set(
-              "incidentId",
-              incidentId
-            );
-            setSearchParams(
-              nextParams,
-              {
-                replace: true,
-              }
-            );
-
-            void openIncidentDetails(
-              incidentId
-            );
-          }}
-        />
       )}
 
       {/* =====================================================

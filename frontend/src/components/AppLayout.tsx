@@ -77,6 +77,8 @@ const PAGE_TITLES:
     "Rule Settings",
   "/strikes":
     "Strikes",
+  "/strikes/reasons":
+    "Strike Reasons",
   "/strikes/settings":
     "Strike Settings",
   "/people":

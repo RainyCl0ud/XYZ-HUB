@@ -324,6 +324,7 @@ export default function SidebarNavigation({
               to: "/strikes",
               activePaths: [
                 "/strikes",
+                "/strikes/reasons",
                 "/strikes/settings",
               ],
             }}
