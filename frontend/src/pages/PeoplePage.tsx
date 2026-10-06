@@ -13,6 +13,7 @@ import type {
 } from "react";
 
 import {
+  useNavigate,
   useSearchParams,
 } from "react-router-dom";
 
@@ -22,7 +23,6 @@ import {
 } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastProvider";
-import PeopleQaPanel from "../components/PeopleQaPanel";
 
 import "./PeoplePage.css";
 
@@ -111,7 +111,6 @@ type PeopleOptions = {
   };
 };
 
-type ConfirmAction = "deactivate" | "reactivate" | "reset-2fa" | "delete" | null;
 type BatchAction = "team" | "role" | null;
 type TeamModalAction = "create" | "rename" | "delete" | null;
 
@@ -121,7 +120,6 @@ type TeamContextMenu = {
   y: number;
 } | null;
 
-const TEXAS_TIME_ZONE = "America/Chicago";
 const EMPTY_TEAMS: TeamGroup[] = [];
 const PEOPLE_PAGE_SIZE = 10;
 const EXISTING_PAGE_SIZE = 6;
@@ -148,20 +146,6 @@ function formatDataScope(value: string) {
   return value.toLowerCase().replaceAll("_", " ");
 }
 
-function formatTexasDateTime(value: string | null) {
-  if (!value) return "—";
-
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: TEXAS_TIME_ZONE,
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  }).format(new Date(value));
-}
-
 function collectDescendants(
   childrenByParent: Map<string | null, TeamGroup[]>,
   rootId: string
@@ -186,35 +170,75 @@ function collectDescendants(
 
 function PeoplePage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [
     searchParams,
-    setSearchParams,
   ] = useSearchParams();
-  const requestedPersonId =
-    searchParams.get(
-      "personId"
-    );
 
   const [people, setPeople] = useState<Person[]>([]);
   const [options, setOptions] = useState<PeopleOptions | null>(null);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
 
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("ALL");
-  const [creatorFilter, setCreatorFilter] = useState("ALL");
+  const [search, setSearch] =
+    useState(
+      () =>
+        searchParams.get(
+          "search"
+        ) ?? ""
+    );
+
+  const [roleFilter, setRoleFilter] =
+    useState(
+      () =>
+        searchParams.get(
+          "role"
+        ) ?? "ALL"
+    );
+
+  const [creatorFilter, setCreatorFilter] =
+    useState(
+      () =>
+        searchParams.get(
+          "creator"
+        ) ?? "ALL"
+    );
   const [statusFilter, setStatusFilter] = useNavigationFilter<"ALL" | PersonStatus>(
     "status",
     ["ALL", "ACTIVE", "PENDING_SETUP", "DEACTIVATED"],
     "ALL"
   );
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
-  const [collapsedTeamIds, setCollapsedTeamIds] = useState<string[]>([]);
-  const [peoplePage, setPeoplePage] = useState(1);
+  const [selectedTeamId, setSelectedTeamId] =
+    useState<string | null>(
+      () =>
+        searchParams.get(
+          "team"
+        )
+    );
 
-  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [collapsedTeamIds, setCollapsedTeamIds] = useState<string[]>([]);
+
+  const [peoplePage, setPeoplePage] =
+    useState(
+      () => {
+        const parsed =
+          Number(
+            searchParams.get(
+              "page"
+            )
+          );
+
+        return Number.isInteger(
+          parsed
+        ) &&
+          parsed >
+            1
+          ? parsed
+          : 1;
+      }
+    );
+
   const [selectedPersonIds, setSelectedPersonIds] = useState<string[]>([]);
   const headerCheckboxRef = useRef<HTMLInputElement | null>(null);
 
@@ -231,14 +255,6 @@ function PeoplePage() {
   const [existingSelectedIds, setExistingSelectedIds] = useState<string[]>([]);
   const [existingPage, setExistingPage] = useState(1);
 
-  const [showAccessEditor, setShowAccessEditor] = useState(false);
-  const [accessTeamId, setAccessTeamId] = useState("");
-  const [accessRoleIds, setAccessRoleIds] = useState<string[]>([]);
-  const [accessModelIds, setAccessModelIds] = useState<string[]>([]);
-
-  const [actionPerson, setActionPerson] = useState<Person | null>(null);
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const [batchAction, setBatchAction] = useState<BatchAction>(null);
   const [batchTeamId, setBatchTeamId] = useState("");
@@ -287,20 +303,27 @@ function PeoplePage() {
 
   useEffect(() => {
     const handlePeopleChanged = () => {
-      void Promise.all([loadPeople(), loadOptions()])
-        .then(([refreshedPeople]) => {
-          setSelectedPerson((current) => {
-            if (!current) return current;
-            return refreshedPeople.find((person) => person.id === current.id) ?? current;
-          });
-        })
-        .catch((error) => {
-          console.error("Unable to refresh People Management after live update:", error);
-        });
+      void Promise.all([
+        loadPeople(),
+        loadOptions(),
+      ]).catch((error) => {
+        console.error(
+          "Unable to refresh People Management after live update:",
+          error
+        );
+      });
     };
 
-    window.addEventListener(PEOPLE_CHANGED_EVENT, handlePeopleChanged);
-    return () => window.removeEventListener(PEOPLE_CHANGED_EVENT, handlePeopleChanged);
+    window.addEventListener(
+      PEOPLE_CHANGED_EVENT,
+      handlePeopleChanged
+    );
+
+    return () =>
+      window.removeEventListener(
+        PEOPLE_CHANGED_EVENT,
+        handlePeopleChanged
+      );
   }, [loadOptions, loadPeople]);
 
   useEffect(() => {
@@ -392,16 +415,6 @@ function PeoplePage() {
     return null;
   }, [teamById]);
 
-  const selectedPersonTeam = selectedPerson?.teamGroup
-    ? teamById.get(selectedPerson.teamGroup.id) ?? null
-    : null;
-  const selectedPersonTeamColor = selectedPersonTeam
-    ? effectiveTeamColor(selectedPersonTeam)
-    : null;
-
-  const accessTeam = accessTeamId ? teamById.get(accessTeamId) ?? null : null;
-  const accessTeamColor = accessTeam ? effectiveTeamColor(accessTeam) : null;
-
   const assignableRoleIds = useMemo(
     () => new Set(options?.roles.map((role) => role.id) ?? []),
     [options?.roles]
@@ -459,7 +472,21 @@ function PeoplePage() {
     });
   }, [canManagePerson, existingRoleFilter, existingSearch, people, selectedTeam]);
 
+  const peopleFilterResetReadyRef =
+    useRef(
+      false
+    );
+
   useEffect(() => {
+    if (
+      !peopleFilterResetReadyRef.current
+    ) {
+      peopleFilterResetReadyRef.current =
+        true;
+
+      return;
+    }
+
     setPeoplePage(1);
   }, [creatorFilter, roleFilter, search, selectedTeamId, statusFilter]);
 
@@ -532,14 +559,6 @@ function PeoplePage() {
     [options?.models]
   );
 
-  const activeAccessCreatorIds = useMemo(
-    () => activeCreators.map((model) => model.id),
-    [activeCreators]
-  );
-
-  const allActiveCreatorsSelected = activeAccessCreatorIds.length > 0
-    && activeAccessCreatorIds.every((id) => accessModelIds.includes(id));
-
   const filtersActive = Boolean(
     search.trim()
     || roleFilter !== "ALL"
@@ -555,9 +574,6 @@ function PeoplePage() {
   const contextTeam = teamContextMenu
     ? teamById.get(teamContextMenu.teamId) ?? null
     : null;
-
-  const canManageSelected = Boolean(selectedPerson && canManagePerson(selectedPerson));
-  const isSelectedSelf = selectedPerson?.id === user?.id;
 
   function toggleSelection(
     current: string[],
@@ -603,80 +619,95 @@ function PeoplePage() {
     }
   }
 
-  async function openPerson(person: Person) {
-    try {
-      setSelectedPerson(person);
-      setDetailLoading(true);
-      const response = await apiRequest<{ person: Person }>(`/api/people/${person.id}`);
-      setSelectedPerson(response.person);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to load the employee.",
-        "Unable to load profile"
-      );
-    } finally {
-      setDetailLoading(false);
-    }
-  }
+  function buildPeopleListPath() {
+    const params =
+      new URLSearchParams();
 
-  useEffect(() => {
+    const normalizedSearch =
+      search.trim();
+
     if (
-      !requestedPersonId ||
-      loading ||
-      selectedPerson?.id ===
-        requestedPersonId
+      normalizedSearch
     ) {
-      return;
-    }
-
-    const requestedPerson =
-      people.find(
-        (person) =>
-          person.id ===
-          requestedPersonId
-      );
-
-    if (requestedPerson) {
-      void openPerson(
-        requestedPerson
+      params.set(
+        "search",
+        normalizedSearch
       );
     }
-    // This effect intentionally opens a visible employee from the URL.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    requestedPersonId,
-    loading,
-    people,
-    selectedPerson?.id,
-  ]);
 
-  function closePersonProfile() {
-    setSelectedPerson(null);
-
-    if (requestedPersonId) {
-      const nextParams =
-        new URLSearchParams(
-          searchParams
-        );
-      nextParams.delete(
-        "personId"
-      );
-      setSearchParams(
-        nextParams,
-        {
-          replace: true,
-        }
+    if (
+      roleFilter !==
+        "ALL"
+    ) {
+      params.set(
+        "role",
+        roleFilter
       );
     }
+
+    if (
+      creatorFilter !==
+        "ALL"
+    ) {
+      params.set(
+        "creator",
+        creatorFilter
+      );
+    }
+
+    if (
+      statusFilter !==
+        "ALL"
+    ) {
+      params.set(
+        "status",
+        statusFilter
+      );
+    }
+
+    if (
+      selectedTeamId
+    ) {
+      params.set(
+        "team",
+        selectedTeamId
+      );
+    }
+
+    if (
+      peoplePage >
+        1
+    ) {
+      params.set(
+        "page",
+        String(
+          peoplePage
+        )
+      );
+    }
+
+    const query =
+      params.toString();
+
+    return query
+      ? `/people?${query}`
+      : "/people";
   }
 
-  async function refreshPerson(userId: string) {
-    const [response] = await Promise.all([
-      apiRequest<{ person: Person }>(`/api/people/${userId}`),
-      loadPeople(),
-      loadOptions(),
-    ]);
-    setSelectedPerson(response.person);
+  function openPersonPage(
+    person:
+      Person
+  ) {
+    const from =
+      buildPeopleListPath();
+
+    navigate(
+      `/people/${encodeURIComponent(
+        person.id
+      )}?from=${encodeURIComponent(
+        from
+      )}`
+    );
   }
 
   function resetFilters() {
@@ -785,127 +816,6 @@ function PeoplePage() {
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to add employees to the team.", "Team not updated");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function openAccessEditor() {
-    if (!selectedPerson || !canManageSelected) return;
-
-    setAccessTeamId(selectedPerson.teamGroup?.id ?? selectedTeamId ?? defaultTeamId ?? "");
-    setAccessRoleIds(selectedPerson.roles.map((role) => role.id));
-    setAccessModelIds(selectedPerson.models.map((model) => model.id));
-    setShowAccessEditor(true);
-  }
-
-  function toggleAllAccessCreators() {
-    if (allActiveCreatorsSelected) {
-      const inactive = accessModelIds.filter((id) => {
-        const model = options?.models.find((item) => item.id === id);
-        return Boolean(model && !model.isActive);
-      });
-      setAccessModelIds(inactive);
-      return;
-    }
-
-    const inactive = accessModelIds.filter((id) => {
-      const model = options?.models.find((item) => item.id === id);
-      return Boolean(model && !model.isActive);
-    });
-    setAccessModelIds([...new Set([...activeAccessCreatorIds, ...inactive])]);
-  }
-
-  async function saveAccess(event: FormEvent) {
-    event.preventDefault();
-    if (!selectedPerson) return;
-
-    if (!accessTeamId || !accessRoleIds.length) {
-      toast.warning("A team and at least one role are required.", "Check access");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      await apiRequest(`/api/people/${selectedPerson.id}/access`, {
-        method: "PUT",
-        body: JSON.stringify({
-          teamGroupId: accessTeamId,
-          roleIds: accessRoleIds,
-          modelIds: accessModelIds,
-        }),
-      });
-      await refreshPerson(selectedPerson.id);
-      setShowAccessEditor(false);
-      toast.success("Role, creator, and team access were updated.", "Access updated");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to update access.", "Access not updated");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function resendInvite(person: Person) {
-    try {
-      setSaving(true);
-      await apiRequest(`/api/people/${person.id}/resend-invite`, { method: "POST" });
-      if (selectedPerson?.id === person.id) await refreshPerson(person.id);
-      else await loadPeople();
-      toast.success("A fresh invitation was sent.", "Invitation resent");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to resend the invitation.", "Invitation not resent");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function requestConfirmedAction(person: Person, action: Exclude<ConfirmAction, null>) {
-    setActionPerson(person);
-    setConfirmAction(action);
-    setDeleteConfirmation("");
-  }
-
-  async function runConfirmedAction() {
-    if (!actionPerson || !confirmAction) return;
-
-    try {
-      setSaving(true);
-
-      if (confirmAction === "delete") {
-        await apiRequest(`/api/people/${actionPerson.id}`, {
-          method: "DELETE",
-          body: JSON.stringify({ confirmEmail: deleteConfirmation }),
-        });
-        if (selectedPerson?.id === actionPerson.id) closePersonProfile();
-        setSelectedPersonIds((current) => current.filter((id) => id !== actionPerson.id));
-        await Promise.all([loadPeople(), loadOptions()]);
-        toast.success("The account and tied QA history were permanently deleted.", "User deleted");
-      } else {
-        const endpoint = confirmAction === "deactivate"
-          ? "deactivate"
-          : confirmAction === "reactivate"
-            ? "reactivate"
-            : "reset-2fa";
-
-        await apiRequest(`/api/people/${actionPerson.id}/${endpoint}`, { method: "POST" });
-        if (selectedPerson?.id === actionPerson.id) await refreshPerson(actionPerson.id);
-        else await loadPeople();
-
-        toast.success(
-          confirmAction === "deactivate"
-            ? "The user was deactivated and active sessions were revoked."
-            : confirmAction === "reactivate"
-              ? "The user was reactivated."
-              : "Two-factor authentication was reset and existing sessions were revoked.",
-          "People Management updated"
-        );
-      }
-
-      setConfirmAction(null);
-      setActionPerson(null);
-      setDeleteConfirmation("");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to complete the action.", "Action failed");
     } finally {
       setSaving(false);
     }
@@ -1133,7 +1043,7 @@ function PeoplePage() {
                   toggleTeamCollapsed(team.id);
                 }}
               >
-                ▾
+                â–¾
               </button>
             ) : (
               <span className="people-org-caret-space" aria-hidden="true" />
@@ -1292,7 +1202,7 @@ function PeoplePage() {
           {pageError && <div className="people-inline-error">{pageError}</div>}
 
           {loading ? (
-            <div className="empty-state"><strong>Loading people…</strong></div>
+            <div className="empty-state"><strong>Loading peopleâ€¦</strong></div>
           ) : filteredPeople.length === 0 ? (
             <div className="empty-state">
               <strong>No matching employees</strong>
@@ -1327,11 +1237,17 @@ function PeoplePage() {
                     className="people-table people-table-row"
                     role="button"
                     tabIndex={0}
-                    onClick={() => { void openPerson(person); }}
+                    onClick={() => {
+                      openPersonPage(
+                        person
+                      );
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        void openPerson(person);
+                        openPersonPage(
+                          person
+                        );
                       }
                     }}
                   >
@@ -1353,11 +1269,11 @@ function PeoplePage() {
               </div>
 
               <div className="people-pagination" aria-label="Employee table pagination">
-                <span>{peopleRangeStart}–{peopleRangeEnd} of {filteredPeople.length}</span>
+                <span>{peopleRangeStart}â€“{peopleRangeEnd} of {filteredPeople.length}</span>
                 <div className="people-pagination-controls">
-                  <button type="button" onClick={() => setPeoplePage((page) => Math.max(1, page - 1))} disabled={peoplePage <= 1} aria-label="Previous employee page">‹</button>
+                  <button type="button" onClick={() => setPeoplePage((page) => Math.max(1, page - 1))} disabled={peoplePage <= 1} aria-label="Previous employee page">â€¹</button>
                   <strong>Page {peoplePage} of {peoplePageCount}</strong>
-                  <button type="button" onClick={() => setPeoplePage((page) => Math.min(peoplePageCount, page + 1))} disabled={peoplePage >= peoplePageCount} aria-label="Next employee page">›</button>
+                  <button type="button" onClick={() => setPeoplePage((page) => Math.min(peoplePageCount, page + 1))} disabled={peoplePage >= peoplePageCount} aria-label="Next employee page">â€º</button>
                 </div>
               </div>
             </div>
@@ -1378,171 +1294,12 @@ function PeoplePage() {
         </div>
       )}
 
-      {selectedPerson && (
-        <div
-          className="people-overlay"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closePersonProfile();
-          }}
-        >
-          <section
-            className={`people-detail-panel${selectedPersonTeamColor ? " team-colored" : ""}`}
-            style={selectedPersonTeamColor ? ({ "--profile-team-accent": selectedPersonTeamColor } as CSSProperties) : undefined}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Employee details"
-          >
-            <div className="people-detail-header people-profile-header">
-              <div className="people-profile-identity">
-                <span className="page-eyebrow">Employee profile</span>
-                <div className="people-profile-title-row">
-                  <h3>{selectedPerson.name}</h3>
-                  <div className="people-profile-role-badges">
-                    {selectedPerson.roles.map((role) => (
-                      <span key={role.id} className="people-profile-role-badge">{role.name}</span>
-                    ))}
-                  </div>
-                </div>
-                <p>{selectedPerson.email}</p>
-              </div>
-
-              <div className="people-profile-header-status" aria-label={`Account status: ${formatStatus(selectedPerson.status)}`}>
-                <span className="people-profile-status-label">Account status:</span>
-                <span className={`people-profile-status-pill ${selectedPerson.status.toLowerCase()}`}>
-                  {formatStatus(selectedPerson.status)}
-                </span>
-              </div>
-
-              <button type="button" className="people-close" onClick={() => setSelectedPerson(null)} aria-label="Close profile">×</button>
-            </div>
-
-            {detailLoading ? (
-              <div className="empty-state"><strong>Loading profile…</strong></div>
-            ) : (
-              <div className="people-detail-body">
-                <div className="people-detail-section people-access-section">
-                  <div className="people-detail-section-heading">
-                    <div>
-                      <h4>Roles & creator access</h4>
-                      <p>Current organizational and creator access for this employee.</p>
-                    </div>
-                    <button type="button" className="primary-button people-edit-access" onClick={openAccessEditor} disabled={!canManageSelected}>Edit access</button>
-                  </div>
-
-                  <div className="people-access-grid">
-                    <div className="people-access-team-card">
-                      <span className="people-section-label">Team</span>
-                      <strong className="people-access-value">{selectedPerson.teamGroup?.name ?? "Not assigned"}</strong>
-                    </div>
-                    <div>
-                      <span className="people-section-label">Roles</span>
-                      <div className="people-chip-list">
-                        {selectedPerson.roles.map((role) => (
-                          <span key={role.id} className="people-chip">{role.name} · {formatDataScope(role.dataScope)}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="people-section-label">Creators</span>
-                      <div className="people-chip-list">
-                        {selectedPerson.models.length
-                          ? selectedPerson.models.map((model) => <span key={model.id} className="people-chip">{model.name}</span>)
-                          : <span className="people-empty-inline">No creator assignments</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {!canManageSelected && (
-                  <p className="people-scope-note">
-                    {isSelectedSelf
-                      ? "Your own role and creator assignments cannot be changed from People Management."
-                      : "This profile is visible to you, but one or more assignments are outside the access you may change."}
-                  </p>
-                )}
-
-                <PeopleQaPanel
-                  personId={selectedPerson.id}
-                />
-
-                <div className="people-detail-section">
-                  <div className="people-detail-section-heading">
-                    <div><h4>Account access</h4><p>Security and sign-in controls for this employee account.</p></div>
-                  </div>
-
-                  <div className="people-account-action-stack">
-                    {selectedPerson.status === "PENDING_SETUP" && (
-                      <div className="people-account-action-card">
-                        <div><strong>Invitation pending</strong><span>Send a fresh invitation if the original email was missed or expired.</span></div>
-                        <button type="button" className="secondary-button" onClick={() => { void resendInvite(selectedPerson); }} disabled={saving || !canManageSelected || !options?.capabilities.invitesAvailable}>Resend invitation</button>
-                      </div>
-                    )}
-
-                    {options?.capabilities.canResetTwoFactor && (
-                      <div className="people-account-action-card">
-                        <div><strong>Reset two-factor authentication</strong><span>Use this if the employee can no longer complete verification.</span></div>
-                        <button type="button" className="secondary-button" onClick={() => requestConfirmedAction(selectedPerson, "reset-2fa")} disabled={saving}>Reset 2FA</button>
-                      </div>
-                    )}
-
-                    {selectedPerson.status === "DEACTIVATED" && options?.capabilities.isOwner && (
-                      <div className="people-account-action-card restore">
-                        <div><strong>Reactivate account</strong><span>Restores sign-in access. Previously revoked sessions stay revoked.</span></div>
-                        <button type="button" className="primary-button" onClick={() => requestConfirmedAction(selectedPerson, "reactivate")} disabled={saving}>Reactivate account</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {options?.capabilities.isOwner && selectedPerson.id !== user?.id && (
-                  <div className="people-detail-section people-danger-zone">
-                    <div className="people-detail-section-heading">
-                      <div>
-                        <h4>Owner-only danger zone</h4>
-                        <p>Only Owners can deactivate or permanently delete people. These actions cannot be granted through Role Settings.</p>
-                      </div>
-                    </div>
-
-                    {selectedPerson.status === "ACTIVE" && options.capabilities.canDeactivate && (
-                      <div className="people-danger-action">
-                        <div>
-                          <strong>Deactivate account</strong>
-                          <span>Immediately blocks sign-in and revokes active sessions while preserving assignments and history.</span>
-                        </div>
-                        <button type="button" className="danger-button" onClick={() => requestConfirmedAction(selectedPerson, "deactivate")} disabled={saving || !canManageSelected}>Deactivate account</button>
-                      </div>
-                    )}
-
-                    {options.capabilities.canDelete && (
-                      <div className="people-danger-action">
-                        <div>
-                          <strong>Permanently delete account</strong>
-                          <span>Deletes the account and tied QA history. This cannot be undone and requires the account email as confirmation.</span>
-                        </div>
-                        <button type="button" className="danger-button" onClick={() => requestConfirmedAction(selectedPerson, "delete")} disabled={saving}>Permanently delete</button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="people-profile-facts-bottom">
-                  <div><span>Created</span><strong>{formatTexasDateTime(selectedPerson.createdAt)}</strong></div>
-                  <div><span>Email verified</span><strong>{selectedPerson.emailVerifiedAt ? formatTexasDateTime(selectedPerson.emailVerifiedAt) : "Not verified"}</strong></div>
-                  <div><span>Last sign-in</span><strong>{formatTexasDateTime(selectedPerson.security?.lastSignInAt ?? null)}</strong></div>
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
-      )}
-
       {showAddExisting && selectedTeam && !selectedTeam.isRoot && (
         <div className="people-overlay">
           <section className="people-existing-picker" role="dialog" aria-modal="true" aria-label={`Add employees to ${selectedTeam.name}`}>
             <div className="people-modal-header">
               <div><span className="page-eyebrow">Existing employees</span><h3>Add employee to {selectedTeam.name}</h3></div>
-              <button type="button" className="people-close" onClick={() => setShowAddExisting(false)}>×</button>
+              <button type="button" className="people-close" onClick={() => setShowAddExisting(false)}>Ã—</button>
             </div>
 
             <div className="people-existing-toolbar">
@@ -1573,11 +1330,11 @@ function PeoplePage() {
               </div>
 
               <div className="people-pagination" aria-label="Existing employee pagination">
-                <span>{existingRangeStart}–{existingRangeEnd} of {existingCandidates.length}</span>
+                <span>{existingRangeStart}â€“{existingRangeEnd} of {existingCandidates.length}</span>
                 <div className="people-pagination-controls">
-                  <button type="button" onClick={() => setExistingPage((page) => Math.max(1, page - 1))} disabled={existingPage <= 1} aria-label="Previous existing employee page">‹</button>
+                  <button type="button" onClick={() => setExistingPage((page) => Math.max(1, page - 1))} disabled={existingPage <= 1} aria-label="Previous existing employee page">â€¹</button>
                   <strong>Page {existingPage} of {existingPageCount}</strong>
-                  <button type="button" onClick={() => setExistingPage((page) => Math.min(existingPageCount, page + 1))} disabled={existingPage >= existingPageCount} aria-label="Next existing employee page">›</button>
+                  <button type="button" onClick={() => setExistingPage((page) => Math.min(existingPageCount, page + 1))} disabled={existingPage >= existingPageCount} aria-label="Next existing employee page">â€º</button>
                 </div>
               </div>
             </div>
@@ -1585,7 +1342,7 @@ function PeoplePage() {
             <div className="people-modal-footer">
               <button type="button" className="secondary-button" onClick={() => setShowAddExisting(false)} disabled={saving}>Cancel</button>
               <button type="button" className="primary-button" onClick={() => { void addExistingEmployees(); }} disabled={saving || !existingSelectedIds.length}>
-                {saving ? "Adding…" : `Add selected${existingSelectedIds.length ? ` (${existingSelectedIds.length})` : ""}`}
+                {saving ? "Addingâ€¦" : `Add selected${existingSelectedIds.length ? ` (${existingSelectedIds.length})` : ""}`}
               </button>
             </div>
           </section>
@@ -1597,7 +1354,7 @@ function PeoplePage() {
           <form className="people-form-modal" onSubmit={submitInvite}>
             <div className="people-modal-header">
               <div><span className="page-eyebrow">New account</span><h3>Invite person</h3></div>
-              <button type="button" className="people-close" onClick={() => setShowInvite(false)} aria-label="Close invitation">×</button>
+              <button type="button" className="people-close" onClick={() => setShowInvite(false)} aria-label="Close invitation">Ã—</button>
             </div>
             <div className="people-form-body">
               <label className="form-field"><span>Name</span><input value={inviteName} onChange={(event) => setInviteName(event.target.value)} autoFocus /></label>
@@ -1608,7 +1365,7 @@ function PeoplePage() {
                   <select value={inviteTeamId} onChange={(event) => setInviteTeamId(event.target.value)}>
                     {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
                   </select>
-                  <span className="people-select-caret" aria-hidden="true">▾</span>
+                  <span className="people-select-caret" aria-hidden="true">â–¾</span>
                 </div>
               </label>
 
@@ -1634,55 +1391,8 @@ function PeoplePage() {
             </div>
             <div className="people-modal-footer">
               <button type="button" className="secondary-button" onClick={() => setShowInvite(false)} disabled={saving}>Cancel</button>
-              <button type="submit" className="primary-button" disabled={saving}>{saving ? "Sending…" : "Send invitation"}</button>
+              <button type="submit" className="primary-button" disabled={saving}>{saving ? "Sendingâ€¦" : "Send invitation"}</button>
             </div>
-          </form>
-        </div>
-      )}
-
-      {showAccessEditor && selectedPerson && (
-        <div className="people-overlay">
-          <form className="people-form-modal" onSubmit={saveAccess}>
-            <div className="people-modal-header">
-              <div><span className="page-eyebrow">Access control</span><h3>Edit {selectedPerson.name}</h3></div>
-              <button type="button" className="people-close" onClick={() => setShowAccessEditor(false)} aria-label="Close access editor">×</button>
-            </div>
-            <div className="people-form-body">
-              <label className="form-field people-team-select-field">
-                <span>Team</span>
-                <div
-                  className="people-select-shell team-accented"
-                  style={{ "--team-select-accent": accessTeamColor ?? "var(--accent)" } as CSSProperties}
-                >
-                  <select value={accessTeamId} onChange={(event) => setAccessTeamId(event.target.value)}>
-                    {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
-                  </select>
-                  <span className="people-select-caret" aria-hidden="true">▾</span>
-                </div>
-              </label>
-              <div className="people-option-section">
-                <span className="people-section-label">Roles</span>
-                <div className="people-option-grid">{options?.roles.map((role) => (
-                  <label key={role.id} className="people-check-option">
-                    <input type="checkbox" checked={accessRoleIds.includes(role.id)} onChange={() => toggleSelection(accessRoleIds, role.id, setAccessRoleIds)} />
-                    <span><strong>{role.name}</strong><small>{formatDataScope(role.dataScope)}</small></span>
-                  </label>
-                ))}</div>
-              </div>
-              <div className="people-option-section">
-                <div className="people-option-heading"><div><span className="people-section-label">Creators</span><small>{accessModelIds.length} selected</small></div><button type="button" className="text-button" onClick={toggleAllAccessCreators}>{allActiveCreatorsSelected ? "Clear active creators" : "Select all creators"}</button></div>
-                <div className="people-option-grid">{options?.models.map((model) => {
-                  const checked = accessModelIds.includes(model.id);
-                  return (
-                    <label key={model.id} className="people-check-option">
-                      <input type="checkbox" checked={checked} disabled={!model.isActive && !checked} onChange={() => toggleSelection(accessModelIds, model.id, setAccessModelIds)} />
-                      <span><strong>{model.name}</strong><small>{model.isActive ? "Active creator" : "Inactive creator · existing assignment"}</small></span>
-                    </label>
-                  );
-                })}</div>
-              </div>
-            </div>
-            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => setShowAccessEditor(false)} disabled={saving}>Cancel</button><button type="submit" className="primary-button" disabled={saving}>{saving ? "Saving…" : "Save access"}</button></div>
           </form>
         </div>
       )}
@@ -1690,7 +1400,7 @@ function PeoplePage() {
       {batchAction && (
         <div className="people-overlay">
           <section className="people-confirm-modal">
-            <div className="people-modal-header"><div><span className="page-eyebrow">Batch action</span><h3>{batchAction === "team" ? "Change team" : "Change role"}</h3></div><button type="button" className="people-close" onClick={() => setBatchAction(null)}>×</button></div>
+            <div className="people-modal-header"><div><span className="page-eyebrow">Batch action</span><h3>{batchAction === "team" ? "Change team" : "Change role"}</h3></div><button type="button" className="people-close" onClick={() => setBatchAction(null)}>Ã—</button></div>
             <div className="people-confirm-body">
               <p>This will update <strong>{selectedManageablePeople.length}</strong> selected employee{selectedManageablePeople.length === 1 ? "" : "s"}.</p>
               {batchAction === "team" ? (
@@ -1700,14 +1410,14 @@ function PeoplePage() {
                     <select value={batchTeamId} onChange={(event) => setBatchTeamId(event.target.value)}>
                       {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
                     </select>
-                    <span className="people-select-caret" aria-hidden="true">▾</span>
+                    <span className="people-select-caret" aria-hidden="true">â–¾</span>
                   </div>
                 </label>
               ) : (
                 <label className="form-field"><span>New role</span><select value={batchRoleId} onChange={(event) => setBatchRoleId(event.target.value)}>{options?.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
               )}
             </div>
-            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => setBatchAction(null)} disabled={saving}>Cancel</button><button type="button" className="primary-button" onClick={() => { void runBatchAction(); }} disabled={saving}>{saving ? "Updating…" : "Apply change"}</button></div>
+            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => setBatchAction(null)} disabled={saving}>Cancel</button><button type="button" className="primary-button" onClick={() => { void runBatchAction(); }} disabled={saving}>{saving ? "Updatingâ€¦" : "Apply change"}</button></div>
           </section>
         </div>
       )}
@@ -1715,7 +1425,7 @@ function PeoplePage() {
       {teamModalAction && teamActionTarget && (
         <div className="people-overlay">
           <form className="people-confirm-modal" onSubmit={submitTeamMutation}>
-            <div className="people-modal-header"><div><span className="page-eyebrow">Organization</span><h3>{teamModalAction === "create" ? (teamActionTarget.isRoot ? "Add team" : "Add subteam") : teamModalAction === "rename" ? "Rename team" : "Delete team"}</h3></div><button type="button" className="people-close" onClick={() => setTeamModalAction(null)}>×</button></div>
+            <div className="people-modal-header"><div><span className="page-eyebrow">Organization</span><h3>{teamModalAction === "create" ? (teamActionTarget.isRoot ? "Add team" : "Add subteam") : teamModalAction === "rename" ? "Rename team" : "Delete team"}</h3></div><button type="button" className="people-close" onClick={() => setTeamModalAction(null)}>Ã—</button></div>
             <div className="people-confirm-body">
               {teamModalAction === "delete" ? (
                 <div className="people-confirm-impact delete"><strong>Delete {teamActionTarget.name}?</strong><p>A team can only be deleted when it has no employees and no subteams.</p></div>
@@ -1723,7 +1433,7 @@ function PeoplePage() {
                 <><label className="form-field"><span>Team name</span><input value={teamName} onChange={(event) => setTeamName(event.target.value)} autoFocus /></label>{teamModalAction === "create" && <p>The new team will be created under <strong>{teamActionTarget.name}</strong>.</p>}</>
               )}
             </div>
-            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => setTeamModalAction(null)} disabled={saving}>Cancel</button><button type="submit" className={teamModalAction === "delete" ? "danger-button" : "primary-button"} disabled={saving}>{saving ? "Working…" : teamModalAction === "create" ? "Create team" : teamModalAction === "rename" ? "Save name" : "Delete team"}</button></div>
+            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => setTeamModalAction(null)} disabled={saving}>Cancel</button><button type="submit" className={teamModalAction === "delete" ? "danger-button" : "primary-button"} disabled={saving}>{saving ? "Workingâ€¦" : teamModalAction === "create" ? "Create team" : teamModalAction === "rename" ? "Save name" : "Delete team"}</button></div>
           </form>
         </div>
       )}
@@ -1731,29 +1441,17 @@ function PeoplePage() {
       {showColorModal && teamActionTarget && (
         <div className="people-overlay">
           <form className="people-confirm-modal" onSubmit={saveTeamColor}>
-            <div className="people-modal-header"><div><span className="page-eyebrow">Team appearance</span><h3>Color for {teamActionTarget.name}</h3></div><button type="button" className="people-close" onClick={() => setShowColorModal(false)}>×</button></div>
+            <div className="people-modal-header"><div><span className="page-eyebrow">Team appearance</span><h3>Color for {teamActionTarget.name}</h3></div><button type="button" className="people-close" onClick={() => setShowColorModal(false)}>Ã—</button></div>
             <div className="people-confirm-body">
               <p>This color identifies the team and appears as its selected-row accent. Subteams inherit it until they receive their own color.</p>
               <div className="people-color-picker-row"><input type="color" value={teamColor} onChange={(event) => setTeamColor(event.target.value.toUpperCase())} /><strong>{teamColor}</strong></div>
               <div className="people-color-presets">{COLOR_PRESETS.map((color) => <button key={color} type="button" className={teamColor === color ? "active" : ""} style={{ background: color }} onClick={() => setTeamColor(color)} aria-label={`Use ${color}`} />)}</div>
             </div>
-            <div className="people-modal-footer"><button type="button" className="text-button" onClick={() => { void clearTeamColor(); }} disabled={saving || !teamActionTarget.color}>Use parent team color</button><button type="button" className="secondary-button" onClick={() => setShowColorModal(false)} disabled={saving}>Cancel</button><button type="submit" className="primary-button" disabled={saving}>{saving ? "Saving…" : "Save color"}</button></div>
+            <div className="people-modal-footer"><button type="button" className="text-button" onClick={() => { void clearTeamColor(); }} disabled={saving || !teamActionTarget.color}>Use parent team color</button><button type="button" className="secondary-button" onClick={() => setShowColorModal(false)} disabled={saving}>Cancel</button><button type="submit" className="primary-button" disabled={saving}>{saving ? "Savingâ€¦" : "Save color"}</button></div>
           </form>
         </div>
       )}
 
-      {confirmAction && actionPerson && (
-        <div className="people-overlay">
-          <section className="people-confirm-modal">
-            <div className="people-modal-header"><div><span className="page-eyebrow">Account action</span><h3>{confirmAction === "delete" ? `Permanently delete ${actionPerson.name}?` : confirmAction === "deactivate" ? `Deactivate ${actionPerson.name}?` : confirmAction === "reactivate" ? `Reactivate ${actionPerson.name}?` : `Reset 2FA for ${actionPerson.name}?`}</h3></div></div>
-            <div className="people-confirm-body">
-              <div className={`people-confirm-impact ${confirmAction}`}><strong>{confirmAction === "delete" ? "This action cannot be undone." : "Confirm this account change."}</strong><p>{confirmAction === "delete" ? "The account identity, authentication records, linked chatter profile, and tied QA history will be permanently removed." : "This action changes the employee's ability to sign in or complete verification."}</p></div>
-              {confirmAction === "delete" && <label className="form-field"><span>Type {actionPerson.email} to confirm</span><input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoFocus /></label>}
-            </div>
-            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => { setConfirmAction(null); setActionPerson(null); setDeleteConfirmation(""); }} disabled={saving}>Cancel</button><button type="button" className={confirmAction === "delete" || confirmAction === "deactivate" ? "danger-button" : "primary-button"} onClick={() => { void runConfirmedAction(); }} disabled={saving || (confirmAction === "delete" && deleteConfirmation.trim().toLowerCase() !== actionPerson.email.toLowerCase())}>{saving ? "Working…" : confirmAction === "delete" ? "Permanently delete" : confirmAction === "deactivate" ? "Deactivate account" : confirmAction === "reactivate" ? "Reactivate account" : "Reset 2FA"}</button></div>
-          </section>
-        </div>
-      )}
     </div>
   );
 }

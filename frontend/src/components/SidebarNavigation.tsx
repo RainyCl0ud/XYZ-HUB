@@ -127,6 +127,13 @@ function NavigationLink({
   const active =
     paths.includes(
       pathname
+    ) ||
+    (
+      item.to ===
+        "/people" &&
+      pathname.startsWith(
+        "/people/"
+      )
     );
 
   return (

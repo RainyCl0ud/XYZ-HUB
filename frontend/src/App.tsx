@@ -28,6 +28,7 @@ import ChatterDetailPage from "./pages/ChatterDetailPage";
 import ConfigurationPage from "./pages/ConfigurationPage";
 import StrikesPage from "./pages/StrikesPage";
 import PeoplePage from "./pages/PeoplePage";
+import PeopleDetailPage from "./pages/PeopleDetailPage";
 import ModelsPage from "./pages/ModelsPage";
 import RoleBuilderPage from "./pages/RoleSettingsPage";
 import AuditPage from "./pages/AuditPage";
@@ -181,6 +182,15 @@ function App() {
             element={
               <RequirePermission permission="people.manage">
                 <PeoplePage />
+              </RequirePermission>
+            }
+          />
+
+          <Route
+            path="/people/:personId"
+            element={
+              <RequirePermission permission="people.manage">
+                <PeopleDetailPage />
               </RequirePermission>
             }
           />

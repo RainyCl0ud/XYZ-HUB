@@ -302,13 +302,20 @@ function AppLayout() {
       "/chatters/"
     );
 
+  const isPeopleDetailPage =
+    location.pathname.startsWith(
+      "/people/"
+    );
+
   const pageTitle =
     isChatterDetailPage
       ? "Chatter QA"
-      : PAGE_TITLES[
-          location.pathname
-        ] ??
-        "XYZ Management";
+      : isPeopleDetailPage
+        ? "Employee Profile"
+        : PAGE_TITLES[
+            location.pathname
+          ] ??
+          "XYZ Management";
 
   const isQaPage =
     QA_PATHS.has(

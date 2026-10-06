@@ -35,6 +35,7 @@ export default defineConfig([
       'src/pages/IncidentsPage.tsx',
       'src/pages/ModelsPage.tsx',
       'src/pages/PeoplePage.tsx',
+      'src/pages/PeopleDetailPage.tsx',
       'src/pages/RoleBuilderPage.tsx',
       'src/pages/RulesPage.tsx',
     ],

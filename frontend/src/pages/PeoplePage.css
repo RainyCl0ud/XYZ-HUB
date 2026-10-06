@@ -1696,3 +1696,40 @@
     padding: 0 6px;
   }
 }
+
+
+/* Dedicated employee profile route. */
+.people-profile-page {
+  display: grid;
+  gap: 16px;
+}
+
+.people-profile-page-back {
+  width: fit-content;
+}
+
+.people-profile-page .people-detail-panel {
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+}
+
+.people-profile-page .people-detail-body {
+  max-height: none;
+  overflow: visible;
+}
+
+.people-profile-page .people-detail-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.people-profile-route-error {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 620px) {
+  .people-profile-page {
+    gap: 12px;
+  }
+}
