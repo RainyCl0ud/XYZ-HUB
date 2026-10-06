@@ -54,7 +54,6 @@ type AccessModelsResponse = {
 
 const QA_PATHS =
   new Set([
-    "/quality",
     "/incidents",
     "/chatters",
     "/rules",
@@ -68,8 +67,6 @@ const PAGE_TITLES:
   > = {
   "/":
     "Dashboard",
-  "/quality":
-    "Quality & Incidents",
   "/incidents":
     "Incidents",
   "/chatters":

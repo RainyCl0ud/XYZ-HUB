@@ -20,7 +20,6 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import InviteSetupPage from "./pages/InviteSetupPage";
 
 import DashboardPage from "./pages/DashboardPage";
-import QaOverviewPage from "./pages/QaOverviewPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import RulesPage from "./pages/RulesPage";
 import ChattersPage from "./pages/ChattersPage";
@@ -92,9 +91,10 @@ function App() {
           <Route
             path="/quality"
             element={
-              <RequirePortalModule module="qa">
-                <QaOverviewPage />
-              </RequirePortalModule>
+              <Navigate
+                to="/incidents"
+                replace
+              />
             }
           />
 

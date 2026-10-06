@@ -34,10 +34,6 @@ const QA_CORE_ITEMS: Array<{
   to: string;
 }> = [
   {
-    label: "Overview",
-    to: "/quality",
-  },
-  {
     label: "Incidents",
     to: "/incidents",
   },
