@@ -116,7 +116,7 @@ export default function PeopleQaPanel({
             setError(
               loadError instanceof Error
                 ? loadError.message
-                : "Unable to load QA standing."
+                : "Unable to load disciplinary standing."
             );
           }
         } finally {
@@ -143,7 +143,7 @@ export default function PeopleQaPanel({
       <div className="people-detail-section-heading">
         <div>
           <span className="people-section-label">
-            QA standing
+            Disciplinary standing
           </span>
           <h4>
             Current Standing
@@ -153,7 +153,7 @@ export default function PeopleQaPanel({
 
       {loading ? (
         <div className="people-qa-empty">
-          Loading QA standing…
+          Loading disciplinary standing…
         </div>
       ) : error ? (
         <div className="people-inline-error">

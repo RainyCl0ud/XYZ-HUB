@@ -244,7 +244,7 @@ export default function QaProfileModal({
               </div>
 
               <p>
-                QA profile and incident history
+                QA history and disciplinary standing
               </p>
             </div>
           </div>
@@ -276,7 +276,7 @@ export default function QaProfileModal({
                 <div className="chatter-profile-section-heading">
                   <div>
                     <span>
-                      Strike Standing
+                      Disciplinary Standing
                     </span>
                     <h4>
                       Current Standing
