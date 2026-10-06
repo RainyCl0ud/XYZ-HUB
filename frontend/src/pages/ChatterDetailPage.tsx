@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -425,7 +425,7 @@ function ChatterDetailPage() {
       "/incidents"
     )
       ? "← Back to Incidents"
-      : "{getReturnLabel()}";
+      : "← Back to Chatters";
   }
 
   const loadDetails =
