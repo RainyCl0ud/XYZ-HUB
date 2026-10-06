@@ -293,6 +293,16 @@ function StrikesPage() {
       0
     );
 
+  /*
+   * React state disables the button after render.
+   * This ref locks immediately so rapid repeated clicks
+   * cannot dispatch more than one Strike POST.
+   */
+  const issueSubmissionInFlightRef =
+    useRef(
+      false
+    );
+
   const reasonManagerRequestIdRef =
     useRef(
       0
@@ -454,6 +464,14 @@ function StrikesPage() {
   const [
     issuing,
     setIssuing,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    issueConfirmationOpen,
+    setIssueConfirmationOpen,
   ] =
     useState(
       false
@@ -911,6 +929,11 @@ function StrikesPage() {
     setIssueSourceIncidentId(
       null
     );
+
+    setIssueConfirmationOpen(
+      false
+    );
+
     setIssuePreview(
       null
     );
@@ -1085,6 +1108,22 @@ function StrikesPage() {
     );
 
     resetIssueForm();
+  }
+
+  function returnToIssueForm() {
+    if (
+      issuing
+    ) {
+      return;
+    }
+
+    setIssueConfirmationOpen(
+      false
+    );
+
+    setIssueError(
+      ""
+    );
   }
 
   async function handleIssueUserChange(
@@ -1417,7 +1456,7 @@ function StrikesPage() {
     ]
   );
 
-  async function submitStrike(
+  function reviewStrike(
     event:
       FormEvent
   ) {
@@ -1443,11 +1482,98 @@ function StrikesPage() {
         issueUserId
     ) {
       setIssueError(
-        "Wait for the current employee's Strike consequence preview before issuing."
+        "Wait for the current employee's Strike consequence preview before continuing."
       );
 
       return;
     }
+
+    const reasonStillAvailable =
+      reasons.some(
+        (
+          reason
+        ) =>
+          reason.id ===
+            issueReasonId &&
+          reason.isActive
+      );
+
+    if (
+      !reasonStillAvailable
+    ) {
+      setIssueError(
+        "The selected Strike reason is no longer available. Please choose another reason."
+      );
+
+      return;
+    }
+
+    setIssueError(
+      ""
+    );
+
+    setIssueConfirmationOpen(
+      true
+    );
+  }
+
+  async function confirmIssueStrike() {
+    /*
+     * Lock before the first await. This prevents two rapid
+     * confirmation clicks from creating duplicate POSTs.
+     */
+    if (
+      issueSubmissionInFlightRef.current ||
+      issuing
+    ) {
+      return;
+    }
+
+    if (
+      !issueUserId ||
+      !issueReasonId ||
+      !issueDetails.trim() ||
+      !issuePreview ||
+      issuePreview.user.id !==
+        issueUserId
+    ) {
+      setIssueConfirmationOpen(
+        false
+      );
+
+      setIssueError(
+        "The Strike form changed or is incomplete. Review it again before issuing."
+      );
+
+      return;
+    }
+
+    const reasonStillAvailable =
+      reasons.some(
+        (
+          reason
+        ) =>
+          reason.id ===
+            issueReasonId &&
+          reason.isActive
+      );
+
+    if (
+      !reasonStillAvailable
+    ) {
+      setIssueConfirmationOpen(
+        false
+      );
+
+      setIssueError(
+        "The selected Strike reason is no longer available. Please choose another reason."
+      );
+
+      return;
+    }
+
+    issueSubmissionInFlightRef.current =
+      true;
 
     setIssuing(
       true
@@ -1503,6 +1629,10 @@ function StrikesPage() {
         ]
       );
 
+      setIssueConfirmationOpen(
+        false
+      );
+
       setIssueOpen(
         false
       );
@@ -1530,6 +1660,9 @@ function StrikesPage() {
         "Strike was not issued"
       );
     } finally {
+      issueSubmissionInFlightRef.current =
+        false;
+
       setIssuing(
         false
       );
@@ -2101,6 +2234,15 @@ function StrikesPage() {
       ) =>
         employee.id ===
         issueUserId
+    ) ?? null;
+
+  const selectedIssueReason =
+    reasons.find(
+      (
+        reason
+      ) =>
+        reason.id ===
+        issueReasonId
     ) ?? null;
 
   return (
@@ -3263,7 +3405,7 @@ function StrikesPage() {
             aria-modal="true"
             aria-labelledby="strike-issue-title"
             onSubmit={
-              submitStrike
+              reviewStrike
             }
           >
             <div className="strikes-modal-header">
@@ -3273,13 +3415,17 @@ function StrikesPage() {
                 </span>
 
                 <h3 id="strike-issue-title">
-                  Issue Strike
+                  {issueConfirmationOpen
+                    ? "Final confirmation"
+                    : "Issue Strike"}
                 </h3>
 
                 <p>
-                  {issueSourceIncidentId
-                    ? "Review the QA-linked disciplinary action and resulting standing before confirming."
-                    : "Review the resulting standing before confirming."}
+                  {issueConfirmationOpen
+                    ? "Review the exact disciplinary consequence before this Strike is recorded."
+                    : issueSourceIncidentId
+                      ? "Review the QA-linked disciplinary action and resulting standing before confirming."
+                      : "Review the resulting standing before confirming."}
                 </p>
               </div>
 
@@ -3291,7 +3437,9 @@ function StrikesPage() {
                   issuing
                 }
                 onClick={
-                  closeIssueModal
+                  issueConfirmationOpen
+                    ? returnToIssueForm
+                    : closeIssueModal
                 }
               >
                 ×
@@ -3299,6 +3447,135 @@ function StrikesPage() {
             </div>
 
             <div className="strikes-modal-body">
+              {issueConfirmationOpen ? (
+                <>
+                  <div className="strikes-warning-box">
+                    <strong>
+                      Final confirmation required
+                    </strong>
+
+                    <span>
+                      No Strike has been issued yet. Verify these details before recording this disciplinary action.
+                    </span>
+                  </div>
+
+                  <div className="strikes-detail-grid">
+                    <div>
+                      <span>
+                        Employee
+                      </span>
+
+                      <strong>
+                        {selectedIssueEmployee?.name ??
+                          issuePreview?.user.name ??
+                          "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Strike reason
+                      </span>
+
+                      <strong>
+                        {selectedIssueReason?.name ??
+                          "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Resulting standing
+                      </span>
+
+                      <strong>
+                        {issuePreview?.standingLabel ??
+                          "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Commission deduction
+                      </span>
+
+                      <strong>
+                        {issuePreview
+                          ? `${issuePreview.deductionPercent}%`
+                          : "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Active Strikes after issue
+                      </span>
+
+                      <strong>
+                        {issuePreview
+                          ?.activeStrikeCountAfterIssue ??
+                          "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Expires
+                      </span>
+
+                      <strong>
+                        {issuePreview
+                          ? formatCentralDateTime(
+                              issuePreview.expiresAt
+                            )
+                          : "—"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {issueSourceIncidentId && (
+                    <div className="strikes-detail-section">
+                      <span>
+                        Source QA incident
+                      </span>
+
+                      <p>
+                        {issueSourceIncidentId}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="strikes-detail-section">
+                    <span>
+                      Strike details
+                    </span>
+
+                    <p>
+                      {issueDetails.trim()}
+                    </p>
+                  </div>
+
+                  {!issueSourceIncidentId &&
+                    issueEvidenceUrl.trim() && (
+                    <div className="strikes-detail-section">
+                      <span>
+                        Evidence
+                      </span>
+
+                      <p>
+                        {issueEvidenceUrl.trim()}
+                      </p>
+                    </div>
+                  )}
+
+                  {issueError && (
+                    <div className="strikes-inline-error">
+                      {issueError}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
               {issueDataLoading ? (
                 <div className="empty-state">
                   <strong>
@@ -3573,9 +3850,44 @@ function StrikesPage() {
                   )}
                 </>
               )}
+
+                </>
+              )}
             </div>
 
             <div className="strikes-modal-footer">
+              {issueConfirmationOpen ? (
+                <>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={
+                      returnToIssueForm
+                    }
+                    disabled={
+                      issuing
+                    }
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={() => {
+                      void confirmIssueStrike();
+                    }}
+                    disabled={
+                      issuing
+                    }
+                  >
+                    {issuing
+                      ? "Issuing…"
+                      : "Issue Strike"}
+                  </button>
+                </>
+              ) : (
+                <>
               <button
                 type="button"
                 className="secondary-button"
@@ -3604,10 +3916,11 @@ function StrikesPage() {
                     issueUserId
                 }
               >
-                {issuing
-                  ? "Issuing…"
-                  : "Confirm & issue Strike"}
+                Review & confirm
               </button>
+
+                </>
+              )}
             </div>
           </form>
         </div>
