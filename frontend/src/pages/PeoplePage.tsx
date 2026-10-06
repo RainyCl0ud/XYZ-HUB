@@ -174,6 +174,7 @@ function PeoplePage() {
   const { user } = useAuth();
   const [
     searchParams,
+    setSearchParams,
   ] = useSearchParams();
 
   const [people, setPeople] = useState<Person[]>([]);
@@ -500,6 +501,110 @@ function PeoplePage() {
   useEffect(() => {
     setPeoplePage((current) => Math.min(current, peoplePageCount));
   }, [peoplePageCount]);
+
+  useEffect(() => {
+    setSearchParams(
+      (current) => {
+        const updated =
+          new URLSearchParams(
+            current
+          );
+
+        const normalizedSearch =
+          search.trim();
+
+        if (
+          normalizedSearch
+        ) {
+          updated.set(
+            "search",
+            normalizedSearch
+          );
+        } else {
+          updated.delete(
+            "search"
+          );
+        }
+
+        if (
+          roleFilter !==
+            "ALL"
+        ) {
+          updated.set(
+            "role",
+            roleFilter
+          );
+        } else {
+          updated.delete(
+            "role"
+          );
+        }
+
+        if (
+          creatorFilter !==
+            "ALL"
+        ) {
+          updated.set(
+            "creator",
+            creatorFilter
+          );
+        } else {
+          updated.delete(
+            "creator"
+          );
+        }
+
+        if (
+          selectedTeamId
+        ) {
+          updated.set(
+            "team",
+            selectedTeamId
+          );
+        } else {
+          updated.delete(
+            "team"
+          );
+        }
+
+        if (
+          peoplePage >
+            1
+        ) {
+          updated.set(
+            "page",
+            String(
+              peoplePage
+            )
+          );
+        } else {
+          updated.delete(
+            "page"
+          );
+        }
+
+        updated.delete(
+          "personId"
+        );
+
+        return updated.toString() ===
+          current.toString()
+          ? current
+          : updated;
+      },
+      {
+        replace:
+          true,
+      }
+    );
+  }, [
+    creatorFilter,
+    peoplePage,
+    roleFilter,
+    search,
+    selectedTeamId,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
     setExistingPage((current) => Math.min(current, existingPageCount));

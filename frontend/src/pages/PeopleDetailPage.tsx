@@ -921,7 +921,11 @@ function PeopleDetailPage() {
 
   function goBack() {
     navigate(
-      returnPath
+      returnPath,
+      {
+        replace:
+          true,
+      }
     );
   }
 
