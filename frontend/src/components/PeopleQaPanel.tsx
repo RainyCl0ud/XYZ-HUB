@@ -15,6 +15,12 @@ import {
   formatCentralDateTime,
 } from "../lib/time";
 
+
+type PeopleRecordView =
+  | "qa"
+  | "strikes";
+
+
 type StrikeHistoryRecord = {
   id: string;
   status:
@@ -30,113 +36,265 @@ type StrikeHistoryRecord = {
   sourceIncidentId: string | null;
 };
 
+
 type DisciplinaryHistory = {
-  records: StrikeHistoryRecord[];
+  records:
+    StrikeHistoryRecord[];
   total: number;
   page: number;
   pageSize: number;
   pageCount: number;
 };
 
+
 type QaSummary = {
   chatter: {
     id: string;
     name: string;
-    status: "ACTIVE" | "INACTIVE";
+    status:
+      | "ACTIVE"
+      | "INACTIVE";
   };
+
   strikeSummary: {
     activeStrikeCount: number;
     standingLabel: string;
     deductionPercent: number;
-    nextExpiryAt: string | null;
+    nextExpiryAt:
+      string |
+      null;
     ladderVersionId: string;
     ladderVersion: number;
   };
+
   recentIncidents: Array<{
     id: string;
     ruleTitleSnapshot: string;
-    severityNameSnapshot: string | null;
-    weightNameSnapshot: string | null;
-    weightValueSnapshot: number | null;
+    severityNameSnapshot:
+      string |
+      null;
+    weightNameSnapshot:
+      string |
+      null;
+    weightValueSnapshot:
+      number |
+      null;
     occurredAt: string;
-    status: "OPEN" | "RESOLVED" | "VOIDED";
+    status:
+      | "OPEN"
+      | "RESOLVED"
+      | "VOIDED";
   }>;
+
   disciplinaryHistory:
-    DisciplinaryHistory | null;
+    DisciplinaryHistory |
+    null;
+
   totalIncidentCount: number;
   historyPage: number;
   historyPageSize: number;
   historyPageCount: number;
 };
 
+
 type QaSummaryResponse = {
-  qa: QaSummary | null;
+  qa:
+    QaSummary |
+    null;
 };
 
+
 function formatPercent(
-  value: number
+  value:
+    number
 ) {
   return Number.isInteger(
     value
   )
-    ? String(value)
+    ? String(
+        value
+      )
     : value
-        .toFixed(2)
-        .replace(/0+$/, "")
-        .replace(/\.$/, "");
+        .toFixed(
+          2
+        )
+        .replace(
+          /0+$/,
+          ""
+        )
+        .replace(
+          /\.$/,
+          ""
+        );
 }
+
+
+function formatIncidentStatus(
+  status:
+    "OPEN" |
+    "RESOLVED" |
+    "VOIDED"
+) {
+  if (
+    status ===
+      "OPEN"
+  ) {
+    return "Open";
+  }
+
+  if (
+    status ===
+      "RESOLVED"
+  ) {
+    return "Resolved";
+  }
+
+  return "Voided";
+}
+
+
+function formatStrikeStatus(
+  status:
+    "ACTIVE" |
+    "EXPIRED" |
+    "VOIDED"
+) {
+  if (
+    status ===
+      "ACTIVE"
+  ) {
+    return "Active";
+  }
+
+  if (
+    status ===
+      "EXPIRED"
+  ) {
+    return "Expired";
+  }
+
+  return "Voided";
+}
+
 
 export default function PeopleQaPanel({
   personId,
+  view,
 }: {
   personId: string;
+  view:
+    PeopleRecordView;
 }) {
   const navigate =
     useNavigate();
 
-  const [qa, setQa] =
-    useState<QaSummary | null>(
+  const [
+    qa,
+    setQa,
+  ] =
+    useState<
+      QaSummary |
+      null
+    >(
       null
     );
-  const [loading, setLoading] =
-    useState(true);
-  const [error, setError] =
-    useState("");
-  const [historyPage, setHistoryPage] =
-    useState(1);
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(
+      true
+    );
+
+  const [
+    error,
+    setError,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    historyPage,
+    setHistoryPage,
+  ] =
+    useState(
+      1
+    );
 
   const [
     strikeHistoryPage,
     setStrikeHistoryPage,
   ] =
-    useState(1);
+    useState(
+      1
+    );
+
 
   useEffect(
     () => {
-      let active = true;
+      let active =
+        true;
 
       async function load() {
         try {
-          setLoading(true);
-          setError("");
+          setLoading(
+            true
+          );
+
+          setError(
+            ""
+          );
+
+          const requestedQaPage =
+            view === "qa"
+              ? historyPage
+              : 1;
+
+          const requestedStrikePage =
+            view === "strikes"
+              ? strikeHistoryPage
+              : 1;
 
           const response =
-            await apiRequest<QaSummaryResponse>(
-              `/api/people/${personId}/qa?page=${historyPage}&strikePage=${strikeHistoryPage}`
+            await apiRequest<
+              QaSummaryResponse
+            >(
+              `/api/people/${encodeURIComponent(
+                personId
+              )}/qa?page=${requestedQaPage}&strikePage=${requestedStrikePage}`
             );
 
-          if (active) {
+          if (
+            !active
+          ) {
+            return;
+          }
+
+          if (
+            view === "qa"
+          ) {
             const resolvedPage =
-              response.qa?.historyPage ??
+              response.qa
+                ?.historyPage ??
               1;
 
             setHistoryPage(
-              (current) =>
-                current === resolvedPage
+              (
+                current
+              ) =>
+                current ===
+                resolvedPage
                   ? current
                   : resolvedPage
             );
+          }
 
+          if (
+            view ===
+              "strikes"
+          ) {
             const resolvedStrikePage =
               response.qa
                 ?.disciplinaryHistory
@@ -152,23 +310,35 @@ export default function PeopleQaPanel({
                   ? current
                   : resolvedStrikePage
             );
-
-            setQa(
-              response.qa
-            );
           }
-        } catch (loadError) {
-          if (active) {
-            setQa(null);
+
+          setQa(
+            response.qa
+          );
+        } catch (
+          loadError
+        ) {
+          if (
+            active
+          ) {
+            setQa(
+              null
+            );
+
             setError(
-              loadError instanceof Error
+              loadError instanceof
+                Error
                 ? loadError.message
-                : "Unable to load disciplinary standing."
+                : `Unable to load employee ${view === "qa" ? "QA" : "Strike"} records.`
             );
           }
         } finally {
-          if (active) {
-            setLoading(false);
+          if (
+            active
+          ) {
+            setLoading(
+              false
+            );
           }
         }
       }
@@ -176,138 +346,446 @@ export default function PeopleQaPanel({
       void load();
 
       return () => {
-        active = false;
+        active =
+          false;
       };
     },
     [
       personId,
+      view,
       historyPage,
       strikeHistoryPage,
     ]
   );
 
+
+  if (
+    loading
+  ) {
+    return (
+      <div className="people-qa-empty">
+        Loading{" "}
+        {view === "qa"
+          ? "QA"
+          : "Strike"}{" "}
+        records...
+      </div>
+    );
+  }
+
+
+  if (
+    error
+  ) {
+    return (
+      <div className="people-inline-error">
+        {error}
+      </div>
+    );
+  }
+
+
+  if (
+    !qa
+  ) {
+    return (
+      <div className="people-qa-empty">
+        <strong>
+          Not applicable
+        </strong>
+
+        <span>
+          This employee does not currently have a linked Chatter or Trial Chatter QA profile.
+        </span>
+      </div>
+    );
+  }
+
+
+  if (
+    view ===
+      "qa"
+  ) {
+    return (
+      <section className="people-detail-section people-qa-section people-tab-record-section">
+        <div className="people-detail-section-heading">
+          <div>
+            <span className="people-section-label">
+              QA
+            </span>
+
+            <h4>
+              QA History
+            </h4>
+
+            <p>
+              Centralized QA incidents and records linked to this employee.
+            </p>
+          </div>
+        </div>
+
+
+        <div className="people-tab-summary-grid compact">
+          <div>
+            <span>
+              Total incidents
+            </span>
+
+            <strong>
+              {qa.totalIncidentCount}
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              QA profile
+            </span>
+
+            <strong>
+              {qa.chatter.status ===
+                "ACTIVE"
+                ? "Active"
+                : "Inactive"}
+            </strong>
+          </div>
+        </div>
+
+
+        {qa.recentIncidents.length ===
+        0 ? (
+          <div className="people-qa-empty compact">
+            No QA incidents recorded.
+          </div>
+        ) : (
+          <div className="table-wrapper people-profile-table-wrapper">
+            <table className="data-table people-profile-history-table">
+              <thead>
+                <tr>
+                  <th>
+                    QA Record
+                  </th>
+
+                  <th>
+                    Severity / Weight
+                  </th>
+
+                  <th>
+                    Occurred
+                  </th>
+
+                  <th>
+                    Status
+                  </th>
+
+                  <th>
+                    Action
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {qa.recentIncidents.map(
+                  (
+                    incident
+                  ) => (
+                    <tr
+                      key={
+                        incident.id
+                      }
+                    >
+                      <td>
+                        <strong>
+                          {incident.ruleTitleSnapshot}
+                        </strong>
+                      </td>
+
+                      <td>
+                        <span>
+                          {incident.severityNameSnapshot ??
+                            "No severity"}
+                          {" / "}
+                          {incident.weightNameSnapshot ??
+                            "No weight"}
+                        </span>
+                      </td>
+
+                      <td>
+                        {formatCentralDateTime(
+                          incident.occurredAt
+                        )}
+                      </td>
+
+                      <td>
+                        <span className="people-neutral-status">
+                          {formatIncidentStatus(
+                            incident.status
+                          )}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() =>
+                            navigate(
+                              `/incidents?incidentId=${encodeURIComponent(
+                                incident.id
+                              )}`
+                            )
+                          }
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+
+        <div
+          className="compact-table-pagination"
+          aria-label="Employee QA history pagination"
+        >
+          <span>
+            {qa.totalIncidentCount} total records
+          </span>
+
+          <div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                setHistoryPage(
+                  (
+                    current
+                  ) =>
+                    Math.max(
+                      1,
+                      current -
+                        1
+                    )
+                )
+              }
+              disabled={
+                loading ||
+                qa.historyPage <=
+                  1
+              }
+            >
+              Previous
+            </button>
+
+            <strong>
+              Page {qa.historyPage} of{" "}
+              {Math.max(
+                1,
+                qa.historyPageCount
+              )}
+            </strong>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                setHistoryPage(
+                  (
+                    current
+                  ) =>
+                    Math.min(
+                      Math.max(
+                        1,
+                        qa.historyPageCount
+                      ),
+                      current +
+                        1
+                    )
+                )
+              }
+              disabled={
+                loading ||
+                qa.historyPage >=
+                  Math.max(
+                    1,
+                    qa.historyPageCount
+                  )
+              }
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+
+  const history =
+    qa.disciplinaryHistory;
+
+
   return (
-    <section className="people-detail-section people-qa-section">
+    <section className="people-detail-section people-qa-section people-tab-record-section">
       <div className="people-detail-section-heading">
         <div>
           <span className="people-section-label">
-            Disciplinary standing
+            Strikes
           </span>
+
           <h4>
-            Current Standing
+            Disciplinary Standing
           </h4>
+
+          <p>
+            Current standing and historical Strike records for this employee.
+          </p>
         </div>
       </div>
 
-      {loading ? (
-        <div className="people-qa-empty">
-          Loading disciplinary standing…
-        </div>
-      ) : error ? (
-        <div className="people-inline-error">
-          {error}
-        </div>
-      ) : !qa ? (
-        <div className="people-qa-empty">
-          <strong>
-            Not applicable
-          </strong>
+
+      <div className="people-tab-summary-grid">
+        <div className="primary">
           <span>
-            This employee does not currently have a linked Chatter or Trial Chatter QA profile.
+            Current standing
           </span>
+
+          <strong>
+            {qa.strikeSummary.standingLabel}
+          </strong>
+
+          <small>
+            Ladder v
+            {qa.strikeSummary.ladderVersion}
+          </small>
+        </div>
+
+        <div>
+          <span>
+            Active Strikes
+          </span>
+
+          <strong>
+            {qa.strikeSummary.activeStrikeCount}
+          </strong>
+        </div>
+
+        <div>
+          <span>
+            Current deduction
+          </span>
+
+          <strong>
+            {formatPercent(
+              qa.strikeSummary.deductionPercent
+            )}
+            %
+          </strong>
+        </div>
+
+        <div>
+          <span>
+            Next expiry
+          </span>
+
+          <strong>
+            {qa.strikeSummary.nextExpiryAt
+              ? formatCentralDateTime(
+                  qa.strikeSummary.nextExpiryAt
+                )
+              : "-"}
+          </strong>
+        </div>
+      </div>
+
+
+      {!history ||
+      history.records.length ===
+        0 ? (
+        <div className="people-qa-empty compact">
+          No Strike records recorded.
         </div>
       ) : (
-        <>
-          <div className="people-qa-standing-grid">
-            <div className="people-qa-standing-card primary">
-              <span>
-                Current Standing
-              </span>
-              <strong>
-                {
-                  qa.strikeSummary.standingLabel
-                }
-              </strong>
-              <small>
-                Ladder v
-                {
-                  qa.strikeSummary.ladderVersion
-                }
-              </small>
-            </div>
+        <div className="table-wrapper people-profile-table-wrapper">
+          <table className="data-table people-profile-history-table">
+            <thead>
+              <tr>
+                <th>
+                  Reason
+                </th>
 
-            <div className="people-qa-standing-card">
-              <span>
-                Active Strikes
-              </span>
-              <strong>
-                {
-                  qa.strikeSummary.activeStrikeCount
-                }
-              </strong>
-            </div>
+                <th>
+                  Standing
+                </th>
 
-            <div className="people-qa-standing-card">
-              <span>
-                Current Deduction
-              </span>
-              <strong>
-                {formatPercent(
-                  qa.strikeSummary.deductionPercent
-                )}
-                %
-              </strong>
-            </div>
+                <th>
+                  Issued
+                </th>
 
-            <div className="people-qa-standing-card">
-              <span>
-                Next Expiry
-              </span>
-              <strong>
-                {qa.strikeSummary.nextExpiryAt
-                  ? formatCentralDateTime(
-                      qa.strikeSummary.nextExpiryAt
-                    )
-                  : "—"}
-              </strong>
-            </div>
-          </div>
+                <th>
+                  Status
+                </th>
 
-          {qa.disciplinaryHistory && (
-            <>
-              <div className="people-qa-history-heading">
-                <div>
-                  <span className="people-section-label">
-                    Disciplinary history
-                  </span>
+                <th>
+                  Action
+                </th>
+              </tr>
+            </thead>
 
-                  <strong>
-                    Strike History
-                  </strong>
-                </div>
+            <tbody>
+              {history.records.map(
+                (
+                  strike
+                ) => (
+                  <tr
+                    key={
+                      strike.id
+                    }
+                  >
+                    <td>
+                      <strong>
+                        {strike.reasonNameSnapshot}
+                      </strong>
+                    </td>
 
-                <span>
-                  {qa.disciplinaryHistory.total} total
-                </span>
-              </div>
+                    <td>
+                      <span>
+                        {strike.standingLabelSnapshot}
+                        {" / "}
+                        {formatPercent(
+                          strike.deductionPercentSnapshot
+                        )}
+                        % deduction
+                      </span>
+                    </td>
 
-              {qa.disciplinaryHistory.records.length ===
-              0 ? (
-                <div className="people-qa-empty compact">
-                  No Strike records recorded.
-                </div>
-              ) : (
-                <div className="people-qa-history-list">
-                  {qa.disciplinaryHistory.records.map(
-                    (
-                      strike
-                    ) => (
+                    <td>
+                      <span>
+                        {formatCentralDateTime(
+                          strike.issuedAt
+                        )}
+                      </span>
+
+                      <small>
+                        by {strike.issuedByNameSnapshot}
+                      </small>
+                    </td>
+
+                    <td>
+                      <span className="people-neutral-status">
+                        {formatStrikeStatus(
+                          strike.status
+                        )}
+                      </span>
+                    </td>
+
+                    <td>
                       <button
-                        key={
-                          strike.id
-                        }
                         type="button"
-                        className="people-qa-incident-row"
+                        className="text-button"
                         onClick={() =>
                           navigate(
                             `/strikes?strikeId=${encodeURIComponent(
@@ -316,248 +794,99 @@ export default function PeopleQaPanel({
                           )
                         }
                       >
-                        <span className="people-qa-incident-main">
-                          <strong>
-                            {
-                              strike.reasonNameSnapshot
-                            }
-                          </strong>
-
-                          <small>
-                            {
-                              strike.standingLabelSnapshot
-                            }
-                            {" · "}
-                            {formatPercent(
-                              strike.deductionPercentSnapshot
-                            )}
-                            % deduction
-                            {" · "}
-                            {formatCentralDateTime(
-                              strike.issuedAt
-                            )}
-                            {" · "}
-                            by{" "}
-                            {
-                              strike.issuedByNameSnapshot
-                            }
-                          </small>
-                        </span>
-
-                        <span className="people-qa-incident-status">
-                          {strike.status ===
-                          "ACTIVE"
-                            ? "Active"
-                            : strike.status ===
-                                "EXPIRED"
-                              ? "Expired"
-                              : "Voided"}
-                        </span>
-
-                        <span
-                          className="people-qa-incident-arrow"
-                          aria-hidden="true"
-                        >
-                          →
-                        </span>
+                        View
                       </button>
-                    )
-                  )}
-                </div>
-              )}
-
-              {qa.disciplinaryHistory.pageCount >
-                1 && (
-                <div
-                  className="qa-history-pagination"
-                  aria-label="Employee disciplinary history pagination"
-                >
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() =>
-                      setStrikeHistoryPage(
-                        (
-                          current
-                        ) =>
-                          Math.max(
-                            1,
-                            current - 1
-                          )
-                      )
-                    }
-                    disabled={
-                      loading ||
-                      qa.disciplinaryHistory.page <=
-                        1
-                    }
-                  >
-                    Previous
-                  </button>
-
-                  <span>
-                    Page{" "}
-                    {qa.disciplinaryHistory.page}{" "}
-                    of{" "}
-                    {
-                      qa.disciplinaryHistory
-                        .pageCount
-                    }
-                  </span>
-
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() =>
-                      setStrikeHistoryPage(
-                        (
-                          current
-                        ) =>
-                          Math.min(
-                            qa.disciplinaryHistory
-                              ?.pageCount ??
-                              1,
-                            current + 1
-                          )
-                      )
-                    }
-                    disabled={
-                      loading ||
-                      qa.disciplinaryHistory.page >=
-                        qa.disciplinaryHistory
-                          .pageCount
-                    }
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
-          <div className="people-qa-history-heading">
-            <div>
-              <span className="people-section-label">
-                QA history
-              </span>
-              <strong>
-                Incident History
-              </strong>
-            </div>
-            <span>
-              {qa.totalIncidentCount} total
-            </span>
-          </div>
-
-          {qa.recentIncidents.length ===
-          0 ? (
-            <div className="people-qa-empty compact">
-              No incidents recorded.
-            </div>
-          ) : (
-            <div className="people-qa-history-list">
-              {qa.recentIncidents.map(
-                (incident) => (
-                  <button
-                    key={
-                      incident.id
-                    }
-                    type="button"
-                    className="people-qa-incident-row"
-                    onClick={() =>
-                      navigate(
-                        `/incidents?incidentId=${encodeURIComponent(
-                          incident.id
-                        )}`
-                      )
-                    }
-                  >
-                    <span className="people-qa-incident-main">
-                      <strong>
-                        {
-                          incident.ruleTitleSnapshot
-                        }
-                      </strong>
-                      <small>
-                        {incident.severityNameSnapshot ??
-                          "No severity"}
-                        {" · "}
-                        {formatCentralDateTime(
-                          incident.occurredAt
-                        )}
-                      </small>
-                    </span>
-
-                    <span className="people-qa-incident-status">
-                      {incident.status === "OPEN"
-                        ? "Open"
-                        : incident.status === "RESOLVED"
-                          ? "Resolved"
-                          : "Voided"}
-                    </span>
-
-                    <span
-                      className="people-qa-incident-arrow"
-                      aria-hidden="true"
-                    >
-                      →
-                    </span>
-                  </button>
+                    </td>
+                  </tr>
                 )
               )}
-            </div>
-          )}
-
-          {qa.historyPageCount > 1 && (
-            <div className="qa-history-pagination" aria-label="Employee QA history pagination">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() =>
-                  setHistoryPage(
-                    (current) =>
-                      Math.max(
-                        1,
-                        current - 1
-                      )
-                  )
-                }
-                disabled={
-                  loading ||
-                  qa.historyPage <= 1
-                }
-              >
-                Previous
-              </button>
-
-              <span>
-                Page {qa.historyPage} of {qa.historyPageCount}
-              </span>
-
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() =>
-                  setHistoryPage(
-                    (current) =>
-                      Math.min(
-                        qa.historyPageCount,
-                        current + 1
-                      )
-                  )
-                }
-                disabled={
-                  loading ||
-                  qa.historyPage >=
-                    qa.historyPageCount
-                }
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </>
+            </tbody>
+          </table>
+        </div>
       )}
+
+
+      <div
+        className="compact-table-pagination"
+        aria-label="Employee Strike history pagination"
+      >
+        <span>
+          {history?.total ??
+            0} total records
+        </span>
+
+        <div>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              setStrikeHistoryPage(
+                (
+                  current
+                ) =>
+                  Math.max(
+                    1,
+                    current -
+                      1
+                  )
+              )
+            }
+            disabled={
+              loading ||
+              (history?.page ??
+                1) <=
+                1
+            }
+          >
+            Previous
+          </button>
+
+          <strong>
+            Page {history?.page ??
+              1} of{" "}
+            {Math.max(
+              1,
+              history?.pageCount ??
+                1
+            )}
+          </strong>
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              setStrikeHistoryPage(
+                (
+                  current
+                ) =>
+                  Math.min(
+                    Math.max(
+                      1,
+                      history
+                        ?.pageCount ??
+                        1
+                    ),
+                    current +
+                      1
+                  )
+              )
+            }
+            disabled={
+              loading ||
+              (history?.page ??
+                1) >=
+                Math.max(
+                  1,
+                  history
+                    ?.pageCount ??
+                    1
+                )
+            }
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </section>
   );
 }

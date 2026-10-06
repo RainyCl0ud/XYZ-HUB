@@ -16,33 +16,24 @@
   gap: 9px;
 }
 
-.strike-reason-editor {
-  overflow: hidden;
+.strike-reason-modal {
+  width: min(
+    680px,
+    calc(100vw - 32px)
+  );
 }
 
-.strike-reason-editor-heading {
-  align-items: flex-start;
-}
-
-.strike-reason-editor-form {
+.strike-reason-modal-form {
   display: grid;
-  grid-template-columns:
-    minmax(220px, 0.8fr)
-    minmax(0, 1.4fr);
   gap: 16px;
 }
 
-.strike-reason-editor-form
-  .form-field {
-  min-width: 0;
-}
-
-.strike-reason-editor-form
+.strike-reason-modal-form
   textarea {
   resize: vertical;
 }
 
-.strike-reason-editor-form
+.strike-reason-modal-form
   .form-field
   > span {
   display: flex;
@@ -51,22 +42,13 @@
   gap: 8px;
 }
 
-.strike-reason-editor-form
+.strike-reason-modal-form
   .form-field
   small {
   color: var(--text-muted);
   font-weight: 400;
 }
 
-.strike-reason-editor-actions {
-  grid-column: 1 / -1;
-
-  display: flex;
-  justify-content: flex-end;
-  gap: 9px;
-
-  padding-top: 2px;
-}
 
 .strike-reasons-toolbar {
   align-items: flex-end;
@@ -120,6 +102,37 @@
   overflow-wrap: anywhere;
 }
 
+.strike-reasons-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding: 14px 16px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.strike-reasons-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.strike-reasons-pagination strong {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.strike-reasons-page .status-badge.active,
+.strike-reasons-page .status-badge.inactive {
+  border: 1px solid var(--border);
+  background: var(--surface-deep);
+  color: var(--text-secondary);
+}
+
+
 @media (
   max-width: 760px
 ) {
@@ -136,15 +149,6 @@
     flex: 1 1 160px;
   }
 
-  .strike-reason-editor-form {
-    grid-template-columns:
-      1fr;
-  }
-
-  .strike-reason-editor-actions {
-    grid-column: auto;
-  }
-
   .strike-reasons-toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -152,5 +156,20 @@
 
   .strike-reasons-search {
     width: 100%;
+  }
+
+  .strike-reason-modal {
+    width: calc(
+      100vw - 20px
+    );
+  }
+
+  .strike-reasons-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .strike-reasons-pagination > div {
+    justify-content: space-between;
   }
 }

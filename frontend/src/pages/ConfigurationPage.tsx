@@ -2937,7 +2937,7 @@ function ConfigurationPage({
             {mode ===
             "rules"
               ? "Rule Settings"
-              : "Strike Settings"}
+              : "Strike Ladder Configuration"}
           </h2>
 
           <p className="page-description">
@@ -2961,7 +2961,7 @@ function ConfigurationPage({
         >
           ← Back to {mode === "rules"
             ? "Rules"
-            : "Strikes"}
+            : "Strike Management"}
         </button>
       </header>
 

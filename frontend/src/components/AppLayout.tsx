@@ -72,17 +72,17 @@ const PAGE_TITLES:
   "/chatters":
     "Chatters",
   "/rules":
-    "Rules & Strike Reasons",
+    "Rules",
   "/rules/settings":
     "Rule Settings",
   "/strikes":
-    "Strikes",
+    "Strike Management",
   "/strikes/reasons":
     "Strike Reasons",
   "/strikes/settings":
-    "Strike Settings",
+    "Strike Ladder Configuration",
   "/people":
-    "People",
+    "Employee Management",
   "/models":
     "Creators",
   "/roles":

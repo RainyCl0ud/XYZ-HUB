@@ -64,6 +64,42 @@ const QA_PATHS = new Set([
   "/rules/settings",
 ]);
 
+const STRIKE_CORE_ITEMS: Array<{
+  label: string;
+  to: string;
+}> = [
+  {
+    label: "Strikes",
+    to: "/strikes",
+  },
+];
+
+const STRIKE_CONFIGURATION_ITEMS: Array<{
+  label: string;
+  to: string;
+}> = [
+  {
+    label: "Strike Reasons",
+    to: "/strikes/reasons",
+  },
+  {
+    label: "Strike Ladder Configuration",
+    to: "/strikes/settings",
+  },
+];
+
+const STRIKE_PATHS =
+  new Set([
+    ...STRIKE_CORE_ITEMS,
+    ...STRIKE_CONFIGURATION_ITEMS,
+  ].map(
+    (
+      item
+    ) =>
+      item.to
+  ));
+
+
 function ModuleIcon({
   name,
 }: {
@@ -234,6 +270,96 @@ function QualityNavigation({
   );
 }
 
+function StrikeNavigation({
+  canConfigureStrikes,
+}: {
+  canConfigureStrikes:
+    boolean;
+}) {
+  const {
+    pathname,
+  } =
+    useLocation();
+
+  const active =
+    STRIKE_PATHS.has(
+      pathname
+    );
+
+  const visibleItems =
+    canConfigureStrikes
+      ? [
+          ...STRIKE_CORE_ITEMS,
+          ...STRIKE_CONFIGURATION_ITEMS,
+        ]
+      : STRIKE_CORE_ITEMS;
+
+  return (
+    <details
+      className={`hub-nav-group${active ? " active" : ""}`}
+      open={
+        active
+          ? true
+          : undefined
+      }
+    >
+      <summary className="hub-nav-group-summary">
+        <ModuleIcon
+          name="strikes"
+        />
+
+        <span>
+          Strike Management
+        </span>
+
+        <svg
+          className="hub-nav-group-chevron"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path d="m9 6 6 6-6 6" />
+        </svg>
+      </summary>
+
+      <div className="hub-nav-group-links">
+        {visibleItems.map(
+          (
+            item
+          ) => {
+            const childActive =
+              pathname ===
+                item.to;
+
+            return (
+              <Link
+                key={
+                  item.to
+                }
+                to={
+                  item.to
+                }
+                className={`hub-nav-child-link${childActive ? " active" : ""}`}
+                aria-current={
+                  childActive
+                    ? "page"
+                    : undefined
+                }
+              >
+                <span className="hub-nav-child-dot" />
+
+                <span>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          }
+        )}
+      </div>
+    </details>
+  );
+}
+
+
 export default function SidebarNavigation({
   access,
 }: {
@@ -259,7 +385,7 @@ export default function SidebarNavigation({
   ) {
     primary.push({
       id: "people",
-      label: "People",
+      label: "Employee Management",
       to: "/people",
     });
   }
@@ -317,17 +443,10 @@ export default function SidebarNavigation({
         )}
 
         {capabilities.canViewStrikes && (
-          <NavigationLink
-            item={{
-              id: "strikes",
-              label: "Strikes",
-              to: "/strikes",
-              activePaths: [
-                "/strikes",
-                "/strikes/reasons",
-                "/strikes/settings",
-              ],
-            }}
+          <StrikeNavigation
+            canConfigureStrikes={
+              capabilities.canConfigureStrikes
+            }
           />
         )}
 

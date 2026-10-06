@@ -44,6 +44,10 @@ type MutationResponse<T> = {
 };
 
 
+const STRIKE_REASONS_PAGE_SIZE =
+  8;
+
+
 function sortReasons(
   values:
     StrikeReason[]
@@ -160,6 +164,13 @@ function StrikeReasonsPage() {
     ""
   );
 
+  const [
+    reasonPage,
+    setReasonPage,
+  ] = useState(
+    1
+  );
+
 
   const loadReasons =
     useCallback(
@@ -268,6 +279,44 @@ function StrikeReasonsPage() {
       [
         reasons,
         search,
+      ]
+    );
+
+
+  const reasonPageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        visibleReasons.length /
+        STRIKE_REASONS_PAGE_SIZE
+      )
+    );
+
+  const resolvedReasonPage =
+    Math.min(
+      reasonPage,
+      reasonPageCount
+    );
+
+  const paginatedReasons =
+    useMemo(
+      () => {
+        const start =
+          (
+            resolvedReasonPage -
+            1
+          ) *
+          STRIKE_REASONS_PAGE_SIZE;
+
+        return visibleReasons.slice(
+          start,
+          start +
+            STRIKE_REASONS_PAGE_SIZE
+        );
+      },
+      [
+        visibleReasons,
+        resolvedReasonPage,
       ]
     );
 
@@ -638,118 +687,56 @@ function StrikeReasonsPage() {
       )}
 
       {editorOpen && (
-        <section className="content-card strike-reason-editor">
-          <div className="card-header strike-reason-editor-heading">
-            <div>
-              <h3>
-                {editingId
-                  ? "Edit Reason"
-                  : "Add Reason"}
-              </h3>
-
-              <p>
-                Changes affect future Strike issuance only. Historical Strike records retain their original reason snapshot.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={
-                resetEditor
-              }
-              disabled={
-                saving
-              }
-            >
-              Cancel
-            </button>
-          </div>
-
-          <form
-            className="strike-reason-editor-form"
-            onSubmit={
-              saveReason
+        <div
+          className="modal-backdrop strike-reason-modal-backdrop"
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+                event.currentTarget &&
+              !saving
+            ) {
+              resetEditor();
+            }
+          }}
+        >
+          <section
+            className="modal strike-reason-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="strike-reason-editor-title"
+            onMouseDown={(
+              event
+            ) =>
+              event.stopPropagation()
             }
           >
-            <label className="form-field">
-              <span>
-                Reason name
-              </span>
+            <div className="modal-header">
+              <div>
+                <p className="page-eyebrow">
+                  Strike configuration
+                </p>
 
-              <input
-                value={
-                  reasonName
-                }
-                onChange={(
-                  event
-                ) => {
-                  setReasonName(
-                    event.target.value
-                  );
+                <h3 id="strike-reason-editor-title">
+                  {editingId
+                    ? "Edit Reason"
+                    : "Add Reason"}
+                </h3>
 
-                  if (
-                    formError
-                  ) {
-                    setFormError(
-                      ""
-                    );
-                  }
-                }}
-                maxLength={
-                  120
-                }
-                placeholder="e.g. Repeated policy violation"
-                disabled={
-                  saving
-                }
-                autoFocus
-              />
-            </label>
-
-            <label className="form-field">
-              <span>
-                Description
-
-                <small>
-                  Optional
-                </small>
-              </span>
-
-              <textarea
-                rows={
-                  4
-                }
-                maxLength={
-                  1000
-                }
-                value={
-                  description
-                }
-                onChange={(
-                  event
-                ) =>
-                  setDescription(
-                    event.target.value
-                  )
-                }
-                placeholder="Clarify when this reason should be used."
-                disabled={
-                  saving
-                }
-              />
-            </label>
-
-            {formError && (
-              <div className="alert alert-error">
-                {formError}
+                <p>
+                  Changes affect future Strike issuance only. Historical records retain their original reason snapshot.
+                </p>
               </div>
-            )}
 
-            <div className="strike-reason-editor-actions">
               <button
                 type="button"
-                className="secondary-button"
+                className="modal-close"
+                aria-label={
+                  editingId
+                    ? "Close Edit Reason"
+                    : "Close Add Reason"
+                }
                 onClick={
                   resetEditor
                 }
@@ -757,28 +744,128 @@ function StrikeReasonsPage() {
                   saving
                 }
               >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={
-                  saving ||
-                  !reasonName
-                    .trim()
-                }
-              >
-                {saving
-                  ? "Saving..."
-                  : editingId
-                    ? "Save Changes"
-                    : "Add Reason"}
+                &times;
               </button>
             </div>
-          </form>
-        </section>
+
+            <form
+              className="modal-form strike-reason-modal-form"
+              onSubmit={
+                saveReason
+              }
+              noValidate
+            >
+              <div className="form-stack">
+                <label className="form-field">
+                  <span>
+                    Reason name
+                  </span>
+
+                  <input
+                    value={
+                      reasonName
+                    }
+                    onChange={(
+                      event
+                    ) => {
+                      setReasonName(
+                        event.target.value
+                      );
+
+                      if (
+                        formError
+                      ) {
+                        setFormError(
+                          ""
+                        );
+                      }
+                    }}
+                    maxLength={
+                      120
+                    }
+                    placeholder="e.g. Repeated policy violation"
+                    disabled={
+                      saving
+                    }
+                    autoFocus
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>
+                    Description
+
+                    <small>
+                      Optional
+                    </small>
+                  </span>
+
+                  <textarea
+                    rows={
+                      4
+                    }
+                    maxLength={
+                      1000
+                    }
+                    value={
+                      description
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setDescription(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Clarify when this reason should be used."
+                    disabled={
+                      saving
+                    }
+                  />
+                </label>
+              </div>
+
+              {formError && (
+                <div className="alert alert-error">
+                  {formError}
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={
+                    resetEditor
+                  }
+                  disabled={
+                    saving
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={
+                    saving ||
+                    !reasonName
+                      .trim()
+                  }
+                >
+                  {saving
+                    ? "Saving..."
+                    : editingId
+                      ? "Save Changes"
+                      : "Add Reason"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
       )}
+
 
       <section className="content-card">
         <div className="card-header strike-reasons-toolbar">
@@ -800,11 +887,15 @@ function StrikeReasonsPage() {
             }
             onChange={(
               event
-            ) =>
+            ) => {
               setSearch(
                 event.target.value
-              )
-            }
+              );
+
+              setReasonPage(
+                1
+              );
+            }}
             placeholder="Search reasons..."
             aria-label="Search Strike reasons"
           />
@@ -853,7 +944,7 @@ function StrikeReasonsPage() {
               </thead>
 
               <tbody>
-                {visibleReasons.map(
+                {paginatedReasons.map(
                   (
                     reason
                   ) => (
@@ -942,6 +1033,65 @@ function StrikeReasonsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {visibleReasons.length >
+          0 && (
+          <div
+            className="strike-reasons-pagination"
+            aria-label="Strike Reasons pagination"
+          >
+            <span>
+              {visibleReasons.length} total reasons
+            </span>
+
+            <div>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setReasonPage(
+                    Math.max(
+                      1,
+                      resolvedReasonPage -
+                        1
+                    )
+                  )
+                }
+                disabled={
+                  resolvedReasonPage <=
+                    1
+                }
+              >
+                Previous
+              </button>
+
+              <strong>
+                Page {resolvedReasonPage} of{" "}
+                {reasonPageCount}
+              </strong>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setReasonPage(
+                    Math.min(
+                      reasonPageCount,
+                      resolvedReasonPage +
+                        1
+                    )
+                  )
+                }
+                disabled={
+                  resolvedReasonPage >=
+                    reasonPageCount
+                }
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </section>

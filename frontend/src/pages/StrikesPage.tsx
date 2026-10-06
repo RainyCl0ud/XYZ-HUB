@@ -189,6 +189,9 @@ type StatusFilter =
   | "ALL"
   | StrikeStatus;
 
+const STRIKES_PAGE_SIZE =
+  8;
+
 function getStatusLabel(
   status:
     StrikeStatus
@@ -324,6 +327,14 @@ function StrikesPage() {
   ] =
     useState(
       "ALL"
+    );
+
+  const [
+    strikePage,
+    setStrikePage,
+  ] =
+    useState(
+      1
     );
 
   const [
@@ -774,6 +785,80 @@ function StrikesPage() {
         reasonFilter,
       ]
     );
+
+  const strikePageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        filteredStrikes.length /
+        STRIKES_PAGE_SIZE
+      )
+    );
+
+  const resolvedStrikePage =
+    Math.min(
+      strikePage,
+      strikePageCount
+    );
+
+  const paginatedStrikes =
+    useMemo(
+      () => {
+        const start =
+          (
+            resolvedStrikePage -
+            1
+          ) *
+          STRIKES_PAGE_SIZE;
+
+        return filteredStrikes.slice(
+          start,
+          start +
+            STRIKES_PAGE_SIZE
+        );
+      },
+      [
+        filteredStrikes,
+        resolvedStrikePage,
+      ]
+    );
+
+
+  function openEmployeeStrikeProfile(
+    strike:
+      StrikeRecord,
+    returnToDetail =
+      false
+  ) {
+    if (
+      !capabilities.canManagePeople ||
+      !strike.currentUser
+    ) {
+      return;
+    }
+
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "tab",
+      "strikes"
+    );
+
+    params.set(
+      "from",
+      returnToDetail
+        ? `/strikes?strikeId=${strike.id}`
+        : "/strikes"
+    );
+
+    navigate(
+      `/people/${encodeURIComponent(
+        strike.currentUser.id
+      )}?${params.toString()}`
+    );
+  }
+
 
   function resetIssueForm() {
     previewRequestIdRef.current +=
@@ -1772,8 +1857,8 @@ function StrikesPage() {
                       "/strikes/settings"
                     )
                   }
-                  aria-label="Strike settings"
-                  title="Strike settings"
+                  aria-label="Strike Ladder Configuration"
+                  title="Strike Ladder Configuration"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -1874,11 +1959,15 @@ function StrikesPage() {
             }
             onChange={(
               event
-            ) =>
+            ) => {
               setSearch(
                 event.target.value
-              )
-            }
+              );
+
+              setStrikePage(
+                1
+              );
+            }}
           />
 
           <select
@@ -1889,11 +1978,15 @@ function StrikesPage() {
             }
             onChange={(
               event
-            ) =>
+            ) => {
               setEmployeeFilter(
                 event.target.value
-              )
-            }
+              );
+
+              setStrikePage(
+                1
+              );
+            }}
           >
             <option value="ALL">
               All employees
@@ -1925,11 +2018,15 @@ function StrikesPage() {
             }
             onChange={(
               event
-            ) =>
+            ) => {
               setReasonFilter(
                 event.target.value
-              )
-            }
+              );
+
+              setStrikePage(
+                1
+              );
+            }}
           >
             <option value="ALL">
               All reasons
@@ -1961,12 +2058,16 @@ function StrikesPage() {
             }
             onChange={(
               event
-            ) =>
+            ) => {
               setStatusFilter(
                 event.target.value as
                   StatusFilter
-              )
-            }
+              );
+
+              setStrikePage(
+                1
+              );
+            }}
           >
             <option value="ALL">
               All statuses
@@ -2037,7 +2138,7 @@ function StrikesPage() {
               </span>
             </div>
 
-            {filteredStrikes.map(
+            {paginatedStrikes.map(
               (
                 strike
               ) => (
@@ -2048,9 +2149,24 @@ function StrikesPage() {
                   className="strikes-table strikes-table-row"
                 >
                   <div className="strikes-person-cell">
-                    <strong>
-                      {strike.userNameSnapshot}
-                    </strong>
+                    {strike.currentUser &&
+                    capabilities.canManagePeople ? (
+                      <button
+                        type="button"
+                        className="strikes-employee-link"
+                        onClick={() =>
+                          openEmployeeStrikeProfile(
+                            strike
+                          )
+                        }
+                      >
+                        {strike.userNameSnapshot}
+                      </button>
+                    ) : (
+                      <strong>
+                        {strike.userNameSnapshot}
+                      </strong>
+                    )}
 
                     <span>
                       {strike.userEmailSnapshot}
@@ -2121,6 +2237,65 @@ function StrikesPage() {
                 </div>
               )
             )}
+          </div>
+        )}
+
+        {filteredStrikes.length >
+          0 && (
+          <div
+            className="strikes-pagination"
+            aria-label="Strike records pagination"
+          >
+            <span>
+              {filteredStrikes.length} total records
+            </span>
+
+            <div>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setStrikePage(
+                    Math.max(
+                      1,
+                      resolvedStrikePage -
+                        1
+                    )
+                  )
+                }
+                disabled={
+                  resolvedStrikePage <=
+                    1
+                }
+              >
+                Previous
+              </button>
+
+              <strong>
+                Page {resolvedStrikePage} of{" "}
+                {strikePageCount}
+              </strong>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setStrikePage(
+                    Math.min(
+                      strikePageCount,
+                      resolvedStrikePage +
+                        1
+                    )
+                  )
+                }
+                disabled={
+                  resolvedStrikePage >=
+                    strikePageCount
+                }
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </section>
@@ -2364,6 +2539,22 @@ function StrikesPage() {
             </div>
 
             <div className="strikes-modal-footer">
+              {selectedStrike.currentUser &&
+                capabilities.canManagePeople && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() =>
+                    openEmployeeStrikeProfile(
+                      selectedStrike,
+                      true
+                    )
+                  }
+                >
+                  View Employee Strikes
+                </button>
+              )}
+
               {capabilities.canVoidStrikes &&
                 selectedStrike.status !==
                   "VOIDED" &&

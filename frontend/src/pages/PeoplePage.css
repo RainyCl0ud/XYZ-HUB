@@ -1733,3 +1733,199 @@
     gap: 12px;
   }
 }
+
+
+/* =========================================================
+   EMPLOYEE PROFILE FUNCTIONAL TABS
+   ========================================================= */
+
+.people-profile-header {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.people-profile-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  background: var(--surface-deep);
+}
+
+.people-profile-tab {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  padding: 0 14px;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.people-profile-tab:hover {
+  color: var(--text);
+}
+
+.people-profile-tab.active {
+  color: var(--text);
+}
+
+.people-profile-tab.active::after {
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  background: var(--text);
+  content: "";
+}
+
+.people-profile-tab-panel {
+  min-width: 0;
+}
+
+.people-tab-record-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.people-tab-summary-grid,
+.people-account-summary {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.people-tab-summary-grid.compact {
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+}
+
+.people-tab-summary-grid > div,
+.people-account-summary > div {
+  display: flex;
+  min-width: 0;
+  min-height: 72px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface-deep);
+  padding: 11px 13px;
+}
+
+.people-tab-summary-grid span,
+.people-account-summary span {
+  color: var(--text-soft);
+  font-size: 8.5px;
+  font-weight: 740;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.people-tab-summary-grid strong,
+.people-account-summary strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.people-tab-summary-grid small {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.people-profile-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+}
+
+.people-profile-history-table {
+  min-width: 760px;
+  margin: 0;
+}
+
+.people-profile-history-table td,
+.people-profile-history-table th {
+  vertical-align: middle;
+}
+
+.people-profile-history-table td strong {
+  color: var(--text);
+  font-size: 10.5px;
+}
+
+.people-profile-history-table td span,
+.people-profile-history-table td small {
+  color: var(--text-muted);
+  font-size: 9.5px;
+}
+
+.people-profile-history-table td small {
+  display: block;
+  margin-top: 4px;
+}
+
+.people-neutral-status {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-deep);
+  padding: 0 8px;
+  color: var(--text-secondary) !important;
+  font-size: 9px !important;
+  font-weight: 700;
+}
+
+.people-account-access-section {
+  margin-top: 18px;
+}
+
+.people-account-summary .people-profile-status-pill {
+  width: fit-content;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  padding: 0;
+  color: var(--text) !important;
+  font-size: 15px;
+}
+
+@media (max-width: 900px) {
+  .people-tab-summary-grid,
+  .people-account-summary {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .people-profile-tabs {
+    padding-inline: 12px;
+  }
+
+  .people-profile-tab {
+    padding-inline: 11px;
+  }
+
+  .people-tab-summary-grid,
+  .people-tab-summary-grid.compact,
+  .people-account-summary {
+    grid-template-columns: 1fr;
+  }
+}

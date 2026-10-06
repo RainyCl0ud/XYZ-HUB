@@ -290,7 +290,7 @@ function PeoplePage() {
     } catch (error) {
       const message = error instanceof Error
         ? error.message
-        : "Unable to load People Management.";
+        : "Unable to load Employee Management.";
       setPageError(message);
       toast.error(message, "Unable to load people");
     } finally {
@@ -309,7 +309,7 @@ function PeoplePage() {
         loadOptions(),
       ]).catch((error) => {
         console.error(
-          "Unable to refresh People Management after live update:",
+          "Unable to refresh Employee Management after live update:",
           error
         );
       });
@@ -1148,7 +1148,7 @@ function PeoplePage() {
                   toggleTeamCollapsed(team.id);
                 }}
               >
-                â–¾
+                &#9662;
               </button>
             ) : (
               <span className="people-org-caret-space" aria-hidden="true" />
@@ -1181,7 +1181,7 @@ function PeoplePage() {
       <header className="page-header people-page-header">
         <div>
           <p className="page-eyebrow">Team management</p>
-          <h2>People Management</h2>
+          <h2>Employee Management</h2>
           <p className="page-description">Organize employees by team, manage role and creator access, and control account status.</p>
         </div>
 
@@ -1307,7 +1307,7 @@ function PeoplePage() {
           {pageError && <div className="people-inline-error">{pageError}</div>}
 
           {loading ? (
-            <div className="empty-state"><strong>Loading peopleâ€¦</strong></div>
+            <div className="empty-state"><strong>Loading people...</strong></div>
           ) : filteredPeople.length === 0 ? (
             <div className="empty-state">
               <strong>No matching employees</strong>
@@ -1374,11 +1374,11 @@ function PeoplePage() {
               </div>
 
               <div className="people-pagination" aria-label="Employee table pagination">
-                <span>{peopleRangeStart}â€“{peopleRangeEnd} of {filteredPeople.length}</span>
+                <span>{peopleRangeStart}-{peopleRangeEnd} of {filteredPeople.length}</span>
                 <div className="people-pagination-controls">
-                  <button type="button" onClick={() => setPeoplePage((page) => Math.max(1, page - 1))} disabled={peoplePage <= 1} aria-label="Previous employee page">â€¹</button>
+                  <button type="button" onClick={() => setPeoplePage((page) => Math.max(1, page - 1))} disabled={peoplePage <= 1} aria-label="Previous employee page">&lsaquo;</button>
                   <strong>Page {peoplePage} of {peoplePageCount}</strong>
-                  <button type="button" onClick={() => setPeoplePage((page) => Math.min(peoplePageCount, page + 1))} disabled={peoplePage >= peoplePageCount} aria-label="Next employee page">â€º</button>
+                  <button type="button" onClick={() => setPeoplePage((page) => Math.min(peoplePageCount, page + 1))} disabled={peoplePage >= peoplePageCount} aria-label="Next employee page">&rsaquo;</button>
                 </div>
               </div>
             </div>
@@ -1404,7 +1404,7 @@ function PeoplePage() {
           <section className="people-existing-picker" role="dialog" aria-modal="true" aria-label={`Add employees to ${selectedTeam.name}`}>
             <div className="people-modal-header">
               <div><span className="page-eyebrow">Existing employees</span><h3>Add employee to {selectedTeam.name}</h3></div>
-              <button type="button" className="people-close" onClick={() => setShowAddExisting(false)}>Ã—</button>
+              <button type="button" className="people-close" onClick={() => setShowAddExisting(false)}>&times;</button>
             </div>
 
             <div className="people-existing-toolbar">
@@ -1435,11 +1435,11 @@ function PeoplePage() {
               </div>
 
               <div className="people-pagination" aria-label="Existing employee pagination">
-                <span>{existingRangeStart}â€“{existingRangeEnd} of {existingCandidates.length}</span>
+                <span>{existingRangeStart}-{existingRangeEnd} of {existingCandidates.length}</span>
                 <div className="people-pagination-controls">
-                  <button type="button" onClick={() => setExistingPage((page) => Math.max(1, page - 1))} disabled={existingPage <= 1} aria-label="Previous existing employee page">â€¹</button>
+                  <button type="button" onClick={() => setExistingPage((page) => Math.max(1, page - 1))} disabled={existingPage <= 1} aria-label="Previous existing employee page">&lsaquo;</button>
                   <strong>Page {existingPage} of {existingPageCount}</strong>
-                  <button type="button" onClick={() => setExistingPage((page) => Math.min(existingPageCount, page + 1))} disabled={existingPage >= existingPageCount} aria-label="Next existing employee page">â€º</button>
+                  <button type="button" onClick={() => setExistingPage((page) => Math.min(existingPageCount, page + 1))} disabled={existingPage >= existingPageCount} aria-label="Next existing employee page">&rsaquo;</button>
                 </div>
               </div>
             </div>
@@ -1447,7 +1447,7 @@ function PeoplePage() {
             <div className="people-modal-footer">
               <button type="button" className="secondary-button" onClick={() => setShowAddExisting(false)} disabled={saving}>Cancel</button>
               <button type="button" className="primary-button" onClick={() => { void addExistingEmployees(); }} disabled={saving || !existingSelectedIds.length}>
-                {saving ? "Addingâ€¦" : `Add selected${existingSelectedIds.length ? ` (${existingSelectedIds.length})` : ""}`}
+                {saving ? "Adding..." : `Add selected${existingSelectedIds.length ? ` (${existingSelectedIds.length})` : ""}`}
               </button>
             </div>
           </section>
@@ -1459,7 +1459,7 @@ function PeoplePage() {
           <form className="people-form-modal" onSubmit={submitInvite}>
             <div className="people-modal-header">
               <div><span className="page-eyebrow">New account</span><h3>Invite person</h3></div>
-              <button type="button" className="people-close" onClick={() => setShowInvite(false)} aria-label="Close invitation">Ã—</button>
+              <button type="button" className="people-close" onClick={() => setShowInvite(false)} aria-label="Close invitation">&times;</button>
             </div>
             <div className="people-form-body">
               <label className="form-field"><span>Name</span><input value={inviteName} onChange={(event) => setInviteName(event.target.value)} autoFocus /></label>
@@ -1470,7 +1470,7 @@ function PeoplePage() {
                   <select value={inviteTeamId} onChange={(event) => setInviteTeamId(event.target.value)}>
                     {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
                   </select>
-                  <span className="people-select-caret" aria-hidden="true">â–¾</span>
+                  <span className="people-select-caret" aria-hidden="true">&#9662;</span>
                 </div>
               </label>
 
@@ -1496,7 +1496,7 @@ function PeoplePage() {
             </div>
             <div className="people-modal-footer">
               <button type="button" className="secondary-button" onClick={() => setShowInvite(false)} disabled={saving}>Cancel</button>
-              <button type="submit" className="primary-button" disabled={saving}>{saving ? "Sendingâ€¦" : "Send invitation"}</button>
+              <button type="submit" className="primary-button" disabled={saving}>{saving ? "Sending..." : "Send invitation"}</button>
             </div>
           </form>
         </div>
@@ -1505,7 +1505,7 @@ function PeoplePage() {
       {batchAction && (
         <div className="people-overlay">
           <section className="people-confirm-modal">
-            <div className="people-modal-header"><div><span className="page-eyebrow">Batch action</span><h3>{batchAction === "team" ? "Change team" : "Change role"}</h3></div><button type="button" className="people-close" onClick={() => setBatchAction(null)}>Ã—</button></div>
+            <div className="people-modal-header"><div><span className="page-eyebrow">Batch action</span><h3>{batchAction === "team" ? "Change team" : "Change role"}</h3></div><button type="button" className="people-close" onClick={() => setBatchAction(null)}>&times;</button></div>
             <div className="people-confirm-body">
               <p>This will update <strong>{selectedManageablePeople.length}</strong> selected employee{selectedManageablePeople.length === 1 ? "" : "s"}.</p>
               {batchAction === "team" ? (
@@ -1515,14 +1515,14 @@ function PeoplePage() {
                     <select value={batchTeamId} onChange={(event) => setBatchTeamId(event.target.value)}>
                       {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
                     </select>
-                    <span className="people-select-caret" aria-hidden="true">â–¾</span>
+                    <span className="people-select-caret" aria-hidden="true">&#9662;</span>
                   </div>
                 </label>
               ) : (
                 <label className="form-field"><span>New role</span><select value={batchRoleId} onChange={(event) => setBatchRoleId(event.target.value)}>{options?.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
               )}
             </div>
-            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => setBatchAction(null)} disabled={saving}>Cancel</button><button type="button" className="primary-button" onClick={() => { void runBatchAction(); }} disabled={saving}>{saving ? "Updatingâ€¦" : "Apply change"}</button></div>
+            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => setBatchAction(null)} disabled={saving}>Cancel</button><button type="button" className="primary-button" onClick={() => { void runBatchAction(); }} disabled={saving}>{saving ? "Updating..." : "Apply change"}</button></div>
           </section>
         </div>
       )}
@@ -1530,7 +1530,7 @@ function PeoplePage() {
       {teamModalAction && teamActionTarget && (
         <div className="people-overlay">
           <form className="people-confirm-modal" onSubmit={submitTeamMutation}>
-            <div className="people-modal-header"><div><span className="page-eyebrow">Organization</span><h3>{teamModalAction === "create" ? (teamActionTarget.isRoot ? "Add team" : "Add subteam") : teamModalAction === "rename" ? "Rename team" : "Delete team"}</h3></div><button type="button" className="people-close" onClick={() => setTeamModalAction(null)}>Ã—</button></div>
+            <div className="people-modal-header"><div><span className="page-eyebrow">Organization</span><h3>{teamModalAction === "create" ? (teamActionTarget.isRoot ? "Add team" : "Add subteam") : teamModalAction === "rename" ? "Rename team" : "Delete team"}</h3></div><button type="button" className="people-close" onClick={() => setTeamModalAction(null)}>&times;</button></div>
             <div className="people-confirm-body">
               {teamModalAction === "delete" ? (
                 <div className="people-confirm-impact delete"><strong>Delete {teamActionTarget.name}?</strong><p>A team can only be deleted when it has no employees and no subteams.</p></div>
@@ -1538,7 +1538,7 @@ function PeoplePage() {
                 <><label className="form-field"><span>Team name</span><input value={teamName} onChange={(event) => setTeamName(event.target.value)} autoFocus /></label>{teamModalAction === "create" && <p>The new team will be created under <strong>{teamActionTarget.name}</strong>.</p>}</>
               )}
             </div>
-            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => setTeamModalAction(null)} disabled={saving}>Cancel</button><button type="submit" className={teamModalAction === "delete" ? "danger-button" : "primary-button"} disabled={saving}>{saving ? "Workingâ€¦" : teamModalAction === "create" ? "Create team" : teamModalAction === "rename" ? "Save name" : "Delete team"}</button></div>
+            <div className="people-modal-footer"><button type="button" className="secondary-button" onClick={() => setTeamModalAction(null)} disabled={saving}>Cancel</button><button type="submit" className={teamModalAction === "delete" ? "danger-button" : "primary-button"} disabled={saving}>{saving ? "Working..." : teamModalAction === "create" ? "Create team" : teamModalAction === "rename" ? "Save name" : "Delete team"}</button></div>
           </form>
         </div>
       )}
@@ -1546,13 +1546,13 @@ function PeoplePage() {
       {showColorModal && teamActionTarget && (
         <div className="people-overlay">
           <form className="people-confirm-modal" onSubmit={saveTeamColor}>
-            <div className="people-modal-header"><div><span className="page-eyebrow">Team appearance</span><h3>Color for {teamActionTarget.name}</h3></div><button type="button" className="people-close" onClick={() => setShowColorModal(false)}>Ã—</button></div>
+            <div className="people-modal-header"><div><span className="page-eyebrow">Team appearance</span><h3>Color for {teamActionTarget.name}</h3></div><button type="button" className="people-close" onClick={() => setShowColorModal(false)}>&times;</button></div>
             <div className="people-confirm-body">
               <p>This color identifies the team and appears as its selected-row accent. Subteams inherit it until they receive their own color.</p>
               <div className="people-color-picker-row"><input type="color" value={teamColor} onChange={(event) => setTeamColor(event.target.value.toUpperCase())} /><strong>{teamColor}</strong></div>
               <div className="people-color-presets">{COLOR_PRESETS.map((color) => <button key={color} type="button" className={teamColor === color ? "active" : ""} style={{ background: color }} onClick={() => setTeamColor(color)} aria-label={`Use ${color}`} />)}</div>
             </div>
-            <div className="people-modal-footer"><button type="button" className="text-button" onClick={() => { void clearTeamColor(); }} disabled={saving || !teamActionTarget.color}>Use parent team color</button><button type="button" className="secondary-button" onClick={() => setShowColorModal(false)} disabled={saving}>Cancel</button><button type="submit" className="primary-button" disabled={saving}>{saving ? "Savingâ€¦" : "Save color"}</button></div>
+            <div className="people-modal-footer"><button type="button" className="text-button" onClick={() => { void clearTeamColor(); }} disabled={saving || !teamActionTarget.color}>Use parent team color</button><button type="button" className="secondary-button" onClick={() => setShowColorModal(false)} disabled={saving}>Cancel</button><button type="submit" className="primary-button" disabled={saving}>{saving ? "Saving..." : "Save color"}</button></div>
           </form>
         </div>
       )}

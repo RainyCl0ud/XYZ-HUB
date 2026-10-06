@@ -129,6 +129,12 @@ type ConfirmAction =
   | "delete"
   | null;
 
+type ProfileTab =
+  | "overview"
+  | "qa"
+  | "strikes"
+  | "account-access";
+
 
 const TEXAS_TIME_ZONE =
   "America/Chicago";
@@ -136,6 +142,28 @@ const TEXAS_TIME_ZONE =
 const EMPTY_TEAMS:
   TeamGroup[] =
     [];
+
+const PROFILE_TABS: Array<{
+  id: ProfileTab;
+  label: string;
+}> = [
+  {
+    id: "overview",
+    label: "Overview",
+  },
+  {
+    id: "qa",
+    label: "QA",
+  },
+  {
+    id: "strikes",
+    label: "Strikes",
+  },
+  {
+    id: "account-access",
+    label: "Account Access",
+  },
+];
 
 
 function formatStatus(
@@ -241,12 +269,68 @@ function getReturnPath(
       "/people" ||
     requested?.startsWith(
       "/people?"
+    ) ||
+    requested ===
+      "/incidents" ||
+    requested?.startsWith(
+      "/incidents?"
+    ) ||
+    requested ===
+      "/strikes" ||
+    requested?.startsWith(
+      "/strikes?"
     )
   ) {
     return requested;
   }
 
   return "/people";
+}
+
+
+function getReturnLabel(
+  returnPath:
+    string
+) {
+  if (
+    returnPath.startsWith(
+      "/incidents"
+    )
+  ) {
+    return "\u2190 Back to Incidents";
+  }
+
+  if (
+    returnPath.startsWith(
+      "/strikes"
+    )
+  ) {
+    return "\u2190 Back to Strike Management";
+  }
+
+  return "\u2190 Back to Employee Management";
+}
+
+
+function getProfileTab(
+  value:
+    string |
+    null
+): ProfileTab {
+  if (
+    value ===
+      "overview" ||
+    value ===
+      "qa" ||
+    value ===
+      "strikes" ||
+    value ===
+      "account-access"
+  ) {
+    return value;
+  }
+
+  return "overview";
 }
 
 
@@ -272,6 +356,7 @@ function PeopleDetailPage() {
 
   const [
     searchParams,
+    setSearchParams,
   ] =
     useSearchParams();
 
@@ -279,6 +364,13 @@ function PeopleDetailPage() {
     getReturnPath(
       searchParams.get(
         "from"
+      )
+    );
+
+  const activeTab =
+    getProfileTab(
+      searchParams.get(
+        "tab"
       )
     );
 
@@ -930,6 +1022,30 @@ function PeopleDetailPage() {
   }
 
 
+  function selectProfileTab(
+    tab:
+      ProfileTab
+  ) {
+    const next =
+      new URLSearchParams(
+        searchParams
+      );
+
+    next.set(
+      "tab",
+      tab
+    );
+
+    setSearchParams(
+      next,
+      {
+        replace:
+          true,
+      }
+    );
+  }
+
+
   function openAccessEditor() {
     if (
       !person ||
@@ -1264,7 +1380,7 @@ function PeopleDetailPage() {
               "reactivate"
             ? "The user was reactivated."
             : "Two-factor authentication was reset and existing sessions were revoked.",
-        "People Management updated"
+        "Employee Management updated"
       );
 
       setConfirmAction(
@@ -1321,7 +1437,7 @@ function PeopleDetailPage() {
             goBack
           }
         >
-          ← Back to People
+          {getReturnLabel(returnPath)}
         </button>
 
         <div className="empty-state">
@@ -1348,7 +1464,7 @@ function PeopleDetailPage() {
             goBack
           }
         >
-          ← Back to People
+          {getReturnLabel(returnPath)}
         </button>
 
         <section className="content-card people-profile-route-error">
@@ -1375,7 +1491,7 @@ function PeopleDetailPage() {
           goBack
         }
       >
-        ← Back to People
+        {getReturnLabel(returnPath)}
       </button>
 
       <section
@@ -1425,286 +1541,398 @@ function PeopleDetailPage() {
             </p>
           </div>
 
-          <div
-            className="people-profile-header-status"
-            aria-label={`Account status: ${formatStatus(
-              person.status
-            )}`}
-          >
-            <span className="people-profile-status-label">
-              Account status:
-            </span>
+        </div>
 
-            <span
-              className={`people-profile-status-pill ${person.status.toLowerCase()}`}
-            >
-              {formatStatus(
-                person.status
-              )}
-            </span>
-          </div>
+
+        <div
+          className="people-profile-tabs"
+          role="tablist"
+          aria-label="Employee profile sections"
+        >
+          {PROFILE_TABS.map(
+            (
+              tab
+            ) => (
+              <button
+                key={
+                  tab.id
+                }
+                type="button"
+                role="tab"
+                aria-selected={
+                  activeTab ===
+                  tab.id
+                }
+                className={`people-profile-tab${activeTab === tab.id ? " active" : ""}`}
+                onClick={() =>
+                  selectProfileTab(
+                    tab.id
+                  )
+                }
+              >
+                {tab.label}
+              </button>
+            )
+          )}
         </div>
 
 
         <div className="people-detail-body">
-          <div className="people-detail-section people-access-section">
-            <div className="people-detail-section-heading">
-              <div>
-                <h4>
-                  Roles & creator access
-                </h4>
-
-                <p>
-                  Current organizational and creator access for this employee.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="primary-button people-edit-access"
-                onClick={
-                  openAccessEditor
-                }
-                disabled={
-                  !canManagePerson
-                }
-              >
-                Edit access
-              </button>
-            </div>
-
-            <div className="people-access-grid">
-              <div className="people-access-team-card">
-                <span className="people-section-label">
-                  Team
-                </span>
-
-                <strong className="people-access-value">
-                  {person.teamGroup?.name ??
-                    "Not assigned"}
-                </strong>
-              </div>
-
-              <div>
-                <span className="people-section-label">
-                  Roles
-                </span>
-
-                <div className="people-chip-list">
-                  {person.roles.length ? (
-                    person.roles.map(
-                      (
-                        role
-                      ) => (
-                        <span
-                          key={
-                            role.id
-                          }
-                          className="people-chip"
-                        >
-                          {role.name}
-                          {" · "}
-                          {formatDataScope(
-                            role.dataScope
-                          )}
-                        </span>
-                      )
-                    )
-                  ) : (
-                    <span className="people-empty-inline">
-                      No role assignments
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <span className="people-section-label">
-                  Creators
-                </span>
-
-                <div className="people-chip-list">
-                  {person.models.length ? (
-                    person.models.map(
-                      (
-                        model
-                      ) => (
-                        <span
-                          key={
-                            model.id
-                          }
-                          className="people-chip"
-                        >
-                          {model.name}
-                        </span>
-                      )
-                    )
-                  ) : (
-                    <span className="people-empty-inline">
-                      No creator assignments
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-
-          {!canManagePerson && (
-            <p className="people-scope-note">
-              {isSelf
-                ? "Your own role and creator assignments cannot be changed from People Management."
-                : "This profile is visible to you, but one or more assignments are outside the access you may change."}
-            </p>
-          )}
-
-
-          <PeopleQaPanel
-            personId={
-              person.id
-            }
-          />
-
-
-          <div className="people-detail-section">
-            <div className="people-detail-section-heading">
-              <div>
-                <h4>
-                  Account access
-                </h4>
-
-                <p>
-                  Security and sign-in controls for this employee account.
-                </p>
-              </div>
-            </div>
-
-            <div className="people-account-action-stack">
-              {person.status ===
-                "PENDING_SETUP" && (
-                <div className="people-account-action-card">
-                  <div>
-                    <strong>
-                      Invitation pending
-                    </strong>
-
-                    <span>
-                      Send a fresh invitation if the original email was missed or expired.
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => {
-                      void resendInvite();
-                    }}
-                    disabled={
-                      saving ||
-                      !canManagePerson ||
-                      !options
-                        .capabilities
-                        .invitesAvailable
-                    }
-                  >
-                    Resend invitation
-                  </button>
-                </div>
-              )}
-
-
-              {options
-                .capabilities
-                .canResetTwoFactor && (
-                <div className="people-account-action-card">
-                  <div>
-                    <strong>
-                      Reset two-factor authentication
-                    </strong>
-
-                    <span>
-                      Use this if the employee can no longer complete verification.
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() =>
-                      requestConfirmedAction(
-                        "reset-2fa"
-                      )
-                    }
-                    disabled={
-                      saving
-                    }
-                  >
-                    Reset 2FA
-                  </button>
-                </div>
-              )}
-
-
-              {person.status ===
-                "DEACTIVATED" &&
-                options
-                  .capabilities
-                  .isOwner && (
-                  <div className="people-account-action-card restore">
-                    <div>
-                      <strong>
-                        Reactivate account
-                      </strong>
-
-                      <span>
-                        Restores sign-in access. Previously revoked sessions stay revoked.
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="primary-button"
-                      onClick={() =>
-                        requestConfirmedAction(
-                          "reactivate"
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                    >
-                      Reactivate account
-                    </button>
-                  </div>
-                )}
-            </div>
-          </div>
-
-
-          {options
-            .capabilities
-            .isOwner &&
-            person.id !==
-              user?.id && (
-              <div className="people-detail-section people-danger-zone">
+          {activeTab ===
+            "overview" && (
+            <div
+              className="people-profile-tab-panel"
+              role="tabpanel"
+            >
+              <div className="people-detail-section people-access-section">
                 <div className="people-detail-section-heading">
                   <div>
                     <h4>
-                      Owner-only danger zone
+                      Roles & creator access
                     </h4>
 
                     <p>
-                      Only Owners can deactivate or permanently delete people. These actions cannot be granted through Role Settings.
+                      Current organizational and creator access for this employee.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="primary-button people-edit-access"
+                    onClick={
+                      openAccessEditor
+                    }
+                    disabled={
+                      !canManagePerson
+                    }
+                  >
+                    Edit access
+                  </button>
+                </div>
+
+                <div className="people-access-grid">
+                  <div className="people-access-team-card">
+                    <span className="people-section-label">
+                      Team
+                    </span>
+
+                    <strong className="people-access-value">
+                      {person.teamGroup?.name ??
+                        "Not assigned"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span className="people-section-label">
+                      Roles
+                    </span>
+
+                    <div className="people-chip-list">
+                      {person.roles.length ? (
+                        person.roles.map(
+                          (
+                            role
+                          ) => (
+                            <span
+                              key={
+                                role.id
+                              }
+                              className="people-chip"
+                            >
+                              {role.name}
+                              {" · "}
+                              {formatDataScope(
+                                role.dataScope
+                              )}
+                            </span>
+                          )
+                        )
+                      ) : (
+                        <span className="people-empty-inline">
+                          No role assignments
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="people-section-label">
+                      Creators
+                    </span>
+
+                    <div className="people-chip-list">
+                      {person.models.length ? (
+                        person.models.map(
+                          (
+                            model
+                          ) => (
+                            <span
+                              key={
+                                model.id
+                              }
+                              className="people-chip"
+                            >
+                              {model.name}
+                            </span>
+                          )
+                        )
+                      ) : (
+                        <span className="people-empty-inline">
+                          No creator assignments
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {!canManagePerson && (
+                <p className="people-scope-note">
+                  {isSelf
+                    ? "Your own role and creator assignments cannot be changed from Employee Management."
+                    : "This profile is visible to you, but one or more assignments are outside the access you may change."}
+                </p>
+              )}
+            </div>
+          )}
+
+
+          {activeTab ===
+            "qa" && (
+            <div
+              className="people-profile-tab-panel"
+              role="tabpanel"
+            >
+              <PeopleQaPanel
+                key="qa"
+                personId={
+                  person.id
+                }
+                view="qa"
+              />
+            </div>
+          )}
+
+
+          {activeTab ===
+            "strikes" && (
+            <div
+              className="people-profile-tab-panel"
+              role="tabpanel"
+            >
+              <PeopleQaPanel
+                key="strikes"
+                personId={
+                  person.id
+                }
+                view="strikes"
+              />
+            </div>
+          )}
+
+
+          {activeTab ===
+            "account-access" && (
+            <div
+              className="people-profile-tab-panel"
+              role="tabpanel"
+            >
+              <div className="people-account-summary">
+                <div>
+                  <span>
+                    Account status
+                  </span>
+
+                  <strong
+                    className={`people-profile-status-pill ${person.status.toLowerCase()}`}
+                  >
+                    {formatStatus(
+                      person.status
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Created
+                  </span>
+
+                  <strong>
+                    {formatTexasDateTime(
+                      person.createdAt
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Email verified
+                  </span>
+
+                  <strong>
+                    {person.emailVerifiedAt
+                      ? formatTexasDateTime(
+                          person.emailVerifiedAt
+                        )
+                      : "Not verified"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Last sign-in
+                  </span>
+
+                  <strong>
+                    {formatTexasDateTime(
+                      person.security
+                        ?.lastSignInAt ??
+                        null
+                    )}
+                  </strong>
+                </div>
+              </div>
+
+
+              <div className="people-detail-section people-account-access-section">
+                <div className="people-detail-section-heading">
+                  <div>
+                    <h4>
+                      Security & sign-in controls
+                    </h4>
+
+                    <p>
+                      Manage authentication, invitations, and account availability.
                     </p>
                   </div>
                 </div>
 
+                <div className="people-account-action-stack">
+                  {person.status ===
+                    "PENDING_SETUP" && (
+                    <div className="people-account-action-card">
+                      <div>
+                        <strong>
+                          Invitation pending
+                        </strong>
 
-                {person.status ===
-                  "ACTIVE" &&
-                  options
+                        <span>
+                          Send a fresh invitation if the original email was missed or expired.
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => {
+                          void resendInvite();
+                        }}
+                        disabled={
+                          saving ||
+                          !canManagePerson ||
+                          !options
+                            .capabilities
+                            .invitesAvailable
+                        }
+                      >
+                        Resend invitation
+                      </button>
+                    </div>
+                  )}
+
+
+                  {options
                     .capabilities
-                    .canDeactivate && (
+                    .canResetTwoFactor && (
+                    <div className="people-account-action-card">
+                      <div>
+                        <strong>
+                          Reset two-factor authentication
+                        </strong>
+
+                        <span>
+                          Use this if the employee can no longer complete verification.
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() =>
+                          requestConfirmedAction(
+                            "reset-2fa"
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                      >
+                        Reset 2FA
+                      </button>
+                    </div>
+                  )}
+
+
+                  {person.status ===
+                    "DEACTIVATED" &&
+                    options
+                      .capabilities
+                      .isOwner && (
+                    <div className="people-account-action-card restore">
+                      <div>
+                        <strong>
+                          Reactivate account
+                        </strong>
+
+                        <span>
+                          Restores sign-in access. Previously revoked sessions stay revoked.
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() =>
+                          requestConfirmedAction(
+                            "reactivate"
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                      >
+                        Reactivate account
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+
+              {options
+                .capabilities
+                .isOwner &&
+                person.id !==
+                  user?.id && (
+                <div className="people-detail-section people-danger-zone">
+                  <div className="people-detail-section-heading">
+                    <div>
+                      <h4>
+                        Owner-only danger zone
+                      </h4>
+
+                      <p>
+                        Destructive account actions are isolated from routine security controls.
+                      </p>
+                    </div>
+                  </div>
+
+
+                  {person.status ===
+                    "ACTIVE" &&
+                    options
+                      .capabilities
+                      .canDeactivate && (
                     <div className="people-danger-action">
                       <div>
                         <strong>
@@ -1735,81 +1963,40 @@ function PeopleDetailPage() {
                   )}
 
 
-                {options
-                  .capabilities
-                  .canDelete && (
-                  <div className="people-danger-action">
-                    <div>
-                      <strong>
-                        Permanently delete account
-                      </strong>
+                  {options
+                    .capabilities
+                    .canDelete && (
+                    <div className="people-danger-action">
+                      <div>
+                        <strong>
+                          Permanently delete account
+                        </strong>
 
-                      <span>
-                        Deletes the account and tied QA history. This cannot be undone and requires the account email as confirmation.
-                      </span>
+                        <span>
+                          Deletes the account and tied QA history. This cannot be undone and requires the account email as confirmation.
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() =>
+                          requestConfirmedAction(
+                            "delete"
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                      >
+                        Permanently delete
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      className="danger-button"
-                      onClick={() =>
-                        requestConfirmedAction(
-                          "delete"
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                    >
-                      Permanently delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-
-          <div className="people-profile-facts-bottom">
-            <div>
-              <span>
-                Created
-              </span>
-
-              <strong>
-                {formatTexasDateTime(
-                  person.createdAt
-                )}
-              </strong>
+                  )}
+                </div>
+              )}
             </div>
-
-            <div>
-              <span>
-                Email verified
-              </span>
-
-              <strong>
-                {person.emailVerifiedAt
-                  ? formatTexasDateTime(
-                      person.emailVerifiedAt
-                    )
-                  : "Not verified"}
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                Last sign-in
-              </span>
-
-              <strong>
-                {formatTexasDateTime(
-                  person.security
-                    ?.lastSignInAt ??
-                    null
-                )}
-              </strong>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 

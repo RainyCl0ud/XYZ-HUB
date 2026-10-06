@@ -240,6 +240,7 @@ function IncidentsPage() {
     canManageQaIncidents,
     canViewStrikes,
     canIssueStrikes,
+    canManagePeople,
   } =
     getPortalCapabilities(access);
 
@@ -1233,6 +1234,39 @@ function IncidentsPage() {
       `/strikes?${params.toString()}`
     );
   }
+
+  function viewEmployeeQaProfile() {
+    if (
+      !canManagePeople ||
+      !selectedIncident
+        ?.chatter
+        .userId
+    ) {
+      return;
+    }
+
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "tab",
+      "qa"
+    );
+
+    params.set(
+      "from",
+      `/incidents?incidentId=${selectedIncident.id}`
+    );
+
+    navigate(
+      `/people/${encodeURIComponent(
+        selectedIncident
+          .chatter
+          .userId
+      )}?${params.toString()}`
+    );
+  }
+
 
   function openAction(
     type: ActionType,
@@ -2524,6 +2558,21 @@ function IncidentsPage() {
                         >
                           View QA Profile
                         </button>
+
+                        {canManagePeople &&
+                          selectedIncident
+                            .chatter
+                            .userId && (
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={
+                              viewEmployeeQaProfile
+                            }
+                          >
+                            View Employee QA
+                          </button>
+                        )}
                       </div>
 
                       <div className="incident-detail-statuses">
