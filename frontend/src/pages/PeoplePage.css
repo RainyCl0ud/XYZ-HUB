@@ -775,6 +775,14 @@
   margin-bottom: 14px;
 }
 
+.people-assignment-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .people-detail-section-heading h4 {
   margin: 0;
   color: var(--text);

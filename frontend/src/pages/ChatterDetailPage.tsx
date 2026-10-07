@@ -424,8 +424,8 @@ function ChatterDetailPage() {
     return getReturnPath().startsWith(
       "/incidents"
     )
-      ? "â† Back to Incidents"
-      : "â† Back to Chatters";
+      ? "\u2190 Back to Incidents"
+      : "\u2190 Back to Chatters";
   }
 
   const loadDetails =
@@ -1589,7 +1589,7 @@ function ChatterDetailPage() {
                             ] && (
                             <div className="chatter-linked-strike-row">
                               <span className="chatter-linked-strike-badge">
-                                Linked Strike Â·{" "}
+                                Linked Strike{" \u00b7 "}
                                 {formatLinkedStrikeStatus(
                                   linkedStrikeByIncidentId[
                                     incident.id
@@ -1836,7 +1836,7 @@ function ChatterDetailPage() {
                   isSaving
                 }
               >
-                Ã—
+                &times;
               </button>
             </div>
 

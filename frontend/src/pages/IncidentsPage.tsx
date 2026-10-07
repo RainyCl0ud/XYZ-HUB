@@ -242,7 +242,6 @@ function IncidentsPage() {
     canVoidQaIncidents,
     canViewStrikes,
     canIssueStrikes,
-    canViewPeopleProfiles,
   } =
     getPortalCapabilities(
       access
@@ -1248,39 +1247,6 @@ function IncidentsPage() {
     );
   }
 
-  function viewEmployeeQaProfile() {
-    if (
-      !canViewPeopleProfiles ||
-      !selectedIncident
-        ?.chatter
-        .userId
-    ) {
-      return;
-    }
-
-    const params =
-      new URLSearchParams();
-
-    params.set(
-      "tab",
-      "qa"
-    );
-
-    params.set(
-      "from",
-      `/incidents?incidentId=${selectedIncident.id}`
-    );
-
-    navigate(
-      `/people/${encodeURIComponent(
-        selectedIncident
-          .chatter
-          .userId
-      )}?${params.toString()}`
-    );
-  }
-
-
   function openAction(
     type: ActionType,
     incident: Incident
@@ -2061,12 +2027,12 @@ function IncidentsPage() {
                         <td>
                           {incident
                             .severityNameSnapshot ??
-                            "â€”"}
+                            "\u2014"}
                         </td>
 
                         <td>
                           {incident.weightNameSnapshot ??
-                            "â€”"}
+                            "\u2014"}
                         </td>
 
                         <td className="incident-date-cell">
@@ -2191,7 +2157,7 @@ function IncidentsPage() {
                   isSaving
                 }
               >
-                Ã—
+                &times;
               </button>
             </div>
 
@@ -2555,7 +2521,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close"
                 >
-                  Ã—
+                  &times;
                 </button>
               </div>
 
@@ -2599,21 +2565,6 @@ function IncidentsPage() {
                         >
                           View QA Profile
                         </button>
-
-                        {canViewPeopleProfiles &&
-                          selectedIncident
-                            .chatter
-                            .userId && (
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            onClick={
-                              viewEmployeeQaProfile
-                            }
-                          >
-                            View Employee QA
-                          </button>
-                        )}
                       </div>
 
                       <div className="incident-detail-statuses">
@@ -2961,7 +2912,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close"
                 >
-                  Ã—
+                  &times;
                 </button>
               </div>
 
@@ -3036,7 +2987,7 @@ function IncidentsPage() {
                   <small className="form-helper">
                     {actionType ===
                     "resolve"
-                      ? `Optional Â· ${actionNotes.length}/2000 characters`
+                      ? `Optional \u00b7 ${actionNotes.length}/2000 characters`
                       : `${actionNotes.length}/2000 characters`}
                   </small>
                 </label>
@@ -3141,7 +3092,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close confirmation"
                 >
-                  Ã—
+                  &times;
                 </button>
               </div>
 
@@ -3163,7 +3114,7 @@ function IncidentsPage() {
                       <strong>
                         {selectedChatter
                           ?.name ??
-                          "â€”"}
+                          "\u2014"}
                       </strong>
                     </div>
 
@@ -3176,7 +3127,7 @@ function IncidentsPage() {
                         {selectedRule
                           ?.currentVersion
                           ?.title ??
-                          "â€”"}
+                          "\u2014"}
                       </strong>
                     </div>
 

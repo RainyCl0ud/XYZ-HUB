@@ -95,6 +95,7 @@ type AssignableModel = {
 
 type PeopleOptions = {
   roles: AssignableRole[];
+  inviteRoles: AssignableRole[];
   models: AssignableModel[];
   organization: {
     rootGroupId: string;
@@ -104,6 +105,7 @@ type PeopleOptions = {
     isOwner: boolean;
     canManagePeople: boolean;
     canCreatePeople: boolean;
+    canInvitePeople: boolean;
     canAssignRoles: boolean;
     canManageOrganization: boolean;
     canDeactivate: boolean;
@@ -852,7 +854,7 @@ function PeoplePage() {
   }
 
   function openInvite(teamId?: string | null) {
-    if (!options?.capabilities.canCreatePeople) return;
+    if (!options?.capabilities.canInvitePeople) return;
 
     resetInviteForm(teamId);
     setShowInvite(true);
@@ -861,7 +863,7 @@ function PeoplePage() {
   async function submitInvite(event: FormEvent) {
     event.preventDefault();
 
-    if (!options?.capabilities.canCreatePeople) return;
+    if (!options?.capabilities.canInvitePeople) return;
 
     if (!options.capabilities.invitesAvailable) {
       toast.warning("Invitation email delivery is not available.", "Email setup pending");
@@ -1231,7 +1233,7 @@ function PeoplePage() {
         <button
           type="button"
           className="primary-button"
-          hidden={!options?.capabilities.canCreatePeople}
+          hidden={!options?.capabilities.canInvitePeople}
           onClick={() => openInvite(selectedTeamId)}
           disabled={!options?.capabilities.invitesAvailable}
         >
@@ -1239,7 +1241,7 @@ function PeoplePage() {
         </button>
       </header>
 
-      {options?.capabilities.canCreatePeople &&
+      {options?.capabilities.canInvitePeople &&
         !options.capabilities.invitesAvailable &&
         !loading && (
         <div className="people-email-notice">
@@ -1504,7 +1506,7 @@ function PeoplePage() {
         </div>
       )}
 
-      {options?.capabilities.canCreatePeople && showInvite && (
+      {options?.capabilities.canInvitePeople && showInvite && (
         <div className="people-overlay">
           <form className="people-form-modal" onSubmit={submitInvite}>
             <div className="people-modal-header">
@@ -1526,7 +1528,7 @@ function PeoplePage() {
 
               <div className="people-option-section">
                 <span className="people-section-label">Roles</span>
-                <div className="people-option-grid">{options?.roles.map((role) => (
+                <div className="people-option-grid">{options?.inviteRoles.map((role) => (
                   <label key={role.id} className="people-check-option">
                     <input type="checkbox" checked={inviteRoleIds.includes(role.id)} onChange={() => toggleSelection(inviteRoleIds, role.id, setInviteRoleIds)} />
                     <span><strong>{role.name}</strong><small>{formatDataScope(role.dataScope)}</small></span>

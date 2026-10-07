@@ -30,7 +30,6 @@ import {
 } from "../components/ToastProvider";
 
 import PeopleQaPanel from "../components/PeopleQaPanel";
-import AccountActivityPanel from "../components/AccountActivityPanel";
 
 import "./PeoplePage.css";
 
@@ -434,6 +433,24 @@ function PeopleDetailPage() {
   const [
     assignedRoleIds,
     setAssignedRoleIds,
+  ] =
+    useState<
+      string[]
+    >(
+      []
+    );
+
+  const [
+    showModelEditor,
+    setShowModelEditor,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    assignedModelIds,
+    setAssignedModelIds,
   ] =
     useState<
       string[]
@@ -984,6 +1001,107 @@ function PeopleDetailPage() {
   }
 
 
+  function openModelEditor() {
+    if (
+      !person ||
+      !options ||
+      !options.capabilities.canAssignRoles ||
+      !canManagePerson ||
+      !person.teamGroup
+    ) {
+      return;
+    }
+
+    setAssignedModelIds(
+      person.models.map(
+        (
+          model
+        ) =>
+          model.id
+      )
+    );
+
+    setShowModelEditor(
+      true
+    );
+  }
+
+
+  async function saveModels(
+    event:
+      FormEvent
+  ) {
+    event.preventDefault();
+
+    if (
+      !person ||
+      !options?.capabilities.canAssignRoles ||
+      !canManagePerson ||
+      !person.teamGroup
+    ) {
+      return;
+    }
+
+    try {
+      setSaving(
+        true
+      );
+
+      await apiRequest(
+        `/api/people/${encodeURIComponent(
+          person.id
+        )}/access`,
+        {
+          method:
+            "PUT",
+
+          body:
+            JSON.stringify({
+              teamGroupId:
+                person.teamGroup.id,
+
+              roleIds:
+                person.roles.map(
+                  (
+                    role
+                  ) =>
+                    role.id
+                ),
+
+              modelIds:
+                assignedModelIds,
+            }),
+        }
+      );
+
+      await refreshProfile();
+
+      setShowModelEditor(
+        false
+      );
+
+      toast.success(
+        "The employee's model assignments were updated.",
+        "Models updated"
+      );
+    } catch (
+      saveError
+    ) {
+      toast.error(
+        saveError instanceof
+          Error
+          ? saveError.message
+          : "Unable to update model assignments.",
+        "Models not updated"
+      );
+    } finally {
+      setSaving(
+        false
+      );
+    }
+  }
+
+
   async function resendInvite() {
     if (
       !person ||
@@ -1372,21 +1490,39 @@ function PeopleDetailPage() {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    className="primary-button people-edit-access"
-                    hidden={
-                      !options.capabilities.canAssignRoles
-                    }
-                    onClick={
-                      openRoleEditor
-                    }
-                    disabled={
-                      !canManagePerson
-                    }
-                  >
-                    Assign roles
-                  </button>
+                  <div className="people-assignment-actions">
+                    <button
+                      type="button"
+                      className="primary-button people-edit-access"
+                      hidden={
+                        !options.capabilities.canAssignRoles
+                      }
+                      onClick={
+                        openRoleEditor
+                      }
+                      disabled={
+                        !canManagePerson
+                      }
+                    >
+                      Assign roles
+                    </button>
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      hidden={
+                        !options.capabilities.canAssignRoles
+                      }
+                      onClick={
+                        openModelEditor
+                      }
+                      disabled={
+                        !canManagePerson
+                      }
+                    >
+                      Assign models
+                    </button>
+                  </div>
                 </div>
 
                 <div className="people-access-grid">
@@ -1403,7 +1539,7 @@ function PeopleDetailPage() {
 
                   <div>
                     <span className="people-section-label">
-                      Roles
+                      Assigned Role
                     </span>
 
                     <div className="people-chip-list">
@@ -1436,7 +1572,7 @@ function PeopleDetailPage() {
 
                   <div>
                     <span className="people-section-label">
-                      Creators
+                      Assigned Models
                     </span>
 
                     <div className="people-chip-list">
@@ -1571,18 +1707,6 @@ function PeopleDetailPage() {
                   </strong>
                 </div>
               </div>
-
-
-              <AccountActivityPanel
-                key={
-                  person.id
-                }
-                personId={
-                  person.id
-                }
-              />
-
-
               <div className="people-detail-section people-account-access-section">
                 <div className="people-detail-section-heading">
                   <div>
@@ -1822,7 +1946,7 @@ function PeopleDetailPage() {
                 }
                 aria-label="Close role assignment"
               >
-                ×
+                &times;
               </button>
             </div>
 
@@ -1917,6 +2041,167 @@ function PeopleDetailPage() {
                 {saving
                   ? "Saving…"
                   : "Save roles"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+
+      {options?.capabilities.canAssignRoles &&
+        showModelEditor && (
+        <div className="people-overlay">
+          <form
+            className="people-form-modal"
+            onSubmit={
+              saveModels
+            }
+          >
+            <div className="people-modal-header">
+              <div>
+                <span className="page-eyebrow">
+                  Model assignment
+                </span>
+
+                <h3>
+                  Assign models to {person.name}
+                </h3>
+
+                <p>
+                  Add or remove models available within your assigned model scope.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="people-close"
+                onClick={() =>
+                  setShowModelEditor(
+                    false
+                  )
+                }
+                aria-label="Close model assignment"
+              >
+                &times;
+              </button>
+            </div>
+
+
+            <div className="people-form-body">
+              <div className="people-option-section">
+                <div className="people-option-heading">
+                  <div>
+                    <span className="people-section-label">
+                      Assigned models
+                    </span>
+
+                    <small>
+                      {assignedModelIds.length} selected
+                    </small>
+                  </div>
+                </div>
+
+                <div className="people-option-grid">
+                  {options.models.map(
+                    (
+                      model
+                    ) => {
+                      const currentlyAssigned =
+                        person.models.some(
+                          (
+                            assigned
+                          ) =>
+                            assigned.id ===
+                            model.id
+                        );
+
+                      const unavailable =
+                        !model.isActive &&
+                        !currentlyAssigned;
+
+                      return (
+                        <label
+                          key={
+                            model.id
+                          }
+                          className={
+                            "people-check-option" +
+                            (
+                              unavailable
+                                ? " disabled"
+                                : ""
+                            )
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              assignedModelIds.includes(
+                                model.id
+                              )
+                            }
+                            disabled={
+                              unavailable
+                            }
+                            onChange={() =>
+                              toggleSelection(
+                                assignedModelIds,
+                                model.id,
+                                setAssignedModelIds
+                              )
+                            }
+                          />
+
+                          <span>
+                            <strong>
+                              {model.name}
+                            </strong>
+
+                            <small>
+                              {model.isActive
+                                ? "Active model"
+                                : "Inactive model"}
+                            </small>
+                          </span>
+                        </label>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+
+              <p className="people-scope-note">
+                You can only assign models available within your own model access.
+              </p>
+            </div>
+
+
+            <div className="people-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setShowModelEditor(
+                    false
+                  )
+                }
+                disabled={
+                  saving
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={
+                  saving
+                }
+              >
+                {saving
+                  ? "Saving..."
+                  : "Save models"}
               </button>
             </div>
           </form>

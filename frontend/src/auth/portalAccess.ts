@@ -144,6 +144,14 @@ export const PORTAL_PERMISSION_DEPENDENCIES:
 };
 
 
+const OWNER_ONLY_PERMISSION_KEYS =
+  new Set<string>([
+    "people.status.manage",
+    "people.delete",
+    "audit.access",
+  ]);
+
+
 function rawPermission(
   access:
     PortalAccessShape | null,
@@ -220,6 +228,17 @@ export function hasPortalPermission(
   key:
     string
 ) {
+  if (
+    OWNER_ONLY_PERMISSION_KEYS.has(
+      key
+    )
+  ) {
+    return hasSystemRole(
+      access,
+      "OWNER"
+    );
+  }
+
   return hasPermissionRecursive(
     access,
     key,
