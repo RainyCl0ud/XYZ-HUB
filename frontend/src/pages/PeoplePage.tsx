@@ -95,7 +95,9 @@ type AssignableModel = {
 
 type PeopleOptions = {
   roles: AssignableRole[];
+  inviteRoles: AssignableRole[];
   models: AssignableModel[];
+  inviteModels: AssignableModel[];
   organization: {
     rootGroupId: string;
     groups: TeamGroup[];
@@ -1526,7 +1528,7 @@ function PeoplePage() {
 
               <div className="people-option-section">
                 <span className="people-section-label">Roles</span>
-                <div className="people-option-grid">{options?.roles.map((role) => (
+                <div className="people-option-grid">{options?.inviteRoles.map((role) => (
                   <label key={role.id} className="people-check-option">
                     <input type="checkbox" checked={inviteRoleIds.includes(role.id)} onChange={() => toggleSelection(inviteRoleIds, role.id, setInviteRoleIds)} />
                     <span><strong>{role.name}</strong><small>{formatDataScope(role.dataScope)}</small></span>
@@ -1536,7 +1538,7 @@ function PeoplePage() {
 
               <div className="people-option-section">
                 <span className="people-section-label">Creator assignments</span>
-                <div className="people-option-grid">{activeCreators.map((model) => (
+                <div className="people-option-grid">{options?.inviteModels.map((model) => (
                   <label key={model.id} className="people-check-option">
                     <input type="checkbox" checked={inviteModelIds.includes(model.id)} onChange={() => toggleSelection(inviteModelIds, model.id, setInviteModelIds)} />
                     <span><strong>{model.name}</strong><small>Active creator</small></span>

@@ -5,6 +5,7 @@ import "dotenv/config";
 import assert from "node:assert/strict";
 
 import {
+  RoleDataScope,
   UserStatus,
 } from "@prisma/client";
 
@@ -13,7 +14,7 @@ import {
 } from "../src/lib/prisma.js";
 
 import {
-  getAccessContext,
+  type AccessContext,
 } from "../src/services/access-control.js";
 
 import {
@@ -205,20 +206,165 @@ async function runTests() {
     [];
 
   try {
-    const managerAccess =
-      await getAccessContext(
-        manager.id
-      );
+    /*
+     * Use explicit authorization contexts so this service test
+     * does not depend on RolePermission rows in the developer DB.
+     * invitePerson() still performs its real DB operations.
+     */
+    const managerAccess:
+      AccessContext = {
+        userId:
+          manager.id,
 
-    const qcAccess =
-      await getAccessContext(
-        qc.id
-      );
+        roles: [
+          {
+            id:
+              managerRole.id,
 
-    const ownerAccess =
-      await getAccessContext(
-        owner.id
-      );
+            systemKey:
+              "MANAGER",
+
+            name:
+              managerRole.name,
+
+            rank:
+              3,
+
+            dataScope:
+              RoleDataScope.SELF_AND_TEAM,
+          },
+        ],
+
+        highestRank:
+          3,
+
+        teamGroupId:
+          ROOT_TEAM_GROUP_ID,
+
+        effectiveDataScope:
+          RoleDataScope.SELF_AND_TEAM,
+
+        permissions:
+          new Set([
+            "people.access",
+            "people.profile.view",
+            "people.create",
+            "people.assign_roles",
+          ]),
+
+        assignedModelIds: [
+          modelA.id,
+        ],
+
+        canSeeAllModels:
+          false,
+      };
+
+    /*
+     * QC deliberately receives people.create.
+     * The hard rank rule must still block invitations.
+     */
+    const qcAccess:
+      AccessContext = {
+        userId:
+          qc.id,
+
+        roles: [
+          {
+            id:
+              qcRole.id,
+
+            systemKey:
+              "QC",
+
+            name:
+              qcRole.name,
+
+            rank:
+              4,
+
+            dataScope:
+              RoleDataScope.SELF_AND_TEAM,
+          },
+        ],
+
+        highestRank:
+          4,
+
+        teamGroupId:
+          ROOT_TEAM_GROUP_ID,
+
+        effectiveDataScope:
+          RoleDataScope.SELF_AND_TEAM,
+
+        permissions:
+          new Set([
+            "people.access",
+            "people.profile.view",
+            "people.create",
+          ]),
+
+        assignedModelIds: [
+          modelA.id,
+        ],
+
+        canSeeAllModels:
+          false,
+      };
+
+    const ownerAccess:
+      AccessContext = {
+        userId:
+          owner.id,
+
+        roles: [
+          {
+            id:
+              ownerRole.id,
+
+            systemKey:
+              "OWNER",
+
+            name:
+              ownerRole.name,
+
+            rank:
+              1,
+
+            dataScope:
+              RoleDataScope.ALL,
+          },
+        ],
+
+        highestRank:
+          1,
+
+        teamGroupId:
+          ROOT_TEAM_GROUP_ID,
+
+        effectiveDataScope:
+          RoleDataScope.ALL,
+
+        permissions:
+          new Set([
+            "people.access",
+            "people.profile.view",
+            "people.create",
+            "people.assign_roles",
+          ]),
+
+        /*
+         * Invitation model assignment is intentionally based
+         * on explicit assignments, even for users who can see
+         * every model.
+         */
+        assignedModelIds: [
+          modelA.id,
+        ],
+
+        canSeeAllModels:
+          true,
+      };
 
     /*
      * ========================================
@@ -418,11 +564,11 @@ async function runTests() {
           qcAccess
         ),
 
-      "PEOPLE_MANAGE_REQUIRED"
+      "ROLE_NOT_ASSIGNABLE"
     );
 
     console.log(
-      "✓ QC cannot invite people without people.manage"
+      "✓ QC cannot invite people even with people.create"
     );
 
     /*

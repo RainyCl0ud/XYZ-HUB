@@ -609,16 +609,6 @@ export default function SidebarNavigation({
             access={
               access
             }
-            settings={{
-              to:
-                "/strikes/settings",
-
-              permission:
-                "strikes.ladder.view",
-
-              label:
-                "Strike Ladder settings",
-            }}
           />
         )}
 

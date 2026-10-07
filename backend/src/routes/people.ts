@@ -65,10 +65,6 @@ import {
   getPeopleManagementOptions,
 } from "../services/people-options.js";
 
-import {
-  listPersonAccountActivity,
-} from "../services/people-account-activity.js";
-
 const router =
   Router();
 
@@ -288,128 +284,6 @@ router.get(
 
         message:
           "Unable to load People Management options.",
-      });
-    }
-  }
-);
-
-
-/*
- * =========================================================
- * GET /api/people/:userId/account-activity
- * =========================================================
- *
- * Sanitized account-access history for the Employee Profile.
- * Target visibility is checked through the same People Profile
- * service before any audit rows are returned.
- */
-router.get(
-  "/:userId/account-activity",
-
-  requireAuth,
-
-  requirePermission(
-    "people.profile.view"
-  ),
-
-  async (
-    req:
-      AuthenticatedRequest,
-    res
-  ) => {
-    if (
-      !req.access
-    ) {
-      res.status(401).json({
-        error:
-          "UNAUTHENTICATED",
-      });
-
-      return;
-    }
-
-    const userId =
-      Array.isArray(
-        req.params.userId
-      )
-        ? req.params.userId[0]
-        : req.params.userId;
-
-    if (
-      !userId
-    ) {
-      res.status(400).json({
-        error:
-          "INVALID_USER_ID",
-      });
-
-      return;
-    }
-
-    try {
-      /*
-       * Reuse Employee Profile visibility rules.
-       * Do not expose audit history for an employee the caller
-       * cannot open through the normal profile endpoint.
-       */
-      await getPersonDetail(
-        userId,
-        req.access
-      );
-
-      const activity =
-        await listPersonAccountActivity(
-          userId
-        );
-
-      res.status(200).json({
-        data:
-          activity,
-      });
-    } catch (
-      error
-    ) {
-      if (
-        error instanceof
-          PeopleReadError
-      ) {
-        if (
-          error.code ===
-            "USER_NOT_FOUND"
-        ) {
-          res.status(404).json({
-            error:
-              error.code,
-
-            message:
-              error.message,
-          });
-
-          return;
-        }
-
-        res.status(403).json({
-          error:
-            error.code,
-
-          message:
-            error.message,
-        });
-
-        return;
-      }
-
-      console.error(
-        "Account activity request failed:",
-        error
-      );
-
-      res.status(500).json({
-        error:
-          "ACCOUNT_ACTIVITY_FAILED",
-
-        message:
-          "Unable to load account activity.",
       });
     }
   }

@@ -8,6 +8,9 @@ import {
   hasPermission,
   isOwner,
   type AccessContext,
+  canInvitePeople,
+  canInviteRole,
+  canAssignInviteModel,
 } from "./access-control.js";
 
 import {
@@ -115,7 +118,26 @@ export async function getPeopleManagementOptions(
         )
     );
 
-  const isOwnerUser =
+
+  const inviteRoles =
+    roles.filter(
+      (role) =>
+        canInviteRole(
+          access,
+          role
+        )
+    );
+
+  const inviteModels =
+    models.filter(
+      (model) =>
+        model.isActive &&
+        canAssignInviteModel(
+          access,
+          model.id
+        )
+    );
+const isOwnerUser =
     isOwner(
       access
     );
@@ -126,6 +148,9 @@ export async function getPeopleManagementOptions(
 
     models:
       assignableModels,
+
+    inviteRoles,
+    inviteModels,
 
     organization,
 
@@ -140,15 +165,18 @@ export async function getPeopleManagementOptions(
         ),
 
       canCreatePeople:
-        hasPermission(
-          access,
-          "people.create"
-        ),
+        canInvitePeople(access),
 
       canAssignRoles:
         hasPermission(
           access,
           "people.assign_roles"
+        ),
+
+      canAssignModels:
+        hasPermission(
+          access,
+          "models.edit"
         ),
 
       canManageOrganization:
