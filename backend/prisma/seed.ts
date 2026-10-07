@@ -93,7 +93,6 @@ const defaultRolePermissions: Record<
     "people.profile.view",
     "people.create",
     "people.assign_roles",
-    "people.status.manage",
 
     "quality.access",
     "quality.incidents.view",
@@ -129,7 +128,6 @@ const defaultRolePermissions: Record<
     "people.profile.view",
     "people.create",
     "people.assign_roles",
-    "people.status.manage",
 
     "quality.access",
     "quality.incidents.view",

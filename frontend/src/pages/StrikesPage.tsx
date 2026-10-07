@@ -2104,7 +2104,7 @@ function StrikesPage() {
         {loading ? (
           <div className="empty-state">
             <strong>
-              Loading Strikesâ€¦
+              Loading Strikes...
             </strong>
           </div>
         ) : filteredStrikes.length ===
@@ -2356,7 +2356,7 @@ function StrikesPage() {
                   )
                 }
               >
-                Ã—
+                &times;
               </button>
             </div>
 
@@ -2531,7 +2531,7 @@ function StrikesPage() {
                       ? formatCentralDateTime(
                           selectedStrike.voidedAt
                         )
-                      : "â€”"}
+                      : "—"}
                     {selectedStrike.voidedByNameSnapshot
                       ? ` by ${selectedStrike.voidedByNameSnapshot}`
                       : ""}
@@ -2640,7 +2640,7 @@ function StrikesPage() {
                   closeVoidModal
                 }
               >
-                Ã—
+                &times;
               </button>
             </div>
 
@@ -2651,7 +2651,7 @@ function StrikesPage() {
                 </strong>
 
                 <span>
-                  {voidTarget.reasonNameSnapshot} Â· {voidTarget.standingLabelSnapshot}
+                  {voidTarget.reasonNameSnapshot} · {voidTarget.standingLabelSnapshot}
                 </span>
               </div>
 
@@ -2719,7 +2719,7 @@ function StrikesPage() {
                 }
               >
                 {voiding
-                  ? "Voidingâ€¦"
+                  ? "Voiding..."
                   : "Confirm void"}
               </button>
             </div>
@@ -2775,7 +2775,7 @@ function StrikesPage() {
                     : closeIssueModal
                 }
               >
-                Ã—
+                &times;
               </button>
             </div>
 
@@ -2801,7 +2801,7 @@ function StrikesPage() {
                       <strong>
                         {selectedIssueEmployee?.name ??
                           issuePreview?.user.name ??
-                          "â€”"}
+                          "—"}
                       </strong>
                     </div>
 
@@ -2812,7 +2812,7 @@ function StrikesPage() {
 
                       <strong>
                         {selectedIssueReason?.name ??
-                          "â€”"}
+                          "—"}
                       </strong>
                     </div>
 
@@ -2823,7 +2823,7 @@ function StrikesPage() {
 
                       <strong>
                         {issuePreview?.standingLabel ??
-                          "â€”"}
+                          "—"}
                       </strong>
                     </div>
 
@@ -2835,7 +2835,7 @@ function StrikesPage() {
                       <strong>
                         {issuePreview
                           ? `${issuePreview.deductionPercent}%`
-                          : "â€”"}
+                          : "—"}
                       </strong>
                     </div>
 
@@ -2847,7 +2847,7 @@ function StrikesPage() {
                       <strong>
                         {issuePreview
                           ?.activeStrikeCountAfterIssue ??
-                          "â€”"}
+                          "—"}
                       </strong>
                     </div>
 
@@ -2861,7 +2861,7 @@ function StrikesPage() {
                           ? formatCentralDateTime(
                               issuePreview.expiresAt
                             )
-                          : "â€”"}
+                          : "—"}
                       </strong>
                     </div>
                   </div>
@@ -2912,7 +2912,7 @@ function StrikesPage() {
               {issueDataLoading ? (
                 <div className="empty-state">
                   <strong>
-                    Preparing Strike formâ€¦
+                    Preparing Strike form...
                   </strong>
                 </div>
               ) : (
@@ -2928,7 +2928,7 @@ function StrikesPage() {
                           type="text"
                           value={
                             selectedIssueEmployee
-                              ? `${selectedIssueEmployee.name} â€” ${selectedIssueEmployee.email}`
+                              ? `${selectedIssueEmployee.name} — ${selectedIssueEmployee.email}`
                               : "Linked chatter unavailable"
                           }
                           readOnly
@@ -2972,7 +2972,7 @@ function StrikesPage() {
                                   employee.id
                                 }
                               >
-                                {employee.name} â€” {employee.email}
+                                {employee.name} — {employee.email}
                               </option>
                             )
                           )}
@@ -3096,7 +3096,7 @@ function StrikesPage() {
 
                       {previewLoading && (
                         <span className="strikes-preview-loading">
-                          Calculatingâ€¦
+                          Calculating...
                         </span>
                       )}
                     </div>
@@ -3107,7 +3107,7 @@ function StrikesPage() {
                       </p>
                     ) : previewLoading ? (
                       <p className="strikes-preview-empty">
-                        Checking current active Strikes and ladder stateâ€¦
+                        Checking current active Strikes and ladder state...
                       </p>
                     ) : issuePreview ? (
                       <>
@@ -3215,7 +3215,7 @@ function StrikesPage() {
                     }
                   >
                     {issuing
-                      ? "Issuingâ€¦"
+                      ? "Issuing..."
                       : "Issue Strike"}
                   </button>
                 </>

@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -30,7 +30,6 @@ import {
 } from "../components/ToastProvider";
 
 import PeopleQaPanel from "../components/PeopleQaPanel";
-import AccountActivityPanel from "../components/AccountActivityPanel";
 
 import "./PeoplePage.css";
 
@@ -117,6 +116,7 @@ type PeopleOptions = {
     canManagePeople: boolean;
     canCreatePeople: boolean;
     canAssignRoles: boolean;
+    canAssignModels: boolean;
     canManageOrganization: boolean;
     canDeactivate: boolean;
     canDelete: boolean;
@@ -434,6 +434,24 @@ function PeopleDetailPage() {
   const [
     assignedRoleIds,
     setAssignedRoleIds,
+  ] =
+    useState<
+      string[]
+    >(
+      []
+    );
+
+  const [
+    showModelEditor,
+    setShowModelEditor,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    assignedModelIds,
+    setAssignedModelIds,
   ] =
     useState<
       string[]
@@ -875,6 +893,108 @@ function PeopleDetailPage() {
   }
 
 
+  function openModelEditor() {
+    if (
+      !person ||
+      !options ||
+      !options.capabilities.canAssignRoles ||
+      !options.capabilities.canAssignModels ||
+      !canManagePerson ||
+      !person.teamGroup
+    ) {
+      return;
+    }
+
+    setAssignedModelIds(
+      person.models.map(
+        (model) =>
+          model.id
+      )
+    );
+
+    setShowModelEditor(
+      true
+    );
+  }
+
+
+  async function saveModels(
+    event:
+      FormEvent
+  ) {
+    event.preventDefault();
+
+    if (
+      !person ||
+      !options ||
+      !options.capabilities.canAssignRoles ||
+      !options.capabilities.canAssignModels ||
+      !canManagePerson ||
+      !person.teamGroup
+    ) {
+      return;
+    }
+
+    try {
+      setSaving(
+        true
+      );
+
+      await apiRequest(
+        `/api/people/${encodeURIComponent(
+          person.id
+        )}/access`,
+        {
+          method:
+            "PUT",
+
+          body:
+            JSON.stringify({
+              teamGroupId:
+                person.teamGroup.id,
+
+              /*
+               * Preserve role membership while editing models.
+               */
+              roleIds:
+                person.roles.map(
+                  (role) =>
+                    role.id
+                ),
+
+              modelIds:
+                assignedModelIds,
+            }),
+        }
+      );
+
+      await refreshProfile();
+
+      setShowModelEditor(
+        false
+      );
+
+      toast.success(
+        "The employee's assigned models were updated.",
+        "Models updated"
+      );
+    } catch (
+      saveError
+    ) {
+      toast.error(
+        saveError instanceof
+          Error
+          ? saveError.message
+          : "Unable to update assigned models.",
+        "Models not updated"
+      );
+    } finally {
+      setSaving(
+        false
+      );
+    }
+  }
+
   async function saveRoles(
     event:
       FormEvent
@@ -1218,7 +1338,7 @@ function PeopleDetailPage() {
 
         <div className="empty-state">
           <strong>
-            Loading employee profile…
+            Loading employee profile...
           </strong>
         </div>
       </div>
@@ -1368,7 +1488,7 @@ function PeopleDetailPage() {
                     </h4>
 
                     <p>
-                      Review the employee's team, assigned roles, and creators. Role permissions are configured centrally in Role Settings.
+                      Review the employee's team, assigned role, and assigned models. Role permissions are configured centrally in Role Settings.
                     </p>
                   </div>
 
@@ -1387,6 +1507,22 @@ function PeopleDetailPage() {
                   >
                     Assign roles
                   </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    hidden={
+                      !options.capabilities.canAssignRoles ||
+                      !options.capabilities.canAssignModels
+                    }
+                    onClick={
+                      openModelEditor
+                    }
+                    disabled={
+                      !canManagePerson
+                    }
+                  >
+                    Assign models
+                  </button>
                 </div>
 
                 <div className="people-access-grid">
@@ -1403,7 +1539,7 @@ function PeopleDetailPage() {
 
                   <div>
                     <span className="people-section-label">
-                      Roles
+                      Assigned Role
                     </span>
 
                     <div className="people-chip-list">
@@ -1436,7 +1572,7 @@ function PeopleDetailPage() {
 
                   <div>
                     <span className="people-section-label">
-                      Creators
+                      Assigned Models
                     </span>
 
                     <div className="people-chip-list">
@@ -1457,7 +1593,7 @@ function PeopleDetailPage() {
                         )
                       ) : (
                         <span className="people-empty-inline">
-                          No creator assignments
+                          No model assignments
                         </span>
                       )}
                     </div>
@@ -1571,18 +1707,6 @@ function PeopleDetailPage() {
                   </strong>
                 </div>
               </div>
-
-
-              <AccountActivityPanel
-                key={
-                  person.id
-                }
-                personId={
-                  person.id
-                }
-              />
-
-
               <div className="people-detail-section people-account-access-section">
                 <div className="people-detail-section-heading">
                   <div>
@@ -1822,7 +1946,7 @@ function PeopleDetailPage() {
                 }
                 aria-label="Close role assignment"
               >
-                ×
+                &times;
               </button>
             </div>
 
@@ -1915,7 +2039,7 @@ function PeopleDetailPage() {
                 }
               >
                 {saving
-                  ? "Saving…"
+                  ? "Saving..."
                   : "Save roles"}
               </button>
             </div>
@@ -1923,6 +2047,140 @@ function PeopleDetailPage() {
         </div>
       )}
 
+
+      {options?.capabilities.canAssignRoles &&
+        options.capabilities.canAssignModels &&
+        showModelEditor && (
+        <div className="people-overlay">
+          <form
+            className="people-form-modal"
+            onSubmit={
+              saveModels
+            }
+          >
+            <div className="people-modal-header">
+              <div>
+                <span className="page-eyebrow">
+                  Model assignment
+                </span>
+
+                <h3>
+                  Assign models to {person.name}
+                </h3>
+
+                <p>
+                  Select the models assigned to this employee. Role permissions remain managed in Role Settings.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="people-close"
+                onClick={() =>
+                  setShowModelEditor(
+                    false
+                  )
+                }
+                aria-label="Close model assignment"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="people-form-body">
+              <div className="people-option-section">
+                <div className="people-option-heading">
+                  <div>
+                    <span className="people-section-label">
+                      Assigned models
+                    </span>
+
+                    <small>
+                      {assignedModelIds.length} selected
+                    </small>
+                  </div>
+                </div>
+
+                <div className="people-option-grid">
+                  {options.models.map(
+                    (
+                      model
+                    ) => (
+                      <label
+                        key={
+                          model.id
+                        }
+                        className="people-check-option"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            assignedModelIds.includes(
+                              model.id
+                            )
+                          }
+                          onChange={() =>
+                            toggleSelection(
+                              assignedModelIds,
+                              model.id,
+                              setAssignedModelIds
+                            )
+                          }
+                        />
+
+                        <span>
+                          <strong>
+                            {model.name}
+                          </strong>
+
+                          <small>
+                            {model.isActive
+                              ? "Active model"
+                              : "Inactive model"}
+                          </small>
+                        </span>
+                      </label>
+                    )
+                  )}
+                </div>
+              </div>
+
+              <p className="people-scope-note">
+                This screen changes assigned models only. Role permissions are managed centrally in Role Settings.
+              </p>
+            </div>
+
+            <div className="people-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setShowModelEditor(
+                    false
+                  )
+                }
+                disabled={
+                  saving
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={
+                  saving
+                }
+              >
+                {saving
+                  ? "Saving..."
+                  : "Save models"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {confirmAction && (
         <div className="people-overlay">
@@ -2036,7 +2294,7 @@ function PeopleDetailPage() {
                 }
               >
                 {saving
-                  ? "Working…"
+                  ? "Working..."
                   : confirmAction ===
                       "delete"
                     ? "Permanently delete"

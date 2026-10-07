@@ -10,6 +10,9 @@ import {
   type AccessContext,
   canAccessModel,
   canAssignRole,
+  canAssignInviteModel,
+  canInvitePeople,
+  canInviteRole,
   getEffectiveDataScope,
   getHighestRank,
   hasPermission,
@@ -124,15 +127,16 @@ function runTests() {
 
       permissions:
         new Set([
-          "people.manage",
-          "people.deactivate",
+          "people.access",
+          "people.create",
+          "people.assign_roles",
         ]),
     });
 
   assert.equal(
     hasPermission(
       managerAccess,
-      "people.manage"
+      "people.create"
     ),
     true
   );
@@ -245,11 +249,11 @@ function runTests() {
 
       permissions:
         new Set([
-          "people.manage",
-          "people.deactivate",
-          "people.delete",
+          "people.access",
+          "people.create",
+          "people.assign_roles",
+          "roles.access",
           "roles.manage",
-          "audit.view",
           "two_factor.reset",
         ]),
 
@@ -306,6 +310,196 @@ function runTests() {
    * MODEL ACCESS
    * ==========================================
    */
+
+  /*
+   * ==========================================
+   * INVITATION HIERARCHY AND MODEL SCOPE
+   * ==========================================
+   */
+
+  const managerInviteAccess =
+    createAccessContext({
+      highestRank: 3,
+
+      permissions:
+        new Set([
+          "people.access",
+          "people.create",
+        ]),
+
+      assignedModelIds: [
+        "model-a",
+        "model-b",
+      ],
+    });
+
+  assert.equal(
+    canInvitePeople(
+      managerInviteAccess
+    ),
+    true
+  );
+
+  assert.equal(
+    canInviteRole(
+      managerInviteAccess,
+      {
+        systemKey: "QC",
+        rank: 4,
+      }
+    ),
+    true
+  );
+
+  assert.equal(
+    canInviteRole(
+      managerInviteAccess,
+      {
+        systemKey: "CHATTER",
+        rank: 5,
+      }
+    ),
+    true
+  );
+
+  assert.equal(
+    canInviteRole(
+      managerInviteAccess,
+      {
+        systemKey: "MANAGER",
+        rank: 3,
+      }
+    ),
+    false
+  );
+
+  assert.equal(
+    canInviteRole(
+      managerInviteAccess,
+      {
+        systemKey: "OPS_MANAGER",
+        rank: 2,
+      }
+    ),
+    false
+  );
+
+  assert.equal(
+    canInviteRole(
+      managerInviteAccess,
+      {
+        systemKey: "OWNER",
+        rank: 1,
+      }
+    ),
+    false
+  );
+
+  assert.equal(
+    canAssignInviteModel(
+      managerInviteAccess,
+      "model-a"
+    ),
+    true
+  );
+
+  assert.equal(
+    canAssignInviteModel(
+      managerInviteAccess,
+      "model-c"
+    ),
+    false
+  );
+
+  /*
+   * QC and Chatter must still be blocked even if
+   * people.create is accidentally granted.
+   */
+  const qcInviteAccess =
+    createAccessContext({
+      highestRank: 4,
+
+      permissions:
+        new Set([
+          "people.access",
+          "people.create",
+        ]),
+
+      assignedModelIds: [
+        "model-a",
+      ],
+    });
+
+  assert.equal(
+    canInvitePeople(
+      qcInviteAccess
+    ),
+    false
+  );
+
+  assert.equal(
+    canInviteRole(
+      qcInviteAccess,
+      {
+        systemKey: "CHATTER",
+        rank: 5,
+      }
+    ),
+    false
+  );
+
+  assert.equal(
+    canAssignInviteModel(
+      qcInviteAccess,
+      "model-a"
+    ),
+    false
+  );
+
+  const chatterInviteAccess =
+    createAccessContext({
+      highestRank: 5,
+
+      permissions:
+        new Set([
+          "people.access",
+          "people.create",
+        ]),
+
+      assignedModelIds: [
+        "model-a",
+      ],
+    });
+
+  assert.equal(
+    canInvitePeople(
+      chatterInviteAccess
+    ),
+    false
+  );
+
+  assert.equal(
+    canInviteRole(
+      chatterInviteAccess,
+      {
+        systemKey: "CHATTER",
+        rank: 5,
+      }
+    ),
+    false
+  );
+
+  assert.equal(
+    canAssignInviteModel(
+      chatterInviteAccess,
+      "model-a"
+    ),
+    false
+  );
+
+  console.log(
+    "✓ invitation hierarchy and assigned-model scope"
+  );
 
   const chatterAccess =
     createAccessContext({

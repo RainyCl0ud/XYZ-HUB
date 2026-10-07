@@ -138,56 +138,6 @@ export const PERMISSION_CATALOG:
 
     {
       key:
-        "people.status.manage",
-
-      name:
-        "Deactivate or Reactivate Employees",
-
-      description:
-        "Change employee account status where organization and authority rules allow it.",
-
-      pageKey:
-        "people",
-
-      categoryKey:
-        "account",
-
-      actionKey:
-        "manage_status",
-
-      requires: [
-        "people.access",
-        "people.profile.view",
-      ],
-    },
-
-    {
-      key:
-        "people.delete",
-
-      name:
-        "Delete Employees",
-
-      description:
-        "Permanently delete an employee account when destructive-action requirements are satisfied.",
-
-      pageKey:
-        "people",
-
-      categoryKey:
-        "account",
-
-      actionKey:
-        "delete",
-
-      requires: [
-        "people.access",
-        "people.profile.view",
-      ],
-    },
-
-    {
-      key:
         "two_factor.reset",
 
       name:
@@ -840,25 +790,6 @@ export const PERMISSION_CATALOG:
      * audit.access starts clean from actual effective access.
      * =====================================================
      */
-    {
-      key:
-        "audit.access",
-
-      name:
-        "View Audit Log",
-
-      description:
-        "View and search the append-only audit log.",
-
-      pageKey:
-        "audit",
-
-      categoryKey:
-        "access",
-
-      actionKey:
-        "view",
-    },
   ];
 
 

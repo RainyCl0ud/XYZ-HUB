@@ -16,6 +16,11 @@ import {
   hashPassword,
 } from "../src/services/password.js";
 
+import {
+  MANAGED_PERMISSION_KEYS,
+  PERMISSION_CATALOG,
+} from "../src/permissions/permission-catalog.js";
+
 const prisma = new PrismaClient();
 
 const ROOT_TEAM_GROUP_ID =
@@ -33,62 +38,13 @@ const STRIKE_DURATION_DAYS =
 const dayMs =
   24 * 60 * 60 * 1000;
 
-const permissionDefinitions = [
-  {
-    key: "people.manage",
-    name: "Manage People",
-    description:
-      "Invite people and manage their roles and model assignments within the user's allowed rank and model scope.",
-    pageKey: "people",
-    categoryKey: "people",
-    actionKey: "manage",
-  },
-  {
-    key: "people.deactivate",
-    name: "Deactivate People",
-    description:
-      "Deactivate people the user is allowed to manage.",
-    pageKey: "people",
-    categoryKey: "people",
-    actionKey: "deactivate",
-  },
-  {
-    key: "people.delete",
-    name: "Delete People",
-    description:
-      "Permanently delete a person. Owner only by default.",
-    pageKey: "people",
-    categoryKey: "people",
-    actionKey: "delete",
-  },
-  {
-    key: "roles.manage",
-    name: "Manage Roles",
-    description:
-      "Create, edit and delete custom roles through Role Settings.",
-    pageKey: "roles",
-    categoryKey: "roles",
-    actionKey: "manage",
-  },
-  {
-    key: "audit.view",
-    name: "View Audit Log",
-    description:
-      "View and search the append-only audit log.",
-    pageKey: "audit",
-    categoryKey: "audit",
-    actionKey: "view",
-  },
-  {
-    key: "two_factor.reset",
-    name: "Reset 2FA",
-    description:
-      "Reset another user's two-factor authentication setup.",
-    pageKey: "people",
-    categoryKey: "security",
-    actionKey: "reset_2fa",
-  },
+const REQUIRED_PRESERVED_OWNER_EMAILS = [
+  "dim@xyzofm.xyz",
+  "galario.rainheart16@gmail.com",
 ] as const;
+
+const permissionDefinitions =
+  PERMISSION_CATALOG;
 
 const systemRoleDefinitions = [
   {
@@ -96,14 +52,8 @@ const systemRoleDefinitions = [
     name: "Owner",
     rank: 1,
     dataScope: RoleDataScope.ALL,
-    permissions: [
-      "people.manage",
-      "people.deactivate",
-      "people.delete",
-      "roles.manage",
-      "audit.view",
-      "two_factor.reset",
-    ],
+    permissions:
+      MANAGED_PERMISSION_KEYS,
   },
   {
     systemKey: "OPS_MANAGER",
@@ -111,70 +61,156 @@ const systemRoleDefinitions = [
     rank: 2,
     dataScope: RoleDataScope.ALL,
     permissions: [
-      "people.manage",
-      "people.deactivate",
+      "dashboard.view",
+
+      "people.access",
+      "people.profile.view",
+      "people.create",
+      "people.assign_roles",
+
+      "quality.access",
+      "quality.incidents.view",
+      "quality.incidents.create",
+      "quality.incidents.resolve",
+      "quality.incidents.void",
+      "quality.chatters.view",
+      "quality.chatters.manage",
+      "quality.rules.view",
+      "quality.rules.manage",
+
+      "strikes.access",
+      "strikes.view",
+      "strikes.issue",
+      "strikes.void",
+      "strikes.reasons.view",
+      "strikes.reasons.create",
+      "strikes.reasons.edit",
+      "strikes.reasons.archive",
+      "strikes.ladder.view",
+      "strikes.ladder.edit",
+
+      "models.access",
+      "models.create",
+      "models.edit",
+      "models.status.manage",
     ],
   },
   {
     systemKey: "MANAGER",
     name: "Manager",
     rank: 3,
-    dataScope: RoleDataScope.SELF_AND_TEAM,
+    dataScope:
+      RoleDataScope.SELF_AND_TEAM,
     permissions: [
-      "people.manage",
-      "people.deactivate",
+      "dashboard.view",
+
+      "people.access",
+      "people.profile.view",
+      "people.create",
+      "people.assign_roles",
+
+      "quality.access",
+      "quality.incidents.view",
+      "quality.incidents.create",
+      "quality.incidents.resolve",
+      "quality.incidents.void",
+      "quality.chatters.view",
+      "quality.chatters.manage",
+      "quality.rules.view",
+      "quality.rules.manage",
+
+      "strikes.access",
+      "strikes.view",
+      "strikes.issue",
     ],
   },
   {
     systemKey: "QC",
     name: "QC",
     rank: 4,
-    dataScope: RoleDataScope.SELF_AND_TEAM,
-    permissions: [],
+    dataScope:
+      RoleDataScope.SELF_AND_TEAM,
+    permissions: [
+      "dashboard.view",
+
+      "quality.access",
+      "quality.incidents.view",
+      "quality.chatters.view",
+
+      "strikes.access",
+      "strikes.view",
+      "strikes.issue",
+    ],
   },
   {
     systemKey: "CHATTER",
     name: "Chatter",
     rank: 5,
-    dataScope: RoleDataScope.SELF,
-    permissions: [],
+    dataScope:
+      RoleDataScope.SELF,
+    permissions: [
+      "dashboard.view",
+    ],
   },
   {
     systemKey: "TRIAL_CHATTER",
     name: "Trial Chatter",
     rank: 6,
-    dataScope: RoleDataScope.SELF,
-    permissions: [],
+    dataScope:
+      RoleDataScope.SELF,
+    permissions: [
+      "dashboard.view",
+    ],
   },
   {
     systemKey: "DEV",
     name: "Dev",
     rank: null,
-    dataScope: RoleDataScope.ALL,
+    dataScope:
+      RoleDataScope.ALL,
     permissions: [
-      "audit.view",
+      "dashboard.view",
+
+      "quality.access",
+      "quality.incidents.view",
+      "quality.incidents.create",
+      "quality.incidents.resolve",
+      "quality.incidents.void",
+      "quality.chatters.view",
+      "quality.chatters.manage",
+      "quality.rules.view",
+      "quality.rules.manage",
     ],
   },
   {
     systemKey: "ACCOUNTANT",
     name: "Accountant",
     rank: null,
-    dataScope: RoleDataScope.ALL,
-    permissions: [],
+    dataScope:
+      RoleDataScope.ALL,
+    permissions: [
+      "dashboard.view",
+    ],
   },
   {
     systemKey: "MODEL",
     name: "Model",
     rank: null,
-    dataScope: RoleDataScope.SELF,
-    permissions: [],
+    dataScope:
+      RoleDataScope.SELF,
+    permissions: [
+      "dashboard.view",
+    ],
   },
   {
     systemKey: "GENERAL_STAFF",
     name: "General Staff",
     rank: null,
-    dataScope: RoleDataScope.SELF,
-    permissions: [],
+    dataScope:
+      RoleDataScope.SELF,
+    permissions: [
+      "dashboard.view",
+    ],
   },
 ] as const;
 
@@ -247,12 +283,17 @@ type DemoUserDefinition = {
 
 const demoUsers: DemoUserDefinition[] = [
   {
-    key: "hosea",
-    name: "Hosea Matthews",
-    email: "hosea.matthews@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["OPS_MANAGER"],
-    groupKey: "operations",
+    key: "dutch",
+    name: "Dutch Van Der Linde",
+    email:
+      "dutch.vanderlinde@rdr.staging.test",
+    status:
+      UserStatus.ACTIVE,
+    roleKeys: [
+      "OPS_MANAGER",
+    ],
+    groupKey:
+      "operations",
     modelKeys: [
       "mary_beth",
       "abigail",
@@ -260,31 +301,58 @@ const demoUsers: DemoUserDefinition[] = [
       "bonnie",
       "charlotte",
     ],
-    lastSignInDaysAgo: 1,
+    lastSignInDaysAgo: 0,
   },
   {
-    key: "dutch",
-    name: "Dutch van der Linde",
-    email: "dutch.vanderlinde@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["MANAGER"],
-    groupKey: "operations",
+    key: "hosea",
+    name: "Hosea Matthews",
+    email:
+      "hosea.matthews@rdr.staging.test",
+    status:
+      UserStatus.ACTIVE,
+    roleKeys: [
+      "MANAGER",
+    ],
+    groupKey:
+      "operations",
     modelKeys: [
       "mary_beth",
       "abigail",
       "mary_linton",
     ],
+    lastSignInDaysAgo: 1,
+  },
+  {
+    key: "micah",
+    name: "Micah Bell",
+    email:
+      "micah.bell@rdr.staging.test",
+    status:
+      UserStatus.ACTIVE,
+    roleKeys: [
+      "MANAGER",
+    ],
+    groupKey:
+      "operations",
+    modelKeys: [
+      "mary_beth",
+      "bonnie",
+    ],
     lastSignInDaysAgo: 0,
   },
   {
-    key: "sadie",
-    name: "Sadie Adler",
-    email: "sadie.adler@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["QC"],
-    groupKey: "operations",
+    key: "susan",
+    name: "Susan Grimshaw",
+    email:
+      "susan.grimshaw@rdr.staging.test",
+    status:
+      UserStatus.ACTIVE,
+    roleKeys: [
+      "QC",
+    ],
+    groupKey:
+      "operations",
     modelKeys: [
-      "mary_beth",
       "abigail",
       "mary_linton",
     ],
@@ -293,10 +361,15 @@ const demoUsers: DemoUserDefinition[] = [
   {
     key: "arthur",
     name: "Arthur Morgan",
-    email: "arthur.morgan@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["CHATTER"],
-    groupKey: "horseshoe",
+    email:
+      "arthur.morgan@rdr.staging.test",
+    status:
+      UserStatus.ACTIVE,
+    roleKeys: [
+      "CHATTER",
+    ],
+    groupKey:
+      "horseshoe",
     modelKeys: [
       "mary_beth",
       "abigail",
@@ -306,23 +379,32 @@ const demoUsers: DemoUserDefinition[] = [
   {
     key: "john",
     name: "John Marston",
-    email: "john.marston@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["CHATTER"],
-    groupKey: "horseshoe",
-    modelKeys: ["mary_beth"],
+    email:
+      "john.marston@rdr.staging.test",
+    status:
+      UserStatus.ACTIVE,
+    roleKeys: [
+      "CHATTER",
+    ],
+    groupKey:
+      "horseshoe",
+    modelKeys: [
+      "mary_beth",
+    ],
     lastSignInDaysAgo: 3,
   },
   {
     key: "charles",
     name: "Charles Smith",
-    email: "charles.smith@rdr.staging.test",
-    status: UserStatus.ACTIVE,
+    email:
+      "charles.smith@rdr.staging.test",
+    status:
+      UserStatus.ACTIVE,
     roleKeys: [
       "CHATTER",
-      "QC",
     ],
-    groupKey: "clemens",
+    groupKey:
+      "clemens",
     modelKeys: [
       "abigail",
       "mary_linton",
@@ -330,93 +412,38 @@ const demoUsers: DemoUserDefinition[] = [
     lastSignInDaysAgo: 1,
   },
   {
-    key: "lenny",
-    name: "Lenny Summers",
-    email: "lenny.summers@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["TRIAL_CHATTER"],
-    groupKey: "clemens",
-    modelKeys: ["mary_linton"],
-    lastSignInDaysAgo: 5,
-  },
-  {
     key: "javier",
     name: "Javier Escuella",
-    email: "javier.escuella@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["CHATTER"],
-    groupKey: "shady",
-    modelKeys: ["bonnie"],
+    email:
+      "javier.escuella@rdr.staging.test",
+    status:
+      UserStatus.ACTIVE,
+    roleKeys: [
+      "CHATTER",
+    ],
+    groupKey:
+      "shady",
+    modelKeys: [
+      "bonnie",
+    ],
     lastSignInDaysAgo: 4,
   },
   {
-    key: "bill",
-    name: "Bill Williamson",
-    email: "bill.williamson@rdr.staging.test",
-    status: UserStatus.DEACTIVATED,
-    roleKeys: ["CHATTER"],
-    groupKey: "shady",
-    modelKeys: ["charlotte"],
-    lastSignInDaysAgo: 20,
-  },
-  {
-    key: "micah",
-    name: "Micah Bell",
-    email: "micah.bell@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["CHATTER"],
-    groupKey: "horseshoe",
-    modelKeys: ["mary_beth"],
-    lastSignInDaysAgo: 0,
-  },
-  {
-    key: "kieran",
-    name: "Kieran Duffy",
-    email: "kieran.duffy@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["CHATTER"],
-    groupKey: "clemens",
-    modelKeys: ["abigail"],
-    lastSignInDaysAgo: 7,
-  },
-  {
-    key: "sean",
-    name: "Sean MacGuire",
-    email: "sean.macguire@rdr.staging.test",
-    status: UserStatus.PENDING_SETUP,
-    roleKeys: ["CHATTER"],
-    groupKey: "shady",
-    modelKeys: ["charlotte"],
-  },
-  {
-    key: "karen",
-    name: "Karen Jones",
-    email: "karen.jones@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["ACCOUNTANT"],
-    groupKey: "root",
-    modelKeys: [],
-    lastSignInDaysAgo: 6,
-  },
-  {
-    key: "trelawny",
-    name: "Josiah Trelawny",
-    email: "josiah.trelawny@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["DEV"],
-    groupKey: "root",
-    modelKeys: [],
+    key: "sadie",
+    name: "Sadie Adler",
+    email:
+      "sadie.adler@rdr.staging.test",
+    status:
+      UserStatus.ACTIVE,
+    roleKeys: [
+      "CHATTER",
+    ],
+    groupKey:
+      "shady",
+    modelKeys: [
+      "charlotte",
+    ],
     lastSignInDaysAgo: 2,
-  },
-  {
-    key: "pearson",
-    name: "Simon Pearson",
-    email: "simon.pearson@rdr.staging.test",
-    status: UserStatus.ACTIVE,
-    roleKeys: ["GENERAL_STAFF"],
-    groupKey: "root",
-    modelKeys: [],
-    lastSignInDaysAgo: 9,
   },
 ];
 
@@ -755,6 +782,23 @@ const demoIncidents: DemoIncidentDefinition[] = [
   },
 ];
 
+const clientDemoIncidentChatters =
+  new Set([
+    "arthur",
+    "john",
+    "charles",
+    "javier",
+    "sadie",
+  ]);
+
+const clientDemoIncidents =
+  demoIncidents.filter(
+    (incident) =>
+      clientDemoIncidentChatters.has(
+        incident.chatterKey
+      )
+  );
+
 const strikeLadderSteps = [
   {
     minActiveStrikes: 0,
@@ -923,7 +967,7 @@ function validateSeedPlan() {
     }
   }
 
-  for (const incident of demoIncidents) {
+  for (const incident of clientDemoIncidents) {
     const user =
       userByKey.get(
         incident.chatterKey
@@ -965,7 +1009,7 @@ function validateSeedPlan() {
 
   console.log("RDR staging seed plan is valid.");
   console.log(
-    `Planned data: ${demoUsers.length} staff, ${demoModels.length} creators, ${demoGroups.length} subgroups, ${severityDefinitions.length} severities, ${weightDefinitions.length} weights, ${ruleDefinitions.length} rules, ${demoIncidents.length} incidents.`
+    `Planned data: ${demoUsers.length} staff, ${demoModels.length} creators, ${demoGroups.length} subgroups, ${severityDefinitions.length} severities, ${weightDefinitions.length} weights, ${ruleDefinitions.length} rules, ${clientDemoIncidents.length} incidents.`
   );
 }
 
@@ -1082,8 +1126,51 @@ async function loadOwnerSnapshots() {
         owner._count.twoFactorMethods,
     }));
 
+  snapshots.sort(
+    (a, b) =>
+      a.email.localeCompare(b.email)
+  );
+
+  if (
+    snapshots.length !==
+    REQUIRED_PRESERVED_OWNER_EMAILS.length
+  ) {
+    throw new Error(
+      `OWNER COUNT SAFETY FAILURE: expected exactly ${REQUIRED_PRESERVED_OWNER_EMAILS.length} Owner accounts, found ${snapshots.length}. Reset aborted before mutation.`
+    );
+  }
+
+  const actualOwnerEmails =
+    new Set(
+      snapshots.map(
+        (owner) =>
+          owner.email.toLowerCase()
+      )
+    );
+
+  for (
+    const requiredEmail
+    of REQUIRED_PRESERVED_OWNER_EMAILS
+  ) {
+    if (
+      !actualOwnerEmails.has(
+        requiredEmail.toLowerCase()
+      )
+    ) {
+      throw new Error(
+        `OWNER IDENTITY SAFETY FAILURE: required Owner ${requiredEmail} is missing. Reset aborted before mutation.`
+      );
+    }
+  }
   const expectedEmails =
-    parsePreserveEmails();
+    Array.from(
+      new Set([
+        ...REQUIRED_PRESERVED_OWNER_EMAILS.map(
+          (email) => email.toLowerCase()
+        ),
+        ...parsePreserveEmails(),
+      ])
+    );
 
   if (expectedEmails.length > 0) {
     const allUsers =
@@ -1107,10 +1194,9 @@ async function loadOwnerSnapshots() {
         );
 
       if (!existing) {
-        console.log(
-          `Protected email not present in Staging; nothing to preserve: ${expectedEmail}`
+        throw new Error(
+          `PROTECTED OWNER SAFETY FAILURE: ${expectedEmail} is not present in this database. Reset aborted before mutation.`
         );
-        continue;
       }
 
       if (!ownerIds.has(existing.id)) {
@@ -1168,7 +1254,7 @@ async function printDryRun() {
   }
 
   console.log("");
-  console.log("Current rows scheduled for cleanup/replacement:");
+console.log("Current rows scheduled for cleanup/replacement:");
   console.table(counts);
   console.log("");
   console.log(
@@ -1366,7 +1452,7 @@ async function performReset() {
   const summary =
     await prisma.$transaction(
       async (tx) => {
-        await tx.teamGroup.upsert({
+await tx.teamGroup.upsert({
           where: {
             id: ROOT_TEAM_GROUP_ID,
           },
@@ -1391,8 +1477,6 @@ async function performReset() {
         await tx.rule.deleteMany();
         await tx.severityOption.deleteMany();
         await tx.weightOption.deleteMany();
-        await tx.strikeLadderStep.deleteMany();
-        await tx.strikeLadderVersion.deleteMany();
         await tx.chatter.deleteMany();
 
         /* Creator assignments/catalog. */
@@ -1881,35 +1965,13 @@ async function performReset() {
           }
         }
 
-        await tx.strikeLadderVersion.create({
-          data: {
-            versionNumber: 1,
-            durationDays:
-              STRIKE_DURATION_DAYS,
-            isCurrent: true,
-            steps: {
-              create:
-                strikeLadderSteps.map(
-                  (step) => ({
-                    minActiveStrikes:
-                      step.minActiveStrikes,
-                    standingLabel:
-                      step.standingLabel,
-                    deductionPercent:
-                      step.deductionPercent,
-                  })
-                ),
-            },
-          },
-        });
-
         for (
           let index = 0;
-          index < demoIncidents.length;
+          index < clientDemoIncidents.length;
           index += 1
         ) {
           const definition =
-            demoIncidents[index];
+            clientDemoIncidents[index];
           const chatterId =
             chatterByUserKey.get(
               definition.chatterKey
@@ -2094,7 +2156,7 @@ async function performReset() {
   }
 
   console.log("");
-  console.log("STAGING RESET COMPLETED SUCCESSFULLY");
+console.log("STAGING RESET COMPLETED SUCCESSFULLY");
   console.table(summary);
   console.log("");
   console.log(

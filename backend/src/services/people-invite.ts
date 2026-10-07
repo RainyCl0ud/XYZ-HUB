@@ -8,8 +8,8 @@ import {
 } from "../lib/prisma.js";
 
 import {
-  canAccessModel,
-  canAssignRole,
+  canAssignInviteModel,
+  canInviteRole,
   hasPermission,
   type AccessContext,
 } from "./access-control.js";
@@ -173,7 +173,7 @@ export async function invitePerson(
   }
 
   /*
-   * canAssignRole() is the single role-assignment authority gate.
+   * canInviteRole() is the invitation-specific role authority gate.
    * It reserves Owner, Ops Manager, Dev, Accountant, Model and
    * General Staff for Owners while retaining the ranked chain for
    * ordinary roles. Do not special-case Owner here: an Owner is
@@ -184,7 +184,7 @@ export async function invitePerson(
     of roles
   ) {
     if (
-      !canAssignRole(
+      !canInviteRole(
         access,
         role
       )
@@ -236,7 +236,7 @@ export async function invitePerson(
     }
 
     if (
-      !canAccessModel(
+      !canAssignInviteModel(
         access,
         model.id
       )

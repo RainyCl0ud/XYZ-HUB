@@ -10,6 +10,13 @@ import {
   PERMISSION_DEPENDENCIES,
 } from "../permissions/permission-catalog.js";
 
+const OWNER_ONLY_CAPABILITY_KEYS =
+  new Set<string>([
+    "people.status.manage",
+    "people.delete",
+    "audit.access",
+  ]);
+
 export type AccessContext = {
   userId: string;
 
@@ -187,7 +194,22 @@ export async function getAccessContext(
       )
   );
 
+
   /*
+   * Owner-only capabilities are intrinsic system authority.
+   * Ignore any stale RolePermission assignments for these keys,
+   * then grant them only when the current user is an Owner.
+   */
+  for (const key of OWNER_ONLY_CAPABILITY_KEYS) {
+    permissions.delete(key);
+  }
+
+  if (systemKeys.has("OWNER")) {
+    for (const key of OWNER_ONLY_CAPABILITY_KEYS) {
+      permissions.add(key);
+    }
+  }
+/*
    * Effective permissions now come from Role Settings.
    * Parent-child requirements are enforced by hasPermission().
    */
@@ -326,6 +348,65 @@ export function isOwner(
   return access.roles.some(
     (role) =>
       role.systemKey === "OWNER"
+  );
+}
+
+/*
+ * Invitation authority is intentionally stricter than ordinary
+ * role/model visibility.
+ *
+ * Owner (1), Ops Manager (2), and Manager (3) may invite only
+ * ranked roles below their own rank.
+ *
+ * QC (4) and below may never invite, even if a configurable
+ * permission is accidentally granted later.
+ */
+export function canInvitePeople(
+  access: AccessContext
+): boolean {
+  return (
+    hasPermission(
+      access,
+      "people.create"
+    ) &&
+    access.highestRank !== null &&
+    access.highestRank <= 3
+  );
+}
+
+
+export function canInviteRole(
+  access: AccessContext,
+  targetRole: {
+    systemKey: string | null;
+    rank: number | null;
+  }
+): boolean {
+  if (!canInvitePeople(access)) {
+    return false;
+  }
+
+  return canAssignRankedRole(
+    access,
+    targetRole.rank
+  );
+}
+
+
+/*
+ * Seeing every model is not the same as being allowed to assign
+ * every model to a new employee. Invitations are limited to the
+ * inviter's explicit UserModelAssignment records.
+ */
+export function canAssignInviteModel(
+  access: AccessContext,
+  modelId: string
+): boolean {
+  return (
+    canInvitePeople(access) &&
+    access.assignedModelIds.includes(
+      modelId
+    )
   );
 }
 

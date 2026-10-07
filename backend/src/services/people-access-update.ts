@@ -449,8 +449,8 @@ export async function updatePersonAccess(
    * people.assign_roles authorizes role assignment only.
    *
    * This legacy endpoint also carries teamGroupId and modelIds
-   * for Owner organization workflows. Non-Owners must not be
-   * able to use the role-assignment endpoint to mutate either.
+   * for Employee Management workflows. Team changes remain Owner-only.
+   * Model changes additionally require models.edit.
    */
   const teamChanged =
     Boolean(
@@ -480,11 +480,15 @@ export async function updatePersonAccess(
     }
 
     if (
-      modelsChanged
+      modelsChanged &&
+      !hasPermission(
+        access,
+        "models.edit"
+      )
     ) {
       throw new PeopleAccessUpdateError(
         "MODEL_NOT_ASSIGNABLE",
-        "Only Owners may change creator assignments through this endpoint."
+        "You do not have permission to change assigned models."
       );
     }
   }
