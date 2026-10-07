@@ -19,6 +19,10 @@ import {
   reconcileQaChatterProfiles,
 } from "./qa-chatter-profile-sync.js";
 
+import {
+  canViewQa,
+} from "./qa-access.js";
+
 function incidentModelWhere(
   access: AccessContext
 ) {
@@ -51,6 +55,7 @@ export async function getPersonQaSummary(
       where: {
         userId,
       },
+
       select: {
         id: true,
         userId: true,
@@ -59,11 +64,6 @@ export async function getPersonQaSummary(
       },
     });
 
-  if (
-    !chatter
-  ) {
-    return null;
-  }
 
   const safeHistoryPage =
     Math.max(
@@ -72,6 +72,7 @@ export async function getPersonQaSummary(
         historyPage
       )
     );
+
   const safeHistoryPageSize =
     Math.min(
       20,
@@ -102,27 +103,42 @@ export async function getPersonQaSummary(
       )
     );
 
+
   const now =
     new Date();
+
   const modelWhere =
     incidentModelWhere(
       access
     );
 
-  const [
-    strikeLadder,
-    activeStrikes,
-    disciplinaryHistory,
-    recentIncidents,
-    totalIncidentCount,
-  ] = await Promise.all([
-    getCurrentStrikeLadder(),
+  const canViewStrikeHistory =
+    hasPermission(
+      access,
+      "strikes.view"
+    );
 
-    chatter.userId
-      ? prisma.strike.findMany({
+  const canViewQaHistory =
+    canViewQa(
+      access
+    );
+
+
+  /*
+   * Strike records belong to the employee identity, not to the
+   * optional QA Chatter profile. An employee without QA linkage
+   * must still get a correct Strike history/empty state.
+   */
+  const strikeLadder =
+    canViewStrikeHistory
+      ? await getCurrentStrikeLadder()
+      : null;
+
+  const activeStrikes =
+    canViewStrikeHistory
+      ? await prisma.strike.findMany({
           where: {
-            userId:
-              chatter.userId,
+            userId,
 
             voidedAt:
               null,
@@ -138,86 +154,124 @@ export async function getPersonQaSummary(
               true,
           },
 
-          orderBy: {
-            expiresAt:
-              "asc",
-          },
+          /*
+           * This is intentionally ASC because it determines the
+           * next upcoming expiry, not table/history ordering.
+           */
+          orderBy: [
+            {
+              expiresAt:
+                "asc",
+            },
+            {
+              id:
+                "asc",
+            },
+          ],
         })
-      : Promise.resolve([] as { expiresAt: Date }[]),
+      : [];
 
-    chatter.userId &&
-    hasPermission(
-      access,
-      "strikes.view"
-    )
-      ? listStrikeHistoryForUser(
-          chatter.userId,
+  const disciplinaryHistory =
+    canViewStrikeHistory
+      ? await listStrikeHistoryForUser(
+          userId,
           access,
           safeStrikeHistoryPage,
           safeStrikeHistoryPageSize
         )
-      : Promise.resolve(
-          null
-        ),
+      : null;
 
-    prisma.incident.findMany({
-      where: {
-        chatterId:
-          chatter.id,
-        ...modelWhere,
-      },
-      select: {
-        id: true,
-        ruleTitleSnapshot:
-          true,
-        severityNameSnapshot:
-          true,
-        weightNameSnapshot:
-          true,
-        weightValueSnapshot:
-          true,
-        occurredAt: true,
-        status: true,
-      },
-      orderBy: {
-        occurredAt:
-          "desc",
-      },
-      skip:
-        (safeHistoryPage - 1) *
-        safeHistoryPageSize,
-      take:
-        safeHistoryPageSize,
-    }),
 
-    prisma.incident.count({
-      where: {
-        chatterId:
-          chatter.id,
-        ...modelWhere,
-      },
-    }),
-  ]);
+  /*
+   * QA incidents genuinely depend on the QA Chatter link.
+   */
+  const recentIncidents =
+    chatter &&
+    canViewQaHistory
+      ? await prisma.incident.findMany({
+          where: {
+            chatterId:
+              chatter.id,
 
-  const activeStrikeRows =
-    activeStrikes as
-      Array<{
-        expiresAt:
-          Date;
-      }>;
+            ...modelWhere,
+          },
+
+          select: {
+            id: true,
+
+            ruleTitleSnapshot:
+              true,
+
+            severityNameSnapshot:
+              true,
+
+            weightNameSnapshot:
+              true,
+
+            weightValueSnapshot:
+              true,
+
+            occurredAt:
+              true,
+
+            status:
+              true,
+          },
+
+          /*
+           * Server-side pagination contract:
+           * newest first, deterministic on equal timestamps.
+           */
+          orderBy: [
+            {
+              occurredAt:
+                "desc",
+            },
+            {
+              id:
+                "desc",
+            },
+          ],
+
+          skip:
+            (safeHistoryPage - 1) *
+            safeHistoryPageSize,
+
+          take:
+            safeHistoryPageSize,
+        })
+      : [];
+
+  const totalIncidentCount =
+    chatter &&
+    canViewQaHistory
+      ? await prisma.incident.count({
+          where: {
+            chatterId:
+              chatter.id,
+
+            ...modelWhere,
+          },
+        })
+      : 0;
+
 
   const orderedSteps =
-    [...strikeLadder.steps].sort(
-      (
-        first,
-        second
-      ) =>
-        first.minActiveStrikes -
-        second.minActiveStrikes
-    );
+    strikeLadder
+      ? [
+          ...strikeLadder.steps,
+        ].sort(
+          (
+            first,
+            second
+          ) =>
+            first.minActiveStrikes -
+            second.minActiveStrikes
+        )
+      : [];
 
   const activeStrikeCount =
-    activeStrikeRows.length;
+    activeStrikes.length;
 
   let matchedStep =
     orderedSteps[0] ??
@@ -233,38 +287,65 @@ export async function getPersonQaSummary(
     ) {
       matchedStep =
         step;
+
       continue;
     }
 
     break;
   }
 
+
   return {
+    /*
+     * null means the employee genuinely has no QA profile.
+     * It no longer makes the entire response disappear.
+     */
     chatter,
-    strikeSummary: {
-      activeStrikeCount,
-      standingLabel:
-        matchedStep?.standingLabel ??
-        "Clear",
-      deductionPercent:
-        matchedStep?.deductionPercent ??
-        0,
-      nextExpiryAt:
-        activeStrikeRows[0]
-          ?.expiresAt ??
-        null,
-      ladderVersionId:
-        strikeLadder.id,
-      ladderVersion:
-        strikeLadder.versionNumber,
-    },
+
+    canViewQaHistory,
+
+    canViewStrikeHistory,
+
+    strikeSummary:
+      strikeLadder
+        ? {
+            activeStrikeCount,
+
+            standingLabel:
+              matchedStep
+                ?.standingLabel ??
+              "Clear",
+
+            deductionPercent:
+              matchedStep
+                ?.deductionPercent ??
+              0,
+
+            nextExpiryAt:
+              activeStrikes[0]
+                ?.expiresAt ??
+              null,
+
+            ladderVersionId:
+              strikeLadder.id,
+
+            ladderVersion:
+              strikeLadder.versionNumber,
+          }
+        : null,
+
     disciplinaryHistory,
+
     recentIncidents,
+
     totalIncidentCount,
+
     historyPage:
       safeHistoryPage,
+
     historyPageSize:
       safeHistoryPageSize,
+
     historyPageCount:
       Math.max(
         1,

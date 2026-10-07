@@ -63,7 +63,7 @@ export async function updatePersonAccess(
   if (
     !hasPermission(
       access,
-      "people.manage"
+      "people.assign_roles"
     )
   ) {
     throw new PeopleAccessUpdateError(
@@ -445,7 +445,51 @@ export async function updatePersonAccess(
         )
     );
 
-  await prisma.$transaction(
+    /*
+   * people.assign_roles authorizes role assignment only.
+   *
+   * This legacy endpoint also carries teamGroupId and modelIds
+   * for Owner organization workflows. Non-Owners must not be
+   * able to use the role-assignment endpoint to mutate either.
+   */
+  const teamChanged =
+    Boolean(
+      requestedTeamGroup &&
+      requestedTeamGroup.id !==
+        target.teamGroupId
+    );
+
+  const modelsChanged =
+    modelIdsToAdd.length >
+      0 ||
+    modelIdsToRemove.length >
+      0;
+
+  if (
+    !isOwner(
+      access
+    )
+  ) {
+    if (
+      teamChanged
+    ) {
+      throw new PeopleAccessUpdateError(
+        "TEAM_GROUP_NOT_ASSIGNABLE",
+        "Only Owners may change team assignments through this endpoint."
+      );
+    }
+
+    if (
+      modelsChanged
+    ) {
+      throw new PeopleAccessUpdateError(
+        "MODEL_NOT_ASSIGNABLE",
+        "Only Owners may change creator assignments through this endpoint."
+      );
+    }
+  }
+
+await prisma.$transaction(
     async (
       tx
     ) => {

@@ -831,7 +831,7 @@ function StrikesPage() {
       false
   ) {
     if (
-      !capabilities.canManagePeople ||
+      !capabilities.canViewPeopleProfiles ||
       !strike.currentUser
     ) {
       return;
@@ -1821,8 +1821,9 @@ function StrikesPage() {
           </p>
         </div>
 
-        {(capabilities.canConfigureStrikes ||
-          capabilities.canIssueStrikes) && (
+        {(capabilities.canIssueStrikes ||
+          capabilities.canViewStrikeReasons ||
+          capabilities.canViewStrikeLadder) && (
           <div className="strikes-header-actions">
             {capabilities.canIssueStrikes && (
               <button
@@ -1835,30 +1836,37 @@ function StrikesPage() {
                 Issue Strike
               </button>
             )}
-            {capabilities.canConfigureStrikes && (
+            {(capabilities.canViewStrikeReasons ||
+              capabilities.canViewStrikeLadder) && (
               <>
                 <button
                   type="button"
                   className="secondary-button"
+                  hidden={
+                    !capabilities.canViewStrikeReasons
+                  }
                   onClick={() =>
                     navigate(
                       "/strikes/reasons"
                     )
                   }
                 >
-                  Manage Reasons
+                  Reasons
                 </button>
 
                 <button
                   type="button"
                   className="secondary-button"
+                  hidden={
+                    !capabilities.canViewStrikeLadder
+                  }
                   onClick={() =>
                     navigate(
                       "/strikes/settings"
                     )
                   }
-                  aria-label="Strike Ladder Configuration"
-                  title="Strike Ladder Configuration"
+                  aria-label="Strike Ladder settings"
+                  title="Strike Ladder settings"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -2096,7 +2104,7 @@ function StrikesPage() {
         {loading ? (
           <div className="empty-state">
             <strong>
-              Loading Strikes…
+              Loading Strikesâ€¦
             </strong>
           </div>
         ) : filteredStrikes.length ===
@@ -2150,7 +2158,7 @@ function StrikesPage() {
                 >
                   <div className="strikes-person-cell">
                     {strike.currentUser &&
-                    capabilities.canManagePeople ? (
+                    capabilities.canViewPeopleProfiles ? (
                       <button
                         type="button"
                         className="strikes-employee-link"
@@ -2348,7 +2356,7 @@ function StrikesPage() {
                   )
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -2523,7 +2531,7 @@ function StrikesPage() {
                       ? formatCentralDateTime(
                           selectedStrike.voidedAt
                         )
-                      : "—"}
+                      : "â€”"}
                     {selectedStrike.voidedByNameSnapshot
                       ? ` by ${selectedStrike.voidedByNameSnapshot}`
                       : ""}
@@ -2540,7 +2548,7 @@ function StrikesPage() {
 
             <div className="strikes-modal-footer">
               {selectedStrike.currentUser &&
-                capabilities.canManagePeople && (
+                capabilities.canViewPeopleProfiles && (
                 <button
                   type="button"
                   className="secondary-button"
@@ -2632,7 +2640,7 @@ function StrikesPage() {
                   closeVoidModal
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -2643,7 +2651,7 @@ function StrikesPage() {
                 </strong>
 
                 <span>
-                  {voidTarget.reasonNameSnapshot} · {voidTarget.standingLabelSnapshot}
+                  {voidTarget.reasonNameSnapshot} Â· {voidTarget.standingLabelSnapshot}
                 </span>
               </div>
 
@@ -2711,7 +2719,7 @@ function StrikesPage() {
                 }
               >
                 {voiding
-                  ? "Voiding…"
+                  ? "Voidingâ€¦"
                   : "Confirm void"}
               </button>
             </div>
@@ -2767,7 +2775,7 @@ function StrikesPage() {
                     : closeIssueModal
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -2793,7 +2801,7 @@ function StrikesPage() {
                       <strong>
                         {selectedIssueEmployee?.name ??
                           issuePreview?.user.name ??
-                          "—"}
+                          "â€”"}
                       </strong>
                     </div>
 
@@ -2804,7 +2812,7 @@ function StrikesPage() {
 
                       <strong>
                         {selectedIssueReason?.name ??
-                          "—"}
+                          "â€”"}
                       </strong>
                     </div>
 
@@ -2815,7 +2823,7 @@ function StrikesPage() {
 
                       <strong>
                         {issuePreview?.standingLabel ??
-                          "—"}
+                          "â€”"}
                       </strong>
                     </div>
 
@@ -2827,7 +2835,7 @@ function StrikesPage() {
                       <strong>
                         {issuePreview
                           ? `${issuePreview.deductionPercent}%`
-                          : "—"}
+                          : "â€”"}
                       </strong>
                     </div>
 
@@ -2839,7 +2847,7 @@ function StrikesPage() {
                       <strong>
                         {issuePreview
                           ?.activeStrikeCountAfterIssue ??
-                          "—"}
+                          "â€”"}
                       </strong>
                     </div>
 
@@ -2853,7 +2861,7 @@ function StrikesPage() {
                           ? formatCentralDateTime(
                               issuePreview.expiresAt
                             )
-                          : "—"}
+                          : "â€”"}
                       </strong>
                     </div>
                   </div>
@@ -2904,7 +2912,7 @@ function StrikesPage() {
               {issueDataLoading ? (
                 <div className="empty-state">
                   <strong>
-                    Preparing Strike form…
+                    Preparing Strike formâ€¦
                   </strong>
                 </div>
               ) : (
@@ -2920,7 +2928,7 @@ function StrikesPage() {
                           type="text"
                           value={
                             selectedIssueEmployee
-                              ? `${selectedIssueEmployee.name} — ${selectedIssueEmployee.email}`
+                              ? `${selectedIssueEmployee.name} â€” ${selectedIssueEmployee.email}`
                               : "Linked chatter unavailable"
                           }
                           readOnly
@@ -2964,7 +2972,7 @@ function StrikesPage() {
                                   employee.id
                                 }
                               >
-                                {employee.name} — {employee.email}
+                                {employee.name} â€” {employee.email}
                               </option>
                             )
                           )}
@@ -3088,7 +3096,7 @@ function StrikesPage() {
 
                       {previewLoading && (
                         <span className="strikes-preview-loading">
-                          Calculating…
+                          Calculatingâ€¦
                         </span>
                       )}
                     </div>
@@ -3099,7 +3107,7 @@ function StrikesPage() {
                       </p>
                     ) : previewLoading ? (
                       <p className="strikes-preview-empty">
-                        Checking current active Strikes and ladder state…
+                        Checking current active Strikes and ladder stateâ€¦
                       </p>
                     ) : issuePreview ? (
                       <>
@@ -3207,7 +3215,7 @@ function StrikesPage() {
                     }
                   >
                     {issuing
-                      ? "Issuing…"
+                      ? "Issuingâ€¦"
                       : "Issue Strike"}
                   </button>
                 </>

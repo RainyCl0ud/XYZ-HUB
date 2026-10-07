@@ -95,6 +95,45 @@ export function requirePermission(
   };
 }
 
+export function requireAnyPermission(
+  permissionKeys:
+    readonly string[]
+) {
+  return (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    if (!req.access) {
+      return res.status(401).json({
+        error:
+          "Authentication required.",
+      });
+    }
+
+    const allowed =
+      permissionKeys.some(
+        (
+          permissionKey
+        ) =>
+          hasPermission(
+            req.access!,
+            permissionKey
+          )
+      );
+
+    if (!allowed) {
+      return res.status(403).json({
+        error:
+          "You do not have permission to perform this action.",
+      });
+    }
+
+    next();
+  };
+}
+
+
 export function requireOwner(
   req: AuthenticatedRequest,
   res: Response,

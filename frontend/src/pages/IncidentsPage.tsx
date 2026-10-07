@@ -1,4 +1,4 @@
-import {
+﻿import {
   useCallback,
   useEffect,
   useMemo,
@@ -237,12 +237,21 @@ function IncidentsPage() {
   const { access } = useAuth();
 
   const {
-    canManageQaIncidents,
+    canCreateQaIncidents,
+    canResolveQaIncidents,
+    canVoidQaIncidents,
     canViewStrikes,
     canIssueStrikes,
-    canManagePeople,
+    canViewPeopleProfiles,
   } =
-    getPortalCapabilities(access);
+    getPortalCapabilities(
+      access
+    );
+
+  const canMutateQaIncidents =
+    canCreateQaIncidents ||
+    canResolveQaIncidents ||
+    canVoidQaIncidents;
 
   const [
     incidents,
@@ -832,7 +841,7 @@ function IncidentsPage() {
   }
 
   function openLogIncident() {
-    if (!canManageQaIncidents) {
+    if (!canCreateQaIncidents) {
       return;
     }
 
@@ -874,7 +883,7 @@ function IncidentsPage() {
   ) {
     event.preventDefault();
 
-    if (!canManageQaIncidents) {
+    if (!canCreateQaIncidents) {
       return;
     }
 
@@ -966,6 +975,10 @@ function IncidentsPage() {
       }
     >
   ) {
+    if (!canCreateQaIncidents) {
+      return;
+    }
+
     try {
       setIsSaving(true);
 
@@ -1237,7 +1250,7 @@ function IncidentsPage() {
 
   function viewEmployeeQaProfile() {
     if (
-      !canManagePeople ||
+      !canViewPeopleProfiles ||
       !selectedIncident
         ?.chatter
         .userId
@@ -1272,7 +1285,12 @@ function IncidentsPage() {
     type: ActionType,
     incident: Incident
   ) {
-    if (!canManageQaIncidents) {
+    const allowed =
+      type === "resolve"
+        ? canResolveQaIncidents
+        : canVoidQaIncidents;
+
+    if (!allowed) {
       return;
     }
 
@@ -1326,8 +1344,15 @@ function IncidentsPage() {
   ) {
     event.preventDefault();
 
+    const allowed =
+      actionType === "resolve"
+        ? canResolveQaIncidents
+        : actionType === "void"
+          ? canVoidQaIncidents
+          : false;
+
     if (
-      !canManageQaIncidents ||
+      !allowed ||
       !actionIncident ||
       !actionType
     ) {
@@ -1377,6 +1402,15 @@ function IncidentsPage() {
       action,
       notes,
     } = confirmation;
+
+    const allowed =
+      action === "resolve"
+        ? canResolveQaIncidents
+        : canVoidQaIncidents;
+
+    if (!allowed) {
+      return;
+    }
 
     try {
       setActionSaving(true);
@@ -1477,21 +1511,28 @@ function IncidentsPage() {
    */
 
   async function confirmPendingAction() {
-    if (
-      !canManageQaIncidents ||
-      !pendingConfirmation
-    ) {
+    if (!pendingConfirmation) {
       return;
     }
 
-    if (
-      pendingConfirmation.type ===
-      "log"
-    ) {
+    if (pendingConfirmation.type === "log") {
+      if (!canCreateQaIncidents) {
+        return;
+      }
+
       await confirmLogIncident(
         pendingConfirmation
       );
 
+      return;
+    }
+
+    const allowed =
+      pendingConfirmation.action === "resolve"
+        ? canResolveQaIncidents
+        : canVoidQaIncidents;
+
+    if (!allowed) {
       return;
     }
 
@@ -1671,14 +1712,14 @@ function IncidentsPage() {
           </h2>
 
           <p className="page-description">
-            {canManageQaIncidents ? "Manage" : "View"} chatter
+            {canMutateQaIncidents ? "Manage" : "View"} chatter
             incidents, preserve
             historical rule data,
             and track QA outcomes.
           </p>
         </div>
 
-        {canManageQaIncidents && (
+        {canCreateQaIncidents && (
           <button
             className="primary-button"
             type="button"
@@ -1698,7 +1739,7 @@ function IncidentsPage() {
         )}
       </header>
 
-      {!canManageQaIncidents && (
+      {!canMutateQaIncidents && (
         <div className="alert alert-info page-alert">
           You have read-only access to QA incidents. You can view incident records and QA history.
         </div>
@@ -1710,7 +1751,7 @@ function IncidentsPage() {
         </div>
       )}
 
-      {canManageQaIncidents && !dependenciesLoading &&
+      {canCreateQaIncidents && !dependenciesLoading &&
         (activeChatters.length ===
           0 ||
           activeRules.length ===
@@ -2020,12 +2061,12 @@ function IncidentsPage() {
                         <td>
                           {incident
                             .severityNameSnapshot ??
-                            "—"}
+                            "â€”"}
                         </td>
 
                         <td>
                           {incident.weightNameSnapshot ??
-                            "—"}
+                            "â€”"}
                         </td>
 
                         <td className="incident-date-cell">
@@ -2108,7 +2149,7 @@ function IncidentsPage() {
           LOG INCIDENT MODAL
           ===================================================== */}
 
-      {canManageQaIncidents && showLogModal && (
+      {canCreateQaIncidents && showLogModal && (
         <div
           className="modal-backdrop"
           onMouseDown={
@@ -2150,7 +2191,7 @@ function IncidentsPage() {
                   isSaving
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -2514,7 +2555,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -2559,7 +2600,7 @@ function IncidentsPage() {
                           View QA Profile
                         </button>
 
-                        {canManagePeople &&
+                        {canViewPeopleProfiles &&
                           selectedIncident
                             .chatter
                             .userId && (
@@ -2819,7 +2860,7 @@ function IncidentsPage() {
                         </button>
                       )}
 
-                      {canManageQaIncidents && selectedIncident.status ===
+                      {canResolveQaIncidents && selectedIncident.status ===
                         "OPEN" && (
                         <button
                           type="button"
@@ -2840,7 +2881,7 @@ function IncidentsPage() {
                         </button>
                       )}
 
-                      {canManageQaIncidents && selectedIncident.status ===
+                      {canVoidQaIncidents && selectedIncident.status ===
                         "OPEN" && (
                         <button
                           type="button"
@@ -2873,8 +2914,11 @@ function IncidentsPage() {
           RESOLVE / VOID MODAL
           ===================================================== */}
 
-      {canManageQaIncidents && actionType &&
-        actionIncident && (
+      {actionType &&
+        actionIncident &&
+        (actionType === "resolve"
+          ? canResolveQaIncidents
+          : canVoidQaIncidents) && (
           <div
             className="modal-backdrop"
             onMouseDown={
@@ -2917,7 +2961,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -2992,7 +3036,7 @@ function IncidentsPage() {
                   <small className="form-helper">
                     {actionType ===
                     "resolve"
-                      ? `Optional · ${actionNotes.length}/2000 characters`
+                      ? `Optional Â· ${actionNotes.length}/2000 characters`
                       : `${actionNotes.length}/2000 characters`}
                   </small>
                 </label>
@@ -3048,7 +3092,12 @@ function IncidentsPage() {
           FINAL CONFIRMATION MODAL
           ===================================================== */}
 
-      {canManageQaIncidents && pendingConfirmation &&
+      {pendingConfirmation &&
+        (pendingConfirmation.type === "log"
+          ? canCreateQaIncidents
+          : pendingConfirmation.action === "resolve"
+            ? canResolveQaIncidents
+            : canVoidQaIncidents) &&
         confirmationContent && (
           <div
             className="modal-backdrop confirmation-backdrop"
@@ -3092,7 +3141,7 @@ function IncidentsPage() {
                   }
                   aria-label="Close confirmation"
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -3114,7 +3163,7 @@ function IncidentsPage() {
                       <strong>
                         {selectedChatter
                           ?.name ??
-                          "—"}
+                          "â€”"}
                       </strong>
                     </div>
 
@@ -3127,7 +3176,7 @@ function IncidentsPage() {
                         {selectedRule
                           ?.currentVersion
                           ?.title ??
-                          "—"}
+                          "â€”"}
                       </strong>
                     </div>
 

@@ -8,6 +8,7 @@ import {
 
 import {
   requireAuth,
+  requireAnyPermission,
   requireOwner,
   requirePermission,
 } from "./middleware/access.js";
@@ -296,6 +297,10 @@ app.use(
   "/api/chatters",
   requireAuth,
   requireQaView,
+  requireAnyPermission([
+    "quality.chatters.view",
+    "quality.incidents.view",
+  ]),
   presentCurrentChatterIdentity,
   requireQaConfigurationForWrites,
   chatterRoutes
@@ -305,6 +310,9 @@ app.use(
   "/api/severity-options",
   requireAuth,
   requireQaView,
+  requirePermission(
+    "quality.rules.view"
+  ),
   requireQaConfigurationForWrites,
   severityOptionRoutes
 );
@@ -313,6 +321,9 @@ app.use(
   "/api/weight-options",
   requireAuth,
   requireQaView,
+  requirePermission(
+    "quality.rules.view"
+  ),
   requireQaConfigurationForWrites,
   weightOptionRoutes
 );
@@ -321,6 +332,10 @@ app.use(
   "/api/rules",
   requireAuth,
   requireQaView,
+  requireAnyPermission([
+    "quality.rules.view",
+    "quality.incidents.view",
+  ]),
   requireQaConfigurationForWrites,
   ruleRoutes
 );
@@ -329,6 +344,9 @@ app.use(
   "/api/incidents",
   requireAuth,
   requireQaView,
+  requirePermission(
+    "quality.incidents.view"
+  ),
   presentCurrentChatterIdentity,
   incidentRoutes
 );
@@ -337,6 +355,9 @@ app.use(
   "/api/dashboard",
   requireAuth,
   requireQaView,
+  requirePermission(
+    "quality.incidents.view"
+  ),
   presentCurrentChatterIdentity,
   dashboardRoutes
 );
@@ -352,7 +373,7 @@ app.use(
   "/api/strike-ladder",
   requireAuth,
   requirePermission(
-    "strikes.view"
+    "strikes.ladder.view"
   ),
   strikeLadderRoutes
 );

@@ -25,6 +25,14 @@ import {
   useToast,
 } from "../components/ToastProvider";
 
+import {
+  useAuth,
+} from "../auth/AuthContext";
+
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
+
 type OptionKind =
   | "severity"
   | "weight";
@@ -153,6 +161,18 @@ function ConfigurationPage({
 
   const navigate =
     useNavigate();
+
+  const {
+    access,
+  } =
+    useAuth();
+
+  const {
+    canEditStrikeLadder,
+  } =
+    getPortalCapabilities(
+      access
+    );
 
   /*
    * =========================================================
@@ -1931,7 +1951,10 @@ function ConfigurationPage({
   }
 
   function openLadderEditor() {
-    if (!currentLadder) {
+    if (
+      !canEditStrikeLadder ||
+      !currentLadder
+    ) {
       return;
     }
 
@@ -2192,6 +2215,12 @@ function ConfigurationPage({
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
+    if (
+      !canEditStrikeLadder
+    ) {
+      return;
+    }
 
     const durationDays =
       Number(
@@ -3458,19 +3487,21 @@ function ConfigurationPage({
                 : "Version History"}
             </button>
 
-            <button
-              type="button"
-              className="primary-button"
-              onClick={
-                openLadderEditor
-              }
-              disabled={
-                isLoading ||
-                !currentLadder
-              }
-            >
-              Edit Ladder
-            </button>
+            {canEditStrikeLadder && (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={
+                  openLadderEditor
+                }
+                disabled={
+                  isLoading ||
+                  !currentLadder
+                }
+              >
+                Edit Ladder
+              </button>
+            )}
           </div>
         </div>
 
@@ -4047,6 +4078,7 @@ function ConfigurationPage({
           ===================================================== */}
 
       {mode === "strikes" &&
+        canEditStrikeLadder &&
         showLadderEditor && (
         <div
           className="modal-backdrop"

@@ -3,26 +3,39 @@ import {
 } from "../lib/prisma.js";
 
 import {
-  isOwner,
+  canAccessModel,
+  canManageRoleTarget,
+  hasPermission,
   type AccessContext,
 } from "./access-control.js";
 
 import {
+  canAccessTeamGroup,
+} from "./team-hierarchy.js";
+
+import {
   publishLiveUpdate,
 } from "./live-updates.js";
+
 
 export type DeletePersonInput = {
   userId: string;
   confirmEmail: string;
 };
 
+
 export type PeopleDeleteErrorCode =
-  | "OWNER_REQUIRED"
+  | "PEOPLE_DELETE_REQUIRED"
   | "CANNOT_DELETE_SELF"
   | "USER_NOT_FOUND"
-  | "CONFIRMATION_MISMATCH";
+  | "CONFIRMATION_MISMATCH"
+  | "ROLE_NOT_MANAGEABLE"
+  | "MODEL_NOT_MANAGEABLE"
+  | "TEAM_GROUP_NOT_MANAGEABLE";
 
-export class PeopleDeleteError extends Error {
+
+export class PeopleDeleteError
+  extends Error {
   readonly code:
     PeopleDeleteErrorCode;
 
@@ -32,7 +45,9 @@ export class PeopleDeleteError extends Error {
     message:
       string
   ) {
-    super(message);
+    super(
+      message
+    );
 
     this.name =
       "PeopleDeleteError";
@@ -42,6 +57,7 @@ export class PeopleDeleteError extends Error {
   }
 }
 
+
 export async function deletePerson(
   input:
     DeletePersonInput,
@@ -49,16 +65,16 @@ export async function deletePerson(
     AccessContext
 ) {
   if (
-    !isOwner(
-      access
+    !hasPermission(
+      access,
+      "people.delete"
     )
   ) {
     throw new PeopleDeleteError(
-      "OWNER_REQUIRED",
-      "Only an Owner may permanently delete a user."
+      "PEOPLE_DELETE_REQUIRED",
+      "You do not have permission to permanently delete employees."
     );
   }
-
 
   if (
     input.userId ===
@@ -76,15 +92,51 @@ export async function deletePerson(
         id:
           input.userId,
       },
+
       select: {
         id:
           true,
+
         name:
           true,
+
         email:
           true,
+
         status:
           true,
+
+        teamGroupId:
+          true,
+
+        roleMemberships: {
+          select: {
+            role: {
+              select: {
+                systemKey:
+                  true,
+
+                rank:
+                  true,
+              },
+            },
+          },
+        },
+
+        modelAssignments: {
+          select: {
+            modelId:
+              true,
+
+            model: {
+              select: {
+                name:
+                  true,
+              },
+            },
+          },
+        },
+
         chatterProfile: {
           select: {
             id:
@@ -99,6 +151,71 @@ export async function deletePerson(
       "USER_NOT_FOUND",
       "The user does not exist."
     );
+  }
+
+  /*
+   * Owner remains outside ordinary Employee Management.
+   */
+  if (
+    user.roleMemberships.some(
+      (
+        membership
+      ) =>
+        membership.role
+          .systemKey ===
+        "OWNER"
+    )
+  ) {
+    throw new PeopleDeleteError(
+      "USER_NOT_FOUND",
+      "The user does not exist."
+    );
+  }
+
+  if (
+    !await canAccessTeamGroup(
+      access,
+      user.teamGroupId
+    )
+  ) {
+    throw new PeopleDeleteError(
+      "TEAM_GROUP_NOT_MANAGEABLE",
+      "You are not allowed to delete an employee outside your organization scope."
+    );
+  }
+
+  for (
+    const membership
+    of user.roleMemberships
+  ) {
+    if (
+      !canManageRoleTarget(
+        access,
+        membership.role
+      )
+    ) {
+      throw new PeopleDeleteError(
+        "ROLE_NOT_MANAGEABLE",
+        "You are not allowed to delete an employee with a higher or protected role."
+      );
+    }
+  }
+
+  for (
+    const assignment
+    of user.modelAssignments
+  ) {
+    if (
+      !canAccessModel(
+        access,
+        assignment.modelId
+      )
+    ) {
+      throw new PeopleDeleteError(
+        "MODEL_NOT_MANAGEABLE",
+        `You are not allowed to manage the creator "${assignment.model.name}".`
+      );
+    }
   }
 
   const confirmation =
@@ -163,22 +280,32 @@ export async function deletePerson(
     );
 
   publishLiveUpdate({
-    type: "session.invalidated",
-    userId: user.id,
-    reason: "ACCOUNT_DELETED",
+    type:
+      "session.invalidated",
+
+    userId:
+      user.id,
+
+    reason:
+      "ACCOUNT_DELETED",
   });
 
   return {
     id:
       user.id,
+
     name:
       user.name,
+
     email:
       user.email,
+
     previousStatus:
       user.status,
+
     deletedChatterId:
       chatterId,
+
     deletedIncidentCount:
       result.deletedIncidents,
   };

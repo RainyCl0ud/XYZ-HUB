@@ -30,6 +30,7 @@ import {
 } from "../components/ToastProvider";
 
 import PeopleQaPanel from "../components/PeopleQaPanel";
+import AccountActivityPanel from "../components/AccountActivityPanel";
 
 import "./PeoplePage.css";
 
@@ -114,6 +115,8 @@ type PeopleOptions = {
   capabilities: {
     isOwner: boolean;
     canManagePeople: boolean;
+    canCreatePeople: boolean;
+    canAssignRoles: boolean;
     canManageOrganization: boolean;
     canDeactivate: boolean;
     canDelete: boolean;
@@ -421,34 +424,16 @@ function PeopleDetailPage() {
     );
 
   const [
-    showAccessEditor,
-    setShowAccessEditor,
+    showRoleEditor,
+    setShowRoleEditor,
   ] =
     useState(
       false
     );
 
   const [
-    accessTeamId,
-    setAccessTeamId,
-  ] =
-    useState(
-      ""
-    );
-
-  const [
-    accessRoleIds,
-    setAccessRoleIds,
-  ] =
-    useState<
-      string[]
-    >(
-      []
-    );
-
-  const [
-    accessModelIds,
-    setAccessModelIds,
+    assignedRoleIds,
+    setAssignedRoleIds,
   ] =
     useState<
       string[]
@@ -679,38 +664,6 @@ function PeopleDetailPage() {
       ]
     );
 
-  const defaultTeamId =
-    useMemo(
-      () => {
-        const rootId =
-          options
-            ?.organization
-            .rootGroupId;
-
-        if (
-          rootId &&
-          teamById.has(
-            rootId
-          )
-        ) {
-          return rootId;
-        }
-
-        return (
-          teams[0]
-            ?.id ??
-          ""
-        );
-      },
-      [
-        options
-          ?.organization
-          .rootGroupId,
-        teamById,
-        teams,
-      ]
-    );
-
   const assignableRoleIds =
     useMemo(
       () =>
@@ -779,49 +732,6 @@ function PeopleDetailPage() {
         user?.id
     );
 
-  const activeCreators =
-    useMemo(
-      () =>
-        options
-          ?.models
-          .filter(
-            (
-              model
-            ) =>
-              model.isActive
-          ) ??
-        [],
-      [
-        options?.models,
-      ]
-    );
-
-  const activeAccessCreatorIds =
-    useMemo(
-      () =>
-        activeCreators.map(
-          (
-            model
-          ) =>
-            model.id
-        ),
-      [
-        activeCreators,
-      ]
-    );
-
-  const allActiveCreatorsSelected =
-    activeAccessCreatorIds.length >
-      0 &&
-    activeAccessCreatorIds.every(
-      (
-        id
-      ) =>
-        accessModelIds.includes(
-          id
-        )
-    );
-
   const profileTeamColor =
     useMemo(
       () => {
@@ -873,113 +783,6 @@ function PeopleDetailPage() {
         teamById,
       ]
     );
-
-  const accessTeamColor =
-    useMemo(
-      () => {
-        if (
-          !accessTeamId
-        ) {
-          return null;
-        }
-
-        let current =
-          teamById.get(
-            accessTeamId
-          );
-
-        const seen =
-          new Set<
-            string
-          >();
-
-        while (
-          current &&
-          !seen.has(
-            current.id
-          )
-        ) {
-          seen.add(
-            current.id
-          );
-
-          if (
-            current.color
-          ) {
-            return current.color;
-          }
-
-          current =
-            current.parentId
-              ? teamById.get(
-                  current.parentId
-                )
-              : undefined;
-        }
-
-        return null;
-      },
-      [
-        accessTeamId,
-        teamById,
-      ]
-    );
-
-
-  function teamOptionLabel(
-    team:
-      TeamGroup
-  ) {
-    if (
-      team.isRoot
-    ) {
-      return team.name;
-    }
-
-    const names = [
-      team.name,
-    ];
-
-    let current =
-      team.parentId
-        ? teamById.get(
-            team.parentId
-          )
-        : undefined;
-
-    const seen =
-      new Set<string>([
-        team.id,
-      ]);
-
-    while (
-      current &&
-      !current.isRoot &&
-      !seen.has(
-        current.id
-      )
-    ) {
-      seen.add(
-        current.id
-      );
-
-      names.unshift(
-        current.name
-      );
-
-      current =
-        current.parentId
-          ? teamById.get(
-              current.parentId
-            )
-          : undefined;
-    }
-
-    return names.join(
-      " / "
-    );
-  }
-
 
   function toggleSelection(
     current:
@@ -1046,22 +849,18 @@ function PeopleDetailPage() {
   }
 
 
-  function openAccessEditor() {
+  function openRoleEditor() {
     if (
       !person ||
       !options ||
-      !canManagePerson
+      !options.capabilities.canAssignRoles ||
+      !canManagePerson ||
+      !person.teamGroup
     ) {
       return;
     }
 
-    setAccessTeamId(
-      person.teamGroup
-        ?.id ??
-      defaultTeamId
-    );
-
-    setAccessRoleIds(
+    setAssignedRoleIds(
       person.roles.map(
         (
           role
@@ -1070,92 +869,23 @@ function PeopleDetailPage() {
       )
     );
 
-    setAccessModelIds(
-      person.models.map(
-        (
-          model
-        ) =>
-          model.id
-      )
-    );
-
-    setShowAccessEditor(
+    setShowRoleEditor(
       true
     );
   }
 
 
-  function toggleAllAccessCreators() {
-    if (
-      allActiveCreatorsSelected
-    ) {
-      const inactive =
-        accessModelIds.filter(
-          (
-            id
-          ) => {
-            const model =
-              options
-                ?.models
-                .find(
-                  (
-                    item
-                  ) =>
-                    item.id ===
-                    id
-                );
-
-            return Boolean(
-              model &&
-              !model.isActive
-            );
-          }
-        );
-
-      setAccessModelIds(
-        inactive
-      );
-
-      return;
-    }
-
-    const inactive =
-      accessModelIds.filter(
-        (
-          id
-        ) => {
-          const model =
-            options
-              ?.models
-              .find(
-                (
-                  item
-                ) =>
-                  item.id ===
-                  id
-              );
-
-          return Boolean(
-            model &&
-            !model.isActive
-          );
-        }
-      );
-
-    setAccessModelIds([
-      ...new Set([
-        ...activeAccessCreatorIds,
-        ...inactive,
-      ]),
-    ]);
-  }
-
-
-  async function saveAccess(
+  async function saveRoles(
     event:
       FormEvent
   ) {
     event.preventDefault();
+
+    if (
+      !options?.capabilities.canAssignRoles
+    ) {
+      return;
+    }
 
     if (
       !person ||
@@ -1165,12 +895,22 @@ function PeopleDetailPage() {
     }
 
     if (
-      !accessTeamId ||
-      !accessRoleIds.length
+      !person.teamGroup
     ) {
       toast.warning(
-        "A team and at least one role are required.",
-        "Check access"
+        "A team assignment is required before roles can be changed.",
+        "Role assignment unavailable"
+      );
+
+      return;
+    }
+
+    if (
+      !assignedRoleIds.length
+    ) {
+      toast.warning(
+        "At least one role is required.",
+        "Check role assignment"
       );
 
       return;
@@ -1191,27 +931,40 @@ function PeopleDetailPage() {
 
           body:
             JSON.stringify({
+              /*
+               * Employee Profile changes role membership only.
+               * The current team remains unchanged.
+               */
               teamGroupId:
-                accessTeamId,
+                person.teamGroup.id,
 
               roleIds:
-                accessRoleIds,
+                assignedRoleIds,
 
+              /*
+               * Creator assignments are deliberately preserved.
+               * They are not editable from the role assignment UI.
+               */
               modelIds:
-                accessModelIds,
+                person.models.map(
+                  (
+                    model
+                  ) =>
+                    model.id
+                ),
             }),
         }
       );
 
       await refreshProfile();
 
-      setShowAccessEditor(
+      setShowRoleEditor(
         false
       );
 
       toast.success(
-        "Role, creator, and team access were updated.",
-        "Access updated"
+        "The employee's role assignment was updated.",
+        "Roles updated"
       );
     } catch (
       saveError
@@ -1220,8 +973,8 @@ function PeopleDetailPage() {
         saveError instanceof
           Error
           ? saveError.message
-          : "Unable to update access.",
-        "Access not updated"
+          : "Unable to update role assignment.",
+        "Roles not updated"
       );
     } finally {
       setSaving(
@@ -1233,7 +986,8 @@ function PeopleDetailPage() {
 
   async function resendInvite() {
     if (
-      !person
+      !person ||
+      !options?.capabilities.canCreatePeople
     ) {
       return;
     }
@@ -1284,6 +1038,28 @@ function PeopleDetailPage() {
         null
       >
   ) {
+    const allowed =
+      action === "deactivate" ||
+      action === "reactivate"
+        ? Boolean(
+            options?.capabilities.canDeactivate
+          )
+        : action === "delete"
+          ? Boolean(
+              options?.capabilities.canDelete
+            )
+          : action === "reset-2fa"
+            ? Boolean(
+                options?.capabilities.canResetTwoFactor
+              )
+            : false;
+
+    if (
+      !allowed
+    ) {
+      return;
+    }
+
     setConfirmAction(
       action
     );
@@ -1588,25 +1364,28 @@ function PeopleDetailPage() {
                 <div className="people-detail-section-heading">
                   <div>
                     <h4>
-                      Roles & creator access
+                      Employee assignments
                     </h4>
 
                     <p>
-                      Current organizational and creator access for this employee.
+                      Review the employee's team, assigned roles, and creators. Role permissions are configured centrally in Role Settings.
                     </p>
                   </div>
 
                   <button
                     type="button"
                     className="primary-button people-edit-access"
+                    hidden={
+                      !options.capabilities.canAssignRoles
+                    }
                     onClick={
-                      openAccessEditor
+                      openRoleEditor
                     }
                     disabled={
                       !canManagePerson
                     }
                   >
-                    Edit access
+                    Assign roles
                   </button>
                 </div>
 
@@ -1689,8 +1468,8 @@ function PeopleDetailPage() {
               {!canManagePerson && (
                 <p className="people-scope-note">
                   {isSelf
-                    ? "Your own role and creator assignments cannot be changed from Employee Management."
-                    : "This profile is visible to you, but one or more assignments are outside the access you may change."}
+                    ? "Your own role assignment cannot be changed from Employee Management."
+                    : "This profile is visible to you, but this employee's role assignment is outside the scope you may manage."}
                 </p>
               )}
             </div>
@@ -1794,6 +1573,16 @@ function PeopleDetailPage() {
               </div>
 
 
+              <AccountActivityPanel
+                key={
+                  person.id
+                }
+                personId={
+                  person.id
+                }
+              />
+
+
               <div className="people-detail-section people-account-access-section">
                 <div className="people-detail-section-heading">
                   <div>
@@ -1809,7 +1598,8 @@ function PeopleDetailPage() {
 
                 <div className="people-account-action-stack">
                   {person.status ===
-                    "PENDING_SETUP" && (
+                    "PENDING_SETUP" &&
+                    options.capabilities.canCreatePeople && (
                     <div className="people-account-action-card">
                       <div>
                         <strong>
@@ -1875,9 +1665,7 @@ function PeopleDetailPage() {
 
                   {person.status ===
                     "DEACTIVATED" &&
-                    options
-                      .capabilities
-                      .isOwner && (
+                    options.capabilities.canDeactivate && (
                     <div className="people-account-action-card restore">
                       <div>
                         <strong>
@@ -1909,20 +1697,19 @@ function PeopleDetailPage() {
               </div>
 
 
-              {options
-                .capabilities
-                .isOwner &&
+              {(options.capabilities.canDeactivate ||
+                options.capabilities.canDelete) &&
                 person.id !==
                   user?.id && (
                 <div className="people-detail-section people-danger-zone">
                   <div className="people-detail-section-heading">
                     <div>
                       <h4>
-                        Owner-only danger zone
+                        Danger Zone
                       </h4>
 
                       <p>
-                        Destructive account actions are isolated from routine security controls.
+                        High-risk account actions are isolated from routine security controls.
                       </p>
                     </div>
                   </div>
@@ -2001,34 +1788,39 @@ function PeopleDetailPage() {
       </section>
 
 
-      {showAccessEditor && (
+      {options?.capabilities.canAssignRoles &&
+        showRoleEditor && (
         <div className="people-overlay">
           <form
             className="people-form-modal"
             onSubmit={
-              saveAccess
+              saveRoles
             }
           >
             <div className="people-modal-header">
               <div>
                 <span className="page-eyebrow">
-                  Access control
+                  Role assignment
                 </span>
 
                 <h3>
-                  Edit {person.name}
+                  Assign roles to {person.name}
                 </h3>
+
+                <p>
+                  Select the employee's roles. Module access and actions are configured in Role Settings.
+                </p>
               </div>
 
               <button
                 type="button"
                 className="people-close"
                 onClick={() =>
-                  setShowAccessEditor(
+                  setShowRoleEditor(
                     false
                   )
                 }
-                aria-label="Close access editor"
+                aria-label="Close role assignment"
               >
                 ×
               </button>
@@ -2036,69 +1828,18 @@ function PeopleDetailPage() {
 
 
             <div className="people-form-body">
-              <label className="form-field people-team-select-field">
-                <span>
-                  Team
-                </span>
-
-                <div
-                  className="people-select-shell team-accented"
-                  style={
-                    {
-                      "--team-select-accent":
-                        accessTeamColor ??
-                        "var(--accent)",
-                    } as
-                      CSSProperties
-                  }
-                >
-                  <select
-                    value={
-                      accessTeamId
-                    }
-                    onChange={
-                      (
-                        event
-                      ) =>
-                        setAccessTeamId(
-                          event.target.value
-                        )
-                    }
-                  >
-                    {teams.map(
-                      (
-                        team
-                      ) => (
-                        <option
-                          key={
-                            team.id
-                          }
-                          value={
-                            team.id
-                          }
-                        >
-                          {teamOptionLabel(
-                            team
-                          )}
-                        </option>
-                      )
-                    )}
-                  </select>
-
-                  <span
-                    className="people-select-caret"
-                    aria-hidden="true"
-                  >
-                    ▾
-                  </span>
-                </div>
-              </label>
-
-
               <div className="people-option-section">
-                <span className="people-section-label">
-                  Roles
-                </span>
+                <div className="people-option-heading">
+                  <div>
+                    <span className="people-section-label">
+                      Assigned roles
+                    </span>
+
+                    <small>
+                      {assignedRoleIds.length} selected
+                    </small>
+                  </div>
+                </div>
 
                 <div className="people-option-grid">
                   {options.roles.map(
@@ -2114,15 +1855,15 @@ function PeopleDetailPage() {
                         <input
                           type="checkbox"
                           checked={
-                            accessRoleIds.includes(
+                            assignedRoleIds.includes(
                               role.id
                             )
                           }
                           onChange={() =>
                             toggleSelection(
-                              accessRoleIds,
+                              assignedRoleIds,
                               role.id,
-                              setAccessRoleIds
+                              setAssignedRoleIds
                             )
                           }
                         />
@@ -2144,84 +1885,9 @@ function PeopleDetailPage() {
                 </div>
               </div>
 
-
-              <div className="people-option-section">
-                <div className="people-option-heading">
-                  <div>
-                    <span className="people-section-label">
-                      Creators
-                    </span>
-
-                    <small>
-                      {accessModelIds.length} selected
-                    </small>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={
-                      toggleAllAccessCreators
-                    }
-                  >
-                    {allActiveCreatorsSelected
-                      ? "Clear active creators"
-                      : "Select all creators"}
-                  </button>
-                </div>
-
-                <div className="people-option-grid">
-                  {options.models.map(
-                    (
-                      model
-                    ) => {
-                      const checked =
-                        accessModelIds.includes(
-                          model.id
-                        );
-
-                      return (
-                        <label
-                          key={
-                            model.id
-                          }
-                          className="people-check-option"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={
-                              checked
-                            }
-                            disabled={
-                              !model.isActive &&
-                              !checked
-                            }
-                            onChange={() =>
-                              toggleSelection(
-                                accessModelIds,
-                                model.id,
-                                setAccessModelIds
-                              )
-                            }
-                          />
-
-                          <span>
-                            <strong>
-                              {model.name}
-                            </strong>
-
-                            <small>
-                              {model.isActive
-                                ? "Active creator"
-                                : "Inactive creator · existing assignment"}
-                            </small>
-                          </span>
-                        </label>
-                      );
-                    }
-                  )}
-                </div>
-              </div>
+              <p className="people-scope-note">
+                This screen assigns roles only. Module access and action permissions are managed centrally in Role Settings.
+              </p>
             </div>
 
 
@@ -2230,7 +1896,7 @@ function PeopleDetailPage() {
                 type="button"
                 className="secondary-button"
                 onClick={() =>
-                  setShowAccessEditor(
+                  setShowRoleEditor(
                     false
                   )
                 }
@@ -2250,7 +1916,7 @@ function PeopleDetailPage() {
               >
                 {saving
                   ? "Saving…"
-                  : "Save access"}
+                  : "Save roles"}
               </button>
             </div>
           </form>

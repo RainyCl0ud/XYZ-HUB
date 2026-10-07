@@ -50,9 +50,16 @@ router.get("/summary", async (_req, res) => {
       prisma.incident.findMany({
         take: 6,
 
-        orderBy: {
-          occurredAt: "desc",
-        },
+        orderBy: [
+          {
+            occurredAt:
+              "desc",
+          },
+          {
+            id:
+              "desc",
+          },
+        ],
 
         select: {
           id: true,

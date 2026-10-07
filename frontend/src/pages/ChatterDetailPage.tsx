@@ -1,4 +1,4 @@
-import {
+﻿import {
   useCallback,
   useEffect,
   useMemo,
@@ -278,7 +278,7 @@ function ChatterDetailPage() {
     useAuth();
 
   const {
-    canConfigureQa,
+    canManageQaProfiles,
     canViewStrikes,
   } =
     getPortalCapabilities(
@@ -424,8 +424,8 @@ function ChatterDetailPage() {
     return getReturnPath().startsWith(
       "/incidents"
     )
-      ? "← Back to Incidents"
-      : "← Back to Chatters";
+      ? "â† Back to Incidents"
+      : "â† Back to Chatters";
   }
 
   const loadDetails =
@@ -1279,7 +1279,7 @@ function ChatterDetailPage() {
           </div>
 
           <div className="chatter-profile-content">
-            {canConfigureQa ? (
+            {canManageQaProfiles ? (
               <div className="chatter-profile-actions">
                 <button
                   type="button"
@@ -1589,7 +1589,7 @@ function ChatterDetailPage() {
                             ] && (
                             <div className="chatter-linked-strike-row">
                               <span className="chatter-linked-strike-badge">
-                                Linked Strike ·{" "}
+                                Linked Strike Â·{" "}
                                 {formatLinkedStrikeStatus(
                                   linkedStrikeByIncidentId[
                                     incident.id
@@ -1798,7 +1798,7 @@ function ChatterDetailPage() {
       </div>
 
       {showEdit &&
-        canConfigureQa && (
+        canManageQaProfiles && (
         <div
           className="modal-backdrop chatter-edit-backdrop"
           onMouseDown={
@@ -1836,7 +1836,7 @@ function ChatterDetailPage() {
                   isSaving
                 }
               >
-                ×
+                Ã—
               </button>
             </div>
 

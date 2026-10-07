@@ -21,6 +21,14 @@ import {
   useToast,
 } from "../components/ToastProvider";
 
+import {
+  useAuth,
+} from "../auth/AuthContext";
+
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
+
 import "./StrikeReasonsPage.css";
 
 
@@ -48,40 +56,30 @@ const STRIKE_REASONS_PAGE_SIZE =
   8;
 
 
-function sortReasons(
-  values:
-    StrikeReason[]
-) {
-  return [
-    ...values,
-  ].sort(
-    (
-      first,
-      second
-    ) => {
-      if (
-        first.isActive !==
-        second.isActive
-      ) {
-        return first.isActive
-          ? -1
-          : 1;
-      }
-
-      return first.name.localeCompare(
-        second.name
-      );
-    }
-  );
-}
-
-
 function StrikeReasonsPage() {
   const navigate =
     useNavigate();
 
   const toast =
     useToast();
+
+  const {
+    access,
+  } =
+    useAuth();
+
+  const {
+    canCreateStrikeReasons,
+    canEditStrikeReasons,
+    canArchiveStrikeReasons,
+  } =
+    getPortalCapabilities(
+      access
+    );
+
+  const canManageExistingReasons =
+    canEditStrikeReasons ||
+    canArchiveStrikeReasons;
 
   const [
     reasons,
@@ -194,9 +192,7 @@ function StrikeReasonsPage() {
             );
 
           setReasons(
-            sortReasons(
-              response.data
-            )
+            response.data
           );
         } catch (
           error
@@ -345,6 +341,12 @@ function StrikeReasonsPage() {
 
 
   function openAddReason() {
+    if (
+      !canCreateStrikeReasons
+    ) {
+      return;
+    }
+
     setEditingId(
       null
     );
@@ -371,6 +373,12 @@ function StrikeReasonsPage() {
     reason:
       StrikeReason
   ) {
+    if (
+      !canEditStrikeReasons
+    ) {
+      return;
+    }
+
     setEditingId(
       reason.id
     );
@@ -400,7 +408,13 @@ function StrikeReasonsPage() {
   ) {
     event.preventDefault();
 
+    const allowed =
+      editingId
+        ? canEditStrikeReasons
+        : canCreateStrikeReasons;
+
     if (
+      !allowed ||
       saving ||
       actionId
     ) {
@@ -467,46 +481,9 @@ function StrikeReasonsPage() {
           }
         );
 
-      setReasons(
-        (
-          current
-        ) => {
-          const exists =
-            current.some(
-              (
-                reason
-              ) =>
-                reason.id ===
-                response
-                  .data
-                  .id
-            );
-
-          const next =
-            exists
-              ? current.map(
-                  (
-                    reason
-                  ) =>
-                    reason.id ===
-                    response
-                      .data
-                      .id
-                      ? response.data
-                      : reason
-                )
-              : [
-                  ...current,
-                  response.data,
-                ];
-
-          return sortReasons(
-            next
-          );
-        }
-      );
-
       resetEditor();
+
+      await loadReasons();
 
       toast.success(
         response.message,
@@ -543,6 +520,7 @@ function StrikeReasonsPage() {
       StrikeReason
   ) {
     if (
+      !canArchiveStrikeReasons ||
       saving ||
       actionId
     ) {
@@ -576,22 +554,7 @@ function StrikeReasonsPage() {
           }
         );
 
-      setReasons(
-        (
-          current
-        ) =>
-          sortReasons(
-            current.map(
-              (
-                item
-              ) =>
-                item.id ===
-                response.data.id
-                  ? response.data
-                  : item
-            )
-          )
-      );
+      await loadReasons();
 
       if (
         editingId ===
@@ -665,6 +628,9 @@ function StrikeReasonsPage() {
           <button
             type="button"
             className="primary-button"
+            hidden={
+              !canCreateStrikeReasons
+            }
             onClick={
               openAddReason
             }
@@ -686,7 +652,12 @@ function StrikeReasonsPage() {
         </div>
       )}
 
-      {editorOpen && (
+      {editorOpen &&
+        (
+          editingId
+            ? canEditStrikeReasons
+            : canCreateStrikeReasons
+        ) && (
         <div
           className="modal-backdrop strike-reason-modal-backdrop"
           onMouseDown={(
@@ -917,7 +888,9 @@ function StrikeReasonsPage() {
             <span>
               {search.trim()
                 ? "No configured reasons match your search."
-                : "Add the first Strike reason to begin."}
+                : canCreateStrikeReasons
+                  ? "Add the first Strike reason to begin."
+                  : "No Strike reasons have been configured yet."}
             </span>
           </div>
         ) : (
@@ -937,9 +910,11 @@ function StrikeReasonsPage() {
                     Status
                   </th>
 
-                  <th className="actions-column">
-                    Actions
-                  </th>
+                  {canManageExistingReasons && (
+                    <th className="actions-column">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
 
@@ -980,54 +955,60 @@ function StrikeReasonsPage() {
                         </span>
                       </td>
 
-                      <td>
-                        <div className="table-actions">
-                          <button
-                            type="button"
-                            className="text-button"
-                            onClick={() =>
-                              openEditReason(
-                                reason
-                              )
-                            }
-                            disabled={
-                              saving ||
-                              Boolean(
-                                actionId
-                              )
-                            }
-                          >
-                            Edit
-                          </button>
+                      {canManageExistingReasons && (
+                        <td>
+                          <div className="table-actions">
+                            {canEditStrikeReasons && (
+                              <button
+                                type="button"
+                                className="text-button"
+                                onClick={() =>
+                                  openEditReason(
+                                    reason
+                                  )
+                                }
+                                disabled={
+                                  saving ||
+                                  Boolean(
+                                    actionId
+                                  )
+                                }
+                              >
+                                Edit
+                              </button>
+                            )}
 
-                          <button
-                            type="button"
-                            className={
-                              reason.isActive
-                                ? "text-button danger"
-                                : "text-button success"
-                            }
-                            onClick={() => {
-                              void changeStatus(
-                                reason
-                              );
-                            }}
-                            disabled={
-                              saving ||
-                              Boolean(
-                                actionId
-                              )
-                            }
-                          >
-                            {actionId ===
-                            reason.id
-                              ? "Updating..."
-                              : reason.isActive
-                                ? "Archive"
-                                : "Reactivate"}
-                          </button>
-                        </div>
-                      </td>
+                            {canArchiveStrikeReasons && (
+                              <button
+                                type="button"
+                                className={
+                                  reason.isActive
+                                    ? "text-button danger"
+                                    : "text-button success"
+                                }
+                                onClick={() => {
+                                  void changeStatus(
+                                    reason
+                                  );
+                                }}
+                                disabled={
+                                  saving ||
+                                  Boolean(
+                                    actionId
+                                  )
+                                }
+                              >
+                                {actionId ===
+                                reason.id
+                                  ? "Updating..."
+                                  : reason.isActive
+                                    ? "Archive"
+                                    : "Reactivate"}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   )
                 )}

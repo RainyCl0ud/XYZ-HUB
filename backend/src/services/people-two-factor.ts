@@ -7,21 +7,32 @@ import {
 } from "../lib/prisma.js";
 
 import {
+  canAccessModel,
+  canManageRoleTarget,
   hasPermission,
-  isOwner,
   type AccessContext,
 } from "./access-control.js";
+
+import {
+  canAccessTeamGroup,
+} from "./team-hierarchy.js";
 
 import {
   publishLiveUpdate,
 } from "./live-updates.js";
 
-export type PeopleTwoFactorErrorCode =
-  | "OWNER_REQUIRED"
-  | "TWO_FACTOR_RESET_REQUIRED"
-  | "USER_NOT_FOUND";
 
-export class PeopleTwoFactorError extends Error {
+export type PeopleTwoFactorErrorCode =
+  | "TWO_FACTOR_RESET_REQUIRED"
+  | "CANNOT_RESET_SELF"
+  | "USER_NOT_FOUND"
+  | "ROLE_NOT_MANAGEABLE"
+  | "MODEL_NOT_MANAGEABLE"
+  | "TEAM_GROUP_NOT_MANAGEABLE";
+
+
+export class PeopleTwoFactorError
+  extends Error {
   readonly code:
     PeopleTwoFactorErrorCode;
 
@@ -31,7 +42,9 @@ export class PeopleTwoFactorError extends Error {
     message:
       string
   ) {
-    super(message);
+    super(
+      message
+    );
 
     this.name =
       "PeopleTwoFactorError";
@@ -41,23 +54,13 @@ export class PeopleTwoFactorError extends Error {
   }
 }
 
+
 export async function resetPersonTwoFactor(
   userId:
     string,
   access:
     AccessContext
 ) {
-  if (
-    !isOwner(
-      access
-    )
-  ) {
-    throw new PeopleTwoFactorError(
-      "OWNER_REQUIRED",
-      "Only an Owner may reset another user's two-factor authentication."
-    );
-  }
-
   if (
     !hasPermission(
       access,
@@ -70,18 +73,69 @@ export async function resetPersonTwoFactor(
     );
   }
 
+  if (
+    userId ===
+    access.userId
+  ) {
+    throw new PeopleTwoFactorError(
+      "CANNOT_RESET_SELF",
+      "Use your own account security settings to manage your two-factor authentication."
+    );
+  }
+
   const user =
     await prisma.user.findUnique({
       where: {
         id:
           userId,
       },
+
       select: {
-        id: true,
-        name: true,
-        email: true,
-        status: true,
-        emailVerifiedAt: true,
+        id:
+          true,
+
+        name:
+          true,
+
+        email:
+          true,
+
+        status:
+          true,
+
+        emailVerifiedAt:
+          true,
+
+        teamGroupId:
+          true,
+
+        roleMemberships: {
+          select: {
+            role: {
+              select: {
+                systemKey:
+                  true,
+
+                rank:
+                  true,
+              },
+            },
+          },
+        },
+
+        modelAssignments: {
+          select: {
+            modelId:
+              true,
+
+            model: {
+              select: {
+                name:
+                  true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -90,6 +144,52 @@ export async function resetPersonTwoFactor(
       "USER_NOT_FOUND",
       "The user does not exist."
     );
+  }
+
+  if (
+    !await canAccessTeamGroup(
+      access,
+      user.teamGroupId
+    )
+  ) {
+    throw new PeopleTwoFactorError(
+      "TEAM_GROUP_NOT_MANAGEABLE",
+      "You are not allowed to reset security for an employee outside your organization scope."
+    );
+  }
+
+  for (
+    const membership
+    of user.roleMemberships
+  ) {
+    if (
+      !canManageRoleTarget(
+        access,
+        membership.role
+      )
+    ) {
+      throw new PeopleTwoFactorError(
+        "ROLE_NOT_MANAGEABLE",
+        "You are not allowed to reset security for an employee with a higher or protected role."
+      );
+    }
+  }
+
+  for (
+    const assignment
+    of user.modelAssignments
+  ) {
+    if (
+      !canAccessModel(
+        access,
+        assignment.modelId
+      )
+    ) {
+      throw new PeopleTwoFactorError(
+        "MODEL_NOT_MANAGEABLE",
+        `You are not allowed to manage the creator "${assignment.model.name}".`
+      );
+    }
   }
 
   const now =
@@ -107,9 +207,11 @@ export async function resetPersonTwoFactor(
               where: {
                 userId:
                   user.id,
+
                 consumedAt:
                   null,
               },
+
               data: {
                 consumedAt:
                   now,
@@ -122,6 +224,7 @@ export async function resetPersonTwoFactor(
             where: {
               userId:
                 user.id,
+
               type:
                 TwoFactorMethodType
                   .AUTHENTICATOR,
@@ -135,23 +238,29 @@ export async function resetPersonTwoFactor(
               userId_type: {
                 userId:
                   user.id,
+
                 type:
                   TwoFactorMethodType
                     .EMAIL,
               },
             },
+
             update: {
               isEnabled:
                 true,
             },
+
             create: {
               userId:
                 user.id,
+
               type:
                 TwoFactorMethodType
                   .EMAIL,
+
               isEnabled:
                 true,
+
               verifiedAt:
                 user.emailVerifiedAt,
             },
@@ -162,9 +271,11 @@ export async function resetPersonTwoFactor(
             where: {
               userId:
                 user.id,
+
               revokedAt:
                 null,
             },
+
             data: {
               revokedAt:
                 now,
@@ -174,6 +285,7 @@ export async function resetPersonTwoFactor(
         return {
           challengesInvalidated:
             invalidatedChallenges.count,
+
           sessionsRevoked:
             revokedSessions.count,
         };
@@ -181,28 +293,40 @@ export async function resetPersonTwoFactor(
     );
 
   publishLiveUpdate({
-    type: "session.invalidated",
-    userId: user.id,
-    reason: "TWO_FACTOR_RESET",
+    type:
+      "session.invalidated",
+
+    userId:
+      user.id,
+
+    reason:
+      "TWO_FACTOR_RESET",
   });
 
   return {
     user: {
       id:
         user.id,
+
       name:
         user.name,
+
       email:
         user.email,
+
       status:
         user.status,
     },
+
     method:
       "EMAIL" as const,
+
     challengesInvalidated:
       result.challengesInvalidated,
+
     sessionsRevoked:
       result.sessionsRevoked,
+
     resetAt:
       now,
   };

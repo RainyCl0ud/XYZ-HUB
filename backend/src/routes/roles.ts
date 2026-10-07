@@ -17,7 +17,6 @@ import {
 import {
   type AuthenticatedRequest,
   requireAuth,
-  requireOwner,
   requirePermission,
 } from "../middleware/access.js";
 
@@ -151,10 +150,17 @@ function handleRoleError(
   }
 }
 
-const ownerRoleBuilderGuards = [
+const roleReadGuards = [
   requireAuth,
 
-  requireOwner,
+  requirePermission(
+    "roles.access"
+  ),
+] as const;
+
+
+const roleWriteGuards = [
+  requireAuth,
 
   requirePermission(
     "roles.manage"
@@ -164,7 +170,7 @@ const ownerRoleBuilderGuards = [
 router.get(
   "/",
 
-  ...ownerRoleBuilderGuards,
+  ...roleReadGuards,
 
   async (
     req:
@@ -220,7 +226,7 @@ router.get(
 router.post(
   "/",
 
-  ...ownerRoleBuilderGuards,
+  ...roleWriteGuards,
 
   async (
     req:
@@ -297,7 +303,7 @@ router.post(
 router.put(
   "/:roleId",
 
-  ...ownerRoleBuilderGuards,
+  ...roleWriteGuards,
 
   async (
     req:
@@ -389,7 +395,7 @@ router.put(
 router.delete(
   "/:roleId",
 
-  ...ownerRoleBuilderGuards,
+  ...roleWriteGuards,
 
   async (
     req:

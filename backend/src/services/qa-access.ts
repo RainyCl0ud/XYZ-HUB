@@ -6,8 +6,9 @@ import {
   prisma,
 } from "../lib/prisma.js";
 
-import type {
-  AccessContext,
+import {
+  hasPermission,
+  type AccessContext,
 } from "./access-control.js";
 
 export const MODEL_CONTEXT_HEADER =
@@ -58,103 +59,51 @@ export class QaAccessError extends Error {
   }
 }
 
-function hasSystemRole(
-  access:
-    AccessContext,
-  systemKey:
-    string
-) {
-  return access.roles.some(
-    (
-      role
-    ) =>
-      role.systemKey ===
-      systemKey
-  );
-}
-
 /*
- * Step 1 QA access follows the documented
- * default operational roles. The existing QA
- * module predates Login Gate, so this bridge
- * deliberately keeps the decision centralized
- * here instead of scattering role checks across
- * individual routes and pages.
+ * QA authorization is now permission-driven.
  */
 export function canViewQa(
   access:
     AccessContext
 ) {
-  return (
-    hasSystemRole(
-      access,
-      "OWNER"
-    ) ||
-    hasSystemRole(
-      access,
-      "OPS_MANAGER"
-    ) ||
-    hasSystemRole(
-      access,
-      "MANAGER"
-    ) ||
-    hasSystemRole(
-      access,
-      "QC"
-    ) ||
-    hasSystemRole(
-      access,
-      "DEV"
-    )
+  return hasPermission(
+    access,
+    "quality.access"
   );
 }
 
-/*
- * QA configuration changes remain a management
- * action. QC can review incidents but cannot
- * change the global chatter/rule/ladder catalog.
- */
+
 export function canConfigureQa(
   access:
     AccessContext
 ) {
-  return (
-    hasSystemRole(
-      access,
-      "OWNER"
-    ) ||
-    hasSystemRole(
-      access,
-      "OPS_MANAGER"
-    ) ||
-    hasSystemRole(
-      access,
-      "MANAGER"
-    ) ||
-    hasSystemRole(
-      access,
-      "DEV"
-    )
+  return hasPermission(
+    access,
+    "quality.rules.manage"
   );
 }
 
-/*
- * Incident workflow changes require an operational
- * write role. A QC-only user remains read-only;
- * stacked roles retain the union of their abilities.
- */
+
 export function canManageQaIncidents(
   access:
     AccessContext
 ) {
-  return access.roles.some(
-    (role) =>
-      role.systemKey === "OWNER" ||
-      role.systemKey === "OPS_MANAGER" ||
-      role.systemKey === "MANAGER" ||
-      role.systemKey === "DEV"
+  return (
+    hasPermission(
+      access,
+      "quality.incidents.create"
+    ) ||
+    hasPermission(
+      access,
+      "quality.incidents.resolve"
+    ) ||
+    hasPermission(
+      access,
+      "quality.incidents.void"
+    )
   );
 }
+
 
 export function requireQaAccess(
   access:

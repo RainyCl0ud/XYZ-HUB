@@ -8,13 +8,18 @@ import {
 
 import {
   hasPermission,
-  isOwner,
   type AccessContext,
 } from "./access-control.js";
 
 import {
   publishLiveUpdate,
 } from "./live-updates.js";
+
+import {
+  MANAGED_PERMISSION_KEYS,
+  MANAGED_PERMISSION_KEY_SET,
+  PERMISSION_DEPENDENCIES,
+} from "../permissions/permission-catalog.js";
 
 export type RoleBuilderInput = {
   name: string;
@@ -62,14 +67,29 @@ export class RoleManagementError
   }
 }
 
+function requireRoleRead(
+  access:
+    AccessContext
+) {
+  if (
+    !hasPermission(
+      access,
+      "roles.access"
+    )
+  ) {
+    throw new RoleManagementError(
+      "ROLE_MANAGEMENT_REQUIRED",
+      "You do not have permission to view Role Settings."
+    );
+  }
+}
+
+
 function requireRoleManagement(
   access:
     AccessContext
 ) {
   if (
-    !isOwner(
-      access
-    ) ||
     !hasPermission(
       access,
       "roles.manage"
@@ -77,7 +97,7 @@ function requireRoleManagement(
   ) {
     throw new RoleManagementError(
       "ROLE_MANAGEMENT_REQUIRED",
-      "Owner access with role-management permission is required."
+      "You do not have permission to manage roles."
     );
   }
 }
@@ -104,18 +124,6 @@ function normalizePermissionIds(
     ),
   ];
 }
-
-const ownerOnlyPermissionKeys =
-  [
-    "people.deactivate",
-    "people.delete",
-    "audit.view",
-  ] as const;
-
-const ownerOnlyPermissionKeySet =
-  new Set<string>(
-    ownerOnlyPermissionKeys
-  );
 
 const rankedSystemRoleKeys =
   new Set([
@@ -303,22 +311,68 @@ async function validatePermissionIds(
     );
   }
 
-  if (
-    existingPermissions.some(
-      (permission) =>
-        ownerOnlyPermissionKeySet.has(
+  const unmanagedPermission =
+    existingPermissions.find(
+      (
+        permission
+      ) =>
+        !MANAGED_PERMISSION_KEY_SET.has(
           permission.key
         )
-    )
+    );
+
+  if (
+    unmanagedPermission
   ) {
     throw new RoleManagementError(
       "INVALID_PERMISSIONS",
-      "This permission is reserved for Owners and cannot be assigned to roles."
+      "One or more selected permissions belong to a legacy or unsupported permission."
     );
+  }
+
+  const selectedKeys =
+    new Set(
+      existingPermissions.map(
+        (
+          permission
+        ) =>
+          permission.key
+      )
+    );
+
+  for (
+    const permission
+    of existingPermissions
+  ) {
+    const requirements =
+      PERMISSION_DEPENDENCIES[
+        permission.key
+      ] ??
+      [];
+
+    const missingRequirement =
+      requirements.find(
+        (
+          requiredKey
+        ) =>
+          !selectedKeys.has(
+            requiredKey
+          )
+      );
+
+    if (
+      missingRequirement
+    ) {
+      throw new RoleManagementError(
+        "INVALID_PERMISSIONS",
+        `Permission "${permission.key}" requires "${missingRequirement}".`
+      );
+    }
   }
 
   return normalized;
 }
+
 
 const roleSelect = {
   id:
@@ -463,8 +517,10 @@ function serializeRole(
             rolePermission.permission
         )
         .filter(
-          (permission) =>
-            !ownerOnlyPermissionKeySet.has(
+          (
+            permission
+          ) =>
+            MANAGED_PERMISSION_KEY_SET.has(
               permission.key
             )
         ),
@@ -477,11 +533,12 @@ function serializeRole(
   };
 }
 
+
 export async function getRoleBuilderData(
   access:
     AccessContext
 ) {
-  requireRoleManagement(
+  requireRoleRead(
     access
   );
 
@@ -525,8 +582,8 @@ export async function getRoleBuilderData(
       prisma.permission.findMany({
         where: {
           key: {
-            notIn:
-              [...ownerOnlyPermissionKeys],
+            in:
+              [...MANAGED_PERMISSION_KEYS],
           },
         },
 

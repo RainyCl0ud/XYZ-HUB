@@ -10,7 +10,7 @@ import {
 
 import {
   canAccessModel,
-  canAssignRole,
+  canManageRoleTarget,
   hasPermission,
   isOwner,
   type AccessContext,
@@ -21,7 +21,7 @@ import {
 } from "./team-hierarchy.js";
 
 export type PeopleReadErrorCode =
-  | "PEOPLE_MANAGE_REQUIRED"
+  | "PEOPLE_ACCESS_REQUIRED"
   | "USER_NOT_FOUND"
   | "PERSON_NOT_VISIBLE";
 
@@ -68,10 +68,17 @@ const personReadArgs =
       },
 
       roleMemberships: {
-        orderBy: {
-          assignedAt:
-            "asc",
-        },
+        orderBy: [
+          {
+            assignedAt:
+              "desc",
+          },
+
+          {
+            id:
+              "desc",
+          },
+        ],
 
         select: {
           assignedAt: true,
@@ -90,10 +97,17 @@ const personReadArgs =
       },
 
       modelAssignments: {
-        orderBy: {
-          assignedAt:
-            "asc",
-        },
+        orderBy: [
+          {
+            assignedAt:
+              "desc",
+          },
+
+          {
+            id:
+              "desc",
+          },
+        ],
 
         select: {
           modelId: true,
@@ -160,11 +174,11 @@ function assertPeopleReadAccess(
   if (
     !hasPermission(
       access,
-      "people.manage"
+      "people.access"
     )
   ) {
     throw new PeopleReadError(
-      "PEOPLE_MANAGE_REQUIRED",
+      "PEOPLE_ACCESS_REQUIRED",
       "You do not have permission to view People Management."
     );
   }
@@ -278,7 +292,7 @@ function canReadPerson(
         (
           membership
         ) =>
-          canAssignRole(
+          canManageRoleTarget(
             access,
             membership.role
           )
@@ -566,13 +580,13 @@ export async function listPeople(
 
         orderBy: [
           {
-            name:
-              "asc",
+            createdAt:
+              "desc",
           },
 
           {
-            createdAt:
-              "asc",
+            id:
+              "desc",
           },
         ],
       }),

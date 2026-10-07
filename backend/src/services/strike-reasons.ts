@@ -9,7 +9,7 @@ import {
 
 export type StrikeReasonErrorCode =
   | "STRIKE_REASON_ACCESS_REQUIRED"
-  | "STRIKES_CONFIGURE_REQUIRED"
+  | "STRIKE_REASON_PERMISSION_REQUIRED"
   | "REASON_NOT_FOUND"
   | "REASON_NAME_IN_USE";
 
@@ -74,7 +74,7 @@ function assertReasonReadAccess(
     ) &&
     !hasPermission(
       access,
-      "strikes.configure"
+      "strikes.reasons.view"
     )
   ) {
     throw new StrikeReasonError(
@@ -84,19 +84,22 @@ function assertReasonReadAccess(
   }
 }
 
-function assertConfigureAccess(
+
+function assertReasonPermission(
   access:
-    AccessContext
+    AccessContext,
+  permissionKey:
+    string
 ) {
   if (
     !hasPermission(
       access,
-      "strikes.configure"
+      permissionKey
     )
   ) {
     throw new StrikeReasonError(
-      "STRIKES_CONFIGURE_REQUIRED",
-      "You do not have permission to configure Strikes."
+      "STRIKE_REASON_PERMISSION_REQUIRED",
+      "You do not have permission to perform this Strike reason action."
     );
   }
 }
@@ -170,19 +173,24 @@ export async function listManagedStrikeReasons(
   access:
     AccessContext
 ) {
-  assertConfigureAccess(
-    access
+  assertReasonPermission(
+    access,
+    "strikes.reasons.view"
   );
 
   return prisma.strikeReason.findMany({
     orderBy: [
       {
-        isActive:
+        updatedAt:
           "desc",
       },
       {
-        name:
-          "asc",
+        createdAt:
+          "desc",
+      },
+      {
+        id:
+          "desc",
       },
     ],
   });
@@ -200,8 +208,9 @@ export async function createStrikeReason(
   access:
     AccessContext
 ) {
-  assertConfigureAccess(
-    access
+  assertReasonPermission(
+    access,
+    "strikes.reasons.create"
   );
 
   const name =
@@ -239,8 +248,9 @@ export async function updateStrikeReason(
   access:
     AccessContext
 ) {
-  assertConfigureAccess(
-    access
+  assertReasonPermission(
+    access,
+    "strikes.reasons.edit"
   );
 
   const existing =
@@ -298,8 +308,9 @@ export async function archiveStrikeReason(
   access:
     AccessContext
 ) {
-  assertConfigureAccess(
-    access
+  assertReasonPermission(
+    access,
+    "strikes.reasons.archive"
   );
 
   const existing =
@@ -347,8 +358,9 @@ export async function reactivateStrikeReason(
   access:
     AccessContext
 ) {
-  assertConfigureAccess(
-    access
+  assertReasonPermission(
+    access,
+    "strikes.reasons.archive"
   );
 
   const existing =

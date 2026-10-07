@@ -177,10 +177,16 @@ router.get(
               },
             },
 
-            orderBy: {
-              occurredAt:
-                "desc",
-            },
+            orderBy: [
+              {
+                occurredAt:
+                  "desc",
+              },
+              {
+                id:
+                  "desc",
+              },
+            ],
           }
         );
 

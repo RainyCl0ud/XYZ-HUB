@@ -8,7 +8,8 @@ import {
 
 import {
   canAccessModel,
-  canAssignRole,
+  canManageRoleTarget,
+  hasPermission,
   isOwner,
   type AccessContext,
 } from "./access-control.js";
@@ -26,7 +27,7 @@ import {
 } from "./team-hierarchy.js";
 
 export type PeopleStatusErrorCode =
-  | "OWNER_REQUIRED"
+  | "PEOPLE_STATUS_MANAGE_REQUIRED"
   | "USER_NOT_FOUND"
   | "USER_NOT_ACTIVE"
   | "USER_NOT_DEACTIVATED"
@@ -94,13 +95,14 @@ export async function deactivatePerson(
   access: AccessContext
 ) {
   if (
-    !isOwner(
-      access
+    !hasPermission(
+      access,
+      "people.status.manage"
     )
   ) {
     throw new PeopleStatusError(
-      "OWNER_REQUIRED",
-      "Only an Owner may deactivate a user."
+      "PEOPLE_STATUS_MANAGE_REQUIRED",
+      "You do not have permission to deactivate employees."
     );
   }
 
@@ -166,7 +168,7 @@ export async function deactivatePerson(
     of user.roleMemberships
   ) {
     if (
-      !canAssignRole(
+      !canManageRoleTarget(
         access,
         membership.role
       )
@@ -233,10 +235,15 @@ export async function reactivatePerson(
   userId: string,
   access: AccessContext
 ) {
-  if (!isOwner(access)) {
+  if (
+    !hasPermission(
+      access,
+      "people.status.manage"
+    )
+  ) {
     throw new PeopleStatusError(
-      "OWNER_REQUIRED",
-      "Only an Owner may reactivate a user."
+      "PEOPLE_STATUS_MANAGE_REQUIRED",
+      "You do not have permission to reactivate employees."
     );
   }
 

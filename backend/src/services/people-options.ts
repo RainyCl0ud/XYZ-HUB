@@ -136,20 +136,41 @@ export async function getPeopleManagementOptions(
       canManagePeople:
         hasPermission(
           access,
-          "people.manage"
+          "people.access"
+        ),
+
+      canCreatePeople:
+        hasPermission(
+          access,
+          "people.create"
+        ),
+
+      canAssignRoles:
+        hasPermission(
+          access,
+          "people.assign_roles"
         ),
 
       canManageOrganization:
         isOwnerUser,
 
       canDeactivate:
-        isOwnerUser,
+        hasPermission(
+          access,
+          "people.status.manage"
+        ),
 
+      /*
+       * Permanent deletion and 2FA migration are handled in
+       * the next destructive-account authorization subpass.
+       */
       canDelete:
-        isOwnerUser,
+        hasPermission(
+          access,
+          "people.delete"
+        ),
 
       canResetTwoFactor:
-        isOwnerUser &&
         hasPermission(
           access,
           "two_factor.reset"

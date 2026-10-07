@@ -42,38 +42,28 @@ export function canManageModelCatalog(
   access:
     AccessContext
 ): boolean {
-  const hasManagementRole =
-    access.roles.some(
-      (
-        role
-      ) =>
-        role.systemKey ===
-          "OWNER" ||
-        role.systemKey ===
-          "OPS_MANAGER"
-    );
-
-  return (
-    hasManagementRole &&
-    hasPermission(
-      access,
-      "people.manage"
-    )
+  return hasPermission(
+    access,
+    "models.access"
   );
 }
 
+
 function assertCanManageModels(
   access:
-    AccessContext
+    AccessContext,
+  permissionKey:
+    string
 ) {
   if (
-    !canManageModelCatalog(
-      access
+    !hasPermission(
+      access,
+      permissionKey
     )
   ) {
     throw new ModelManagementError(
       "MODEL_MANAGEMENT_REQUIRED",
-      "Only an Owner or Ops Manager may manage the creator catalog."
+      "You do not have permission to perform this creator-management action."
     );
   }
 }
@@ -133,22 +123,32 @@ export async function listManagedModels(
     AccessContext
 ) {
   assertCanManageModels(
-    access
+    access,
+    "models.access"
   );
 
   const models =
     await prisma.agencyModel.findMany({
       ...modelSummaryArgs,
 
+      /*
+       * Creator Management displays Created / Updated timestamps,
+       * so the table follows the system-wide newest-first rule.
+       */
       orderBy: [
         {
-          isActive:
+          updatedAt:
             "desc",
         },
 
         {
-          name:
-            "asc",
+          createdAt:
+            "desc",
+        },
+
+        {
+          id:
+            "desc",
         },
       ],
     });
@@ -197,7 +197,8 @@ export async function createManagedModel(
     AccessContext
 ) {
   assertCanManageModels(
-    access
+    access,
+    "models.create"
   );
 
   const normalizedName =
@@ -239,7 +240,8 @@ export async function renameManagedModel(
     AccessContext
 ) {
   assertCanManageModels(
-    access
+    access,
+    "models.edit"
   );
 
   const existing =
@@ -304,7 +306,8 @@ export async function deactivateManagedModel(
     AccessContext
 ) {
   assertCanManageModels(
-    access
+    access,
+    "models.status.manage"
   );
 
   const existing =
@@ -363,7 +366,8 @@ export async function reactivateManagedModel(
     AccessContext
 ) {
   assertCanManageModels(
-    access
+    access,
+    "models.status.manage"
   );
 
   const existing =

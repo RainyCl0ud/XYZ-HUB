@@ -208,3 +208,55 @@
     transition: none;
   }
 }
+
+
+.hub-nav-group-shell {
+  position: relative;
+}
+
+.hub-nav-group-shell:has(.hub-nav-group-settings)
+.hub-nav-group-summary {
+  padding-right: 42px;
+}
+
+.hub-nav-group-settings {
+  position: absolute;
+  top: 9px;
+  right: 31px;
+  z-index: 3;
+
+  display: inline-grid;
+  place-items: center;
+
+  width: 28px;
+  height: 28px;
+
+  border: 1px solid transparent;
+  border-radius: 2px;
+
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.hub-nav-group-settings:hover,
+.hub-nav-group-settings.active {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.hub-nav-group-settings svg {
+  width: 14px;
+  height: 14px;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hub-nav-group-settings:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}

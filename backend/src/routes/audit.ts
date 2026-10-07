@@ -9,7 +9,7 @@ import {
 import {
   type AuthenticatedRequest,
   requireAuth,
-  requireOwner,
+  requirePermission,
 } from "../middleware/access.js";
 
 import {
@@ -73,7 +73,9 @@ router.get(
 
   requireAuth,
 
-  requireOwner,
+  requirePermission(
+    "audit.access"
+  ),
 
   async (
     req:

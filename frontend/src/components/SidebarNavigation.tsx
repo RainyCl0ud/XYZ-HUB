@@ -5,6 +5,7 @@ import {
 
 import {
   getPortalCapabilities,
+  hasPortalPermission,
 } from "../auth/portalAccess";
 
 import type {
@@ -12,6 +13,7 @@ import type {
 } from "../auth/portalAccess";
 
 import "./SidebarNavigation.css";
+
 
 type IconName =
   | "dashboard"
@@ -22,105 +24,126 @@ type IconName =
   | "roles"
   | "audit";
 
+
 type NavigationItem = {
-  id: IconName;
-  label: string;
-  to: string;
-  activePaths?: string[];
+  id:
+    IconName;
+
+  label:
+    string;
+
+  to:
+    string;
+
+  activePaths?:
+    string[];
 };
 
-const QA_CORE_ITEMS: Array<{
-  label: string;
-  to: string;
-}> = [
-  {
-    label: "Incidents",
-    to: "/incidents",
-  },
-  {
-    label: "Chatters",
-    to: "/chatters",
-  },
-];
 
-const QA_CONFIGURATION_ITEMS: Array<{
-  label: string;
-  to: string;
-}> = [
+type ChildNavigationItem = {
+  label:
+    string;
+
+  to:
+    string;
+
+  permission:
+    string;
+};
+
+
+const QA_ITEMS:
+  ChildNavigationItem[] = [
   {
-    label: "Rules",
-    to: "/rules",
+    label:
+      "Incidents",
+
+    to:
+      "/incidents",
+
+    permission:
+      "quality.incidents.view",
   },
-];
 
-const QA_PATHS = new Set([
-  ...[
-    ...QA_CORE_ITEMS,
-    ...QA_CONFIGURATION_ITEMS,
-  ].map(
-    (item) => item.to
-  ),
-
-  "/rules/settings",
-]);
-
-const STRIKE_CORE_ITEMS: Array<{
-  label: string;
-  to: string;
-}> = [
   {
-    label: "Strikes",
-    to: "/strikes",
+    label:
+      "Chatters",
+
+    to:
+      "/chatters",
+
+    permission:
+      "quality.chatters.view",
   },
-];
 
-const STRIKE_CONFIGURATION_ITEMS: Array<{
-  label: string;
-  to: string;
-}> = [
   {
-    label: "Strike Reasons",
-    to: "/strikes/reasons",
-  },
-  {
-    label: "Strike Ladder Configuration",
-    to: "/strikes/settings",
+    label:
+      "Rules",
+
+    to:
+      "/rules",
+
+    permission:
+      "quality.rules.view",
   },
 ];
 
-const STRIKE_PATHS =
-  new Set([
-    ...STRIKE_CORE_ITEMS,
-    ...STRIKE_CONFIGURATION_ITEMS,
-  ].map(
-    (
-      item
-    ) =>
-      item.to
-  ));
+
+const STRIKE_ITEMS:
+  ChildNavigationItem[] = [
+  {
+    label:
+      "Strikes",
+
+    to:
+      "/strikes",
+
+    permission:
+      "strikes.view",
+  },
+
+  {
+    label:
+      "Reasons",
+
+    to:
+      "/strikes/reasons",
+
+    permission:
+      "strikes.reasons.view",
+  },
+];
 
 
 function ModuleIcon({
   name,
 }: {
-  name: IconName;
+  name:
+    IconName;
 }) {
-  const paths: Record<
-    IconName,
-    string
-  > = {
+  const paths:
+    Record<
+      IconName,
+      string
+    > = {
     dashboard:
       "M4 4h6v6H4V4Z M14 4h6v4h-6V4Z M14 12h6v8h-6v-8Z M4 14h6v6H4v-6Z",
+
     quality:
       "M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z M8 12l3 3 5-6",
+
     strikes:
       "M12 3 20 7v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4Z M12 8v5 M12 17h.01",
+
     people:
       "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 4a4 4 0 0 1 0 7 M22 21v-2a4 4 0 0 0-3-3.87",
+
     models:
       "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z M8 21v-2a4 4 0 0 1 8 0v2 M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6",
+
     roles:
       "M4 7h16 M4 17h16 M8 4v6 M16 14v6",
+
     audit:
       "M6 3h9l3 3v15H6V3Z M14 3v4h4 M9 11h6 M9 15h6",
   };
@@ -137,24 +160,33 @@ function ModuleIcon({
       aria-hidden="true"
     >
       <path
-        d={paths[name]}
+        d={
+          paths[
+            name
+          ]
+        }
       />
     </svg>
   );
 }
 
+
 function NavigationLink({
   item,
 }: {
-  item: NavigationItem;
+  item:
+    NavigationItem;
 }) {
   const {
     pathname,
-  } = useLocation();
+  } =
+    useLocation();
 
   const paths =
     item.activePaths ??
-    [item.to];
+    [
+      item.to,
+    ];
 
   const active =
     paths.includes(
@@ -170,192 +202,251 @@ function NavigationLink({
 
   return (
     <Link
-      to={item.to}
-      className={`hub-nav-link${active ? " active" : ""}`}
-      aria-current={active ? "page" : undefined}
+      to={
+        item.to
+      }
+      className={
+        "hub-nav-link" +
+        (
+          active
+            ? " active"
+            : ""
+        )
+      }
+      aria-current={
+        active
+          ? "page"
+          : undefined
+      }
     >
       <ModuleIcon
-        name={item.id}
+        name={
+          item.id
+        }
       />
+
       <span>
-        {item.label}
+        {
+          item.label
+        }
       </span>
     </Link>
   );
 }
 
-function QualityNavigation({
-  canConfigureQa,
+
+function ModuleNavigation({
+  id,
+  label,
+  items,
+  access,
+  settings,
 }: {
-  canConfigureQa: boolean;
-}) {
-  const {
-    pathname,
-  } = useLocation();
+  id:
+    IconName;
 
-  const active =
-    QA_PATHS.has(
-      pathname
-    ) ||
-    pathname.startsWith(
-      "/chatters/"
-    );
+  label:
+    string;
 
-  const visibleItems =
-    canConfigureQa
-      ? [
-          ...QA_CORE_ITEMS,
-          ...QA_CONFIGURATION_ITEMS,
-        ]
-      : QA_CORE_ITEMS;
+  items:
+    ChildNavigationItem[];
 
-  return (
-    <details
-      className={`hub-nav-group${active ? " active" : ""}`}
-      open={active ? true : undefined}
-    >
-      <summary className="hub-nav-group-summary">
-        <ModuleIcon
-          name="quality"
-        />
-        <span>
-          Quality & Incidents
-        </span>
-        <svg
-          className="hub-nav-group-chevron"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path d="m9 6 6 6-6 6" />
-        </svg>
-      </summary>
+  access:
+    PortalAccessShape |
+    null;
 
-      <div className="hub-nav-group-links">
-        {visibleItems.map(
-          (item) => {
-            const childActive =
-              pathname ===
-                item.to ||
-              (
-                item.to ===
-                  "/rules" &&
-                pathname ===
-                  "/rules/settings"
-              ) ||
-              (
-                item.to ===
-                  "/chatters" &&
-                pathname.startsWith(
-                  "/chatters/"
-                )
-              );
+  settings?:
+    {
+      to:
+        string;
 
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`hub-nav-child-link${childActive ? " active" : ""}`}
-                aria-current={childActive ? "page" : undefined}
-              >
-                <span className="hub-nav-child-dot" />
-                <span>
-                  {item.label}
-                </span>
-              </Link>
-            );
-          }
-        )}
-      </div>
-    </details>
-  );
-}
+      permission:
+        string;
 
-function StrikeNavigation({
-  canConfigureStrikes,
-}: {
-  canConfigureStrikes:
-    boolean;
+      label:
+        string;
+    };
 }) {
   const {
     pathname,
   } =
     useLocation();
 
-  const active =
-    STRIKE_PATHS.has(
-      pathname
+  const visibleItems =
+    items.filter(
+      (
+        item
+      ) =>
+        hasPortalPermission(
+          access,
+          item.permission
+        )
     );
 
-  const visibleItems =
-    canConfigureStrikes
-      ? [
-          ...STRIKE_CORE_ITEMS,
-          ...STRIKE_CONFIGURATION_ITEMS,
-        ]
-      : STRIKE_CORE_ITEMS;
+  const settingsVisible =
+    Boolean(
+      settings &&
+      hasPortalPermission(
+        access,
+        settings.permission
+      )
+    );
+
+  if (
+    visibleItems.length ===
+      0 &&
+    !settingsVisible
+  ) {
+    return null;
+  }
+
+  const active =
+    visibleItems.some(
+      (
+        item
+      ) =>
+        pathname ===
+          item.to ||
+        (
+          item.to ===
+            "/chatters" &&
+          pathname.startsWith(
+            "/chatters/"
+          )
+        )
+    ) ||
+    (
+      settingsVisible &&
+      settings &&
+      pathname ===
+        settings.to
+    );
 
   return (
-    <details
-      className={`hub-nav-group${active ? " active" : ""}`}
-      open={
-        active
-          ? true
-          : undefined
-      }
-    >
-      <summary className="hub-nav-group-summary">
-        <ModuleIcon
-          name="strikes"
-        />
-
-        <span>
-          Strike Management
-        </span>
-
-        <svg
-          className="hub-nav-group-chevron"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path d="m9 6 6 6-6 6" />
-        </svg>
-      </summary>
-
-      <div className="hub-nav-group-links">
-        {visibleItems.map(
+    <div className="hub-nav-group-shell">
+      <details
+        className={
+          "hub-nav-group" +
           (
-            item
-          ) => {
-            const childActive =
-              pathname ===
-                item.to;
+            active
+              ? " active"
+              : ""
+          )
+        }
+        open={
+          active
+            ? true
+            : undefined
+        }
+      >
+        <summary className="hub-nav-group-summary">
+          <ModuleIcon
+            name={
+              id
+            }
+          />
 
-            return (
-              <Link
-                key={
-                  item.to
-                }
-                to={
-                  item.to
-                }
-                className={`hub-nav-child-link${childActive ? " active" : ""}`}
-                aria-current={
-                  childActive
-                    ? "page"
-                    : undefined
-                }
-              >
-                <span className="hub-nav-child-dot" />
+          <span>
+            {
+              label
+            }
+          </span>
 
-                <span>
-                  {item.label}
-                </span>
-              </Link>
-            );
-          }
+          <svg
+            className="hub-nav-group-chevron"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </summary>
+
+        {visibleItems.length >
+          0 && (
+          <div className="hub-nav-group-links">
+            {visibleItems.map(
+              (
+                item
+              ) => {
+                const childActive =
+                  pathname ===
+                    item.to ||
+                  (
+                    item.to ===
+                      "/chatters" &&
+                    pathname.startsWith(
+                      "/chatters/"
+                    )
+                  );
+
+                return (
+                  <Link
+                    key={
+                      item.to
+                    }
+                    to={
+                      item.to
+                    }
+                    className={
+                      "hub-nav-child-link" +
+                      (
+                        childActive
+                          ? " active"
+                          : ""
+                      )
+                    }
+                    aria-current={
+                      childActive
+                        ? "page"
+                        : undefined
+                    }
+                  >
+                    <span className="hub-nav-child-dot" />
+
+                    <span>
+                      {
+                        item.label
+                      }
+                    </span>
+                  </Link>
+                );
+              }
+            )}
+          </div>
         )}
-      </div>
-    </details>
+      </details>
+
+      {settingsVisible &&
+        settings && (
+        <Link
+          to={
+            settings.to
+          }
+          className={
+            "hub-nav-group-settings" +
+            (
+              pathname ===
+                settings.to
+                ? " active"
+                : ""
+            )
+          }
+          aria-label={
+            settings.label
+          }
+          title={
+            settings.label
+          }
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.2 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2.4V9.6h.1A1.7 1.7 0 0 0 4.2 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.66 3.8l.06.06A1.7 1.7 0 0 0 8.6 4.2a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2.4h4v.1a1.7 1.7 0 0 0 1 1.7 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 8.6a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7 1Z" />
+          </svg>
+        </Link>
+      )}
+    </div>
   );
 }
 
@@ -372,53 +463,91 @@ export default function SidebarNavigation({
       access
     );
 
-  const primary: NavigationItem[] = [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      to: "/",
-    },
-  ];
+  const agency:
+    NavigationItem[] =
+    [];
 
   if (
-    capabilities.canManagePeople
+    capabilities
+      .canViewDashboard
   ) {
-    primary.push({
-      id: "people",
-      label: "Employee Management",
-      to: "/people",
+    agency.push({
+      id:
+        "dashboard",
+
+      label:
+        "Dashboard",
+
+      to:
+        "/",
     });
   }
 
   if (
-    capabilities.canManageModels
+    capabilities
+      .canManagePeople
   ) {
-    primary.push({
-      id: "models",
-      label: "Creators",
-      to: "/models",
+    agency.push({
+      id:
+        "people",
+
+      label:
+        "Employee Management",
+
+      to:
+        "/people",
     });
   }
 
-  const administration: NavigationItem[] = [];
+  if (
+    capabilities
+      .canManageModels
+  ) {
+    agency.push({
+      id:
+        "models",
+
+      label:
+        "Creators",
+
+      to:
+        "/models",
+    });
+  }
+
+  const administration:
+    NavigationItem[] =
+    [];
 
   if (
-    capabilities.canManageRoles
+    capabilities
+      .canViewRoles
   ) {
     administration.push({
-      id: "roles",
-      label: "Role Settings",
-      to: "/roles",
+      id:
+        "roles",
+
+      label:
+        "Role Settings",
+
+      to:
+        "/roles",
     });
   }
 
   if (
-    capabilities.canViewAudit
+    capabilities
+      .canViewAudit
   ) {
     administration.push({
-      id: "audit",
-      label: "Audit Log",
-      to: "/audit",
+      id:
+        "audit",
+
+      label:
+        "Audit Log",
+
+      to:
+        "/audit",
     });
   }
 
@@ -432,45 +561,109 @@ export default function SidebarNavigation({
           Agency
         </p>
 
-        <NavigationLink
-          item={primary[0]}
-        />
+        {agency
+          .filter(
+            (
+              item
+            ) =>
+              item.id ===
+              "dashboard"
+          )
+          .map(
+            (
+              item
+            ) => (
+              <NavigationLink
+                key={
+                  item.id
+                }
+                item={
+                  item
+                }
+              />
+            )
+          )}
 
-        {capabilities.canViewQa && (
-          <QualityNavigation
-            canConfigureQa={capabilities.canConfigureQa}
-          />
-        )}
-
-        {capabilities.canViewStrikes && (
-          <StrikeNavigation
-            canConfigureStrikes={
-              capabilities.canConfigureStrikes
+        {capabilities
+          .canViewQa && (
+          <ModuleNavigation
+            id="quality"
+            label="Quality & Incidents"
+            items={
+              QA_ITEMS
+            }
+            access={
+              access
             }
           />
         )}
 
-        {primary.slice(1).map(
-          (item) => (
-            <NavigationLink
-              key={item.id}
-              item={item}
-            />
-          )
+        {capabilities
+          .canAccessStrikeManagement && (
+          <ModuleNavigation
+            id="strikes"
+            label="Strike Management"
+            items={
+              STRIKE_ITEMS
+            }
+            access={
+              access
+            }
+            settings={{
+              to:
+                "/strikes/settings",
+
+              permission:
+                "strikes.ladder.view",
+
+              label:
+                "Strike Ladder settings",
+            }}
+          />
         )}
+
+        {agency
+          .filter(
+            (
+              item
+            ) =>
+              item.id !==
+              "dashboard"
+          )
+          .map(
+            (
+              item
+            ) => (
+              <NavigationLink
+                key={
+                  item.id
+                }
+                item={
+                  item
+                }
+              />
+            )
+          )}
       </div>
 
-      {administration.length > 0 && (
+      {administration.length >
+        0 && (
         <div className="hub-nav-section">
           <p className="hub-nav-heading">
             Administration
           </p>
 
           {administration.map(
-            (item) => (
+            (
+              item
+            ) => (
               <NavigationLink
-                key={item.id}
-                item={item}
+                key={
+                  item.id
+                }
+                item={
+                  item
+                }
               />
             )
           )}

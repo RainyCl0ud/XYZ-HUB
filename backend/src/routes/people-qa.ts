@@ -20,10 +20,6 @@ import {
   getPersonQaSummary,
 } from "../services/people-qa-summary.js";
 
-import {
-  canViewQa,
-} from "../services/qa-access.js";
-
 const router =
   Router();
 
@@ -31,7 +27,7 @@ router.get(
   "/:userId/qa",
   requireAuth,
   requirePermission(
-    "people.manage"
+    "people.profile.view"
   ),
   async (
     req:
@@ -44,20 +40,6 @@ router.get(
       res.status(401).json({
         error:
           "UNAUTHENTICATED",
-      });
-      return;
-    }
-
-    if (
-      !canViewQa(
-        req.access
-      )
-    ) {
-      res.status(403).json({
-        error:
-          "QA_ACCESS_REQUIRED",
-        message:
-          "QA access is required to view employee disciplinary standing and QA history.",
       });
       return;
     }

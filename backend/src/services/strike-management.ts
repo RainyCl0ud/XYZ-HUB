@@ -741,6 +741,10 @@ export async function listStrikes(
           createdAt:
             "desc",
         },
+        {
+          id:
+            "desc",
+        },
       ],
     });
 
@@ -855,6 +859,10 @@ export async function listStrikeHistoryForUser(
         },
         {
           createdAt:
+            "desc",
+        },
+        {
+          id:
             "desc",
         },
       ],

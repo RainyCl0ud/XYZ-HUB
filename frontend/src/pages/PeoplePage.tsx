@@ -103,6 +103,8 @@ type PeopleOptions = {
   capabilities: {
     isOwner: boolean;
     canManagePeople: boolean;
+    canCreatePeople: boolean;
+    canAssignRoles: boolean;
     canManageOrganization: boolean;
     canDeactivate: boolean;
     canDelete: boolean;
@@ -620,9 +622,18 @@ function PeoplePage() {
     return existingCandidates.slice(start, start + EXISTING_PAGE_SIZE);
   }, [existingCandidates, existingPage]);
 
+  const canUseBatchActions =
+    Boolean(
+      options?.capabilities.canManageOrganization ||
+      options?.capabilities.canAssignRoles
+    );
+
   const visibleSelectableIds = useMemo(
-    () => pagedPeople.filter(canManagePerson).map((person) => person.id),
-    [canManagePerson, pagedPeople]
+    () =>
+      canUseBatchActions
+        ? pagedPeople.filter(canManagePerson).map((person) => person.id)
+        : [],
+    [canManagePerson, canUseBatchActions, pagedPeople]
   );
 
   const allVisibleSelected = visibleSelectableIds.length > 0
@@ -641,8 +652,15 @@ function PeoplePage() {
   }, [people]);
 
   const selectedManageablePeople = useMemo(
-    () => people.filter((person) => selectedPersonIds.includes(person.id) && canManagePerson(person)),
-    [canManagePerson, people, selectedPersonIds]
+    () =>
+      canUseBatchActions
+        ? people.filter(
+            (person) =>
+              selectedPersonIds.includes(person.id) &&
+              canManagePerson(person)
+          )
+        : [],
+    [canManagePerson, canUseBatchActions, people, selectedPersonIds]
   );
 
   const teamPeopleCounts = useMemo(() => {
@@ -834,6 +852,8 @@ function PeoplePage() {
   }
 
   function openInvite(teamId?: string | null) {
+    if (!options?.capabilities.canCreatePeople) return;
+
     resetInviteForm(teamId);
     setShowInvite(true);
   }
@@ -841,7 +861,9 @@ function PeoplePage() {
   async function submitInvite(event: FormEvent) {
     event.preventDefault();
 
-    if (!options?.capabilities.invitesAvailable) {
+    if (!options?.capabilities.canCreatePeople) return;
+
+    if (!options.capabilities.invitesAvailable) {
       toast.warning("Invitation email delivery is not available.", "Email setup pending");
       return;
     }
@@ -875,7 +897,11 @@ function PeoplePage() {
   }
 
   function openExistingEmployeePicker() {
-    if (!selectedTeam || selectedTeam.isRoot) return;
+    if (
+      !options?.capabilities.canManageOrganization ||
+      !selectedTeam ||
+      selectedTeam.isRoot
+    ) return;
     setExistingSearch("");
     setExistingRoleFilter("ALL");
     setExistingSelectedIds([]);
@@ -884,7 +910,12 @@ function PeoplePage() {
   }
 
   async function addExistingEmployees() {
-    if (!selectedTeam || selectedTeam.isRoot || !existingSelectedIds.length) return;
+    if (
+      !options?.capabilities.canManageOrganization ||
+      !selectedTeam ||
+      selectedTeam.isRoot ||
+      !existingSelectedIds.length
+    ) return;
 
     const selected = people.filter((person) => existingSelectedIds.includes(person.id));
 
@@ -927,14 +958,26 @@ function PeoplePage() {
   }
 
   function openBatchAction(action: Exclude<BatchAction, null>) {
-    if (!selectedManageablePeople.length) return;
+    const allowed =
+      action === "team"
+        ? Boolean(options?.capabilities.canManageOrganization)
+        : Boolean(options?.capabilities.canAssignRoles);
+
+    if (!allowed || !selectedManageablePeople.length) return;
     if (action === "team") setBatchTeamId(selectedTeamId ?? defaultTeamId ?? "");
     else setBatchRoleId(options?.roles[0]?.id ?? "");
     setBatchAction(action);
   }
 
   async function runBatchAction() {
-    if (!batchAction || !selectedManageablePeople.length) return;
+    const allowed =
+      batchAction === "team"
+        ? Boolean(options?.capabilities.canManageOrganization)
+        : batchAction === "role"
+          ? Boolean(options?.capabilities.canAssignRoles)
+          : false;
+
+    if (!allowed || !batchAction || !selectedManageablePeople.length) return;
     if (batchAction === "team" && !batchTeamId) return;
     if (batchAction === "role" && !batchRoleId) return;
 
@@ -1188,6 +1231,7 @@ function PeoplePage() {
         <button
           type="button"
           className="primary-button"
+          hidden={!options?.capabilities.canCreatePeople}
           onClick={() => openInvite(selectedTeamId)}
           disabled={!options?.capabilities.invitesAvailable}
         >
@@ -1195,7 +1239,9 @@ function PeoplePage() {
         </button>
       </header>
 
-      {!options?.capabilities.invitesAvailable && !loading && (
+      {options?.capabilities.canCreatePeople &&
+        !options.capabilities.invitesAvailable &&
+        !loading && (
         <div className="people-email-notice">
           <strong>Invitation sending is temporarily disabled.</strong>
           <span>Invitation email delivery is not configured for the current environment.</span>
@@ -1242,7 +1288,7 @@ function PeoplePage() {
               </div>
             </div>
 
-            {selectedTeam && !selectedTeam.isRoot && options?.capabilities.canManagePeople && (
+            {selectedTeam && !selectedTeam.isRoot && options?.capabilities.canManageOrganization && (
               <button type="button" className="secondary-button people-add-employee" onClick={openExistingEmployeePicker}>
                 + Add employee to the team
               </button>
@@ -1297,8 +1343,8 @@ function PeoplePage() {
                 <span>Apply one change to the selected employees.</span>
               </div>
               <div className="people-batch-actions">
-                <button type="button" className="secondary-button" onClick={() => openBatchAction("team")}>Change team</button>
-                <button type="button" className="secondary-button" onClick={() => openBatchAction("role")}>Change role</button>
+                <button type="button" className="secondary-button" hidden={!options?.capabilities.canManageOrganization} onClick={() => openBatchAction("team")}>Change team</button>
+                <button type="button" className="secondary-button" hidden={!options?.capabilities.canAssignRoles} onClick={() => openBatchAction("role")}>Change role</button>
                 <button type="button" className="text-button" onClick={() => setSelectedPersonIds([])}>Clear</button>
               </div>
             </div>
@@ -1323,6 +1369,7 @@ function PeoplePage() {
                       type="checkbox"
                       checked={allVisibleSelected}
                       aria-label="Select employees on this page"
+                      disabled={!canUseBatchActions}
                       onChange={() => {
                         setSelectedPersonIds((current) => allVisibleSelected
                           ? current.filter((id) => !visibleSelectableIds.includes(id))
@@ -1360,7 +1407,7 @@ function PeoplePage() {
                       <input
                         type="checkbox"
                         checked={selectedPersonIds.includes(person.id)}
-                        disabled={!canManagePerson(person)}
+                        disabled={!canUseBatchActions || !canManagePerson(person)}
                         aria-label={`Select ${person.name}`}
                         onChange={() => toggleSelection(selectedPersonIds, person.id, setSelectedPersonIds)}
                       />
@@ -1399,7 +1446,10 @@ function PeoplePage() {
         </div>
       )}
 
-      {showAddExisting && selectedTeam && !selectedTeam.isRoot && (
+      {options?.capabilities.canManageOrganization &&
+        showAddExisting &&
+        selectedTeam &&
+        !selectedTeam.isRoot && (
         <div className="people-overlay">
           <section className="people-existing-picker" role="dialog" aria-modal="true" aria-label={`Add employees to ${selectedTeam.name}`}>
             <div className="people-modal-header">
@@ -1454,7 +1504,7 @@ function PeoplePage() {
         </div>
       )}
 
-      {showInvite && (
+      {options?.capabilities.canCreatePeople && showInvite && (
         <div className="people-overlay">
           <form className="people-form-modal" onSubmit={submitInvite}>
             <div className="people-modal-header">
@@ -1502,7 +1552,10 @@ function PeoplePage() {
         </div>
       )}
 
-      {batchAction && (
+      {batchAction &&
+        (batchAction === "team"
+          ? options?.capabilities.canManageOrganization
+          : options?.capabilities.canAssignRoles) && (
         <div className="people-overlay">
           <section className="people-confirm-modal">
             <div className="people-modal-header"><div><span className="page-eyebrow">Batch action</span><h3>{batchAction === "team" ? "Change team" : "Change role"}</h3></div><button type="button" className="people-close" onClick={() => setBatchAction(null)}>&times;</button></div>

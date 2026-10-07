@@ -48,24 +48,34 @@ type DisciplinaryHistory = {
 
 
 type QaSummary = {
-  chatter: {
-    id: string;
-    name: string;
-    status:
-      | "ACTIVE"
-      | "INACTIVE";
-  };
+  chatter:
+    | {
+        id: string;
+        name: string;
+        status:
+          | "ACTIVE"
+          | "INACTIVE";
+      }
+    | null;
 
-  strikeSummary: {
-    activeStrikeCount: number;
-    standingLabel: string;
-    deductionPercent: number;
-    nextExpiryAt:
-      string |
-      null;
-    ladderVersionId: string;
-    ladderVersion: number;
-  };
+  canViewQaHistory:
+    boolean;
+
+  canViewStrikeHistory:
+    boolean;
+
+  strikeSummary:
+    | {
+        activeStrikeCount: number;
+        standingLabel: string;
+        deductionPercent: number;
+        nextExpiryAt:
+          string |
+          null;
+        ladderVersionId: string;
+        ladderVersion: number;
+      }
+    | null;
 
   recentIncidents: Array<{
     id: string;
@@ -378,8 +388,14 @@ export default function PeopleQaPanel({
     error
   ) {
     return (
-      <div className="people-inline-error">
-        {error}
+      <div className="people-qa-empty">
+        <strong>
+          Unable to load records
+        </strong>
+
+        <span>
+          {error}
+        </span>
       </div>
     );
   }
@@ -391,11 +407,11 @@ export default function PeopleQaPanel({
     return (
       <div className="people-qa-empty">
         <strong>
-          Not applicable
+          Unable to load records
         </strong>
 
         <span>
-          This employee does not currently have a linked Chatter or Trial Chatter QA profile.
+          Employee history data is unavailable.
         </span>
       </div>
     );
@@ -406,6 +422,38 @@ export default function PeopleQaPanel({
     view ===
       "qa"
   ) {
+    if (
+      !qa.canViewQaHistory
+    ) {
+      return (
+        <div className="people-qa-empty">
+          <strong>
+            QA history unavailable
+          </strong>
+
+          <span>
+            You do not have permission to view this employee's QA history.
+          </span>
+        </div>
+      );
+    }
+
+    if (
+      !qa.chatter
+    ) {
+      return (
+        <div className="people-qa-empty">
+          <strong>
+            QA profile unavailable
+          </strong>
+
+          <span>
+            This employee does not currently have a linked QA profile.
+          </span>
+        </div>
+      );
+    }
+
     return (
       <section className="people-detail-section people-qa-section people-tab-record-section">
         <div className="people-detail-section-heading">
@@ -454,7 +502,13 @@ export default function PeopleQaPanel({
         {qa.recentIncidents.length ===
         0 ? (
           <div className="people-qa-empty compact">
-            No QA incidents recorded.
+            <strong>
+              No QA history
+            </strong>
+
+            <span>
+              This employee does not have any QA records yet.
+            </span>
           </div>
         ) : (
           <div className="table-wrapper people-profile-table-wrapper">
@@ -624,8 +678,43 @@ export default function PeopleQaPanel({
   }
 
 
+  if (
+    !qa.canViewStrikeHistory ||
+    !qa.strikeSummary
+  ) {
+    return (
+      <div className="people-qa-empty">
+        <strong>
+          Strike history unavailable
+        </strong>
+
+        <span>
+          You do not have permission to view this employee's Strike history.
+        </span>
+      </div>
+    );
+  }
+
+
   const history =
     qa.disciplinaryHistory;
+
+
+  if (
+    !history
+  ) {
+    return (
+      <div className="people-qa-empty">
+        <strong>
+          Strike history unavailable
+        </strong>
+
+        <span>
+          Strike history is not available for this employee.
+        </span>
+      </div>
+    );
+  }
 
 
   return (
@@ -702,11 +791,16 @@ export default function PeopleQaPanel({
       </div>
 
 
-      {!history ||
-      history.records.length ===
+      {history.records.length ===
         0 ? (
         <div className="people-qa-empty compact">
-          No Strike records recorded.
+          <strong>
+            No strike history
+          </strong>
+
+          <span>
+            This employee does not have any strike records yet.
+          </span>
         </div>
       ) : (
         <div className="table-wrapper people-profile-table-wrapper">

@@ -407,7 +407,7 @@ router.get(
 router.post(
   "/",
   requirePermission(
-    "strikes.configure"
+    "strikes.ladder.edit"
   ),
   async (req, res) => {
     const validation =

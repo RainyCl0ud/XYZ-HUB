@@ -3,12 +3,13 @@ import type {
 } from "react";
 
 import {
-  Navigate,
-} from "react-router-dom";
-
-import {
   useAuth,
 } from "./AuthContext";
+
+import {
+  hasPortalPermission,
+} from "./portalAccess";
+
 
 function RequirePermission({
   permission,
@@ -26,17 +27,28 @@ function RequirePermission({
     useAuth();
 
   const allowed =
-    access?.permissions.includes(
+    hasPortalPermission(
+      access,
       permission
-    ) ??
-    false;
+    );
 
   if (!allowed) {
     return (
-      <Navigate
-        to="/"
-        replace
-      />
+      <div className="page">
+        <section className="content-card">
+          <p className="page-eyebrow">
+            Access control
+          </p>
+
+          <h2>
+            Access denied
+          </h2>
+
+          <p className="page-description">
+            Your assigned role does not include access to this page.
+          </p>
+        </section>
+      </div>
     );
   }
 
@@ -46,5 +58,6 @@ function RequirePermission({
     </>
   );
 }
+
 
 export default RequirePermission;

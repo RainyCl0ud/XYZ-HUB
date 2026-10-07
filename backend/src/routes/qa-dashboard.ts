@@ -132,9 +132,16 @@ router.get(
             where:
               incidentWhere,
             take: 6,
-            orderBy: {
-              occurredAt: "desc",
-            },
+            orderBy: [
+              {
+                occurredAt:
+                  "desc",
+              },
+              {
+                id:
+                  "desc",
+              },
+            ],
             select:
               incidentSelect,
           }),
@@ -147,7 +154,12 @@ router.get(
             take: 6,
             orderBy: [
               {
-                occurredAt: "desc",
+                occurredAt:
+                  "desc",
+              },
+              {
+                id:
+                  "desc",
               },
             ],
             select:

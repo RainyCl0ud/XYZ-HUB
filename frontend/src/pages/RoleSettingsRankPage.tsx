@@ -9,6 +9,11 @@ import {
 import {
   useAuth,
 } from "../auth/AuthContext";
+
+import {
+  hasPortalPermission,
+  PORTAL_PERMISSION_DEPENDENCIES,
+} from "../auth/portalAccess";
 import {
   useToast,
 } from "../components/ToastProvider";
@@ -78,6 +83,47 @@ type RoleDraft = {
 };
 
 const PAGE_SIZE = 6;
+
+
+const MODULE_LABELS:
+  Readonly<
+    Record<
+      string,
+      string
+    >
+  > = {
+  dashboard:
+    "Dashboard",
+
+  people:
+    "Employee Management",
+
+  quality:
+    "Quality & Incidents",
+
+  strikes:
+    "Strike Management",
+
+  models:
+    "Creators",
+
+  roles:
+    "Role Settings",
+
+  audit:
+    "Audit Log",
+};
+
+
+const MODULE_ORDER = [
+  "dashboard",
+  "people",
+  "quality",
+  "strikes",
+  "models",
+  "roles",
+  "audit",
+] as const;
 
 const SCOPE_OPTIONS: Array<{
   value: DataScope;
@@ -172,8 +218,15 @@ function RoleSettingsRankPage() {
   const toast =
     useToast();
   const {
+    access,
     refreshAuth,
   } = useAuth();
+
+  const canManageRoleSettings =
+    hasPortalPermission(
+      access,
+      "roles.manage"
+    );
 
   const [roles, setRoles] =
     useState<ManagedRole[]>([]);
@@ -360,9 +413,7 @@ function RoleSettingsRankPage() {
           of permissions
         ) {
           const label =
-            permission.categoryKey
-              ? `${permission.pageKey} · ${permission.categoryKey}`
-              : permission.pageKey;
+            permission.pageKey;
 
           const group =
             groups.get(label) ?? [];
@@ -371,8 +422,49 @@ function RoleSettingsRankPage() {
         }
 
         return [...groups.entries()].sort(
-          ([left], [right]) =>
-            left.localeCompare(right)
+          ([left], [right]) => {
+            const leftIndex =
+              MODULE_ORDER.indexOf(
+                left as
+                  typeof MODULE_ORDER[number]
+              );
+
+            const rightIndex =
+              MODULE_ORDER.indexOf(
+                right as
+                  typeof MODULE_ORDER[number]
+              );
+
+            if (
+              leftIndex !==
+                -1 &&
+              rightIndex !==
+                -1
+            ) {
+              return (
+                leftIndex -
+                rightIndex
+              );
+            }
+
+            if (
+              leftIndex !==
+              -1
+            ) {
+              return -1;
+            }
+
+            if (
+              rightIndex !==
+              -1
+            ) {
+              return 1;
+            }
+
+            return left.localeCompare(
+              right
+            );
+          }
         );
       },
       [permissions]
@@ -394,11 +486,46 @@ function RoleSettingsRankPage() {
     activePermissionGroup?.[1] ?? [];
 
   const activePermissionGroupTitle =
-    activePermissionGroupPermissions[0]
-      ?.categoryKey ??
-    activePermissionGroupPermissions[0]
-      ?.pageKey ??
+    MODULE_LABELS[
+      activePermissionGroupLabelResolved
+    ] ??
     activePermissionGroupLabelResolved;
+
+  const activeAccessPermissions =
+    activePermissionGroupPermissions.filter(
+      (
+        permission
+      ) =>
+        permission.categoryKey ===
+          "access"
+    );
+
+  const activeActionPermissions =
+    activePermissionGroupPermissions.filter(
+      (
+        permission
+      ) =>
+        permission.categoryKey !==
+          "access"
+    );
+
+  const permissionByKey =
+    useMemo(
+      () =>
+        new Map(
+          permissions.map(
+            (
+              permission
+            ) => [
+              permission.key,
+              permission,
+            ]
+          )
+        ),
+      [
+        permissions,
+      ]
+    );
 
   const activePermissionSelectedCount =
     activePermissionGroupPermissions.filter(
@@ -432,6 +559,12 @@ function RoleSettingsRankPage() {
   }
 
   function openCreate() {
+    if (
+      !canManageRoleSettings
+    ) {
+      return;
+    }
+
     setEditorMode("CREATE");
     setEditorRoleId(null);
     setDraft({
@@ -447,6 +580,12 @@ function RoleSettingsRankPage() {
   function openEdit(
     role: ManagedRole
   ) {
+    if (
+      !canManageRoleSettings
+    ) {
+      return;
+    }
+
     setEditorMode("EDIT");
     setEditorRoleId(role.id);
     setDraft({
@@ -500,35 +639,318 @@ function RoleSettingsRankPage() {
     }
   }
 
-  function setPermissionGroupSelection(
-    group: Permission[],
-    selected: boolean
+  function requirementsFor(
+    permission:
+      Permission
   ) {
-    const groupIds =
-      group.map(
-        (permission) =>
-          permission.id
-      );
+    return (
+      PORTAL_PERMISSION_DEPENDENCIES[
+        permission.key
+      ] ??
+      []
+    );
+  }
 
-    const groupIdSet =
-      new Set(groupIds);
+
+  function addPermissionWithRequirements(
+    selected:
+      Set<string>,
+    permission:
+      Permission
+  ) {
+    for (
+      const requiredKey
+      of requirementsFor(
+        permission
+      )
+    ) {
+      const requiredPermission =
+        permissionByKey.get(
+          requiredKey
+        );
+
+      if (
+        requiredPermission
+      ) {
+        addPermissionWithRequirements(
+          selected,
+          requiredPermission
+        );
+      }
+    }
+
+    selected.add(
+      permission.id
+    );
+  }
+
+
+  function pruneBrokenDependencies(
+    selected:
+      Set<string>
+  ) {
+    let changed =
+      true;
+
+    while (
+      changed
+    ) {
+      changed =
+        false;
+
+      for (
+        const permission
+        of permissions
+      ) {
+        if (
+          !selected.has(
+            permission.id
+          )
+        ) {
+          continue;
+        }
+
+        const missingDependency =
+          requirementsFor(
+            permission
+          ).some(
+            (
+              requiredKey
+            ) => {
+              const requiredPermission =
+                permissionByKey.get(
+                  requiredKey
+                );
+
+              return (
+                !requiredPermission ||
+                !selected.has(
+                  requiredPermission.id
+                )
+              );
+            }
+          );
+
+        if (
+          missingDependency
+        ) {
+          selected.delete(
+            permission.id
+          );
+
+          changed =
+            true;
+        }
+      }
+    }
+  }
+
+
+  function setPermissionSelection(
+    permission:
+      Permission,
+    selected:
+      boolean
+  ) {
+    if (
+      !canManageRoleSettings
+    ) {
+      return;
+    }
 
     setPermissionDraft(
-      (current) => {
-        if (!selected) {
-          return current.filter(
-            (id) =>
-              !groupIdSet.has(id)
+      (
+        current
+      ) => {
+        const next =
+          new Set(
+            current
+          );
+
+        if (
+          selected
+        ) {
+          addPermissionWithRequirements(
+            next,
+            permission
+          );
+        }
+        else {
+          next.delete(
+            permission.id
+          );
+
+          pruneBrokenDependencies(
+            next
           );
         }
 
-        return Array.from(
-          new Set([
-            ...current,
-            ...groupIds,
-          ])
-        );
+        return [
+          ...next,
+        ];
       }
+    );
+  }
+
+
+  function setPermissionGroupSelection(
+    group:
+      Permission[],
+    selected:
+      boolean
+  ) {
+    if (
+      !canManageRoleSettings
+    ) {
+      return;
+    }
+
+    setPermissionDraft(
+      (
+        current
+      ) => {
+        const next =
+          new Set(
+            current
+          );
+
+        if (
+          selected
+        ) {
+          for (
+            const permission
+            of group
+          ) {
+            addPermissionWithRequirements(
+              next,
+              permission
+            );
+          }
+        }
+        else {
+          for (
+            const permission
+            of group
+          ) {
+            next.delete(
+              permission.id
+            );
+          }
+
+          pruneBrokenDependencies(
+            next
+          );
+        }
+
+        return [
+          ...next,
+        ];
+      }
+    );
+  }
+
+
+  function renderPermissionItem(
+    permission:
+      Permission
+  ) {
+    const requirements =
+      requirementsFor(
+        permission
+      );
+
+    const missingRequirements =
+      requirements.filter(
+        (
+          requiredKey
+        ) => {
+          const requiredPermission =
+            permissionByKey.get(
+              requiredKey
+            );
+
+          return (
+            !requiredPermission ||
+            !permissionDraft.includes(
+              requiredPermission.id
+            )
+          );
+        }
+      );
+
+    const blocked =
+      !canManageRoleSettings ||
+      missingRequirements.length >
+        0;
+
+    const requirementNames =
+      requirements.map(
+        (
+          requiredKey
+        ) =>
+          permissionByKey.get(
+            requiredKey
+          )?.name ??
+          requiredKey
+      );
+
+    return (
+      <label
+        key={
+          permission.id
+        }
+        className={
+          blocked
+            ? "role-settings-permission-item disabled"
+            : "role-settings-permission-item"
+        }
+      >
+        <input
+          type="checkbox"
+          checked={
+            permissionDraft.includes(
+              permission.id
+            )
+          }
+          disabled={
+            blocked
+          }
+          onChange={(
+            event
+          ) =>
+            setPermissionSelection(
+              permission,
+              event.target.checked
+            )
+          }
+        />
+
+        <span>
+          <strong>
+            {
+              permission.name
+            }
+          </strong>
+
+          <small>
+            {
+              permission.description ??
+              permission.key
+            }
+          </small>
+
+          {requirementNames.length >
+            0 && (
+            <small className="role-settings-permission-requirement">
+              Requires: {
+                requirementNames.join(
+                  ", "
+                )
+              }
+            </small>
+          )}
+        </span>
+      </label>
     );
   }
 
@@ -763,13 +1185,15 @@ function RoleSettingsRankPage() {
             Authority rank controls who a role can manage. Data scope controls what it can see, and permissions control what it can do.
           </p>
         </div>
-        <button
-          type="button"
-          className="primary-button"
-          onClick={openCreate}
-        >
-          Add role
-        </button>
+        {canManageRoleSettings && (
+          <button
+            type="button"
+            className="primary-button"
+            onClick={openCreate}
+          >
+            Add role
+          </button>
+        )}
       </header>
 
       {pageError && (
@@ -912,19 +1336,27 @@ function RoleSettingsRankPage() {
                             openPermissions(role);
                           }}
                         >
-                          Set permissions
+                          {canManageRoleSettings
+                            ? "Set permissions"
+                            : "View permissions"}
                         </button>
-                        <button
-                          type="button"
-                          className="role-settings-link-button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openEdit(role);
-                          }}
-                        >
-                          Edit
-                        </button>
-                        {!role.isSystem && role.affectedUserCount === 0 && (
+
+                        {canManageRoleSettings && (
+                          <button
+                            type="button"
+                            className="role-settings-link-button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openEdit(role);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
+
+                        {canManageRoleSettings &&
+                          !role.isSystem &&
+                          role.affectedUserCount === 0 && (
                           <button
                             type="button"
                             className="role-settings-link-button danger"
@@ -1167,7 +1599,7 @@ function RoleSettingsRankPage() {
                 aria-label="Permission categories"
               >
                 <span className="role-settings-permission-nav-label">
-                  Permission categories
+                  Modules
                 </span>
 
                 <div className="role-settings-permission-category-list">
@@ -1182,8 +1614,9 @@ function RoleSettingsRankPage() {
                         ).length;
 
                       const categoryName =
-                        group[0]?.categoryKey ??
-                        group[0]?.pageKey ??
+                        MODULE_LABELS[
+                          label
+                        ] ??
                         label;
 
                       const active =
@@ -1220,7 +1653,7 @@ function RoleSettingsRankPage() {
                               {categoryName}
                             </strong>
                             <small>
-                              {group.length} permission{group.length === 1 ? "" : "s"}
+                              Module access + {Math.max(0, group.length - 1)} action{Math.max(0, group.length - 1) === 1 ? "" : "s"}
                             </small>
                           </span>
 
@@ -1243,8 +1676,14 @@ function RoleSettingsRankPage() {
                           {activePermissionGroupTitle}
                         </h4>
                         <p>
-                          Manage access to {activePermissionGroupTitle.toLowerCase()} actions for this role.
+                          Configure this module from top to bottom: enable module access first, then choose the actions this role may perform.
                         </p>
+
+                        {!canManageRoleSettings && (
+                          <p className="role-settings-readonly-note">
+                            You have read-only access to Role Settings.
+                          </p>
+                        )}
                       </div>
 
                       <label className="role-settings-permission-select-all">
@@ -1252,6 +1691,9 @@ function RoleSettingsRankPage() {
                           type="checkbox"
                           checked={
                             activePermissionAllSelected
+                          }
+                          disabled={
+                            !canManageRoleSettings
                           }
                           onChange={(event) =>
                             setPermissionGroupSelection(
@@ -1261,56 +1703,57 @@ function RoleSettingsRankPage() {
                           }
                         />
                         <span>
-                          Select all in category
+                          Enable all in module
                         </span>
                       </label>
                     </header>
 
                     <div className="role-settings-permission-items">
-                      {activePermissionGroupPermissions.map(
-                        (permission) => (
-                          <label
-                            key={permission.id}
-                            className="role-settings-permission-item"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={
-                                permissionDraft.includes(
-                                  permission.id
-                                )
-                              }
-                              onChange={() =>
-                                setPermissionDraft(
-                                  (current) =>
-                                    current.includes(
-                                      permission.id
-                                    )
-                                      ? current.filter(
-                                          (id) =>
-                                            id !==
-                                            permission.id
-                                        )
-                                      : [
-                                          ...current,
-                                          permission.id,
-                                        ]
-                                )
-                              }
-                            />
+                      <section className="role-settings-permission-section">
+                        <div className="role-settings-permission-section-heading">
+                          <span>
+                            Access
+                          </span>
 
-                            <span>
-                              <strong>
-                                {permission.name}
-                              </strong>
-                              <small>
-                                {permission.description ??
-                                  permission.key}
-                              </small>
-                            </span>
-                          </label>
-                        )
-                      )}
+                          <small>
+                            Controls whether this role can enter the module.
+                          </small>
+                        </div>
+
+                        {activeAccessPermissions.length >
+                          0 ? (
+                          activeAccessPermissions.map(
+                            renderPermissionItem
+                          )
+                        ) : (
+                          <div className="role-settings-permission-empty-inline">
+                            No separate module-access permission is required.
+                          </div>
+                        )}
+                      </section>
+
+                      <section className="role-settings-permission-section">
+                        <div className="role-settings-permission-section-heading">
+                          <span>
+                            Actions
+                          </span>
+
+                          <small>
+                            Actions remain unavailable until their required access permissions are enabled.
+                          </small>
+                        </div>
+
+                        {activeActionPermissions.length >
+                          0 ? (
+                          activeActionPermissions.map(
+                            renderPermissionItem
+                          )
+                        ) : (
+                          <div className="role-settings-permission-empty-inline">
+                            This module has no additional actions.
+                          </div>
+                        )}
+                      </section>
                     </div>
                   </>
                 ) : (
@@ -1330,14 +1773,24 @@ function RoleSettingsRankPage() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                className="primary-button"
-                disabled={saving}
-                onClick={() => void savePermissions()}
-              >
-                {saving ? "Saving…" : "Save permissions"}
-              </button>
+              {canManageRoleSettings ? (
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={saving}
+                  onClick={() => void savePermissions()}
+                >
+                  {saving ? "Saving…" : "Save permissions"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={closePermissions}
+                >
+                  Close
+                </button>
+              )}
             </div>
           </section>
         </div>

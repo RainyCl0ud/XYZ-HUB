@@ -53,7 +53,7 @@ export async function resendPersonInvite(
   if (
     !hasPermission(
       access,
-      "people.manage"
+      "people.create"
     )
   ) {
     throw new ResendInviteError(

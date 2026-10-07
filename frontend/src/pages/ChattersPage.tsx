@@ -133,10 +133,10 @@ function ChattersPage() {
   } =
     useAuth();
 
-  const canConfigureQa =
+  const canManageQaProfiles =
     getPortalCapabilities(
       access
-    ).canConfigureQa;
+    ).canManageQaProfiles;
 
   const [
     chatters,
@@ -739,7 +739,7 @@ function ChattersPage() {
           </p>
         </div>
 
-        {canConfigureQa && (
+        {canManageQaProfiles && (
           <button
             className="primary-button"
             type="button"
@@ -1016,7 +1016,7 @@ function ChattersPage() {
       </section>
 
       {showForm &&
-        canConfigureQa && (
+        canManageQaProfiles && (
         <div
           className="modal-backdrop"
           onMouseDown={

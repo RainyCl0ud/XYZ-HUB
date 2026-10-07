@@ -23,6 +23,14 @@ import {
   useToast,
 } from "../components/ToastProvider";
 
+import {
+  useAuth,
+} from "../auth/AuthContext";
+
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
+
 type RuleVersion = {
   id: string;
   ruleId: string;
@@ -115,6 +123,18 @@ function RulesPage() {
     useNavigate();
 
   const toast = useToast();
+
+  const {
+    access,
+  } =
+    useAuth();
+
+  const {
+    canManageRules,
+  } =
+    getPortalCapabilities(
+      access
+    );
 
   const [
     rules,
@@ -438,6 +458,12 @@ function RulesPage() {
   }
 
   function openAddRule() {
+    if (
+      !canManageRules
+    ) {
+      return;
+    }
+
     resetForm();
 
     setPageError("");
@@ -448,6 +474,12 @@ function RulesPage() {
   async function openEditRule(
     rule: Rule
   ) {
+    if (
+      !canManageRules
+    ) {
+      return;
+    }
+
     if (!rule.currentVersion) {
       const message =
         "This rule does not have a valid version.";
@@ -569,6 +601,12 @@ function RulesPage() {
   ) {
     event.preventDefault();
 
+    if (
+      !canManageRules
+    ) {
+      return;
+    }
+
     const trimmedTitle =
       title.trim();
 
@@ -628,6 +666,12 @@ function RulesPage() {
       }
     >
   ) {
+    if (
+      !canManageRules
+    ) {
+      return;
+    }
+
     try {
       setIsSaving(true);
 
@@ -735,6 +779,12 @@ function RulesPage() {
   function requestRuleStatusChange(
     rule: Rule
   ) {
+    if (
+      !canManageRules
+    ) {
+      return;
+    }
+
     setPendingConfirmation({
       type: "status",
 
@@ -754,6 +804,12 @@ function RulesPage() {
       }
     >
   ) {
+    if (
+      !canManageRules
+    ) {
+      return;
+    }
+
     const {
       rule,
       action,
@@ -814,6 +870,7 @@ function RulesPage() {
 
   async function confirmPendingAction() {
     if (
+      !canManageRules ||
       !pendingConfirmation
     ) {
       return;
@@ -1017,6 +1074,9 @@ function RulesPage() {
           <button
             className="primary-button"
             type="button"
+            hidden={
+              !canManageRules
+            }
             onClick={
               openAddRule
             }
@@ -1027,6 +1087,9 @@ function RulesPage() {
           <button
             className="secondary-button"
             type="button"
+            hidden={
+              !canManageRules
+            }
             onClick={() =>
               navigate(
                 "/rules/settings"
@@ -1260,36 +1323,40 @@ function RulesPage() {
                               History
                             </button>
 
-                            <button
-                              type="button"
-                              className="text-button"
-                              onClick={() =>
-                                void openEditRule(
-                                  rule
-                                )
-                              }
-                            >
-                              Edit
-                            </button>
+                            {canManageRules && (
+                              <button
+                                type="button"
+                                className="text-button"
+                                onClick={() =>
+                                  void openEditRule(
+                                    rule
+                                  )
+                                }
+                              >
+                                Edit
+                              </button>
+                            )}
 
-                            <button
-                              type="button"
-                              disabled={
-                                actionId ===
+                            {canManageRules && (
+                              <button
+                                type="button"
+                                disabled={
+                                  actionId ===
+                                  rule.id
+                                }
+                                className="text-button danger"
+                                onClick={() =>
+                                  requestRuleStatusChange(
+                                    rule
+                                  )
+                                }
+                              >
+                                {actionId ===
                                 rule.id
-                              }
-                              className="text-button danger"
-                              onClick={() =>
-                                requestRuleStatusChange(
-                                  rule
-                                )
-                              }
-                            >
-                              {actionId ===
-                              rule.id
-                                ? "Archiving..."
-                                : "Archive"}
-                            </button>
+                                  ? "Archiving..."
+                                  : "Archive"}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1515,24 +1582,26 @@ function RulesPage() {
                             History
                           </button>
 
-                          <button
-                            type="button"
-                            className="text-button success"
-                            disabled={
-                              actionId ===
+                          {canManageRules && (
+                            <button
+                              type="button"
+                              className="text-button success"
+                              disabled={
+                                actionId ===
+                                rule.id
+                              }
+                              onClick={() =>
+                                requestRuleStatusChange(
+                                  rule
+                                )
+                              }
+                            >
+                              {actionId ===
                               rule.id
-                            }
-                            onClick={() =>
-                              requestRuleStatusChange(
-                                rule
-                              )
-                            }
-                          >
-                            {actionId ===
-                            rule.id
-                              ? "Reactivating..."
-                              : "Reactivate"}
-                          </button>
+                                ? "Reactivating..."
+                                : "Reactivate"}
+                            </button>
+                          )}
                         </div>
                       </article>
                     );
@@ -1548,7 +1617,7 @@ function RulesPage() {
           ADD / EDIT RULE MODAL
           ===================================================== */}
 
-      {showRuleModal && (
+      {canManageRules && showRuleModal && (
         <div
           className="modal-backdrop"
           onMouseDown={

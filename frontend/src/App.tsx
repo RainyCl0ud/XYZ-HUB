@@ -8,8 +8,6 @@ import "./pages/AuthPages.css";
 
 import RequireAuth from "./auth/RequireAuth";
 import RequirePermission from "./auth/RequirePermission";
-import RequireSystemRole from "./auth/RequireSystemRole";
-import RequirePortalModule from "./auth/RequirePortalModule";
 
 import AppLayout from "./components/AppLayout";
 
@@ -34,115 +32,81 @@ import RoleBuilderPage from "./pages/RoleSettingsPage";
 import AuditPage from "./pages/AuditPage";
 import AccountPage from "./pages/AccountPage";
 
+
 function App() {
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={
-          <LoginPage />
-        }
-      />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/verify-2fa" element={<TwoFactorPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/invite" element={<InviteSetupPage />} />
 
-      <Route
-        path="/verify-2fa"
-        element={
-          <TwoFactorPage />
-        }
-      />
-
-      <Route
-        path="/forgot-password"
-        element={
-          <ForgotPasswordPage />
-        }
-      />
-
-      <Route
-        path="/reset-password"
-        element={
-          <ResetPasswordPage />
-        }
-      />
-
-      <Route
-        path="/invite"
-        element={
-          <InviteSetupPage />
-        }
-      />
-
-      <Route
-        element={
-          <RequireAuth />
-        }
-      >
-        <Route
-          element={
-            <AppLayout />
-          }
-        >
+      <Route element={<RequireAuth />}>
+        <Route element={<AppLayout />}>
           <Route
             path="/"
             element={
-              <DashboardPage />
+              <RequirePermission permission="dashboard.view">
+                <DashboardPage />
+              </RequirePermission>
             }
           />
 
           <Route
             path="/quality"
             element={
-              <Navigate
-                to="/incidents"
-                replace
-              />
+              <RequirePermission permission="quality.access">
+                <Navigate
+                  to="/incidents"
+                  replace
+                />
+              </RequirePermission>
             }
           />
 
           <Route
             path="/incidents"
             element={
-              <RequirePortalModule module="qa">
+              <RequirePermission permission="quality.incidents.view">
                 <IncidentsPage />
-              </RequirePortalModule>
+              </RequirePermission>
             }
           />
 
           <Route
             path="/rules"
             element={
-              <RequirePortalModule module="qa-config">
+              <RequirePermission permission="quality.rules.view">
                 <RulesPage />
-              </RequirePortalModule>
+              </RequirePermission>
             }
           />
 
           <Route
             path="/chatters"
             element={
-              <RequirePortalModule module="qa">
+              <RequirePermission permission="quality.chatters.view">
                 <ChattersPage />
-              </RequirePortalModule>
+              </RequirePermission>
             }
           />
 
           <Route
             path="/chatters/:chatterId"
             element={
-              <RequirePortalModule module="qa">
+              <RequirePermission permission="quality.chatters.view">
                 <ChatterDetailPage />
-              </RequirePortalModule>
+              </RequirePermission>
             }
           />
 
           <Route
             path="/rules/settings"
             element={
-              <RequirePortalModule module="qa-config">
-                <ConfigurationPage
-                  mode="rules"
-                />
-              </RequirePortalModule>
+              <RequirePermission permission="quality.rules.manage">
+                <ConfigurationPage mode="rules" />
+              </RequirePermission>
             }
           />
 
@@ -157,30 +121,6 @@ function App() {
           />
 
           <Route
-            path="/strikes/reasons"
-            element={
-              <RequirePermission permission="strikes.view">
-                <RequirePermission permission="strikes.configure">
-                  <StrikeReasonsPage />
-                </RequirePermission>
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="/strikes/settings"
-            element={
-              <RequirePermission permission="strikes.view">
-                <RequirePermission permission="strikes.configure">
-                  <ConfigurationPage
-                    mode="strikes"
-                  />
-                </RequirePermission>
-              </RequirePermission>
-            }
-          />
-
-          <Route
             path="/strikes"
             element={
               <RequirePermission permission="strikes.view">
@@ -190,9 +130,27 @@ function App() {
           />
 
           <Route
+            path="/strikes/reasons"
+            element={
+              <RequirePermission permission="strikes.reasons.view">
+                <StrikeReasonsPage />
+              </RequirePermission>
+            }
+          />
+
+          <Route
+            path="/strikes/settings"
+            element={
+              <RequirePermission permission="strikes.ladder.view">
+                <ConfigurationPage mode="strikes" />
+              </RequirePermission>
+            }
+          />
+
+          <Route
             path="/people"
             element={
-              <RequirePermission permission="people.manage">
+              <RequirePermission permission="people.access">
                 <PeoplePage />
               </RequirePermission>
             }
@@ -201,7 +159,7 @@ function App() {
           <Route
             path="/people/:personId"
             element={
-              <RequirePermission permission="people.manage">
+              <RequirePermission permission="people.profile.view">
                 <PeopleDetailPage />
               </RequirePermission>
             }
@@ -210,15 +168,8 @@ function App() {
           <Route
             path="/models"
             element={
-              <RequirePermission permission="people.manage">
-                <RequireSystemRole
-                  roles={[
-                    "OWNER",
-                    "OPS_MANAGER",
-                  ]}
-                >
-                  <ModelsPage />
-                </RequireSystemRole>
+              <RequirePermission permission="models.access">
+                <ModelsPage />
               </RequirePermission>
             }
           />
@@ -226,14 +177,8 @@ function App() {
           <Route
             path="/roles"
             element={
-              <RequirePermission permission="roles.manage">
-                <RequireSystemRole
-                  roles={[
-                    "OWNER",
-                  ]}
-                >
-                  <RoleBuilderPage />
-                </RequireSystemRole>
+              <RequirePermission permission="roles.access">
+                <RoleBuilderPage />
               </RequirePermission>
             }
           />
@@ -241,13 +186,9 @@ function App() {
           <Route
             path="/audit"
             element={
-              <RequireSystemRole
-                roles={[
-                  "OWNER",
-                ]}
-              >
+              <RequirePermission permission="audit.access">
                 <AuditPage />
-              </RequireSystemRole>
+              </RequirePermission>
             }
           />
 
@@ -272,5 +213,6 @@ function App() {
     </Routes>
   );
 }
+
 
 export default App;

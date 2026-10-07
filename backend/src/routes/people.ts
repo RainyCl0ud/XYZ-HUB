@@ -13,7 +13,6 @@ import {
 import {
   type AuthenticatedRequest,
   requireAuth,
-  requireOwner,
   requirePermission,
 } from "../middleware/access.js";
 
@@ -65,6 +64,10 @@ import {
 import {
   getPeopleManagementOptions,
 } from "../services/people-options.js";
+
+import {
+  listPersonAccountActivity,
+} from "../services/people-account-activity.js";
 
 const router =
   Router();
@@ -171,7 +174,7 @@ router.get(
   requireAuth,
 
   requirePermission(
-    "people.manage"
+    "people.access"
   ),
 
   async (
@@ -203,7 +206,7 @@ router.get(
       ) {
         if (
           error.code ===
-          "PEOPLE_MANAGE_REQUIRED"
+          "PEOPLE_ACCESS_REQUIRED"
         ) {
           res.status(403).json({
             error:
@@ -248,7 +251,7 @@ router.get(
   requireAuth,
 
   requirePermission(
-    "people.manage"
+    "people.access"
   ),
 
   async (
@@ -293,6 +296,128 @@ router.get(
 
 /*
  * =========================================================
+ * GET /api/people/:userId/account-activity
+ * =========================================================
+ *
+ * Sanitized account-access history for the Employee Profile.
+ * Target visibility is checked through the same People Profile
+ * service before any audit rows are returned.
+ */
+router.get(
+  "/:userId/account-activity",
+
+  requireAuth,
+
+  requirePermission(
+    "people.profile.view"
+  ),
+
+  async (
+    req:
+      AuthenticatedRequest,
+    res
+  ) => {
+    if (
+      !req.access
+    ) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const userId =
+      Array.isArray(
+        req.params.userId
+      )
+        ? req.params.userId[0]
+        : req.params.userId;
+
+    if (
+      !userId
+    ) {
+      res.status(400).json({
+        error:
+          "INVALID_USER_ID",
+      });
+
+      return;
+    }
+
+    try {
+      /*
+       * Reuse Employee Profile visibility rules.
+       * Do not expose audit history for an employee the caller
+       * cannot open through the normal profile endpoint.
+       */
+      await getPersonDetail(
+        userId,
+        req.access
+      );
+
+      const activity =
+        await listPersonAccountActivity(
+          userId
+        );
+
+      res.status(200).json({
+        data:
+          activity,
+      });
+    } catch (
+      error
+    ) {
+      if (
+        error instanceof
+          PeopleReadError
+      ) {
+        if (
+          error.code ===
+            "USER_NOT_FOUND"
+        ) {
+          res.status(404).json({
+            error:
+              error.code,
+
+            message:
+              error.message,
+          });
+
+          return;
+        }
+
+        res.status(403).json({
+          error:
+            error.code,
+
+          message:
+            error.message,
+        });
+
+        return;
+      }
+
+      console.error(
+        "Account activity request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "ACCOUNT_ACTIVITY_FAILED",
+
+        message:
+          "Unable to load account activity.",
+      });
+    }
+  }
+);
+
+
+/*
+ * =========================================================
  * GET /api/people/:userId
  * =========================================================
  *
@@ -304,7 +429,7 @@ router.get(
   requireAuth,
 
   requirePermission(
-    "people.manage"
+    "people.profile.view"
   ),
 
   async (
@@ -354,7 +479,7 @@ router.get(
         switch (
           error.code
         ) {
-          case "PEOPLE_MANAGE_REQUIRED":
+          case "PEOPLE_ACCESS_REQUIRED":
           case "PERSON_NOT_VISIBLE":
             res.status(403).json({
               error:
@@ -401,7 +526,7 @@ router.post(
   requireAuth,
 
   requirePermission(
-    "people.manage"
+    "people.create"
   ),
 
   async (
@@ -606,7 +731,7 @@ router.post(
   requireAuth,
 
   requirePermission(
-    "people.manage"
+    "people.create"
   ),
 
   async (
@@ -768,7 +893,9 @@ router.post(
 
   requireAuth,
 
-  requireOwner,
+  requirePermission(
+    "people.status.manage"
+  ),
 
   async (
     req: AuthenticatedRequest,
@@ -823,7 +950,7 @@ router.post(
           case "ROLE_NOT_MANAGEABLE":
           case "MODEL_NOT_MANAGEABLE":
           case "TEAM_GROUP_NOT_MANAGEABLE":
-          case "OWNER_REQUIRED":
+          case "PEOPLE_STATUS_MANAGE_REQUIRED":
             res.status(403).json({
               error:
                 error.code,
@@ -888,7 +1015,9 @@ router.post(
 
   requireAuth,
 
-  requireOwner,
+  requirePermission(
+    "people.status.manage"
+  ),
 
   async (
     req: AuthenticatedRequest,
@@ -940,7 +1069,7 @@ router.post(
         switch (
           error.code
         ) {
-          case "OWNER_REQUIRED":
+          case "PEOPLE_STATUS_MANAGE_REQUIRED":
           case "ROLE_NOT_MANAGEABLE":
           case "MODEL_NOT_MANAGEABLE":
           case "TEAM_GROUP_NOT_MANAGEABLE":
@@ -1009,7 +1138,7 @@ router.put(
   requireAuth,
 
   requirePermission(
-    "people.manage"
+    "people.assign_roles"
   ),
 
   async (
@@ -1177,7 +1306,9 @@ router.delete(
 
   requireAuth,
 
-  requireOwner,
+  requirePermission(
+    "people.delete"
+  ),
 
   async (
     req: AuthenticatedRequest,
@@ -1254,7 +1385,10 @@ router.delete(
         switch (
           error.code
         ) {
-          case "OWNER_REQUIRED":
+          case "PEOPLE_DELETE_REQUIRED":
+          case "ROLE_NOT_MANAGEABLE":
+          case "MODEL_NOT_MANAGEABLE":
+          case "TEAM_GROUP_NOT_MANAGEABLE":
             res.status(403).json({
               error:
                 error.code,
@@ -1324,8 +1458,6 @@ router.post(
 
   requireAuth,
 
-  requireOwner,
-
   requirePermission(
     "two_factor.reset"
   ),
@@ -1380,8 +1512,10 @@ router.post(
         switch (
           error.code
         ) {
-          case "OWNER_REQUIRED":
           case "TWO_FACTOR_RESET_REQUIRED":
+          case "ROLE_NOT_MANAGEABLE":
+          case "MODEL_NOT_MANAGEABLE":
+          case "TEAM_GROUP_NOT_MANAGEABLE":
             res.status(403).json({
               error:
                 error.code,
@@ -1394,6 +1528,17 @@ router.post(
 
           case "USER_NOT_FOUND":
             res.status(404).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+
+          case "CANNOT_RESET_SELF":
+            res.status(409).json({
               error:
                 error.code,
 

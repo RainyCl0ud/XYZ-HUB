@@ -159,7 +159,7 @@ const peopleManagementGuards = [
   requireAuth,
 
   requirePermission(
-    "people.manage"
+    "people.access"
   ),
 ] as const;
 

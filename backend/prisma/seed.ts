@@ -5,100 +5,16 @@ import {
   RoleDataScope,
 } from "@prisma/client";
 
+import {
+  MANAGED_PERMISSION_KEYS,
+  PERMISSION_CATALOG,
+} from "../src/permissions/permission-catalog.js";
+
 const prisma = new PrismaClient();
 
-const permissions = [
-  {
-    key: "people.manage",
-    name: "Manage People",
-    description:
-      "Invite people and manage their roles and model assignments within the user's allowed rank and model scope.",
-    pageKey: "people",
-    categoryKey: "people",
-    actionKey: "manage",
-  },
-  {
-    key: "people.deactivate",
-    name: "Deactivate People",
-    description:
-      "Deactivate people the user is allowed to manage.",
-    pageKey: "people",
-    categoryKey: "people",
-    actionKey: "deactivate",
-  },
-  {
-    key: "people.delete",
-    name: "Delete People",
-    description:
-      "Permanently delete a person. Owner only by default.",
-    pageKey: "people",
-    categoryKey: "people",
-    actionKey: "delete",
-  },
-  {
-    key: "roles.manage",
-    name: "Manage Roles",
-    description:
-      "Create, edit and delete custom roles through the role builder.",
-    pageKey: "roles",
-    categoryKey: "roles",
-    actionKey: "manage",
-  },
-  {
-    key: "strikes.view",
-    name: "View Strikes",
-    description:
-      "View disciplinary Strike records within the user's allowed organization scope.",
-    pageKey: "strikes",
-    categoryKey: "strikes",
-    actionKey: "view",
-  },
-  {
-    key: "strikes.issue",
-    name: "Issue Strikes",
-    description:
-      "Issue disciplinary Strikes to eligible employees within the user's allowed organization and rank scope.",
-    pageKey: "strikes",
-    categoryKey: "strikes",
-    actionKey: "issue",
-  },
-  {
-    key: "strikes.void",
-    name: "Void Strikes",
-    description:
-      "Void previously issued disciplinary Strikes within the user's allowed organization and rank scope.",
-    pageKey: "strikes",
-    categoryKey: "strikes",
-    actionKey: "void",
-  },
-  {
-    key: "strikes.configure",
-    name: "Configure Strikes",
-    description:
-      "Manage Strike reasons and Strike policy configuration.",
-    pageKey: "strikes",
-    categoryKey: "strikes",
-    actionKey: "configure",
-  },
-  {
-    key: "audit.view",
-    name: "View Audit Log",
-    description:
-      "View and search the append-only audit log.",
-    pageKey: "audit",
-    categoryKey: "audit",
-    actionKey: "view",
-  },
-  {
-    key: "two_factor.reset",
-    name: "Reset 2FA",
-    description:
-      "Reset another user's two-factor authentication setup.",
-    pageKey: "people",
-    categoryKey: "security",
-    actionKey: "reset_2fa",
-  },
-] as const;
+const permissions =
+  PERMISSION_CATALOG;
+
 
 const defaultRoles = [
   {
@@ -167,47 +83,118 @@ const defaultRolePermissions: Record<
   string,
   readonly string[]
 > = {
-  OWNER: [
-    "people.manage",
-    "people.deactivate",
-    "people.delete",
-    "roles.manage",
-    "strikes.view",
-    "strikes.issue",
-    "strikes.void",
-    "strikes.configure",
-    "audit.view",
-    "two_factor.reset",
-  ],
+  OWNER:
+    MANAGED_PERMISSION_KEYS,
 
   OPS_MANAGER: [
-    "people.manage",
-    "people.deactivate",
+    "dashboard.view",
+
+    "people.access",
+    "people.profile.view",
+    "people.create",
+    "people.assign_roles",
+    "people.status.manage",
+
+    "quality.access",
+    "quality.incidents.view",
+    "quality.incidents.create",
+    "quality.incidents.resolve",
+    "quality.incidents.void",
+    "quality.chatters.view",
+    "quality.chatters.manage",
+    "quality.rules.view",
+    "quality.rules.manage",
+
+    "strikes.access",
     "strikes.view",
     "strikes.issue",
     "strikes.void",
-    "strikes.configure",
+    "strikes.reasons.view",
+    "strikes.reasons.create",
+    "strikes.reasons.edit",
+    "strikes.reasons.archive",
+    "strikes.ladder.view",
+    "strikes.ladder.edit",
+
+    "models.access",
+    "models.create",
+    "models.edit",
+    "models.status.manage",
   ],
 
   MANAGER: [
-    "people.manage",
-    "people.deactivate",
+    "dashboard.view",
+
+    "people.access",
+    "people.profile.view",
+    "people.create",
+    "people.assign_roles",
+    "people.status.manage",
+
+    "quality.access",
+    "quality.incidents.view",
+    "quality.incidents.create",
+    "quality.incidents.resolve",
+    "quality.incidents.void",
+    "quality.chatters.view",
+    "quality.chatters.manage",
+    "quality.rules.view",
+    "quality.rules.manage",
+
+    "strikes.access",
     "strikes.view",
     "strikes.issue",
   ],
 
   QC: [
+    "dashboard.view",
+
+    "quality.access",
+    "quality.incidents.view",
+    "quality.chatters.view",
+
+    "strikes.access",
     "strikes.view",
     "strikes.issue",
   ],
-  CHATTER: [],
-  TRIAL_CHATTER: [],
-  DEV: [],
-  ACCOUNTANT: [],
-  MODEL: [],
-  GENERAL_STAFF: [],
+
+  CHATTER: [
+    "dashboard.view",
+  ],
+
+  TRIAL_CHATTER: [
+    "dashboard.view",
+  ],
+
+  DEV: [
+    "dashboard.view",
+
+    "quality.access",
+    "quality.incidents.view",
+    "quality.incidents.create",
+    "quality.incidents.resolve",
+    "quality.incidents.void",
+    "quality.chatters.view",
+    "quality.chatters.manage",
+    "quality.rules.view",
+    "quality.rules.manage",
+  ],
+
+  ACCOUNTANT: [
+    "dashboard.view",
+  ],
+
+  MODEL: [
+    "dashboard.view",
+  ],
+
+  GENERAL_STAFF: [
+    "dashboard.view",
+  ],
 };
 
+
+async function main() {
 async function main() {
   console.log("Starting XYZ Hub bootstrap seed...");
 

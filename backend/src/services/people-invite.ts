@@ -88,7 +88,7 @@ export async function invitePerson(
   if (
     !hasPermission(
       access,
-      "people.manage"
+      "people.create"
     )
   ) {
     throw new PeopleInviteError(

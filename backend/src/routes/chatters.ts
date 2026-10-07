@@ -164,9 +164,21 @@ router.get("/", async (req, res) => {
           ...(searchWhere ?? {}),
         },
 
-        orderBy: {
-          name: "asc",
-        },
+        /*
+         * Chatter Management is a dated record table.
+         * Keep pagination/filter refreshes deterministic.
+         */
+        orderBy: [
+          {
+            createdAt:
+              "desc",
+          },
+
+          {
+            id:
+              "desc",
+          },
+        ],
       });
 
     res.status(200).json({

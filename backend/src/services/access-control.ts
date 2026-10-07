@@ -6,6 +6,10 @@ import {
   prisma,
 } from "../lib/prisma.js";
 
+import {
+  PERMISSION_DEPENDENCIES,
+} from "../permissions/permission-catalog.js";
+
 export type AccessContext = {
   userId: string;
 
@@ -184,20 +188,9 @@ export async function getAccessContext(
   );
 
   /*
-   * Audit Log is a system-level Owner capability.
-   *
-   * Legacy or stale role-permission records must never
-   * grant Audit access to a non-Owner account.
+   * Effective permissions now come from Role Settings.
+   * Parent-child requirements are enforced by hasPermission().
    */
-  if (
-    !systemKeys.has(
-      "OWNER"
-    )
-  ) {
-    permissions.delete(
-      "audit.view"
-    );
-  }
 
   /*
    * Per the build brief:
@@ -234,12 +227,69 @@ export async function getAccessContext(
   };
 }
 
+function hasPermissionWithDependencies(
+  access: AccessContext,
+  permissionKey: string,
+  visiting: Set<string>
+): boolean {
+  if (
+    !access.permissions.has(
+      permissionKey
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    visiting.has(
+      permissionKey
+    )
+  ) {
+    /*
+     * Dependency cycles are invalid configuration.
+     * Fail closed rather than accidentally granting access.
+     */
+    return false;
+  }
+
+  visiting.add(
+    permissionKey
+  );
+
+  const requirements =
+    PERMISSION_DEPENDENCIES[
+      permissionKey
+    ] ??
+    [];
+
+  const allowed =
+    requirements.every(
+      (
+        requiredKey
+      ) =>
+        hasPermissionWithDependencies(
+          access,
+          requiredKey,
+          visiting
+        )
+    );
+
+  visiting.delete(
+    permissionKey
+  );
+
+  return allowed;
+}
+
+
 export function hasPermission(
   access: AccessContext,
   permissionKey: string
 ): boolean {
-  return access.permissions.has(
-    permissionKey
+  return hasPermissionWithDependencies(
+    access,
+    permissionKey,
+    new Set<string>()
   );
 }
 
@@ -279,7 +329,7 @@ export function isOwner(
   );
 }
 
-export function canAssignRole(
+export function canManageRoleTarget(
   access: AccessContext,
   targetRole: {
     systemKey: string | null;
@@ -287,22 +337,11 @@ export function canAssignRole(
   }
 ): boolean {
   /*
-   * Being higher-ranked is not enough.
-   * The person must also have permission
-   * to manage people.
-   */
-  if (
-    !hasPermission(
-      access,
-      "people.manage"
-    )
-  ) {
-    return false;
-  }
-
-  /*
-   * These six roles can only be
-   * assigned by an Owner.
+   * Protected system roles remain manageable only by Owner.
+   *
+   * Ordinary ranked roles follow the existing authority chain.
+   * This helper deliberately contains no action permission check:
+   * callers must first prove the specific action being performed.
    */
   const ownerOnlyRoles =
     new Set([
@@ -320,12 +359,46 @@ export function canAssignRole(
       targetRole.systemKey
     )
   ) {
-    return isOwner(access);
+    return isOwner(
+      access
+    );
   }
 
   return canAssignRankedRole(
     access,
     targetRole.rank
+  );
+}
+
+
+export function canAssignRole(
+  access: AccessContext,
+  targetRole: {
+    systemKey: string | null;
+    rank: number | null;
+  }
+): boolean {
+  /*
+   * Creating an employee necessarily includes assigning an
+   * initial role. Updating an existing employee's roles requires
+   * the dedicated Assign Roles permission.
+   */
+  if (
+    !hasPermission(
+      access,
+      "people.assign_roles"
+    ) &&
+    !hasPermission(
+      access,
+      "people.create"
+    )
+  ) {
+    return false;
+  }
+
+  return canManageRoleTarget(
+    access,
+    targetRole
   );
 }
 

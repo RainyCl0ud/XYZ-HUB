@@ -18,6 +18,14 @@ import {
   useToast,
 } from "../components/ToastProvider";
 
+import {
+  useAuth,
+} from "../auth/AuthContext";
+
+import {
+  getPortalCapabilities,
+} from "../auth/portalAccess";
+
 import "./ModelsPage.css";
 
 type AgencyModel = {
@@ -78,6 +86,20 @@ function formatTexasDateTime(
 function ModelsPage() {
   const toast =
     useToast();
+
+  const {
+    access,
+  } =
+    useAuth();
+
+  const {
+    canCreateModels,
+    canEditModels,
+    canManageModelStatus,
+  } =
+    getPortalCapabilities(
+      access
+    );
 
   const [
     models,
@@ -304,6 +326,12 @@ function ModelsPage() {
   ) {
     event.preventDefault();
 
+    if (
+      !canCreateModels
+    ) {
+      return;
+    }
+
     const name =
       createName.trim();
 
@@ -380,6 +408,12 @@ function ModelsPage() {
     model:
       AgencyModel
   ) {
+    if (
+      !canEditModels
+    ) {
+      return;
+    }
+
     setEditModel(
       model
     );
@@ -396,6 +430,7 @@ function ModelsPage() {
     event.preventDefault();
 
     if (
+      !canEditModels ||
       !editModel
     ) {
       return;
@@ -463,6 +498,7 @@ function ModelsPage() {
 
   async function changeStatus() {
     if (
+      !canManageModelStatus ||
       !statusModel
     ) {
       return;
@@ -539,6 +575,9 @@ function ModelsPage() {
         <button
           type="button"
           className="primary-button"
+          hidden={
+            !canCreateModels
+          }
           onClick={() =>
             setCreateOpen(
               true
@@ -780,6 +819,9 @@ function ModelsPage() {
                     <button
                       type="button"
                       className="text-button"
+                      hidden={
+                        !canEditModels
+                      }
                       onClick={() =>
                         openRename(
                           model
@@ -791,6 +833,9 @@ function ModelsPage() {
 
                     <button
                       type="button"
+                      hidden={
+                        !canManageModelStatus
+                      }
                       className={
                         model.isActive
                           ? "text-button danger"
@@ -824,7 +869,7 @@ function ModelsPage() {
         </span>
       </div>
 
-      {createOpen && (
+      {canCreateModels && createOpen && (
         <div className="models-overlay">
           <form
             className="models-modal"
@@ -927,7 +972,7 @@ function ModelsPage() {
         </div>
       )}
 
-      {editModel && (
+      {canEditModels && editModel && (
         <div className="models-overlay">
           <form
             className="models-modal"
@@ -1030,7 +1075,7 @@ function ModelsPage() {
         </div>
       )}
 
-      {statusModel && (
+      {canManageModelStatus && statusModel && (
         <div className="models-overlay">
           <section className="models-modal models-confirm-modal">
             <div className="models-modal-header">

@@ -8,10 +8,13 @@ import type {
 } from "./access.js";
 
 import {
-  canConfigureQa,
-  canManageQaIncidents,
+  hasPermission,
+} from "../services/access-control.js";
+
+import {
   canViewQa,
 } from "../services/qa-access.js";
+
 
 export function requireQaView(
   req:
@@ -21,9 +24,7 @@ export function requireQaView(
   next:
     NextFunction
 ) {
-  if (
-    !req.access
-  ) {
+  if (!req.access) {
     res.status(401).json({
       error:
         "UNAUTHENTICATED",
@@ -42,7 +43,7 @@ export function requireQaView(
         "QA_ACCESS_REQUIRED",
 
       message:
-        "You do not have access to the QA workspace.",
+        "You do not have access to the Quality & Incidents workspace.",
     });
 
     return;
@@ -50,6 +51,7 @@ export function requireQaView(
 
   next();
 }
+
 
 export function requireQaIncidentWrites(
   req:
@@ -69,22 +71,68 @@ export function requireQaIncidentWrites(
 
   if (!req.access) {
     res.status(401).json({
-      error: "UNAUTHENTICATED",
+      error:
+        "UNAUTHENTICATED",
     });
+
     return;
   }
 
-  if (!canManageQaIncidents(req.access)) {
+  let requiredPermission:
+    string |
+    null =
+      null;
+
+  if (
+    req.method === "POST" &&
+    (
+      req.path === "/" ||
+      req.path === ""
+    )
+  ) {
+    requiredPermission =
+      "quality.incidents.create";
+  }
+  else if (
+    req.method === "PATCH" &&
+    req.path.endsWith(
+      "/resolve"
+    )
+  ) {
+    requiredPermission =
+      "quality.incidents.resolve";
+  }
+  else if (
+    req.method === "PATCH" &&
+    req.path.endsWith(
+      "/void"
+    )
+  ) {
+    requiredPermission =
+      "quality.incidents.void";
+  }
+
+  if (
+    !requiredPermission ||
+    !hasPermission(
+      req.access,
+      requiredPermission
+    )
+  ) {
     res.status(403).json({
-      error: "QA_INCIDENT_WRITE_REQUIRED",
+      error:
+        "QA_INCIDENT_ACTION_REQUIRED",
+
       message:
-        "You do not have permission to change QA incidents.",
+        "You do not have permission to perform this incident action.",
     });
+
     return;
   }
 
   next();
 }
+
 
 export function requireQaConfigurationForWrites(
   req:
@@ -95,19 +143,14 @@ export function requireQaConfigurationForWrites(
     NextFunction
 ) {
   if (
-    req.method ===
-      "GET" ||
-    req.method ===
-      "HEAD"
+    req.method === "GET" ||
+    req.method === "HEAD"
   ) {
     next();
-
     return;
   }
 
-  if (
-    !req.access
-  ) {
+  if (!req.access) {
     res.status(401).json({
       error:
         "UNAUTHENTICATED",
@@ -116,9 +159,16 @@ export function requireQaConfigurationForWrites(
     return;
   }
 
+  const requiredPermission =
+    req.baseUrl ===
+      "/api/chatters"
+      ? "quality.chatters.manage"
+      : "quality.rules.manage";
+
   if (
-    !canConfigureQa(
-      req.access
+    !hasPermission(
+      req.access,
+      requiredPermission
     )
   ) {
     res.status(403).json({
@@ -126,7 +176,7 @@ export function requireQaConfigurationForWrites(
         "QA_CONFIGURATION_REQUIRED",
 
       message:
-        "You do not have permission to change QA configuration.",
+        "You do not have permission to change this Quality & Incidents configuration.",
     });
 
     return;

@@ -84,7 +84,7 @@ function assertPeopleManagementAccess(
   if (
     !hasPermission(
       access,
-      "people.manage"
+      "people.access"
     )
   ) {
     throw new TeamHierarchyError(

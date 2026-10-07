@@ -98,7 +98,7 @@ function requireStrikeReasonRead(
     ) &&
     !hasPermission(
       req.access,
-      "strikes.configure"
+      "strikes.reasons.view"
     )
   ) {
     res.status(
@@ -203,7 +203,7 @@ router.get(
   "/manage",
 
   requirePermission(
-    "strikes.configure"
+    "strikes.reasons.view"
   ),
 
   async (
@@ -254,7 +254,7 @@ router.post(
   "/",
 
   requirePermission(
-    "strikes.configure"
+    "strikes.reasons.create"
   ),
 
   async (
@@ -336,7 +336,7 @@ router.patch(
   "/:id",
 
   requirePermission(
-    "strikes.configure"
+    "strikes.reasons.edit"
   ),
 
   async (
@@ -433,7 +433,7 @@ router.post(
   "/:id/archive",
 
   requirePermission(
-    "strikes.configure"
+    "strikes.reasons.archive"
   ),
 
   async (
@@ -505,7 +505,7 @@ router.post(
   "/:id/reactivate",
 
   requirePermission(
-    "strikes.configure"
+    "strikes.reasons.archive"
   ),
 
   async (
