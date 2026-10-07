@@ -442,14 +442,6 @@ function PeopleDetailPage() {
     );
 
   const [
-    showModelEditor,
-    setShowModelEditor,
-  ] =
-    useState(
-      false
-    );
-
-  const [
     assignedModelIds,
     setAssignedModelIds,
   ] =
@@ -880,30 +872,10 @@ function PeopleDetailPage() {
 
     setAssignedRoleIds(
       person.roles.map(
-        (
-          role
-        ) =>
+        (role) =>
           role.id
       )
     );
-
-    setShowRoleEditor(
-      true
-    );
-  }
-
-
-  function openModelEditor() {
-    if (
-      !person ||
-      !options ||
-      !options.capabilities.canAssignRoles ||
-      !options.capabilities.canAssignModels ||
-      !canManagePerson ||
-      !person.teamGroup
-    ) {
-      return;
-    }
 
     setAssignedModelIds(
       person.models.map(
@@ -912,87 +884,9 @@ function PeopleDetailPage() {
       )
     );
 
-    setShowModelEditor(
+    setShowRoleEditor(
       true
     );
-  }
-
-
-  async function saveModels(
-    event:
-      FormEvent
-  ) {
-    event.preventDefault();
-
-    if (
-      !person ||
-      !options ||
-      !options.capabilities.canAssignRoles ||
-      !options.capabilities.canAssignModels ||
-      !canManagePerson ||
-      !person.teamGroup
-    ) {
-      return;
-    }
-
-    try {
-      setSaving(
-        true
-      );
-
-      await apiRequest(
-        `/api/people/${encodeURIComponent(
-          person.id
-        )}/access`,
-        {
-          method:
-            "PUT",
-
-          body:
-            JSON.stringify({
-              teamGroupId:
-                person.teamGroup.id,
-
-              /*
-               * Preserve role membership while editing models.
-               */
-              roleIds:
-                person.roles.map(
-                  (role) =>
-                    role.id
-                ),
-
-              modelIds:
-                assignedModelIds,
-            }),
-        }
-      );
-
-      await refreshProfile();
-
-      setShowModelEditor(
-        false
-      );
-
-      toast.success(
-        "The employee's assigned models were updated.",
-        "Models updated"
-      );
-    } catch (
-      saveError
-    ) {
-      toast.error(
-        saveError instanceof
-          Error
-          ? saveError.message
-          : "Unable to update assigned models.",
-        "Models not updated"
-      );
-    } finally {
-      setSaving(
-        false
-      );
-    }
   }
 
   async function saveRoles(
@@ -1061,17 +955,13 @@ function PeopleDetailPage() {
               roleIds:
                 assignedRoleIds,
 
-              /*
-               * Creator assignments are deliberately preserved.
-               * They are not editable from the role assignment UI.
-               */
               modelIds:
-                person.models.map(
-                  (
-                    model
-                  ) =>
-                    model.id
-                ),
+                options.capabilities.canAssignModels
+                  ? assignedModelIds
+                  : person.models.map(
+                      (model) =>
+                        model.id
+                    ),
             }),
         }
       );
@@ -1083,8 +973,8 @@ function PeopleDetailPage() {
       );
 
       toast.success(
-        "The employee's role assignment was updated.",
-        "Roles updated"
+        "The employee's assignments were updated.",
+        "Assignments updated"
       );
     } catch (
       saveError
@@ -1093,8 +983,8 @@ function PeopleDetailPage() {
         saveError instanceof
           Error
           ? saveError.message
-          : "Unable to update role assignment.",
-        "Roles not updated"
+          : "Unable to update employee assignments.",
+        "Assignments not updated"
       );
     } finally {
       setSaving(
@@ -1505,23 +1395,7 @@ function PeopleDetailPage() {
                       !canManagePerson
                     }
                   >
-                    Assign roles
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    hidden={
-                      !options.capabilities.canAssignRoles ||
-                      !options.capabilities.canAssignModels
-                    }
-                    onClick={
-                      openModelEditor
-                    }
-                    disabled={
-                      !canManagePerson
-                    }
-                  >
-                    Assign models
+                    Edit
                   </button>
                 </div>
 
@@ -1924,15 +1798,15 @@ function PeopleDetailPage() {
             <div className="people-modal-header">
               <div>
                 <span className="page-eyebrow">
-                  Role assignment
+                  Employee assignments
                 </span>
 
                 <h3>
-                  Assign roles to {person.name}
+                  Edit assignments for {person.name}
                 </h3>
 
                 <p>
-                  Select the employee's roles. Module access and actions are configured in Role Settings.
+                  Update the employee's assigned role and models. Role permissions remain configured in Role Settings.
                 </p>
               </div>
 
@@ -1944,7 +1818,7 @@ function PeopleDetailPage() {
                     false
                   )
                 }
-                aria-label="Close role assignment"
+                aria-label="Close employee assignments"
               >
                 &times;
               </button>
@@ -2009,85 +1883,7 @@ function PeopleDetailPage() {
                 </div>
               </div>
 
-              <p className="people-scope-note">
-                This screen assigns roles only. Module access and action permissions are managed centrally in Role Settings.
-              </p>
-            </div>
-
-
-            <div className="people-modal-footer">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() =>
-                  setShowRoleEditor(
-                    false
-                  )
-                }
-                disabled={
-                  saving
-                }
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={
-                  saving
-                }
-              >
-                {saving
-                  ? "Saving..."
-                  : "Save roles"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-
-      {options?.capabilities.canAssignRoles &&
-        options.capabilities.canAssignModels &&
-        showModelEditor && (
-        <div className="people-overlay">
-          <form
-            className="people-form-modal"
-            onSubmit={
-              saveModels
-            }
-          >
-            <div className="people-modal-header">
-              <div>
-                <span className="page-eyebrow">
-                  Model assignment
-                </span>
-
-                <h3>
-                  Assign models to {person.name}
-                </h3>
-
-                <p>
-                  Select the models assigned to this employee. Role permissions remain managed in Role Settings.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="people-close"
-                onClick={() =>
-                  setShowModelEditor(
-                    false
-                  )
-                }
-                aria-label="Close model assignment"
-              >
-                &times;
-              </button>
-            </div>
-
-            <div className="people-form-body">
+              {options.capabilities.canAssignModels && (
               <div className="people-option-section">
                 <div className="people-option-heading">
                   <div>
@@ -2144,18 +1940,20 @@ function PeopleDetailPage() {
                   )}
                 </div>
               </div>
+              )}
 
               <p className="people-scope-note">
-                This screen changes assigned models only. Role permissions are managed centrally in Role Settings.
+                Role permissions are managed centrally in Role Settings.
               </p>
             </div>
+
 
             <div className="people-modal-footer">
               <button
                 type="button"
                 className="secondary-button"
                 onClick={() =>
-                  setShowModelEditor(
+                  setShowRoleEditor(
                     false
                   )
                 }
@@ -2175,12 +1973,13 @@ function PeopleDetailPage() {
               >
                 {saving
                   ? "Saving..."
-                  : "Save models"}
+                  : "Save changes"}
               </button>
             </div>
           </form>
         </div>
       )}
+
 
       {confirmAction && (
         <div className="people-overlay">
