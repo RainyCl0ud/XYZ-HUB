@@ -9,7 +9,7 @@ import {
 
 import {
   canAccessModel,
-  canAssignRole,
+  canInviteRole,
   hasPermission,
   type AccessContext,
 } from "./access-control.js";
@@ -173,18 +173,16 @@ export async function invitePerson(
   }
 
   /*
-   * canAssignRole() is the single role-assignment authority gate.
-   * It reserves Owner, Ops Manager, Dev, Accountant, Model and
-   * General Staff for Owners while retaining the ranked chain for
-   * ordinary roles. Do not special-case Owner here: an Owner is
-   * allowed to assign the Owner role by requirement.
+   * Invitation role assignment is stricter than general role editing:
+   * the invitee must have a ranked role strictly below the inviter.
+   * QC and Chatter ranks cannot invite anyone.
    */
   for (
     const role
     of roles
   ) {
     if (
-      !canAssignRole(
+      !canInviteRole(
         access,
         role
       )

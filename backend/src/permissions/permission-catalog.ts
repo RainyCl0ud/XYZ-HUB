@@ -862,13 +862,36 @@ export const PERMISSION_CATALOG:
   ];
 
 
-export const MANAGED_PERMISSION_KEYS =
-  PERMISSION_CATALOG.map(
-    (
-      permission
-    ) =>
-      permission.key
+export const OWNER_ONLY_PERMISSION_KEYS =
+  [
+    "people.status.manage",
+    "people.delete",
+    "audit.access",
+  ] as const;
+
+
+export const OWNER_ONLY_PERMISSION_KEY_SET =
+  new Set<string>(
+    OWNER_ONLY_PERMISSION_KEYS
   );
+
+
+export const MANAGED_PERMISSION_KEYS =
+  PERMISSION_CATALOG
+    .map(
+      (
+        permission
+      ) =>
+        permission.key
+    )
+    .filter(
+      (
+        key
+      ) =>
+        !OWNER_ONLY_PERMISSION_KEY_SET.has(
+          key
+        )
+    );
 
 
 export const MANAGED_PERMISSION_KEY_SET =

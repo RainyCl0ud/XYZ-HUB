@@ -5,6 +5,7 @@ import {
 import {
   canAccessModel,
   canAssignRole,
+  canInviteRole,
   hasPermission,
   isOwner,
   type AccessContext,
@@ -115,6 +116,15 @@ export async function getPeopleManagementOptions(
         )
     );
 
+  const inviteRoles =
+    roles.filter(
+      (role) =>
+        canInviteRole(
+          access,
+          role
+        )
+    );
+
   const isOwnerUser =
     isOwner(
       access
@@ -123,6 +133,8 @@ export async function getPeopleManagementOptions(
   return {
     roles:
       assignableRoles,
+
+    inviteRoles,
 
     models:
       assignableModels,
@@ -144,6 +156,14 @@ export async function getPeopleManagementOptions(
           access,
           "people.create"
         ),
+
+      canInvitePeople:
+        hasPermission(
+          access,
+          "people.create"
+        ) &&
+        inviteRoles.length >
+          0,
 
       canAssignRoles:
         hasPermission(

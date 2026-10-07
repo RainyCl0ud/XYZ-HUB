@@ -7,6 +7,7 @@ import {
 } from "../lib/prisma.js";
 
 import {
+  OWNER_ONLY_PERMISSION_KEY_SET,
   PERMISSION_DEPENDENCIES,
 } from "../permissions/permission-catalog.js";
 
@@ -286,6 +287,16 @@ export function hasPermission(
   access: AccessContext,
   permissionKey: string
 ): boolean {
+  if (
+    OWNER_ONLY_PERMISSION_KEY_SET.has(
+      permissionKey
+    )
+  ) {
+    return isOwner(
+      access
+    );
+  }
+
   return hasPermissionWithDependencies(
     access,
     permissionKey,
@@ -399,6 +410,35 @@ export function canAssignRole(
   return canManageRoleTarget(
     access,
     targetRole
+  );
+}
+
+
+export function canInviteRole(
+  access: AccessContext,
+  targetRole: {
+    systemKey: string | null;
+    rank: number | null;
+  }
+): boolean {
+  if (
+    !hasPermission(
+      access,
+      "people.create"
+    ) ||
+    access.highestRank ===
+      null ||
+    access.highestRank >=
+      4 ||
+    targetRole.rank ===
+      null
+  ) {
+    return false;
+  }
+
+  return (
+    targetRole.rank >
+    access.highestRank
   );
 }
 
