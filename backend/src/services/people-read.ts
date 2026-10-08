@@ -52,6 +52,7 @@ const personReadArgs =
       name: true,
       email: true,
       status: true,
+      avatarUpdatedAt: true,
 
       createdAt: true,
       emailVerifiedAt: true,
@@ -459,6 +460,9 @@ function formatPerson(
 
     status:
       person.status,
+
+    avatarUpdatedAt:
+      person.avatarUpdatedAt,
 
     createdAt:
       person.createdAt,

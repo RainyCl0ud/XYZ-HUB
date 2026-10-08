@@ -974,6 +974,7 @@ router.get(
             email: true,
             status: true,
             lastSignInAt: true,
+            avatarUpdatedAt: true,
           },
         });
 
