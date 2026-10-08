@@ -147,9 +147,9 @@ export function renderBrandedTransactionalEmail(
     input.code
       ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0;">
           <tr>
-            <td style="padding:14px 16px;border-left:3px solid #ffffff;background:#111111;">
-              <div style="margin:0 0 7px;color:#8a8a8a;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;">Verification code</div>
-              <div class="xyz-verification-code" dir="ltr" style="-webkit-user-select:all;user-select:all;white-space:nowrap;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:6px;line-height:1.2;">${escapeEmailHtml(
+            <td align="center" style="padding:14px 16px;border-left:3px solid #ffffff;background:#111111;text-align:center;">
+              <div style="margin:0 0 7px;color:#8a8a8a;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:1.4px;text-align:center;text-transform:uppercase;">Verification code</div>
+              <div class="xyz-verification-code" dir="ltr" style="-webkit-user-select:all;user-select:all;white-space:nowrap;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:6px;line-height:1.2;text-align:center;">${escapeEmailHtml(
                 input.code
               )}</div>
             </td>
