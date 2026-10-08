@@ -30,6 +30,28 @@ const BRAND_NAME =
 const BRAND_SUBTITLE =
   "Management Hub";
 
+function getBrandLogoUrl():
+  string | null {
+  const configuredLogoUrl =
+    process.env.EMAIL_LOGO_URL?.trim();
+
+  if (configuredLogoUrl) {
+    return configuredLogoUrl;
+  }
+
+  const frontendUrl =
+    process.env.FRONTEND_URL?.trim();
+
+  if (!frontendUrl) {
+    return null;
+  }
+
+  return `${frontendUrl.replace(
+    /\/+$/,
+    ""
+  )}/xyz-management-logo.svg`;
+}
+
 function detailRows(
   details:
     BrandedEmailDetail[]
@@ -47,10 +69,10 @@ function detailRows(
         detail
       ) =>
         `<tr>
-          <td style="padding:8px 0;color:#8d8d96;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.45;vertical-align:top;width:110px;">${escapeEmailHtml(
+          <td style="padding:7px 0;color:#8a8a8a;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.5;vertical-align:top;width:110px;text-transform:uppercase;letter-spacing:.7px;">${escapeEmailHtml(
           detail.label
         )}</td>
-          <td style="padding:8px 0;color:#e9e9ed;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;line-height:1.45;vertical-align:top;">${escapeEmailHtml(
+          <td style="padding:7px 0;color:#f1f1f1;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;line-height:1.5;vertical-align:top;">${escapeEmailHtml(
           detail.value
         )}</td>
         </tr>`
@@ -79,9 +101,19 @@ export function renderBrandedTransactionalEmail(
       input.title
     );
 
+  const logoUrl =
+    getBrandLogoUrl();
+
+  const logo =
+    logoUrl
+      ? `<img src="${escapeEmailHtml(
+          logoUrl
+        )}" width="150" alt="XYZ Management" style="display:block;width:150px;max-width:150px;height:auto;border:0;outline:none;text-decoration:none;">`
+      : `<div style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;">XYZ Management</div>`;
+
   const greeting =
     input.greeting
-      ? `<p style="margin:0 0 12px;color:#f4f4f6;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;line-height:1.6;">${escapeEmailHtml(
+      ? `<p style="margin:0 0 14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;line-height:1.6;">${escapeEmailHtml(
           input.greeting
         )}</p>`
       : "";
@@ -93,30 +125,32 @@ export function renderBrandedTransactionalEmail(
 
   const action =
     input.action
-      ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:22px auto 0;">
+      ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0;">
           <tr>
-            <td align="center" bgcolor="#e8d8b2" style="border-radius:8px;">
+            <td align="center" bgcolor="#ffffff" style="background:#ffffff;border:1px solid #ffffff;">
               <a href="${escapeEmailHtml(
                 input.action.url
-              )}" style="display:inline-block;padding:13px 22px;color:#18181b;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;line-height:1;text-decoration:none;">${escapeEmailHtml(
+              )}" style="display:inline-block;padding:12px 18px;color:#000000;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:800;line-height:1.2;text-decoration:none;">${escapeEmailHtml(
                 input.action.label
-              )}</a>
+              )}&nbsp;→</a>
             </td>
           </tr>
         </table>
-        <p style="margin:18px 0 0;color:#797982;font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.55;text-align:center;">If the button does not work, copy and paste this secure link into your browser:</p>
-        <p style="margin:6px 0 0;color:#b9aa85;font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.55;text-align:center;word-break:break-all;">${escapeEmailHtml(
+        <p style="margin:16px 0 0;color:#777777;font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.55;">If the button does not work, open this secure link:</p>
+        <p style="margin:5px 0 0;color:#bdbdbd;font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.55;word-break:break-all;"><a href="${escapeEmailHtml(
           input.action.url
-        )}</p>`
+        )}" style="color:#d7d7d7;text-decoration:underline;">${escapeEmailHtml(
+          input.action.url
+        )}</a></p>`
       : "";
 
   const code =
     input.code
-      ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0 0;">
+      ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0;">
           <tr>
-            <td align="center" style="padding:18px;border:1px solid #3b3933;border-radius:10px;background:#161618;">
-              <div style="margin:0 0 7px;color:#8d8d96;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;">Verification code</div>
-              <div class="xyz-verification-code" dir="ltr" style="-webkit-user-select:all;user-select:all;white-space:nowrap;color:#e8d8b2;font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:7px;line-height:1.2;">${escapeEmailHtml(
+            <td style="padding:14px 16px;border-left:3px solid #ffffff;background:#111111;">
+              <div style="margin:0 0 7px;color:#8a8a8a;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;">Verification code</div>
+              <div class="xyz-verification-code" dir="ltr" style="-webkit-user-select:all;user-select:all;white-space:nowrap;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:6px;line-height:1.2;">${escapeEmailHtml(
                 input.code
               )}</div>
             </td>
@@ -128,7 +162,7 @@ export function renderBrandedTransactionalEmail(
     input.details &&
     input.details.length >
       0
-      ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0 0;padding-top:8px;border-top:1px solid #303034;">
+      ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0 0;padding-top:8px;border-top:1px solid #2a2a2a;">
           ${detailRows(
             input.details
           )}
@@ -137,13 +171,9 @@ export function renderBrandedTransactionalEmail(
 
   const notice =
     input.notice
-      ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0 0;">
-          <tr>
-            <td style="padding:12px 14px;border-left:3px solid #e8d8b2;background:#202023;color:#aaaab2;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.6;">${escapeEmailHtml(
-              input.notice
-            )}</td>
-          </tr>
-        </table>`
+      ? `<p style="margin:22px 0 0;padding-top:16px;border-top:1px solid #2a2a2a;color:#8f8f8f;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.65;">${escapeEmailHtml(
+          input.notice
+        )}</p>`
       : "";
 
   return `<!doctype html>
@@ -151,78 +181,67 @@ export function renderBrandedTransactionalEmail(
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="color-scheme" content="light">
-    <meta name="supported-color-schemes" content="light">
+    <meta name="color-scheme" content="dark">
+    <meta name="supported-color-schemes" content="dark">
     <title>${title}</title>
     <style>
       @media screen and (max-width: 600px) {
         .xyz-email-outer {
-          padding: 16px 10px !important;
-        }
-
-        .xyz-email-card {
-          width: 100% !important;
-          border-radius: 12px !important;
-        }
-
-        .xyz-email-header {
-          padding: 24px 20px 20px !important;
+          padding: 12px !important;
         }
 
         .xyz-email-content {
-          padding: 24px 20px !important;
+          padding: 26px 22px !important;
+        }
+
+        .xyz-email-header {
+          padding: 28px 22px 0 !important;
         }
 
         .xyz-verification-code {
-          font-size: 30px !important;
-          letter-spacing: 5px !important;
+          font-size: 27px !important;
+          letter-spacing: 4px !important;
         }
       }
     </style>
   </head>
-  <body style="margin:0;padding:0;background:#e7e5e1;">
+  <body style="margin:0;padding:0;background:#000000;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div>
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#e7e5e1" style="width:100%;background:#e7e5e1;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#000000" style="width:100%;background:#000000;">
       <tr>
-        <td class="xyz-email-outer" align="center" style="padding:34px 14px;">
-          <table class="xyz-email-card" role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px;border:1px solid #303034;border-radius:14px;background:#1b1b1e;overflow:hidden;">
+        <td class="xyz-email-outer" align="center" style="padding:28px 14px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px;border:1px solid #2d2d2d;background:#000000;">
             <tr>
-              <td class="xyz-email-header" align="center" style="padding:28px 28px 22px;border-bottom:1px solid #303034;">
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-                  <tr>
-                    <td align="center" valign="middle" style="width:48px;height:48px;border:1px solid #49463e;border-radius:999px;background:#232326;color:#e8d8b2;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:800;letter-spacing:1px;">
-                      XYZ
-                    </td>
-                  </tr>
-                </table>
-
-                <div style="margin-top:12px;color:#f5f5f6;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">${BRAND_NAME}</div>
-                <div style="margin-top:4px;color:#777780;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;">${BRAND_SUBTITLE}</div>
+              <td class="xyz-email-header" align="center" style="padding:30px 30px 0;">
+                ${logo}
               </td>
             </tr>
 
             <tr>
-              <td class="xyz-email-content" style="padding:30px 30px 28px;">
-                <div style="margin:0 0 9px;color:#e8d8b2;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;">${eyebrow}</div>
-                <h1 style="margin:0;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.4px;line-height:1.25;">${title}</h1>
+              <td class="xyz-email-content" style="padding:30px;">
+                <div style="margin:0 0 8px;color:#9a9a9a;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">${BRAND_NAME} · ${eyebrow}</div>
+                <h1 style="margin:0;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:800;letter-spacing:-0.35px;line-height:1.25;">${title}</h1>
 
-                <div style="margin-top:19px;">
-                  ${greeting}
-                  <p style="margin:0;color:#b7b7bf;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.7;">${intro}</p>
-                </div>
+                <div style="margin:14px 0 22px;border-top:1px solid #6a6a6a;font-size:0;line-height:0;">&nbsp;</div>
+
+                ${greeting}
+                <p style="margin:0;color:#d0d0d0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.7;">${intro}</p>
 
                 ${code}
                 ${action}
                 ${details}
                 ${notice}
+
+                <p style="margin:24px 0 0;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;line-height:1.6;">— The XYZ Management Team</p>
               </td>
             </tr>
 
             <tr>
-              <td align="center" style="padding:18px 24px;border-top:1px solid #303034;background:#171719;">
-                <div style="color:#777780;font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.55;">${BRAND_NAME} · ${BRAND_SUBTITLE}</div>
-                <div style="margin-top:4px;color:#5f5f67;font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.55;">This is an automated account and security message.</div>
+              <td style="padding:0 30px 24px;">
+                <div style="border-top:1px solid #2d2d2d;font-size:0;line-height:0;">&nbsp;</div>
+                <p style="margin:14px 0 0;color:#6f6f6f;font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.55;">${BRAND_NAME} · ${BRAND_SUBTITLE}</p>
+                <p style="margin:4px 0 0;color:#5d5d5d;font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.55;">This is an automated message from XYZ Management.</p>
               </td>
             </tr>
           </table>
