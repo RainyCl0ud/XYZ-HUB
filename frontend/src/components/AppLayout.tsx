@@ -24,6 +24,12 @@ import {
   MODEL_CONTEXT_CHANGED_EVENT,
 } from "../lib/api";
 
+import {
+  getCurrentUserAvatarUrl,
+} from "../lib/profile-avatar";
+
+import UserAvatar from "./UserAvatar";
+
 import xyzManagementLogo from "../assets/xyz-management-logo.svg";
 
 import "./PortalAccess.css";
@@ -92,55 +98,6 @@ const PAGE_TITLES:
   "/account":
     "My Account",
 };
-
-function getInitials(
-  name:
-    string |
-    undefined
-) {
-  if (
-    !name
-  ) {
-    return "U";
-  }
-
-  const parts =
-    name
-      .trim()
-      .split(
-        /\s+/
-      )
-      .filter(
-        Boolean
-      );
-
-  if (
-    parts.length ===
-      0
-  ) {
-    return "U";
-  }
-
-  if (
-    parts.length ===
-      1
-  ) {
-    return parts[0]
-      .slice(
-        0,
-        2
-      )
-      .toUpperCase();
-  }
-
-  return (
-    parts[0][0] +
-    parts[
-      parts.length -
-        1
-    ][0]
-  ).toUpperCase();
-}
 
 function formatCentralClock(
   value:
@@ -947,11 +904,17 @@ function AppLayout() {
                 )
               }
             >
-              <span className="portal-account-avatar">
-                {getInitials(
+              <UserAvatar
+                name={
                   user?.name
-                )}
-              </span>
+                }
+                src={
+                  getCurrentUserAvatarUrl(
+                    user?.avatarUpdatedAt
+                  )
+                }
+                className="portal-account-avatar"
+              />
             </button>
 
             {accountMenuOpen && (
@@ -960,11 +923,17 @@ function AppLayout() {
                 role="menu"
               >
                 <div className="portal-account-dropdown-profile">
-                  <span className="portal-account-dropdown-avatar">
-                    {getInitials(
+                  <UserAvatar
+                    name={
                       user?.name
-                    )}
-                  </span>
+                    }
+                    src={
+                      getCurrentUserAvatarUrl(
+                        user?.avatarUpdatedAt
+                      )
+                    }
+                    className="portal-account-dropdown-avatar"
+                  />
 
                   <div>
                     <strong>

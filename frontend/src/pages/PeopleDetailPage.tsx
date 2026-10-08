@@ -26,6 +26,12 @@ import {
 } from "../auth/AuthContext";
 
 import {
+  getPersonAvatarUrl,
+} from "../lib/profile-avatar";
+
+import UserAvatar from "../components/UserAvatar";
+
+import {
   useToast,
 } from "../components/ToastProvider";
 
@@ -68,6 +74,7 @@ type Person = {
   name: string;
   email: string;
   status: PersonStatus;
+  avatarUpdatedAt: string | null;
   createdAt: string;
   emailVerifiedAt: string | null;
   deactivatedAt: string | null;
@@ -1295,36 +1302,51 @@ function PeopleDetailPage() {
       >
         <div className="people-detail-header people-profile-header">
           <div className="people-profile-identity">
-            <span className="page-eyebrow">
-              Employee profile
-            </span>
+            <UserAvatar
+              name={
+                person.name
+              }
+              src={
+                getPersonAvatarUrl(
+                  person.id,
+                  person.avatarUpdatedAt
+                )
+              }
+              className="people-profile-avatar"
+            />
 
-            <div className="people-profile-title-row">
-              <h3>
-                {person.name}
-              </h3>
+            <div className="people-profile-identity-copy">
+              <span className="page-eyebrow">
+                Employee profile
+              </span>
 
-              <div className="people-profile-role-badges">
-                {person.roles.map(
-                  (
-                    role
-                  ) => (
-                    <span
-                      key={
-                        role.id
-                      }
-                      className="people-profile-role-badge"
-                    >
-                      {role.name}
-                    </span>
-                  )
-                )}
+              <div className="people-profile-title-row">
+                <h3>
+                  {person.name}
+                </h3>
+
+                <div className="people-profile-role-badges">
+                  {person.roles.map(
+                    (
+                      role
+                    ) => (
+                      <span
+                        key={
+                          role.id
+                        }
+                        className="people-profile-role-badge"
+                      >
+                        {role.name}
+                      </span>
+                    )
+                  )}
+                </div>
               </div>
-            </div>
 
-            <p>
-              {person.email}
-            </p>
+              <p>
+                {person.email}
+              </p>
+            </div>
           </div>
 
         </div>

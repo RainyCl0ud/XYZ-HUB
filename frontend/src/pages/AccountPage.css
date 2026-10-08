@@ -174,3 +174,221 @@
     border-bottom: 0;
   }
 }
+
+
+/* =========================================================
+   PROFILE PICTURE
+   ========================================================= */
+
+.account-profile-avatar-button {
+  position: relative;
+  display: inline-flex;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.account-profile-avatar-button:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+}
+
+.account-profile-avatar-button .account-profile-avatar {
+  width: 100%;
+  height: 100%;
+  transition:
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.account-profile-avatar-edit {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: #000000;
+  color: #ffffff;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.account-profile-avatar-edit svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.account-profile-avatar-button:hover .account-profile-avatar-edit,
+.account-profile-avatar-button:focus-visible .account-profile-avatar-edit {
+  opacity: 1;
+}
+
+.account-profile-avatar-button:hover .account-profile-avatar {
+  border-color: var(--border-strong);
+  opacity: 0.82;
+}
+
+.account-avatar-overlay {
+  position: fixed;
+  inset: 0 0 var(--portal-footer-height) 0;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.76);
+}
+
+.account-avatar-modal {
+  width: min(100%, 470px);
+  max-height: calc(100dvh - var(--portal-footer-height) - 48px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface);
+}
+
+.account-avatar-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.account-avatar-modal-header h3 {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.account-avatar-modal-header p {
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.account-avatar-close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface-deep);
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.account-avatar-modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 26px 24px 22px;
+}
+
+.account-avatar-preview {
+  width: 154px;
+  height: 154px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--surface-deep);
+  color: var(--text);
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.account-avatar-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.account-avatar-select {
+  margin-top: 18px;
+}
+
+.account-avatar-help {
+  max-width: 330px;
+  margin: 10px 0 0;
+  color: var(--text-soft);
+  font-size: 9.5px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.account-avatar-error {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.account-avatar-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.account-avatar-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-avatar-remove {
+  color: var(--danger-strong);
+}
+
+@media (max-width: 720px) {
+  .account-profile-avatar-button {
+    width: 58px;
+    height: 58px;
+  }
+
+  .account-profile-avatar-edit {
+    opacity: 1;
+  }
+
+  .account-avatar-overlay {
+    align-items: flex-start;
+    padding: 16px 12px;
+  }
+
+  .account-avatar-modal-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-avatar-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .account-avatar-modal-footer button {
+    width: 100%;
+  }
+}

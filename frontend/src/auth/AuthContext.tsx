@@ -22,6 +22,7 @@ type AuthUser = {
   email: string;
   status: string;
   lastSignInAt: string | null;
+  avatarUpdatedAt: string | null;
 };
 
 type AuthRole = {

@@ -1929,3 +1929,35 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Employee profile picture */
+.people-profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.people-profile-identity-copy {
+  min-width: 0;
+}
+
+.people-profile-avatar {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface-deep);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+@media (max-width: 620px) {
+  .people-profile-avatar {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+  }
+}
