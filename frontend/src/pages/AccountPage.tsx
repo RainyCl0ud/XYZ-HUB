@@ -158,9 +158,13 @@ function AccountPage() {
     }
   }
 
-  function closeAvatarEditor() {
+  function closeAvatarEditor(
+    force =
+      false
+  ) {
     if (
-      avatarSaving
+      avatarSaving &&
+      !force
     ) {
       return;
     }
@@ -215,6 +219,18 @@ function AccountPage() {
       setPendingAvatar(
         null
       );
+
+      if (
+        previewUrl
+      ) {
+        URL.revokeObjectURL(
+          previewUrl
+        );
+
+        setPreviewUrl(
+          null
+        );
+      }
 
       setAvatarError(
         error instanceof
@@ -272,7 +288,9 @@ function AccountPage() {
         false
       );
 
-      closeAvatarEditor();
+      closeAvatarEditor(
+        true
+      );
     } catch (error) {
       setAvatarError(
         error instanceof
@@ -323,7 +341,9 @@ function AccountPage() {
         false
       );
 
-      closeAvatarEditor();
+      closeAvatarEditor(
+        true
+      );
     } catch (error) {
       setAvatarError(
         error instanceof

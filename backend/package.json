@@ -48,7 +48,8 @@
     "test:step1:email-template": "tsx scripts/test-transactional-email-template.ts",
     "test:step1:team-hierarchy": "tsx scripts/test-team-hierarchy.ts",
     "test:step1:people-hierarchy": "tsx scripts/test-people-hierarchy-authorization.ts",
-    "test:step1:strike-domain": "tsx scripts/test-strike-domain-foundation.ts"
+    "test:step1:strike-domain": "tsx scripts/test-strike-domain-foundation.ts",
+    "test:profile-avatar": "tsx scripts/test-profile-avatar.ts"
   },
   "keywords": [],
   "author": "",

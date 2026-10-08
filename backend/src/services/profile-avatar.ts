@@ -91,6 +91,27 @@ function readWebpDimensions(
     return null;
   }
 
+  const declaredRiffSize =
+    buffer.readUInt32LE(
+      4
+    );
+
+  if (
+    declaredRiffSize +
+      8 !==
+    buffer.length
+  ) {
+    return null;
+  }
+
+  let canvasDimensions:
+    | {
+        width: number;
+        height: number;
+      }
+    | null =
+    null;
+
   let offset =
     12;
 
@@ -133,19 +154,20 @@ function readWebpDimensions(
       chunkSize >=
         10
     ) {
-      return {
-        width:
-          readUInt24LE(
-            buffer,
-            dataStart + 4
-          ) + 1,
+      canvasDimensions =
+        {
+          width:
+            readUInt24LE(
+              buffer,
+              dataStart + 4
+            ) + 1,
 
-        height:
-          readUInt24LE(
-            buffer,
-            dataStart + 7
-          ) + 1,
-      };
+          height:
+            readUInt24LE(
+              buffer,
+              dataStart + 7
+            ) + 1,
+        };
     }
 
     if (
@@ -165,19 +187,34 @@ function readWebpDimensions(
         return null;
       }
 
-      return {
-        width:
-          buffer.readUInt16LE(
-            dataStart + 6
-          ) &
-          0x3fff,
+      const dimensions =
+        {
+          width:
+            buffer.readUInt16LE(
+              dataStart + 6
+            ) &
+            0x3fff,
 
-        height:
-          buffer.readUInt16LE(
-            dataStart + 8
-          ) &
-          0x3fff,
-      };
+          height:
+            buffer.readUInt16LE(
+              dataStart + 8
+            ) &
+            0x3fff,
+        };
+
+      if (
+        canvasDimensions &&
+        (
+          canvasDimensions.width !==
+            dimensions.width ||
+          canvasDimensions.height !==
+            dimensions.height
+        )
+      ) {
+        return null;
+      }
+
+      return dimensions;
     }
 
     if (
@@ -198,22 +235,37 @@ function readWebpDimensions(
           dataStart + 1
         );
 
-      return {
-        width:
-          (
-            bits &
-            0x3fff
-          ) + 1,
-
-        height:
-          (
+      const dimensions =
+        {
+          width:
             (
-              bits >>>
-              14
-            ) &
-            0x3fff
-          ) + 1,
-      };
+              bits &
+              0x3fff
+            ) + 1,
+
+          height:
+            (
+              (
+                bits >>>
+                14
+              ) &
+              0x3fff
+            ) + 1,
+        };
+
+      if (
+        canvasDimensions &&
+        (
+          canvasDimensions.width !==
+            dimensions.width ||
+          canvasDimensions.height !==
+            dimensions.height
+        )
+      ) {
+        return null;
+      }
+
+      return dimensions;
     }
 
     offset =
