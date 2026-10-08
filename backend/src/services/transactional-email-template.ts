@@ -27,9 +27,6 @@ export type BrandedTransactionalEmailInput = {
 const BRAND_NAME =
   "XYZ Management";
 
-const BRAND_SUBTITLE =
-  "Management Hub";
-
 function getBrandLogoUrl():
   string | null {
   const configuredLogoUrl =
@@ -69,12 +66,14 @@ function detailRows(
         detail
       ) =>
         `<tr>
-          <td style="padding:7px 0;color:#8a8a8a;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.5;vertical-align:top;width:110px;text-transform:uppercase;letter-spacing:.7px;">${escapeEmailHtml(
-          detail.label
-        )}</td>
-          <td style="padding:7px 0;color:#f1f1f1;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;line-height:1.5;vertical-align:top;">${escapeEmailHtml(
-          detail.value
-        )}</td>
+          <td style="padding:7px 0;color:#d0d0d0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;vertical-align:top;">
+            <span style="color:#8a8a8a;font-size:11px;text-transform:uppercase;letter-spacing:.7px;">${escapeEmailHtml(
+              detail.label
+            )}:</span>
+            <strong style="color:#f1f1f1;font-weight:700;"> ${escapeEmailHtml(
+              detail.value
+            )}</strong>
+          </td>
         </tr>`
     )
     .join(
@@ -205,10 +204,10 @@ export function renderBrandedTransactionalEmail(
       }
     </style>
   </head>
-  <body style="margin:0;padding:0;background:#000000;">
+  <body style="margin:0;padding:0;background:#f5f3ee;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div>
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#000000" style="width:100%;background:#000000;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f5f3ee" style="width:100%;background:#f5f3ee;">
       <tr>
         <td class="xyz-email-outer" align="center" style="padding:28px 14px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px;border:1px solid #2d2d2d;background:#000000;">
@@ -240,8 +239,7 @@ export function renderBrandedTransactionalEmail(
             <tr>
               <td style="padding:0 30px 24px;">
                 <div style="border-top:1px solid #2d2d2d;font-size:0;line-height:0;">&nbsp;</div>
-                <p style="margin:14px 0 0;color:#6f6f6f;font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.55;">${BRAND_NAME} · ${BRAND_SUBTITLE}</p>
-                <p style="margin:4px 0 0;color:#5d5d5d;font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.55;">This is an automated message from XYZ Management.</p>
+                <p style="margin:14px 0 0;color:#5d5d5d;font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.55;">This is an automated message from XYZ Management.</p>
               </td>
             </tr>
           </table>
