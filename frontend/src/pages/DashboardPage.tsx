@@ -23,6 +23,12 @@ import {
   PEOPLE_CHANGED_EVENT,
 } from "../lib/api";
 
+import {
+  getPersonAvatarUrl,
+} from "../lib/profile-avatar";
+
+import UserAvatar from "../components/UserAvatar";
+
 import "./DashboardPage.css";
 
 type PersonStatus =
@@ -35,6 +41,7 @@ type Person = {
   name: string;
   email: string;
   status: PersonStatus;
+  avatarUpdatedAt: string | null;
   createdAt: string;
   roles: {
     id: string;
@@ -609,14 +616,18 @@ function DashboardPage() {
                       }
                       className="agency-people-row"
                     >
-                      <div className="agency-person-avatar">
-                        {person.name
-                          .trim()
-                          .charAt(
-                            0
+                      <UserAvatar
+                        name={
+                          person.name
+                        }
+                        src={
+                          getPersonAvatarUrl(
+                            person.id,
+                            person.avatarUpdatedAt
                           )
-                          .toUpperCase()}
-                      </div>
+                        }
+                        className="agency-person-avatar"
+                      />
 
                       <div className="agency-person-copy">
                         <strong>
