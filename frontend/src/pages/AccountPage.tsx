@@ -533,8 +533,8 @@ function AccountPage() {
                 type="button"
                 className="account-avatar-close"
                 aria-label="Close profile picture editor"
-                onClick={
-                  closeAvatarEditor
+                onClick={() =>
+                  closeAvatarEditor()
                 }
                 disabled={
                   avatarSaving
@@ -617,8 +617,8 @@ function AccountPage() {
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={
-                    closeAvatarEditor
+                  onClick={() =>
+                    closeAvatarEditor()
                   }
                   disabled={
                     avatarSaving
