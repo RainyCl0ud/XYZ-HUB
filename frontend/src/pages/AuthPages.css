@@ -63,7 +63,7 @@
   border: 1px solid var(--border);
   border-radius: 2px;
 
-  background: var(--surface);
+  background: #000000;
 
   box-shadow: none;
 }

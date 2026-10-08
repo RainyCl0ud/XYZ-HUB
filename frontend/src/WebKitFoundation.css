@@ -269,7 +269,7 @@ a:focus-visible {
 }
 
 .auth-card {
-  background: var(--surface);
+  background: #000000;
   border-color: var(--border);
   box-shadow: none;
 }
