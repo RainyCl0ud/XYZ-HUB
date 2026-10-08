@@ -65,6 +65,10 @@ import {
   getPeopleManagementOptions,
 } from "../services/people-options.js";
 
+import {
+  getProfileAvatar,
+} from "../services/profile-avatar.js";
+
 const router =
   Router();
 
@@ -284,6 +288,160 @@ router.get(
 
         message:
           "Unable to load People Management options.",
+      });
+    }
+  }
+);
+
+
+/*
+ * =========================================================
+ * GET /api/people/:userId/avatar
+ * =========================================================
+ *
+ * Uses the same visibility rules as the employee profile.
+ * The image itself remains read-only to other users.
+ */
+router.get(
+  "/:userId/avatar",
+
+  requireAuth,
+
+  requirePermission(
+    "people.profile.view"
+  ),
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const userId =
+      Array.isArray(
+        req.params.userId
+      )
+        ? req.params.userId[0]
+        : req.params.userId;
+
+    if (!userId) {
+      res.status(400).json({
+        error:
+          "INVALID_USER_ID",
+      });
+
+      return;
+    }
+
+    try {
+      /*
+       * Reuse People visibility authorization before
+       * exposing even the employee's profile picture.
+       */
+      await getPersonDetail(
+        userId,
+        req.access
+      );
+
+      const avatar =
+        await getProfileAvatar(
+          userId
+        );
+
+      if (
+        !avatar ||
+        !avatar.avatarImage ||
+        !avatar.avatarMimeType
+      ) {
+        res.status(404).json({
+          error:
+            "PROFILE_AVATAR_NOT_FOUND",
+        });
+
+        return;
+      }
+
+      const image =
+        Buffer.from(
+          avatar.avatarImage
+        );
+
+      res.setHeader(
+        "Content-Type",
+        avatar.avatarMimeType
+      );
+
+      res.setHeader(
+        "Content-Length",
+        String(
+          image.length
+        )
+      );
+
+      res.setHeader(
+        "Cache-Control",
+        "private, max-age=3600"
+      );
+
+      res.setHeader(
+        "X-Content-Type-Options",
+        "nosniff"
+      );
+
+      res.status(200).send(
+        image
+      );
+    } catch (error) {
+      if (
+        error instanceof
+        PeopleReadError
+      ) {
+        switch (
+          error.code
+        ) {
+          case "PEOPLE_ACCESS_REQUIRED":
+          case "PERSON_NOT_VISIBLE":
+            res.status(403).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+
+          case "USER_NOT_FOUND":
+            res.status(404).json({
+              error:
+                error.code,
+
+              message:
+                error.message,
+            });
+
+            return;
+        }
+      }
+
+      console.error(
+        "Employee profile picture request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "PROFILE_AVATAR_LOAD_FAILED",
+
+        message:
+          "Unable to load the profile picture.",
       });
     }
   }

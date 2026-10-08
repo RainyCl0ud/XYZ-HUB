@@ -1,5 +1,6 @@
 import {
   Router,
+  raw,
 } from "express";
 
 import {
@@ -53,6 +54,15 @@ import {
 import {
   sendEmailTwoFactorCode,
 } from "../services/two-factor-delivery.js";
+
+import {
+  getProfileAvatar,
+  PROFILE_AVATAR_MAX_BYTES,
+  ProfileAvatarError,
+  removeProfileAvatar,
+  saveProfileAvatar,
+  validateProfileAvatar,
+} from "../services/profile-avatar.js";
 
 const router =
   Router();
@@ -938,6 +948,231 @@ router.post(
  * roles
  * permissions
  * model assignments
+ */
+/*
+ * =========================================================
+ * PROFILE PICTURE
+ * =========================================================
+ *
+ * Profile-picture writes are self-service only.
+ * The browser sends a processed 512x512 WebP image;
+ * the backend independently validates its type, size,
+ * container signature, and dimensions before storage.
+ */
+
+router.get(
+  "/avatar",
+
+  requireAuth,
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.userId) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    try {
+      const avatar =
+        await getProfileAvatar(
+          req.userId
+        );
+
+      if (
+        !avatar ||
+        !avatar.avatarImage ||
+        !avatar.avatarMimeType
+      ) {
+        res.status(404).json({
+          error:
+            "PROFILE_AVATAR_NOT_FOUND",
+        });
+
+        return;
+      }
+
+      const image =
+        Buffer.from(
+          avatar.avatarImage
+        );
+
+      res.setHeader(
+        "Content-Type",
+        avatar.avatarMimeType
+      );
+
+      res.setHeader(
+        "Content-Length",
+        String(
+          image.length
+        )
+      );
+
+      res.setHeader(
+        "Cache-Control",
+        "private, max-age=3600"
+      );
+
+      res.setHeader(
+        "X-Content-Type-Options",
+        "nosniff"
+      );
+
+      res.status(200).send(
+        image
+      );
+    } catch (error) {
+      console.error(
+        "Unable to load profile picture:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "PROFILE_AVATAR_LOAD_FAILED",
+      });
+    }
+  }
+);
+
+router.put(
+  "/avatar",
+
+  requireAuth,
+
+  raw({
+    type:
+      "image/webp",
+
+    limit:
+      PROFILE_AVATAR_MAX_BYTES,
+  }),
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.userId) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    try {
+      const image =
+        validateProfileAvatar(
+          req.body,
+          req.headers[
+            "content-type"
+          ]
+        );
+
+      const result =
+        await saveProfileAvatar(
+          req.userId,
+          image
+        );
+
+      res.status(200).json({
+        status:
+          "PROFILE_AVATAR_UPDATED",
+
+        avatarUpdatedAt:
+          result.avatarUpdatedAt,
+      });
+    } catch (error) {
+      if (
+        error instanceof
+        ProfileAvatarError
+      ) {
+        res.status(400).json({
+          error:
+            error.code,
+
+          message:
+            error.message,
+        });
+
+        return;
+      }
+
+      console.error(
+        "Unable to update profile picture:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "PROFILE_AVATAR_UPDATE_FAILED",
+
+        message:
+          "Unable to update the profile picture.",
+      });
+    }
+  }
+);
+
+router.delete(
+  "/avatar",
+
+  requireAuth,
+
+  async (
+    req: AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.userId) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    try {
+      await removeProfileAvatar(
+        req.userId
+      );
+
+      res.status(200).json({
+        status:
+          "PROFILE_AVATAR_REMOVED",
+
+        avatarUpdatedAt:
+          null,
+      });
+    } catch (error) {
+      console.error(
+        "Unable to remove profile picture:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "PROFILE_AVATAR_REMOVE_FAILED",
+
+        message:
+          "Unable to remove the profile picture.",
+      });
+    }
+  }
+);
+
+
+/*
+ * =========================================================
+ * GET /api/auth/me
+ * =========================================================
  */
 router.get(
   "/me",
