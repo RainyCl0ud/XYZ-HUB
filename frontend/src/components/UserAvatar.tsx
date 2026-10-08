@@ -1,5 +1,4 @@
 import {
-  useEffect,
   useState,
 } from "react";
 
@@ -77,21 +76,19 @@ function UserAvatar({
   alt,
 }: UserAvatarProps) {
   const [
-    imageFailed,
-    setImageFailed,
+    failedSrc,
+    setFailedSrc,
   ] =
-    useState(false);
+    useState<string | null>(
+      null
+    );
 
-  useEffect(
-    () => {
-      setImageFailed(
-        false
-      );
-    },
-    [
-      src,
-    ]
-  );
+  const imageFailed =
+    Boolean(
+      src &&
+      failedSrc ===
+        src
+    );
 
   return (
     <span
@@ -108,8 +105,8 @@ function UserAvatar({
             `${name ?? "User"} profile picture`
           }
           onError={() =>
-            setImageFailed(
-              true
+            setFailedSrc(
+              src
             )
           }
         />
