@@ -957,6 +957,60 @@
   font-size: 9px;
 }
 
+.people-form-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 48px);
+}
+
+.people-form-modal .people-modal-header,
+.people-form-modal .people-modal-footer {
+  flex: 0 0 auto;
+}
+
+.people-form-modal .people-form-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.people-model-option.is-inactive {
+  border-color: rgba(229, 141, 135, 0.3);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(229, 141, 135, 0.045) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(229, 141, 135, 0.045) 50%,
+      rgba(229, 141, 135, 0.045) 75%,
+      transparent 75%,
+      transparent
+    ),
+    var(--surface-deep);
+  background-size: 12px 12px;
+}
+
+.people-model-option.is-inactive strong {
+  color: var(--text-muted);
+}
+
+.people-model-option .people-model-status-inactive {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.people-model-option.is-unavailable {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.people-model-option.is-unavailable input {
+  cursor: not-allowed;
+}
+
 .people-option-heading {
   display: flex;
   align-items: center;
@@ -1193,6 +1247,14 @@
 }
 
 @media (max-width: 560px) {
+  .people-overlay {
+    padding: 12px;
+  }
+
+  .people-form-modal {
+    max-height: calc(100dvh - 24px);
+  }
+
   .people-page-header .primary-button,
   .people-add-employee {
     width: 100%;

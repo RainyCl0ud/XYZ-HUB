@@ -1923,42 +1923,79 @@ function PeopleDetailPage() {
                   {options.models.map(
                     (
                       model
-                    ) => (
-                      <label
-                        key={
+                    ) => {
+                      const isAssigned =
+                        assignedModelIds.includes(
                           model.id
-                        }
-                        className="people-check-option"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={
-                            assignedModelIds.includes(
-                              model.id
+                        );
+
+                      const isUnavailable =
+                        !model.isActive &&
+                        !isAssigned;
+
+                      return (
+                        <label
+                          key={
+                            model.id
+                          }
+                          className={
+                            "people-check-option people-model-option" +
+                            (
+                              !model.isActive
+                                ? " is-inactive"
+                                : ""
+                            ) +
+                            (
+                              isUnavailable
+                                ? " is-unavailable"
+                                : ""
                             )
                           }
-                          onChange={() =>
-                            toggleSelection(
-                              assignedModelIds,
-                              model.id,
-                              setAssignedModelIds
-                            )
+                          aria-disabled={
+                            isUnavailable
+                              ? true
+                              : undefined
                           }
-                        />
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              isAssigned
+                            }
+                            disabled={
+                              isUnavailable
+                            }
+                            onChange={() =>
+                              toggleSelection(
+                                assignedModelIds,
+                                model.id,
+                                setAssignedModelIds
+                              )
+                            }
+                          />
 
-                        <span>
-                          <strong>
-                            {model.name}
-                          </strong>
+                          <span>
+                            <strong>
+                              {model.name}
+                            </strong>
 
-                          <small>
-                            {model.isActive
-                              ? "Active model"
-                              : "Inactive model"}
-                          </small>
-                        </span>
-                      </label>
-                    )
+                            <small
+                              className={
+                                model.isActive
+                                  ? undefined
+                                  : "people-model-status-inactive"
+                              }
+                            >
+                              {model.isActive
+                                ? "Active model"
+                                : isAssigned
+                                  ? "Inactive · currently assigned"
+                                  : "Inactive · unavailable for assignment"}
+                            </small>
+                          </span>
+                        </label>
+                      );
+                    }
                   )}
                 </div>
               </div>
