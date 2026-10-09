@@ -37,7 +37,7 @@ const defaultRoles = [
   },
   {
     systemKey: "QC",
-    name: "QC",
+    name: "Quality Control",
     rank: 4,
     dataScope: RoleDataScope.SELF_AND_TEAM,
   },
