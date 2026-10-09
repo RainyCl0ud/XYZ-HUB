@@ -630,15 +630,26 @@ async function main() {
     await expectRoleError(
       () =>
         archiveRole(
-          managerRole.id,
+          ownerRole.id,
           ownerAccess
         ),
       "SYSTEM_ROLE_ARCHIVE_FORBIDDEN"
     );
 
-    console.log(
-      "✓ default roles cannot be archived"
+    console.log("✓ Owner role cannot be archived");
+
+    const archivedManager = await archiveRole(
+      managerRole.id,
+      ownerAccess
     );
+    assert.equal(archivedManager.isArchived, true);
+    const restoredManager = await reactivateRole(
+      managerRole.id,
+      ownerAccess
+    );
+    assert.equal(restoredManager.isArchived, false);
+
+    console.log("✓ default non-Owner roles can be archived and reactivated");
 
     const reactivated =
       await reactivateRole(
