@@ -69,6 +69,13 @@ const personReadArgs =
       },
 
       roleMemberships: {
+        where: {
+          role: {
+            archivedAt:
+              null,
+          },
+        },
+
         orderBy: [
           {
             assignedAt:
