@@ -691,30 +691,46 @@ async function main() {
       "✓ direct-ID People mutations respect Owner-only and hierarchy authorization"
     );
 
-    const moved =
-      await updatePersonAccess(
-        {
-          userId:
+    await expectCode(
+      () =>
+        updatePersonAccess(
+          {
+            userId:
+              visibleChatter.id,
+            roleIds: [
+              chatterRole.id,
+            ],
+            modelIds: [
+              modelA.id,
+            ],
+            teamGroupId:
+              beta.id,
+          },
+          managerAccess
+        ),
+      PeopleAccessUpdateError,
+      "TEAM_GROUP_NOT_ASSIGNABLE"
+    );
+
+    const unchangedTeam =
+      await prisma.user.findUniqueOrThrow({
+        where: {
+          id:
             visibleChatter.id,
-          roleIds: [
-            chatterRole.id,
-          ],
-          modelIds: [
-            modelA.id,
-          ],
-          teamGroupId:
-            beta.id,
         },
-        managerAccess
-      );
+        select: {
+          teamGroupId:
+            true,
+        },
+      });
 
     assert.equal(
-      moved.teamGroup?.id,
-      beta.id
+      unchangedTeam.teamGroupId,
+      alpha.id
     );
 
     console.log(
-      "✓ a manager can move manageable staff between groups inside the same visible subtree"
+      "✓ team reassignment remains Owner-only even inside a manager's visible subtree"
     );
 
     console.log("");
