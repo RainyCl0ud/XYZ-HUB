@@ -365,6 +365,19 @@ async function main() {
 
     await expectRoleError(
       () =>
+        deleteRole(
+          customRole.id,
+          managerAccess
+        ),
+      "OWNER_REQUIRED"
+    );
+
+    console.log(
+      "✓ non-Owner cannot delete a custom role even through the role service"
+    );
+
+    await expectRoleError(
+      () =>
         createRole(
           {
             name:
