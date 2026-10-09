@@ -948,12 +948,11 @@ export async function archiveRole(
   }
 
   if (
-    role.isSystem ||
-    role.systemKey
+    role.systemKey === "OWNER"
   ) {
     throw new RoleManagementError(
       "SYSTEM_ROLE_ARCHIVE_FORBIDDEN",
-      "Default system roles cannot be archived."
+      "The Owner role cannot be archived."
     );
   }
 
@@ -1048,12 +1047,11 @@ export async function reactivateRole(
   }
 
   if (
-    role.isSystem ||
-    role.systemKey
+    role.systemKey === "OWNER"
   ) {
     throw new RoleManagementError(
       "SYSTEM_ROLE_ARCHIVE_FORBIDDEN",
-      "Default system roles cannot be archived or reactivated."
+      "The Owner role cannot be archived or reactivated."
     );
   }
 
