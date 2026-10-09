@@ -71,6 +71,15 @@ async function main() {
         ? RoleDataScope.ALL
         : RoleDataScope.SELF_AND_TEAM;
 
+      const permissions = new Set<string>([
+        "quality.access",
+        "quality.chatters.view",
+      ]);
+
+      if (systemKey === "OWNER" || systemKey === "MANAGER") {
+        permissions.add("quality.chatters.manage");
+      }
+
       return {
         userId: "route-test-actor",
         roles: [{
@@ -82,7 +91,7 @@ async function main() {
         }],
         highestRank: allModels ? 1 : 3,
         effectiveDataScope: dataScope,
-        permissions: new Set(),
+        permissions,
         assignedModelIds: allModels ? [] : [modelA],
         canSeeAllModels: allModels,
       };
