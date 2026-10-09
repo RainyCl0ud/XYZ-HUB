@@ -63,10 +63,10 @@ async function main() {
   const [
     ownerRole,
     managerRole,
-    peopleManage,
-    peopleDeactivate,
+    peopleAccess,
+    peopleStatusManage,
     peopleDelete,
-    auditView,
+    auditAccess,
   ] =
     await Promise.all([
       prisma.role.findUnique({
@@ -86,14 +86,14 @@ async function main() {
       prisma.permission.findUnique({
         where: {
           key:
-            "people.manage",
+            "people.access",
         },
       }),
 
       prisma.permission.findUnique({
         where: {
           key:
-            "people.deactivate",
+            "people.status.manage",
         },
       }),
 
@@ -107,17 +107,17 @@ async function main() {
       prisma.permission.findUnique({
         where: {
           key:
-            "audit.view",
+            "audit.access",
         },
       }),
     ]);
 
   assert.ok(ownerRole);
   assert.ok(managerRole);
-  assert.ok(peopleManage);
-  assert.ok(peopleDeactivate);
+  assert.ok(peopleAccess);
+  assert.ok(peopleStatusManage);
   assert.ok(peopleDelete);
-  assert.ok(auditView);
+  assert.ok(auditAccess);
 
   const owner =
     await prisma.user.create({
@@ -201,7 +201,7 @@ async function main() {
 
     assert.equal(
       builderPermissionKeys.has(
-        "people.deactivate"
+        "people.status.manage"
       ),
       false
     );
@@ -215,7 +215,7 @@ async function main() {
 
     assert.equal(
       builderPermissionKeys.has(
-        "audit.view"
+        "audit.access"
       ),
       false
     );
@@ -226,11 +226,11 @@ async function main() {
           role.permissions.some(
             (permission) =>
               permission.key ===
-                "people.deactivate" ||
+                "people.status.manage" ||
               permission.key ===
                 "people.delete" ||
               permission.key ===
-                "audit.view"
+                "audit.access"
           )
       ),
       false
@@ -251,7 +251,7 @@ async function main() {
             dataScope:
               RoleDataScope.SELF,
             permissionIds: [
-              peopleDeactivate.id,
+              peopleStatusManage.id,
               peopleDelete.id,
             ],
           },
@@ -275,7 +275,7 @@ async function main() {
             dataScope:
               RoleDataScope.SELF,
             permissionIds: [
-              auditView.id,
+              auditAccess.id,
             ],
           },
           ownerAccess
@@ -340,7 +340,7 @@ async function main() {
           dataScope:
             RoleDataScope.SELF,
           permissionIds: [
-            peopleManage.id,
+            peopleAccess.id,
           ],
         },
         ownerAccess
