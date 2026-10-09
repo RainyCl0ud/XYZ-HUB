@@ -90,6 +90,15 @@ async function runTests() {
       },
     });
 
+  await prisma.userModelAssignment.create({
+    data: {
+      userId:
+        owner.id,
+      modelId:
+        model.id,
+    },
+  });
+
   let invitedUserId:
     string | null =
       null;
