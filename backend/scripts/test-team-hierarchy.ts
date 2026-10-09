@@ -129,7 +129,7 @@ function createAccess(
 
     permissions:
       new Set([
-        "people.manage",
+        "people.access",
       ]),
 
     assignedModelIds:
