@@ -48,8 +48,9 @@ export class RoleManagementError
     | "INVALID_ROLE_RANK"
     | "INVALID_PERMISSIONS"
     | "OWNER_ROLE_IMMUTABLE"
-    | "SYSTEM_ROLE_DELETE_FORBIDDEN"
-    | "ROLE_IN_USE";
+    | "SYSTEM_ROLE_ARCHIVE_FORBIDDEN"
+    | "ROLE_ARCHIVED"
+    | "ROLE_NOT_ARCHIVED";
 
   constructor(
     code:
@@ -401,6 +402,9 @@ const roleSelect = {
   isSystem:
     true,
 
+  archivedAt:
+    true,
+
   createdAt:
     true,
 
@@ -460,6 +464,7 @@ type RoleWithBuilderData = {
   dataScope: RoleDataScope;
   landingPath: string | null;
   isSystem: boolean;
+  archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   rolePermissions: {
@@ -506,6 +511,12 @@ function serializeRole(
 
     isSystem:
       role.isSystem,
+
+    archivedAt:
+      role.archivedAt,
+
+    isArchived:
+      role.archivedAt !== null,
 
     affectedUserCount:
       role._count.userRoles,
@@ -759,6 +770,9 @@ export async function updateRole(
 
         isSystem:
           true,
+
+        archivedAt:
+          true,
       },
     });
 
@@ -778,6 +792,15 @@ export async function updateRole(
     throw new RoleManagementError(
       "OWNER_ROLE_IMMUTABLE",
       "The Owner role is managed by the system and cannot be edited."
+    );
+  }
+
+  if (
+    existingRole.archivedAt
+  ) {
+    throw new RoleManagementError(
+      "ROLE_ARCHIVED",
+      "Reactivate this role before editing it."
     );
   }
 
@@ -866,7 +889,7 @@ export async function updateRole(
   );
 }
 
-export async function deleteRole(
+export async function archiveRole(
   roleId:
     string,
   access:
@@ -879,7 +902,7 @@ export async function deleteRole(
   ) {
     throw new RoleManagementError(
       "OWNER_REQUIRED",
-      "Only an Owner can delete a role."
+      "Only an Owner can archive a role."
     );
   }
 
@@ -901,6 +924,9 @@ export async function deleteRole(
           true,
 
         systemKey:
+          true,
+
+        archivedAt:
           true,
 
         _count: {
@@ -926,34 +952,149 @@ export async function deleteRole(
     role.systemKey
   ) {
     throw new RoleManagementError(
-      "SYSTEM_ROLE_DELETE_FORBIDDEN",
-      "Default system roles cannot be deleted."
+      "SYSTEM_ROLE_ARCHIVE_FORBIDDEN",
+      "Default system roles cannot be archived."
     );
   }
 
   if (
-    role._count.userRoles >
-    0
+    role.archivedAt
   ) {
     throw new RoleManagementError(
-      "ROLE_IN_USE",
-      role._count.userRoles +
-        " people still hold this role. Remove the role from those people before deleting it."
+      "ROLE_ARCHIVED",
+      "This role is already archived."
     );
   }
 
-  await prisma.role.delete({
-    where: {
-      id:
-        roleId,
-    },
+  const archived =
+    await prisma.role.update({
+      where: {
+        id:
+          role.id,
+      },
+
+      data: {
+        archivedAt:
+          new Date(),
+      },
+
+      select:
+        roleSelect,
+    });
+
+  publishLiveUpdate({
+    type:
+      "access.changed",
+    roleId:
+      role.id,
   });
 
-  return {
-    id:
-      role.id,
+  publishLiveUpdate({
+    type:
+      "people.changed",
+  });
 
-    name:
-      role.name,
-  };
+  return serializeRole(
+    archived
+  );
+}
+
+export async function reactivateRole(
+  roleId:
+    string,
+  access:
+    AccessContext
+) {
+  if (
+    !isOwner(
+      access
+    )
+  ) {
+    throw new RoleManagementError(
+      "OWNER_REQUIRED",
+      "Only an Owner can reactivate a role."
+    );
+  }
+
+  const role =
+    await prisma.role.findUnique({
+      where: {
+        id:
+          roleId,
+      },
+
+      select: {
+        id:
+          true,
+
+        isSystem:
+          true,
+
+        systemKey:
+          true,
+
+        archivedAt:
+          true,
+      },
+    });
+
+  if (
+    !role
+  ) {
+    throw new RoleManagementError(
+      "ROLE_NOT_FOUND",
+      "Role not found."
+    );
+  }
+
+  if (
+    role.isSystem ||
+    role.systemKey
+  ) {
+    throw new RoleManagementError(
+      "SYSTEM_ROLE_ARCHIVE_FORBIDDEN",
+      "Default system roles cannot be archived or reactivated."
+    );
+  }
+
+  if (
+    !role.archivedAt
+  ) {
+    throw new RoleManagementError(
+      "ROLE_NOT_ARCHIVED",
+      "This role is already active."
+    );
+  }
+
+  const reactivated =
+    await prisma.role.update({
+      where: {
+        id:
+          role.id,
+      },
+
+      data: {
+        archivedAt:
+          null,
+      },
+
+      select:
+        roleSelect,
+    });
+
+  publishLiveUpdate({
+    type:
+      "access.changed",
+    roleId:
+      role.id,
+  });
+
+  publishLiveUpdate({
+    type:
+      "people.changed",
+  });
+
+  return serializeRole(
+    reactivated
+  );
 }
