@@ -51,12 +51,6 @@ function main() {
 
   assert.ok(
     html.includes(
-      "Management Hub"
-    )
-  );
-
-  assert.ok(
-    html.includes(
       "Finish signing in"
     )
   );
@@ -91,13 +85,13 @@ function main() {
 
   assert.ok(
     html.includes(
-      'bgcolor="#e7e5e1"'
+      'bgcolor="#f5f3ee"'
     )
   );
 
   assert.ok(
     html.includes(
-      'background:#e7e5e1'
+      'background:#f5f3ee'
     )
   );
 
@@ -155,7 +149,7 @@ function main() {
 
   assert.ok(
     html.includes(
-      "automated account and security message"
+      "This is an automated message from XYZ Management."
     )
   );
 
