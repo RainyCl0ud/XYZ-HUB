@@ -17,6 +17,9 @@
     "verify:step1": "npm run verify:static && npm run test:step1 --workspace=backend"
   },
   "overrides": {
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "compression": "1.8.2",
+    "proxy-addr": "2.0.8",
+    "source-map-js": "1.2.2"
   }
 }
