@@ -193,7 +193,6 @@ const defaultRolePermissions: Record<
 
 
 async function main() {
-async function main() {
   console.log("Starting XYZ Hub bootstrap seed...");
 
   await prisma.$transaction(async (tx) => {
