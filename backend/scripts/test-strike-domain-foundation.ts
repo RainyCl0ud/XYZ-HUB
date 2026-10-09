@@ -35,6 +35,7 @@ async function main() {
   const [
     schema,
     migration,
+    escalationMigration,
     strikeService,
     strikeRoutes,
     reasonService,
@@ -49,6 +50,9 @@ async function main() {
       ),
       read(
         "prisma/migrations/20261004151000_add_strike_domain_foundation/migration.sql"
+      ),
+      read(
+        "prisma/migrations/20261005063000_qa_strike_escalation_foundation/migration.sql"
       ),
       read(
         "src/services/strike-management.ts"
@@ -88,38 +92,35 @@ async function main() {
     "Strike model must exist."
   );
 
-  assert.equal(
-    /\bIncident\b/.test(
-      strikeModel
+  assert.ok(
+    strikeModel.includes(
+      "sourceIncidentId String? @unique"
     ),
-    false,
-    "Strike model must not reference Incident."
+    "Strike may keep one optional QA Incident traceability reference."
   );
 
-  assert.equal(
-    /\bincidentId\b/.test(
-      strikeModel
-    ),
-    false,
-    "Strike model must not contain incidentId."
+  assert.ok(
+    escalationMigration.includes(
+      'ADD COLUMN "sourceIncidentId" TEXT'
+    )
   );
 
   assert.equal(
     /REFERENCES "Incident"/.test(
-      migration
+      escalationMigration
     ),
-    false
+    false,
+    "QA traceability must not create a lifecycle foreign key."
   );
 
-  assert.equal(
-    /ALTER TABLE "Incident"/.test(
-      migration
-    ),
-    false
+  assert.ok(
+    escalationMigration.includes(
+      "No existing QA Incident is converted into a Strike."
+    )
   );
 
   console.log(
-    "✓ Strike persistence is independent from QA Incidents"
+    "✓ Strike and QA remain separate lifecycles with optional one-way traceability"
   );
 
   for (
@@ -206,11 +207,28 @@ async function main() {
     )
   );
 
-  assert.ok(
-    reasonRoutes.includes(
-      '"strikes.configure"'
-    )
-  );
+  for (
+    const permission of [
+      "strikes.reasons.view",
+      "strikes.reasons.create",
+      "strikes.reasons.edit",
+      "strikes.reasons.archive",
+    ]
+  ) {
+    assert.ok(
+      reasonRoutes.includes(
+        `"${permission}"`
+      ),
+      `Strike Reason routes must use ${permission}`
+    );
+
+    assert.ok(
+      reasonService.includes(
+        `"${permission}"`
+      ),
+      `Strike Reason service must use ${permission}`
+    );
+  }
 
   assert.ok(
     reasonService.includes(
@@ -218,14 +236,8 @@ async function main() {
     )
   );
 
-  assert.ok(
-    reasonService.includes(
-      '"strikes.configure"'
-    )
-  );
-
   console.log(
-    "✓ Strike and Strike Reason endpoints use independent Strike permissions"
+    "✓ Strike and Strike Reason endpoints use the current granular Strike permissions"
   );
 
   for (
