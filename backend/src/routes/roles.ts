@@ -17,6 +17,7 @@ import {
 import {
   type AuthenticatedRequest,
   requireAuth,
+  requireOwner,
   requirePermission,
 } from "../middleware/access.js";
 
@@ -101,6 +102,7 @@ function handleRoleError(
     error.code
   ) {
     case "ROLE_MANAGEMENT_REQUIRED":
+    case "OWNER_REQUIRED":
       res.status(403).json({
         error:
           error.code,
@@ -395,7 +397,8 @@ router.put(
 router.delete(
   "/:roleId",
 
-  ...roleWriteGuards,
+  requireAuth,
+  requireOwner,
 
   async (
     req:
