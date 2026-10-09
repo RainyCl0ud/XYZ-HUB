@@ -116,6 +116,13 @@ export async function updatePersonAccess(
         status: true,
         teamGroupId: true,
         roleMemberships: {
+          where: {
+            role: {
+              archivedAt:
+                null,
+            },
+          },
+
           select: {
             id: true,
             roleId: true,
@@ -289,6 +296,9 @@ export async function updatePersonAccess(
           in:
             roleIds,
         },
+
+        archivedAt:
+          null,
       },
       select: {
         id: true,
@@ -604,6 +614,13 @@ await prisma.$transaction(
           },
         },
         roleMemberships: {
+          where: {
+            role: {
+              archivedAt:
+                null,
+            },
+          },
+
           select: {
             assignedAt: true,
             assignedByUserId: true,
