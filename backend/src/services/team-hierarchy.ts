@@ -1002,139 +1002,114 @@ export async function deleteTeamGroup(
 }
 
 export async function assignPersonToTeamGroup(
-  input: {
-    userId:
-      string;
-
-    groupId:
-      string;
-  },
-  access:
-    AccessContext
+  input: { userId: string; groupId: string },
+  access: AccessContext
 ) {
-  assertOwnerMutationAccess(
-    access
-  );
+  assertPeopleManagementAccess(access);
+  const owner = isOwner(access);
+  if (!owner && (
+    !hasPermission(access, "people.assign_roles") ||
+    access.highestRank === null ||
+    access.highestRank > 3
+  )) {
+    throw new TeamHierarchyError(
+      "OWNER_REQUIRED",
+      "Only an Owner or an authorized Manager may transfer employees."
+    );
+  }
 
-  const [
-    user,
-    group,
-  ] =
-    await Promise.all([
-      prisma.user.findUnique({
-        where: {
-          id:
-            input.userId,
-        },
+  if (input.userId === access.userId) {
+    throw new TeamHierarchyError(
+      "GROUP_OUT_OF_SCOPE",
+      "You cannot transfer your own account."
+    );
+  }
 
-        select: {
-          id:
-            true,
-
-          name:
-            true,
-
-          roleMemberships: {
-            select: {
-              role: {
-                select: {
-                  systemKey:
-                    true,
-                },
-              },
-            },
+  const [user, group, visibleIds] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: input.userId },
+      select: {
+        id: true,
+        name: true,
+        teamGroupId: true,
+        roleMemberships: {
+          where: { role: { archivedAt: null } },
+          select: {
+            role: { select: { systemKey: true, rank: true } },
           },
         },
-      }),
+      },
+    }),
+    prisma.teamGroup.findUnique({
+      where: { id: input.groupId },
+      select: { id: true, name: true },
+    }),
+    getVisibleTeamGroupIds(access),
+  ]);
 
-      prisma.teamGroup.findUnique({
-        where: {
-          id:
-            input.groupId,
-        },
-
-        select: {
-          id:
-            true,
-
-          name:
-            true,
-        },
-      }),
-    ]);
-
-  if (
-    !user
-  ) {
-    throw new TeamHierarchyError(
-      "USER_NOT_FOUND",
-      "The person no longer exists."
-    );
+  if (!user) {
+    throw new TeamHierarchyError("USER_NOT_FOUND", "The person no longer exists.");
   }
-
-  if (
-    !group
-  ) {
-    throw new TeamHierarchyError(
-      "GROUP_NOT_FOUND",
-      "The selected group no longer exists."
-    );
+  if (!group) {
+    throw new TeamHierarchyError("GROUP_NOT_FOUND", "The selected group no longer exists.");
   }
-
-  if (
-    user.roleMemberships.some(
-      (
-        membership
-      ) =>
-        membership.role
-          .systemKey ===
-        "OWNER"
-    )
-  ) {
+  if (user.roleMemberships.some(({ role }) => role.systemKey === "OWNER")) {
     throw new TeamHierarchyError(
       "OWNER_GROUP_ASSIGNMENT_FORBIDDEN",
       "The Owner is not managed as a team employee."
     );
   }
+  if (!visibleIds.has(group.id) || (
+    !owner && (!user.teamGroupId || !visibleIds.has(user.teamGroupId))
+  )) {
+    throw new TeamHierarchyError(
+      "GROUP_OUT_OF_SCOPE",
+      "Both the current and destination teams must be within your authorized hierarchy."
+    );
+  }
+  if (!owner && user.roleMemberships.some(({ role }) =>
+    role.rank === null || role.rank <= (access.highestRank ?? 999)
+  )) {
+    throw new TeamHierarchyError(
+      "GROUP_OUT_OF_SCOPE",
+      "You cannot transfer someone with an equal or higher role."
+    );
+  }
 
-  const updated =
-    await prisma.user.update({
-      where: {
-        id:
-          user.id,
-      },
-
-      data: {
-        teamGroupId:
-          group.id,
-      },
-
+  const previousTeamId = user.teamGroupId;
+  if (previousTeamId === group.id) {
+    return prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
       select: {
-        id:
-          true,
-
-        name:
-          true,
-
-        teamGroup: {
-          select: {
-            id:
-              true,
-
-            name:
-              true,
-
-            parentId:
-              true,
-          },
-        },
+        id: true, name: true,
+        teamGroup: { select: { id: true, name: true, parentId: true } },
       },
     });
+  }
 
-  publishLiveUpdate({
-    type:
-      "people.changed",
+  const updated = await prisma.$transaction(async (tx) => {
+    const person = await tx.user.update({
+      where: { id: user.id },
+      data: { teamGroupId: group.id },
+      select: {
+        id: true, name: true,
+        teamGroup: { select: { id: true, name: true, parentId: true } },
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        action: "people.team_changed",
+        success: true,
+        statusCode: 200,
+        actorUserId: access.userId,
+        targetType: "user",
+        targetId: user.id,
+        metadata: { previousTeamId, newTeamId: group.id },
+      },
+    });
+    return person;
   });
 
+  publishLiveUpdate({ type: "people.changed" });
   return updated;
 }
