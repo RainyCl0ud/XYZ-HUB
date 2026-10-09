@@ -311,7 +311,7 @@ async function runTests() {
           managerAccess
         ),
 
-      "OWNER_REQUIRED"
+      "PEOPLE_STATUS_MANAGE_REQUIRED"
     );
 
     console.log(
@@ -390,7 +390,7 @@ async function runTests() {
           managerAccess
         ),
 
-      "OWNER_REQUIRED"
+      "PEOPLE_STATUS_MANAGE_REQUIRED"
     );
 
     console.log(
@@ -404,7 +404,7 @@ async function runTests() {
           qcAccess
         ),
 
-      "OWNER_REQUIRED"
+      "PEOPLE_STATUS_MANAGE_REQUIRED"
     );
 
     console.log(
