@@ -22,9 +22,10 @@ import {
 } from "../middleware/access.js";
 
 import {
+  archiveRole,
   createRole,
-  deleteRole,
   getRoleBuilderData,
+  reactivateRole,
   RoleManagementError,
   updateRole,
 } from "../services/role-management.js";
@@ -126,8 +127,9 @@ function handleRoleError(
 
     case "ROLE_NAME_IN_USE":
     case "OWNER_ROLE_IMMUTABLE":
-    case "SYSTEM_ROLE_DELETE_FORBIDDEN":
-    case "ROLE_IN_USE":
+    case "SYSTEM_ROLE_ARCHIVE_FORBIDDEN":
+    case "ROLE_ARCHIVED":
+    case "ROLE_NOT_ARCHIVED":
       res.status(409).json({
         error:
           error.code,
@@ -394,8 +396,8 @@ router.put(
   }
 );
 
-router.delete(
-  "/:roleId",
+router.post(
+  "/:roleId/archive",
 
   requireAuth,
   requireOwner,
@@ -430,14 +432,14 @@ router.delete(
 
     try {
       const role =
-        await deleteRole(
+        await archiveRole(
           roleId,
           req.access
         );
 
       res.status(200).json({
         status:
-          "ROLE_DELETED",
+          "ROLE_ARCHIVED",
 
         role,
       });
@@ -454,16 +456,91 @@ router.delete(
       }
 
       console.error(
-        "Delete role request failed:",
+        "Archive role request failed:",
         error
       );
 
       res.status(500).json({
         error:
-          "DELETE_ROLE_FAILED",
+          "ARCHIVE_ROLE_FAILED",
 
         message:
-          "Unable to delete the role.",
+          "Unable to archive the role.",
+      });
+    }
+  }
+);
+
+router.post(
+  "/:roleId/reactivate",
+
+  requireAuth,
+  requireOwner,
+
+  async (
+    req:
+      AuthenticatedRequest,
+    res
+  ) => {
+    if (!req.access) {
+      res.status(401).json({
+        error:
+          "UNAUTHENTICATED",
+      });
+
+      return;
+    }
+
+    const roleId =
+      getParam(
+        req.params.roleId
+      );
+
+    if (!roleId) {
+      res.status(400).json({
+        error:
+          "INVALID_ROLE_ID",
+      });
+
+      return;
+    }
+
+    try {
+      const role =
+        await reactivateRole(
+          roleId,
+          req.access
+        );
+
+      res.status(200).json({
+        status:
+          "ROLE_REACTIVATED",
+
+        role,
+      });
+    } catch (
+      error
+    ) {
+      if (
+        handleRoleError(
+          error,
+          res
+        )
+      ) {
+        return;
+      }
+
+      console.error(
+        "Reactivate role request failed:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          "REACTIVATE_ROLE_FAILED",
+
+        message:
+          "Unable to reactivate the role.",
       });
     }
   }
