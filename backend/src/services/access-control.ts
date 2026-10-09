@@ -401,19 +401,22 @@ export function canInviteRole(
 
 
 /*
- * Seeing every model is not the same as being allowed to assign
- * every model to a new employee. Invitations are limited to the
- * inviter's explicit UserModelAssignment records.
+ * Owners may assign any active creator to a new employee, even when
+ * they have no personal UserModelAssignment records. The caller
+ * independently enforces model.isActive for new invitations.
+ * Other inviters remain restricted to their assigned creators.
  */
 export function canAssignInviteModel(
   access: AccessContext,
   modelId: string
 ): boolean {
+  if (!canInvitePeople(access)) {
+    return false;
+  }
+
   return (
-    canInvitePeople(access) &&
-    access.assignedModelIds.includes(
-      modelId
-    )
+    isOwner(access) ||
+    access.assignedModelIds.includes(modelId)
   );
 }
 
