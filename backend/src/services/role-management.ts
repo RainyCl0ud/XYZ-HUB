@@ -8,6 +8,7 @@ import {
 
 import {
   hasPermission,
+  isOwner,
   type AccessContext,
 } from "./access-control.js";
 
@@ -41,6 +42,7 @@ export class RoleManagementError
   extends Error {
   code:
     | "ROLE_MANAGEMENT_REQUIRED"
+    | "OWNER_REQUIRED"
     | "ROLE_NOT_FOUND"
     | "ROLE_NAME_IN_USE"
     | "INVALID_ROLE_RANK"
@@ -870,9 +872,16 @@ export async function deleteRole(
   access:
     AccessContext
 ) {
-  requireRoleManagement(
-    access
-  );
+  if (
+    !isOwner(
+      access
+    )
+  ) {
+    throw new RoleManagementError(
+      "OWNER_REQUIRED",
+      "Only an Owner can delete a role."
+    );
+  }
 
   const role =
     await prisma.role.findUnique({
