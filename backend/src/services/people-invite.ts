@@ -153,6 +153,9 @@ export async function invitePerson(
           in:
             roleIds,
         },
+
+        archivedAt:
+          null,
       },
       select: {
         id: true,
