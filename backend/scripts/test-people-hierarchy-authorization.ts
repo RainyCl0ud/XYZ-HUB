@@ -504,8 +504,16 @@ async function main() {
       true
     );
 
+    assert.equal(
+      ownerOptions.inviteRoles.some(
+        (role) =>
+          role.systemKey === "OWNER"
+      ),
+      false
+    );
+
     console.log(
-      "✓ role options keep Owner Owner-only while allowing Owner assignment"
+      "✓ Owner role remains available for Owner-managed access updates but not same-rank invitations"
     );
 
     const invited =
@@ -575,25 +583,25 @@ async function main() {
       "ROLE_NOT_ASSIGNABLE"
     );
 
-    const ownerInvite =
-      await invitePerson(
-        {
-          name:
-            "Owner Assigned Owner",
-          email:
-            `hierarchy-owner-invite-${suffix}@example.test`,
-          roleIds: [
-            ownerRole.id,
-          ],
-          modelIds: [],
-          teamGroupId:
-            ROOT_TEAM_GROUP_ID,
-        },
-        ownerAccess
-      );
-
-    createdUserIds.push(
-      ownerInvite.user.id
+    await expectCode(
+      () =>
+        invitePerson(
+          {
+            name:
+              "Owner Same-Rank Invite Attempt",
+            email:
+              `hierarchy-owner-invite-${suffix}@example.test`,
+            roleIds: [
+              ownerRole.id,
+            ],
+            modelIds: [],
+            teamGroupId:
+              ROOT_TEAM_GROUP_ID,
+          },
+          ownerAccess
+        ),
+      PeopleInviteError,
+      "ROLE_NOT_ASSIGNABLE"
     );
 
     const promoted =
@@ -633,7 +641,7 @@ async function main() {
     );
 
     console.log(
-      "✓ only Owner can assign Owner and promoted Owners become protected from ordinary People views"
+      "✓ Owner can promote an existing employee to Owner while same-rank Owner invitations remain blocked"
     );
 
     console.log(
@@ -666,7 +674,7 @@ async function main() {
           managerAccess
         ),
       PeopleStatusError,
-      "OWNER_REQUIRED"
+      "PEOPLE_STATUS_MANAGE_REQUIRED"
     );
 
     await expectCode(
