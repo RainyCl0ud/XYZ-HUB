@@ -817,6 +817,38 @@
   font-size: 11px;
 }
 
+.people-access-team-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 0;
+}
+
+.people-access-team-content .people-access-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.people-team-action {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .people-access-team-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .people-team-action {
+    width: 100%;
+  }
+}
+
+
 .people-scope-note,
 .people-empty-inline {
   color: var(--text-muted);
