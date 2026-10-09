@@ -58,6 +58,11 @@ export async function getPeopleManagementOptions(
   ] =
     await Promise.all([
       prisma.role.findMany({
+        where: {
+          archivedAt:
+            null,
+        },
+
         select: {
           id: true,
           name: true,
