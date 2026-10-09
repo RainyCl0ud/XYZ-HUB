@@ -228,6 +228,13 @@ function RoleSettingsRankPage() {
       "roles.manage"
     );
 
+  const isOwner =
+    access?.roles.some(
+      (role) =>
+        role.systemKey ===
+        "OWNER"
+    ) ?? false;
+
   const [roles, setRoles] =
     useState<ManagedRole[]>([]);
   const [permissions, setPermissions] =
@@ -627,6 +634,24 @@ function RoleSettingsRankPage() {
       setEditorMode(null);
       setEditorRoleId(null);
     }
+  }
+
+  function openEditorDeleteConfirmation() {
+    if (
+      !isOwner ||
+      editorMode !== "EDIT" ||
+      !editorRole ||
+      editorRole.isSystem ||
+      editorRole.affectedUserCount > 0
+    ) {
+      return;
+    }
+
+    setDeleteRoleId(
+      editorRole.id
+    );
+    setEditorMode(null);
+    setEditorRoleId(null);
   }
 
   function closePermissions() {
@@ -1127,6 +1152,7 @@ function RoleSettingsRankPage() {
 
   async function deleteSelectedRole() {
     if (
+      !isOwner ||
       !deleteRole ||
       deleteRole.isSystem ||
       deleteRole.affectedUserCount > 0
@@ -1354,21 +1380,6 @@ function RoleSettingsRankPage() {
                           </button>
                         )}
 
-                        {canManageRoleSettings &&
-                          !role.isSystem &&
-                          role.affectedUserCount === 0 && (
-                          <button
-                            type="button"
-                            className="role-settings-link-button danger"
-                            title="Delete role"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setDeleteRoleId(role.id);
-                            }}
-                          >
-                            Delete
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -1526,6 +1537,28 @@ function RoleSettingsRankPage() {
             </div>
 
             <div className="role-settings-modal-footer">
+              {isOwner &&
+                editorMode === "EDIT" &&
+                editorRole &&
+                !editorRole.isSystem && (
+                <button
+                  type="button"
+                  className="danger-button role-settings-delete-action"
+                  disabled={
+                    saving ||
+                    editorRole.affectedUserCount > 0
+                  }
+                  title={
+                    editorRole.affectedUserCount > 0
+                      ? "Remove this role from all users before deleting it."
+                      : "Delete this custom role"
+                  }
+                  onClick={openEditorDeleteConfirmation}
+                >
+                  Delete role
+                </button>
+              )}
+
               <button
                 type="button"
                 className="secondary-button"
@@ -1796,7 +1829,7 @@ function RoleSettingsRankPage() {
         </div>
       )}
 
-      {deleteRole && (
+      {deleteRole && isOwner && (
         <div className="role-settings-overlay">
           <section
             className="role-settings-modal role-settings-delete-modal"
