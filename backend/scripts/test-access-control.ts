@@ -280,6 +280,15 @@ function runTests() {
   );
 
   assert.equal(
+    canAssignInviteModel(ownerAccess, "model-without-owner-assignment"),
+    true
+  );
+
+  console.log("✓ Owner may invite onto any creator without personal assignments");
+
+
+
+  assert.equal(
     canAssignRole(
       ownerAccess,
       {
