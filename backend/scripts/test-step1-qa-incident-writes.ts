@@ -57,6 +57,21 @@ async function main() {
   }
 
   function asRoles(...systemKeys: string[]): AccessContext {
+    const permissions = new Set<string>([
+      "quality.access",
+      "quality.incidents.view",
+    ]);
+
+    if (
+      systemKeys.some((key) =>
+        ["OWNER", "OPS_MANAGER", "MANAGER", "DEV"].includes(key)
+      )
+    ) {
+      permissions.add("quality.incidents.create");
+      permissions.add("quality.incidents.resolve");
+      permissions.add("quality.incidents.void");
+    }
+
     return {
       userId: "incident-route-test-actor",
       roles: systemKeys.map((systemKey) => ({
@@ -68,7 +83,7 @@ async function main() {
       })),
       highestRank: null,
       effectiveDataScope: RoleDataScope.SELF_AND_TEAM,
-      permissions: new Set(),
+      permissions,
       assignedModelIds: [modelIds[0]!],
       canSeeAllModels: systemKeys.some((key) =>
         ["OWNER", "OPS_MANAGER", "DEV"].includes(key)
@@ -116,7 +131,6 @@ async function main() {
         modelId: modelIds[0]!,
         ruleTitleSnapshot: rule.versions[0]!.title,
         ruleDefinitionSnapshot: rule.versions[0]!.definition,
-        expiresAt: new Date(Date.now() + 86_400_000),
         details: "QC must not alter this fixture.",
       },
     });
@@ -139,7 +153,7 @@ async function main() {
       for (const mutation of mutations) {
         const result = await request(mutation.method, mutation.path, mutation.body);
         assert.equal(result.status, 403, `${roles.join("+")} cannot ${mutation.method} ${mutation.path}.`);
-        assert.equal(result.body.error, "QA_INCIDENT_WRITE_REQUIRED");
+        assert.equal(result.body.error, "QA_INCIDENT_ACTION_REQUIRED");
       }
     }
     const unchanged = await prisma.incident.findUniqueOrThrow({
