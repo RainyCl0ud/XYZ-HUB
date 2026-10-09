@@ -48,6 +48,8 @@ type ManagedRole = {
   dataScope: DataScope;
   landingPath: string | null;
   isSystem: boolean;
+  archivedAt: string | null;
+  isArchived: boolean;
   affectedUserCount: number;
   permissions: Permission[];
   createdAt: string;
@@ -274,7 +276,7 @@ function RoleSettingsRankPage() {
     useState<string | null>(null);
   const [permissionDraft, setPermissionDraft] =
     useState<string[]>([]);
-  const [deleteRoleId, setDeleteRoleId] =
+  const [archiveRoleId, setArchiveRoleId] =
     useState<string | null>(null);
   const [
     activePermissionGroupLabel,
@@ -400,10 +402,10 @@ function RoleSettingsRankPage() {
       (role) =>
         role.id === permissionRoleId
     ) ?? null;
-  const deleteRole =
+  const archiveRole =
     roles.find(
       (role) =>
-        role.id === deleteRoleId
+        role.id === archiveRoleId
     ) ?? null;
 
   const permissionGroups =
@@ -636,22 +638,61 @@ function RoleSettingsRankPage() {
     }
   }
 
-  function openEditorDeleteConfirmation() {
+  function openEditorArchiveConfirmation() {
     if (
       !isOwner ||
       editorMode !== "EDIT" ||
       !editorRole ||
       editorRole.isSystem ||
-      editorRole.affectedUserCount > 0
+      editorRole.isArchived
     ) {
       return;
     }
 
-    setDeleteRoleId(
+    setArchiveRoleId(
       editorRole.id
     );
     setEditorMode(null);
     setEditorRoleId(null);
+  }
+
+  async function reactivateEditorRole() {
+    if (
+      !isOwner ||
+      !editorRole ||
+      editorRole.isSystem ||
+      !editorRole.isArchived
+    ) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await apiRequest<RoleMutationResponse>(
+        `/api/roles/${editorRole.id}/reactivate`,
+        {
+          method: "POST",
+        }
+      );
+
+      setEditorMode(null);
+      setEditorRoleId(null);
+      await refreshAuth();
+      await loadRoles();
+      toast.success(
+        "The role is active again. Its retained user links are restored.",
+        "Role reactivated"
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to reactivate the role.",
+        "Role not reactivated"
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   function closePermissions() {
@@ -905,6 +946,7 @@ function RoleSettingsRankPage() {
 
     const blocked =
       !canManageRoleSettings ||
+      Boolean(permissionRole?.isArchived) ||
       missingRequirements.length >
         0;
 
@@ -1104,7 +1146,10 @@ function RoleSettingsRankPage() {
   }
 
   async function savePermissions() {
-    if (!permissionRole) {
+    if (
+      !permissionRole ||
+      permissionRole.isArchived
+    ) {
       return;
     }
 
@@ -1150,37 +1195,37 @@ function RoleSettingsRankPage() {
     }
   }
 
-  async function deleteSelectedRole() {
+  async function archiveSelectedRole() {
     if (
       !isOwner ||
-      !deleteRole ||
-      deleteRole.isSystem ||
-      deleteRole.affectedUserCount > 0
+      !archiveRole ||
+      archiveRole.isSystem ||
+      archiveRole.isArchived
     ) {
       return;
     }
 
     try {
       setSaving(true);
-      await apiRequest(
-        `/api/roles/${deleteRole.id}`,
+      await apiRequest<RoleMutationResponse>(
+        `/api/roles/${archiveRole.id}/archive`,
         {
-          method: "DELETE",
+          method: "POST",
         }
       );
-      setDeleteRoleId(null);
+      setArchiveRoleId(null);
       await refreshAuth();
       await loadRoles();
       toast.success(
-        "The unused custom role was deleted.",
-        "Role deleted"
+        "The role was archived. Its details, permissions, and historical user links were retained.",
+        "Role archived"
       );
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Unable to delete the role.",
-        "Role not deleted"
+          : "Unable to archive the role.",
+        "Role not archived"
       );
     } finally {
       setSaving(false);
@@ -1338,7 +1383,10 @@ function RoleSettingsRankPage() {
                     <td>
                       <div className="role-settings-role-cell">
                         <strong>{role.name}</strong>
-                        <small>{scopeLabel(role.dataScope)}</small>
+                        <small>
+                          {scopeLabel(role.dataScope)}
+                          {role.isArchived ? " · Archived" : ""}
+                        </small>
                       </div>
                     </td>
                     <td>
@@ -1450,6 +1498,7 @@ function RoleSettingsRankPage() {
                 <input
                   value={draft.name}
                   maxLength={120}
+                  disabled={Boolean(editorRole?.isArchived)}
                   onChange={(event) =>
                     setDraft((current) => ({
                       ...current,
@@ -1464,6 +1513,7 @@ function RoleSettingsRankPage() {
                 <textarea
                   value={draft.description}
                   maxLength={500}
+                  disabled={Boolean(editorRole?.isArchived)}
                   rows={3}
                   placeholder="Describe the purpose and responsibility of this role"
                   onChange={(event) =>
@@ -1485,6 +1535,7 @@ function RoleSettingsRankPage() {
                   step={1}
                   value={draft.rank}
                   placeholder="Unranked"
+                  disabled={Boolean(editorRole?.isArchived)}
                   onChange={(event) =>
                     setDraft((current) => ({
                       ...current,
@@ -1512,6 +1563,7 @@ function RoleSettingsRankPage() {
                           type="radio"
                           name="roleDataScope"
                           checked={draft.dataScope === option.value}
+                          disabled={Boolean(editorRole?.isArchived)}
                           onChange={() =>
                             setDraft((current) => ({
                               ...current,
@@ -1529,11 +1581,15 @@ function RoleSettingsRankPage() {
                 </div>
               </fieldset>
 
-              {editorRole && editorRole.affectedUserCount > 0 && (
+              {editorRole?.isArchived ? (
+                <div className="role-settings-impact">
+                  This role is archived. Its details, permissions, and historical user links are preserved, but it does not grant access and cannot be assigned until reactivated.
+                </div>
+              ) : editorRole && editorRole.affectedUserCount > 0 ? (
                 <div className="role-settings-impact">
                   Saving changes updates this role for {editorRole.affectedUserCount} current user{editorRole.affectedUserCount === 1 ? "" : "s"}.
                 </div>
-              )}
+              ) : null}
             </div>
 
             <div className="role-settings-modal-footer">
@@ -1541,22 +1597,26 @@ function RoleSettingsRankPage() {
                 editorMode === "EDIT" &&
                 editorRole &&
                 !editorRole.isSystem && (
-                <button
-                  type="button"
-                  className="danger-button role-settings-delete-action"
-                  disabled={
-                    saving ||
-                    editorRole.affectedUserCount > 0
-                  }
-                  title={
-                    editorRole.affectedUserCount > 0
-                      ? "Remove this role from all users before deleting it."
-                      : "Delete this custom role"
-                  }
-                  onClick={openEditorDeleteConfirmation}
-                >
-                  Delete role
-                </button>
+                editorRole.isArchived ? (
+                  <button
+                    type="button"
+                    className="secondary-button role-settings-delete-action"
+                    disabled={saving}
+                    onClick={() => void reactivateEditorRole()}
+                  >
+                    {saving ? "Reactivating…" : "Reactivate role"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="danger-button role-settings-delete-action"
+                    disabled={saving}
+                    title="Archive this custom role without deleting its history"
+                    onClick={openEditorArchiveConfirmation}
+                  >
+                    Archive role
+                  </button>
+                )
               )}
 
               <button
@@ -1570,7 +1630,11 @@ function RoleSettingsRankPage() {
               <button
                 type="submit"
                 className="primary-button"
-                disabled={saving || !draft.name.trim()}
+                disabled={
+                  saving ||
+                  !draft.name.trim() ||
+                  Boolean(editorRole?.isArchived)
+                }
               >
                 {saving
                   ? "Saving…"
@@ -1712,11 +1776,15 @@ function RoleSettingsRankPage() {
                           Configure this module from top to bottom: enable module access first, then choose the actions this role may perform.
                         </p>
 
-                        {!canManageRoleSettings && (
+                        {permissionRole?.isArchived ? (
+                          <p className="role-settings-readonly-note">
+                            This role is archived. Reactivate it before changing permissions.
+                          </p>
+                        ) : !canManageRoleSettings ? (
                           <p className="role-settings-readonly-note">
                             You have read-only access to Role Settings.
                           </p>
-                        )}
+                        ) : null}
                       </div>
 
                       <label className="role-settings-permission-select-all">
@@ -1726,7 +1794,8 @@ function RoleSettingsRankPage() {
                             activePermissionAllSelected
                           }
                           disabled={
-                            !canManageRoleSettings
+                            !canManageRoleSettings ||
+                            Boolean(permissionRole?.isArchived)
                           }
                           onChange={(event) =>
                             setPermissionGroupSelection(
@@ -1806,7 +1875,7 @@ function RoleSettingsRankPage() {
               >
                 Cancel
               </button>
-              {canManageRoleSettings ? (
+              {canManageRoleSettings && !permissionRole.isArchived ? (
                 <button
                   type="button"
                   className="primary-button"
@@ -1829,30 +1898,30 @@ function RoleSettingsRankPage() {
         </div>
       )}
 
-      {deleteRole && isOwner && (
+      {archiveRole && isOwner && !archiveRole.isArchived && (
         <div className="role-settings-overlay">
           <section
             className="role-settings-modal role-settings-delete-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Delete custom role"
+            aria-label="Archive custom role"
           >
             <div className="role-settings-modal-header">
               <div>
                 <span className="page-eyebrow">Confirmation</span>
-                <h3>Delete role?</h3>
+                <h3>Archive role?</h3>
               </div>
               <button
                 type="button"
                 className="role-settings-close"
-                onClick={() => setDeleteRoleId(null)}
+                onClick={() => setArchiveRoleId(null)}
               >
                 ×
               </button>
             </div>
             <div className="role-settings-modal-body">
               <p className="role-settings-delete-copy">
-                Delete <strong>{deleteRole.name}</strong>? This unused custom role will be removed from the role catalog.
+                Archive <strong>{archiveRole.name}</strong>? The role will stop granting access and will no longer be assignable, but its details, permissions, and {archiveRole.affectedUserCount} historical user link{archiveRole.affectedUserCount === 1 ? "" : "s"} will be retained.
               </p>
             </div>
             <div className="role-settings-modal-footer">
@@ -1860,7 +1929,7 @@ function RoleSettingsRankPage() {
                 type="button"
                 className="secondary-button"
                 disabled={saving}
-                onClick={() => setDeleteRoleId(null)}
+                onClick={() => setArchiveRoleId(null)}
               >
                 Cancel
               </button>
@@ -1868,9 +1937,9 @@ function RoleSettingsRankPage() {
                 type="button"
                 className="danger-button"
                 disabled={saving}
-                onClick={() => void deleteSelectedRole()}
+                onClick={() => void archiveSelectedRole()}
               >
-                {saving ? "Deleting…" : "Delete role"}
+                {saving ? "Archiving…" : "Archive role"}
               </button>
             </div>
           </section>
