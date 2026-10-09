@@ -643,7 +643,7 @@ function RoleSettingsRankPage() {
       !isOwner ||
       editorMode !== "EDIT" ||
       !editorRole ||
-      editorRole.isSystem ||
+      editorRole.systemKey === "OWNER" ||
       editorRole.isArchived
     ) {
       return;
@@ -660,7 +660,7 @@ function RoleSettingsRankPage() {
     if (
       !isOwner ||
       !editorRole ||
-      editorRole.isSystem ||
+      editorRole.systemKey === "OWNER" ||
       !editorRole.isArchived
     ) {
       return;
@@ -1199,7 +1199,7 @@ function RoleSettingsRankPage() {
     if (
       !isOwner ||
       !archiveRole ||
-      archiveRole.isSystem ||
+      archiveRole.systemKey === "OWNER" ||
       archiveRole.isArchived
     ) {
       return;
@@ -1596,7 +1596,7 @@ function RoleSettingsRankPage() {
               {isOwner &&
                 editorMode === "EDIT" &&
                 editorRole &&
-                !editorRole.isSystem && (
+                editorRole.systemKey !== "OWNER" && (
                 editorRole.isArchived ? (
                   <button
                     type="button"
@@ -1611,7 +1611,7 @@ function RoleSettingsRankPage() {
                     type="button"
                     className="danger-button role-settings-delete-action"
                     disabled={saving}
-                    title="Archive this custom role without deleting its history"
+                    title="Archive this role without deleting its history"
                     onClick={openEditorArchiveConfirmation}
                   >
                     Archive role
@@ -1904,7 +1904,7 @@ function RoleSettingsRankPage() {
             className="role-settings-modal role-settings-delete-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Archive custom role"
+            aria-label="Archive role"
           >
             <div className="role-settings-modal-header">
               <div>
