@@ -18,9 +18,10 @@ import {
 } from "../src/services/access-control.js";
 
 import {
+  archiveRole,
   createRole,
-  deleteRole,
   getRoleBuilderData,
+  reactivateRole,
   RoleManagementError,
   updateRole,
 } from "../src/services/role-management.js";
@@ -365,7 +366,7 @@ async function main() {
 
     await expectRoleError(
       () =>
-        deleteRole(
+        archiveRole(
           customRole.id,
           managerAccess
         ),
@@ -373,7 +374,7 @@ async function main() {
     );
 
     console.log(
-      "✓ non-Owner cannot delete a custom role even through the role service"
+      "✓ non-Owner cannot archive a custom role even through the role service"
     );
 
     await expectRoleError(
@@ -503,32 +504,6 @@ async function main() {
       "✓ affected-user count reflects current role holders"
     );
 
-    await expectRoleError(
-      () =>
-        deleteRole(
-          customRole.id,
-          ownerAccess
-        ),
-      "ROLE_IN_USE"
-    );
-
-    console.log(
-      "✓ custom role cannot be deleted while assigned"
-    );
-
-    await expectRoleError(
-      () =>
-        deleteRole(
-          managerRole.id,
-          ownerAccess
-        ),
-      "SYSTEM_ROLE_DELETE_FORBIDDEN"
-    );
-
-    console.log(
-      "✓ default roles cannot be deleted"
-    );
-
     const updated =
       await updateRole(
         customRole.id,
@@ -540,7 +515,9 @@ async function main() {
           dataScope:
             RoleDataScope.SELF_AND_TEAM,
           permissionIds:
-            [],
+            [
+              peopleAccess.id,
+            ],
         },
         ownerAccess
       );
@@ -556,34 +533,146 @@ async function main() {
     );
 
     console.log(
-      "✓ custom role edits apply successfully"
+      "✓ custom role edits apply successfully before archive"
     );
 
-    await prisma.userRole.deleteMany({
-      where: {
-        userId:
-          holder.id,
-        roleId:
-          customRole.id,
-      },
-    });
-
-    const deleted =
-      await deleteRole(
+    const archived =
+      await archiveRole(
         customRole.id,
         ownerAccess
       );
 
-    customRoleId =
-      null;
+    assert.equal(
+      archived.isArchived,
+      true
+    );
 
     assert.equal(
-      deleted.id,
-      customRole.id
+      archived.affectedUserCount,
+      1
+    );
+
+    const archivedHolderAccess =
+      await getAccessContext(
+        holder.id
+      );
+
+    assert.equal(
+      archivedHolderAccess.roles.some(
+        (role) =>
+          role.id === customRole.id
+      ),
+      false
+    );
+
+    assert.equal(
+      archivedHolderAccess.permissions.has(
+        "people.access"
+      ),
+      false
     );
 
     console.log(
-      "✓ unused custom role can be deleted"
+      "✓ archived roles retain user links but stop granting effective access"
+    );
+
+    const archivedBuilder =
+      await getRoleBuilderData(
+        ownerAccess
+      );
+
+    const archivedBuilderRole =
+      archivedBuilder.roles.find(
+        (role) =>
+          role.id === customRole.id
+      );
+
+    assert.equal(
+      archivedBuilderRole?.isArchived,
+      true
+    );
+
+    assert.equal(
+      archivedBuilderRole?.affectedUserCount,
+      1
+    );
+
+    console.log(
+      "✓ archived roles remain visible in Role Settings with retained relationships"
+    );
+
+    await expectRoleError(
+      () =>
+        updateRole(
+          customRole.id,
+          {
+            name:
+              updated.name,
+            rank:
+              updated.rank,
+            dataScope:
+              updated.dataScope,
+            permissionIds:
+              updated.permissions.map(
+                (permission) =>
+                  permission.id
+              ),
+          },
+          ownerAccess
+        ),
+      "ROLE_ARCHIVED"
+    );
+
+    console.log(
+      "✓ archived roles cannot be edited until reactivated"
+    );
+
+    await expectRoleError(
+      () =>
+        archiveRole(
+          managerRole.id,
+          ownerAccess
+        ),
+      "SYSTEM_ROLE_ARCHIVE_FORBIDDEN"
+    );
+
+    console.log(
+      "✓ default roles cannot be archived"
+    );
+
+    const reactivated =
+      await reactivateRole(
+        customRole.id,
+        ownerAccess
+      );
+
+    assert.equal(
+      reactivated.isArchived,
+      false
+    );
+
+    const restoredHolderAccess =
+      await getAccessContext(
+        holder.id
+      );
+
+    assert.equal(
+      restoredHolderAccess.roles.some(
+        (role) =>
+          role.id === customRole.id
+      ),
+      true
+    );
+
+    assert.equal(
+      restoredHolderAccess.permissions.has(
+        "people.access"
+      ),
+      true
+    );
+
+    console.log(
+      "✓ reactivation restores the retained role assignment and permissions"
     );
 
     console.log("");
