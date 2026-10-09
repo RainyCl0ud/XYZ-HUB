@@ -658,7 +658,7 @@ assert.equal(
           qcAccess
         ),
 
-      "PEOPLE_MANAGE_REQUIRED"
+      "PEOPLE_ACCESS_REQUIRED"
     );
 
     console.log(
