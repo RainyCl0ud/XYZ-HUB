@@ -119,6 +119,13 @@ export async function getAccessContext(
         teamGroupId: true,
 
         roleMemberships: {
+          where: {
+            role: {
+              archivedAt:
+                null,
+            },
+          },
+
           select: {
             role: {
               select: {
