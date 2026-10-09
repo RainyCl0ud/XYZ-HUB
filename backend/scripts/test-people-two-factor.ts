@@ -210,7 +210,7 @@ async function runTests() {
           managerAccess
         ),
 
-      "OWNER_REQUIRED"
+      "TWO_FACTOR_RESET_REQUIRED"
     );
 
     console.log(
