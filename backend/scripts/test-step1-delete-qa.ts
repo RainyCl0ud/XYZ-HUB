@@ -140,11 +140,6 @@ async function main() {
           null,
         weightValueSnapshot:
           null,
-        expiresAt:
-          new Date(
-            Date.now() +
-              24 * 60 * 60 * 1000
-          ),
         details:
           "Temporary incident that must be deleted with the employee.",
       },
