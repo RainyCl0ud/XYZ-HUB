@@ -438,6 +438,9 @@ function PeopleDetailPage() {
       false
     );
 
+  const [showTeamEditor, setShowTeamEditor] = useState(false);
+  const [destinationTeamId, setDestinationTeamId] = useState("");
+
   const [
     assignedRoleIds,
     setAssignedRoleIds,
@@ -865,6 +868,31 @@ function PeopleDetailPage() {
     );
   }
 
+
+  function openTeamEditor() {
+    if (!person || !options || !canManagePerson || !options.capabilities.canAssignRoles) return;
+    setDestinationTeamId(person.teamGroup?.id ?? "");
+    setShowTeamEditor(true);
+  }
+
+  async function saveTeam(event: FormEvent) {
+    event.preventDefault();
+    if (!person || !destinationTeamId || !canManagePerson) return;
+    try {
+      setSaving(true);
+      await apiRequest(
+        `/api/team-groups/members/${encodeURIComponent(person.id)}`,
+        { method: "PUT", body: JSON.stringify({ groupId: destinationTeamId }) }
+      );
+      await refreshProfile();
+      setShowTeamEditor(false);
+      toast.success("The employee's team has been updated.", "Team updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to change team.", "Team unchanged");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function openRoleEditor() {
     if (
@@ -1431,6 +1459,11 @@ function PeopleDetailPage() {
                       {person.teamGroup?.name ??
                         "Not assigned"}
                     </strong>
+                    {options.capabilities.canAssignRoles && canManagePerson && (
+                      <button type="button" className="secondary-button" onClick={openTeamEditor} disabled={saving}>
+                        {person.teamGroup ? "Change Team" : "Add to a Team"}
+                      </button>
+                    )}
                   </div>
 
                   <div>
@@ -1807,6 +1840,39 @@ function PeopleDetailPage() {
         </div>
       </section>
 
+
+      {showTeamEditor && person && options && (
+        <div className="people-overlay">
+          <form className="people-form-modal" onSubmit={saveTeam}>
+            <div className="people-modal-header">
+              <div>
+                <span className="page-eyebrow">Team assignment</span>
+                <h3>{person.teamGroup ? "Change Team" : "Add to a Team"}</h3>
+                <p>Transfer {person.name} within your permitted team hierarchy. Their role, creator assignments and historical records will be preserved.</p>
+              </div>
+              <button type="button" className="people-close" aria-label="Close team assignment" onClick={() => setShowTeamEditor(false)} disabled={saving}>&times;</button>
+            </div>
+            <div className="people-form-body">
+              <label className="people-form-field">
+                <span>Destination team</span>
+                <select value={destinationTeamId} onChange={(event) => setDestinationTeamId(event.target.value)} required>
+                  <option value="">Select a team</option>
+                  {teams.filter((team) => !team.isRoot).map((team) => (
+                    <option key={team.id} value={team.id}>{team.name}</option>
+                  ))}
+                </select>
+              </label>
+              <p className="people-scope-note">Changing teams may change who can view or manage this employee. Existing roles and creator assignments will not change.</p>
+            </div>
+            <div className="people-modal-footer">
+              <button type="button" className="secondary-button" disabled={saving} onClick={() => setShowTeamEditor(false)}>Cancel</button>
+              <button type="submit" className="primary-button" disabled={saving || !destinationTeamId || destinationTeamId === person.teamGroup?.id}>
+                {saving ? "Saving..." : "Confirm team change"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {options?.capabilities.canAssignRoles &&
         showRoleEditor && (
