@@ -1455,15 +1455,21 @@ function PeopleDetailPage() {
                       Team
                     </span>
 
-                    <strong className="people-access-value">
-                      {person.teamGroup?.name ??
-                        "Not assigned"}
-                    </strong>
-                    {options.capabilities.canAssignRoles && canManagePerson && (
-                      <button type="button" className="secondary-button" onClick={openTeamEditor} disabled={saving}>
-                        {person.teamGroup ? "Change Team" : "Add to a Team"}
-                      </button>
-                    )}
+                    <div className="people-access-team-content">
+                      <strong className="people-access-value">
+                        {person.teamGroup?.name ?? "Not assigned"}
+                      </strong>
+                      {options.capabilities.canAssignRoles && canManagePerson && (
+                        <button
+                          type="button"
+                          className="secondary-button people-team-action"
+                          onClick={openTeamEditor}
+                          disabled={saving}
+                        >
+                          {person.teamGroup ? "Change Team" : "Add to a Team"}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div>
