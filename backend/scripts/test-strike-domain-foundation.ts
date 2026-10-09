@@ -149,10 +149,12 @@ async function main() {
     )
   );
 
-  assert.ok(
+  assert.equal(
     strikeService.includes(
       "canAssignRole"
-    )
+    ),
+    false,
+    "Strike authority must remain independent from People role-assignment authority."
   );
 
   assert.ok(
