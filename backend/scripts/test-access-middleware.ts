@@ -611,7 +611,7 @@ async function runTests() {
 
     assert.equal(
       req.access.permissions.has(
-        "people.manage"
+        "people.access"
       ),
       true
     );
