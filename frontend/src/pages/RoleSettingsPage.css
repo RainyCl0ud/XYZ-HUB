@@ -600,6 +600,10 @@
   background: var(--surface-deep);
 }
 
+.role-settings-delete-action {
+  margin-right: auto;
+}
+
 .role-settings-delete-copy {
   margin: 0;
   color: var(--text-secondary);
