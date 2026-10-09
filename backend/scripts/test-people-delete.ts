@@ -199,7 +199,7 @@ async function runTests() {
           managerAccess
         ),
 
-      "OWNER_REQUIRED"
+      "PEOPLE_DELETE_REQUIRED"
     );
 
     console.log(
