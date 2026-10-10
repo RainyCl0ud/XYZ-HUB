@@ -588,6 +588,8 @@ async function loadGroupRecord(
       isRoot:
         true,
 
+      sortOrder: true,
+
       createdAt:
         true,
 
@@ -804,6 +806,8 @@ export async function renameTeamGroup(
 
         isRoot:
           true,
+
+        sortOrder: true,
 
         createdAt:
           true,
