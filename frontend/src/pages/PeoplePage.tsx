@@ -1220,10 +1220,10 @@ function PeoplePage() {
         className="people-org-node"
         key={team.id}
         draggable={orderingSiblings}
-        onDragStart={(event) => { if (!orderingSiblings) return; setDraggingTeamId(team.id); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", team.id); }}
-        onDragOver={(event) => { if (orderingSiblings) event.preventDefault(); }}
-        onDrop={(event) => { event.preventDefault(); if (orderingSiblings && draggingTeamId) moveTeam(draggingTeamId, siblingPosition); setDraggingTeamId(null); }}
-        onDragEnd={() => setDraggingTeamId(null)}
+        onDragStart={(event) => { if (!orderingSiblings) return; event.stopPropagation(); setDraggingTeamId(team.id); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", team.id); }}
+        onDragOver={(event) => { if (orderingSiblings) { event.preventDefault(); event.stopPropagation(); } }}
+        onDrop={(event) => { event.preventDefault(); event.stopPropagation(); if (orderingSiblings && draggingTeamId) moveTeam(draggingTeamId, siblingPosition); setDraggingTeamId(null); }}
+        onDragEnd={(event) => { event.stopPropagation(); setDraggingTeamId(null); }}
       >
         <div
           className={`people-org-item${selected ? " active" : ""}${accent ? " colored" : ""}${team.isRoot ? " root" : ""}`}
