@@ -378,6 +378,22 @@ function PeoplePage() {
     return result;
   }, [teamById, teams]);
 
+  // Shared parent-first order for all team selectors, matching the organization tree.
+  const orderedTeams = useMemo(() => {
+    const result: TeamGroup[] = [];
+    const seen = new Set<string>();
+    const visit = (parentId: string | null) => {
+      for (const team of childrenByParent.get(parentId) ?? []) {
+        if (seen.has(team.id)) continue;
+        seen.add(team.id);
+        result.push(team);
+        visit(team.id);
+      }
+    };
+    visit(null);
+    return result;
+  }, [childrenByParent]);
+
   const defaultTeamId = useMemo(() => {
     const rootId = options?.organization.rootGroupId;
     if (rootId && teamById.has(rootId)) return rootId;
@@ -1594,7 +1610,7 @@ function PeoplePage() {
                 <span>Team</span>
                 <div className="people-select-shell">
                   <select value={inviteTeamId} onChange={(event) => setInviteTeamId(event.target.value)}>
-                    {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
+                    {orderedTeams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
                   </select>
                   <span className="people-select-caret" aria-hidden="true">&#9662;</span>
                 </div>
@@ -1642,7 +1658,7 @@ function PeoplePage() {
                   <span>New team</span>
                   <div className="people-select-shell">
                     <select value={batchTeamId} onChange={(event) => setBatchTeamId(event.target.value)}>
-                      {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
+                      {orderedTeams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
                     </select>
                     <span className="people-select-caret" aria-hidden="true">&#9662;</span>
                   </div>
