@@ -40,7 +40,8 @@ export type TeamHierarchyErrorCode =
   | "GROUP_OUT_OF_SCOPE"
   | "USER_NOT_FOUND"
   | "OWNER_GROUP_ASSIGNMENT_FORBIDDEN"
-  | "INVALID_GROUP_COLOR";
+  | "INVALID_GROUP_COLOR"
+  | "INVALID_GROUP_ORDER";
 
 export class TeamHierarchyError extends Error {
   readonly code:
@@ -69,6 +70,7 @@ type GroupRecord = {
   name: string;
   parentId: string | null;
   isRoot: boolean;
+  sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
   _count: {
@@ -178,6 +180,8 @@ function serializeGroup(
 
     color,
 
+    sortOrder: group.sortOrder,
+
     memberCount:
       group._count
         .members,
@@ -284,6 +288,8 @@ async function loadAllGroups() {
       isRoot:
         true,
 
+      sortOrder: true,
+
       createdAt:
         true,
 
@@ -307,6 +313,9 @@ async function loadAllGroups() {
           "desc",
       },
 
+      {
+        sortOrder: "asc",
+      },
       {
         name:
           "asc",
@@ -645,6 +654,8 @@ export async function createTeamGroup(
     parent.id
   );
 
+  const siblingCount = await prisma.teamGroup.count({ where: { parentId: parent.id } });
+
   const group =
     await prisma.teamGroup.create({
       data: {
@@ -655,6 +666,7 @@ export async function createTeamGroup(
 
         isRoot:
           false,
+        sortOrder: siblingCount,
       },
 
       select: {
@@ -669,6 +681,8 @@ export async function createTeamGroup(
 
         isRoot:
           true,
+
+        sortOrder: true,
 
         createdAt:
           true,
@@ -1112,4 +1126,50 @@ export async function assignPersonToTeamGroup(
 
   publishLiveUpdate({ type: "people.changed" });
   return updated;
+}
+
+/**
+ * Owner-only sibling reordering. The payload must contain every current sibling,
+ * exactly once. Validate and write in one transaction to avoid partial orders.
+ */
+export async function reorderTeamGroups(
+  parentId: string,
+  orderedIds: string[],
+  access: AccessContext
+) {
+  assertOwnerMutationAccess(access);
+  if (!parentId || !Array.isArray(orderedIds) || new Set(orderedIds).size !== orderedIds.length) {
+    throw new TeamHierarchyError("INVALID_GROUP_ORDER", "Invalid team ordering.");
+  }
+  const result = await prisma.$transaction(async (tx) => {
+    const parent = await tx.teamGroup.findUnique({ where: { id: parentId }, select: { id: true } });
+    if (!parent) throw new TeamHierarchyError("PARENT_GROUP_NOT_FOUND", "Parent team not found.");
+    const siblings = await tx.teamGroup.findMany({
+      where: { parentId, isRoot: false },
+      select: { id: true, sortOrder: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    });
+    const valid = siblings.length === orderedIds.length &&
+      siblings.every((sibling) => orderedIds.includes(sibling.id));
+    if (!valid) throw new TeamHierarchyError("INVALID_GROUP_ORDER", "Team list changed. Refresh and try again.");
+    const before = siblings.map((sibling) => sibling.id);
+    if (before.join("\u0000") === orderedIds.join("\u0000")) return { changed: false };
+    for (const [sortOrder, id] of orderedIds.entries()) {
+      await tx.teamGroup.update({ where: { id }, data: { sortOrder } });
+    }
+    await tx.auditEvent.create({
+      data: {
+        action: "team_group.reordered",
+        success: true,
+        statusCode: 200,
+        actorUserId: access.userId,
+        targetType: "team_group",
+        targetId: parentId,
+        metadata: { parentId, before, after: orderedIds },
+      },
+    });
+    return { changed: true };
+  });
+  if (result.changed) publishLiveUpdate({ type: "people.changed" });
+  return result;
 }
