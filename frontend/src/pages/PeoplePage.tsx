@@ -50,6 +50,7 @@ type TeamGroup = {
   name: string;
   parentId: string | null;
   isRoot: boolean;
+  sortOrder: number;
   color: string | null;
   memberCount: number;
   childCount: number;
@@ -266,6 +267,9 @@ function PeoplePage() {
   const [batchRoleId, setBatchRoleId] = useState("");
 
   const [teamContextMenu, setTeamContextMenu] = useState<TeamContextMenu>(null);
+  const [reorderParentId, setReorderParentId] = useState<string | null>(null);
+  const [draftOrder, setDraftOrder] = useState<string[]>([]);
+  const [draggingTeamId, setDraggingTeamId] = useState<string | null>(null);
   const [teamModalAction, setTeamModalAction] = useState<TeamModalAction>(null);
   const [teamActionTargetId, setTeamActionTargetId] = useState<string | null>(null);
   const [teamName, setTeamName] = useState("");
@@ -368,7 +372,7 @@ function PeoplePage() {
     }
 
     for (const siblings of result.values()) {
-      siblings.sort((left, right) => left.name.localeCompare(right.name));
+      siblings.sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0) || left.name.localeCompare(right.name));
     }
 
     return result;
@@ -1020,6 +1024,54 @@ function PeoplePage() {
     }
   }
 
+
+  function beginTeamReorder(team: TeamGroup) {
+    setTeamContextMenu(null);
+    if (!options?.capabilities.canManageOrganization || !team.parentId) return;
+    const siblings = childrenByParent.get(team.parentId) ?? [];
+    if (siblings.length < 2) {
+      toast.warning("There must be at least two teams to rearrange.", "Reorder teams");
+      return;
+    }
+    setReorderParentId(team.parentId);
+    setDraftOrder(siblings.map((sibling) => sibling.id));
+  }
+
+  function moveTeam(id: string, destinationIndex: number) {
+    setDraftOrder((previous) => {
+      const source = previous.indexOf(id);
+      if (source < 0 || destinationIndex < 0 || destinationIndex >= previous.length || source === destinationIndex) return previous;
+      const next = previous.slice();
+      next.splice(source, 1);
+      next.splice(destinationIndex, 0, id);
+      return next;
+    });
+  }
+
+  function cancelTeamReorder() {
+    setReorderParentId(null);
+    setDraftOrder([]);
+    setDraggingTeamId(null);
+  }
+
+  async function saveTeamReorder() {
+    if (!reorderParentId) return;
+    try {
+      setSaving(true);
+      await apiRequest("/api/team-groups/order", {
+        method: "PUT",
+        body: JSON.stringify({ parentId: reorderParentId, orderedIds: draftOrder }),
+      });
+      cancelTeamReorder();
+      await loadOptions();
+      toast.success("Team display order saved.", "Organization updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save team order.", "Reorder failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function openTeamAction(action: Exclude<TeamModalAction, null>, team: TeamGroup) {
     setTeamContextMenu(null);
     setTeamActionTargetId(team.id);
@@ -1152,6 +1204,9 @@ function PeoplePage() {
 
   function renderTeamNode(team: TeamGroup, depth = 0) {
     const children = childrenByParent.get(team.id) ?? [];
+    const orderingSiblings = reorderParentId === team.parentId && !team.isRoot;
+    const siblingIds = orderingSiblings ? draftOrder : [];
+    const siblingPosition = siblingIds.indexOf(team.id);
     const hasChildren = children.length > 0;
     const collapsed = collapsedTeamIds.includes(team.id);
     const selected = team.id === selectedTeamId;
@@ -1161,7 +1216,15 @@ function PeoplePage() {
     } as CSSProperties;
 
     return (
-      <div className="people-org-node" key={team.id}>
+      <div
+        className="people-org-node"
+        key={team.id}
+        draggable={orderingSiblings}
+        onDragStart={(event) => { if (!orderingSiblings) return; setDraggingTeamId(team.id); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", team.id); }}
+        onDragOver={(event) => { if (orderingSiblings) event.preventDefault(); }}
+        onDrop={(event) => { event.preventDefault(); if (orderingSiblings && draggingTeamId) moveTeam(draggingTeamId, siblingPosition); setDraggingTeamId(null); }}
+        onDragEnd={() => setDraggingTeamId(null)}
+      >
         <div
           className={`people-org-item${selected ? " active" : ""}${accent ? " colored" : ""}${team.isRoot ? " root" : ""}`}
           style={itemStyle}
@@ -1203,12 +1266,17 @@ function PeoplePage() {
             <span className="people-org-name">{team.name}</span>
           </span>
 
+          {orderingSiblings && <span className="people-org-reorder-actions" onClick={(event) => event.stopPropagation()}>
+            <span aria-hidden="true" title="Drag to reorder">⠿</span>
+            <button type="button" aria-label={`Move ${team.name} up`} disabled={siblingPosition <= 0} onClick={() => moveTeam(team.id, siblingPosition - 1)}>↑</button>
+            <button type="button" aria-label={`Move ${team.name} down`} disabled={siblingPosition >= draftOrder.length - 1} onClick={() => moveTeam(team.id, siblingPosition + 1)}>↓</button>
+          </span>}
           <span className="people-org-count">{teamPeopleCounts.get(team.id) ?? 0}</span>
         </div>
 
         {hasChildren && !collapsed && (
           <div className={`people-org-children ${team.isRoot ? "root-children" : "nested-children"}`}>
-            {children.map((child) => renderTeamNode(child, depth + 1))}
+            {(reorderParentId === team.id ? draftOrder.map((id) => children.find((child) => child.id === id)).filter((child): child is TeamGroup => Boolean(child)) : children).map((child) => renderTeamNode(child, depth + 1))}
           </div>
         )}
       </div>
@@ -1269,6 +1337,11 @@ function PeoplePage() {
             )}
           </div>
 
+          {reorderParentId && <div className="people-reorder-toolbar" role="region" aria-label="Reorder teams">
+            <span>Reorder mode: drag teams or use the arrow buttons.</span>
+            <button className="secondary-button" type="button" disabled={saving} onClick={cancelTeamReorder}>Cancel</button>
+            <button className="primary-button" type="button" disabled={saving} onClick={() => void saveTeamReorder()}>{saving ? "Saving…" : "Save order"}</button>
+          </div>}
           <div className="people-org-tree">
             {rootTeams.length
               ? rootTeams.map((team) => renderTeamNode(team))
@@ -1276,7 +1349,7 @@ function PeoplePage() {
           </div>
 
           {options?.capabilities.canManageOrganization && (
-            <div className="people-org-help">Right-click a non-root team for subteam, rename, color, or delete actions.</div>
+            <div className="people-org-help">Right-click a non-root team for reorder, subteam, rename, color, or delete actions.</div>
           )}
         </aside>
 
@@ -1441,6 +1514,7 @@ function PeoplePage() {
           style={{ left: teamContextMenu.x, top: teamContextMenu.y }}
           onClick={(event) => event.stopPropagation()}
         >
+          <button type="button" onClick={() => beginTeamReorder(contextTeam)}>Reorder</button>
           <button type="button" onClick={() => openTeamAction("create", contextTeam)}>Add subteam</button>
           <button type="button" onClick={() => openTeamAction("rename", contextTeam)}>Rename team</button>
           <button type="button" onClick={() => openTeamColor(contextTeam)}>Team color</button>
