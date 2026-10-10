@@ -22,6 +22,7 @@ import {
   deleteTeamGroup,
   listTeamGroups,
   renameTeamGroup,
+  reorderTeamGroups,
   setTeamGroupColor,
   TeamHierarchyError,
 } from "../services/team-hierarchy.js";
@@ -52,6 +53,11 @@ const renameGroupSchema =
     name:
       groupNameSchema,
   });
+
+const reorderSchema = z.object({
+  parentId: z.string().min(1),
+  orderedIds: z.array(z.string().min(1)).max(500),
+});
 
 const colorSchema =
   z.object({
@@ -142,6 +148,7 @@ function handleHierarchyError(
 
       return true;
 
+    case "INVALID_GROUP_ORDER":
     case "INVALID_GROUP_COLOR":
       res.status(400).json({
         error:
@@ -294,6 +301,23 @@ router.post(
     }
   }
 );
+
+router.put("/order", ...peopleManagementGuards, async (req: AuthenticatedRequest, res) => {
+  if (!req.access) { res.status(401).json({ error: "UNAUTHENTICATED" }); return; }
+  const parsed = reorderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "INVALID_REQUEST", message: "A parent team and ordered team IDs are required." });
+    return;
+  }
+  try {
+    const result = await reorderTeamGroups(parsed.data.parentId, parsed.data.orderedIds, req.access);
+    res.status(200).json({ status: "TEAM_GROUPS_REORDERED", ...result });
+  } catch (error) {
+    if (handleHierarchyError(error, res)) return;
+    console.error("Reorder teams request failed:", error);
+    res.status(500).json({ error: "REORDER_TEAM_GROUPS_FAILED", message: "Unable to save team order." });
+  }
+});
 
 router.put(
   "/:groupId",
