@@ -204,10 +204,10 @@ export function renderBrandedTransactionalEmail(
       }
     </style>
   </head>
-  <body style="margin:0;padding:0;background:#f5f3ee;">
+  <body style="margin:0;padding:0;background:#ffffff;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div>
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f5f3ee" style="width:100%;background:#f5f3ee;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="width:100%;background:#ffffff;">
       <tr>
         <td class="xyz-email-outer" align="center" style="padding:28px 14px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px;border:1px solid #2d2d2d;background:#000000;">

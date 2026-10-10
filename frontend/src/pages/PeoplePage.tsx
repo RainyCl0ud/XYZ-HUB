@@ -50,6 +50,7 @@ type TeamGroup = {
   name: string;
   parentId: string | null;
   isRoot: boolean;
+  sortOrder: number;
   color: string | null;
   memberCount: number;
   childCount: number;
@@ -266,6 +267,10 @@ function PeoplePage() {
   const [batchRoleId, setBatchRoleId] = useState("");
 
   const [teamContextMenu, setTeamContextMenu] = useState<TeamContextMenu>(null);
+  const [reorderParentId, setReorderParentId] = useState<string | null>(null);
+  const [draftOrder, setDraftOrder] = useState<string[]>([]);
+  const [draggingTeamId, setDraggingTeamId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; edge: "before" | "after" } | null>(null);
   const [teamModalAction, setTeamModalAction] = useState<TeamModalAction>(null);
   const [teamActionTargetId, setTeamActionTargetId] = useState<string | null>(null);
   const [teamName, setTeamName] = useState("");
@@ -368,11 +373,27 @@ function PeoplePage() {
     }
 
     for (const siblings of result.values()) {
-      siblings.sort((left, right) => left.name.localeCompare(right.name));
+      siblings.sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0) || left.name.localeCompare(right.name));
     }
 
     return result;
   }, [teamById, teams]);
+
+  // Shared parent-first order for all team selectors, matching the organization tree.
+  const orderedTeams = useMemo(() => {
+    const result: TeamGroup[] = [];
+    const seen = new Set<string>();
+    const visit = (parentId: string | null) => {
+      for (const team of childrenByParent.get(parentId) ?? []) {
+        if (seen.has(team.id)) continue;
+        seen.add(team.id);
+        result.push(team);
+        visit(team.id);
+      }
+    };
+    visit(null);
+    return result;
+  }, [childrenByParent]);
 
   const defaultTeamId = useMemo(() => {
     const rootId = options?.organization.rootGroupId;
@@ -1020,6 +1041,59 @@ function PeoplePage() {
     }
   }
 
+
+  function beginTeamReorder(team: TeamGroup) {
+    setTeamContextMenu(null);
+    if (!options?.capabilities.canManageOrganization || !team.parentId) return;
+    const siblings = childrenByParent.get(team.parentId) ?? [];
+    if (siblings.length < 2) {
+      toast.warning("There must be at least two teams to rearrange.", "Reorder teams");
+      return;
+    }
+    setReorderParentId(team.parentId);
+    setDraftOrder(siblings.map((sibling) => sibling.id));
+  }
+
+  function dropTeam(id: string, edge: "before" | "after") {
+    if (!draggingTeamId || draggingTeamId === id) return;
+    setDraftOrder((previous) => {
+      const from = previous.indexOf(draggingTeamId);
+      const target = previous.indexOf(id);
+      if (from < 0 || target < 0) return previous;
+      let insertAt = target + (edge === "after" ? 1 : 0);
+      const next = previous.slice();
+      next.splice(from, 1);
+      if (from < insertAt) insertAt -= 1;
+      next.splice(insertAt, 0, draggingTeamId);
+      return next;
+    });
+  }
+
+  function cancelTeamReorder() {
+    setReorderParentId(null);
+    setDraftOrder([]);
+    setDraggingTeamId(null);
+    setDropTarget(null);
+  }
+
+  async function saveTeamReorder() {
+    if (!reorderParentId) return;
+    try {
+      setSaving(true);
+      await apiRequest("/api/team-groups/order", {
+        method: "PUT",
+        body: JSON.stringify({ parentId: reorderParentId, orderedIds: draftOrder }),
+      });
+      cancelTeamReorder();
+      await loadOptions();
+      toast.success("Team display order saved.", "Organization updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save team order.", "Reorder failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function openTeamAction(action: Exclude<TeamModalAction, null>, team: TeamGroup) {
     setTeamContextMenu(null);
     setTeamActionTargetId(team.id);
@@ -1152,6 +1226,7 @@ function PeoplePage() {
 
   function renderTeamNode(team: TeamGroup, depth = 0) {
     const children = childrenByParent.get(team.id) ?? [];
+    const orderingSiblings = reorderParentId === team.parentId && !team.isRoot;
     const hasChildren = children.length > 0;
     const collapsed = collapsedTeamIds.includes(team.id);
     const selected = team.id === selectedTeamId;
@@ -1161,7 +1236,15 @@ function PeoplePage() {
     } as CSSProperties;
 
     return (
-      <div className="people-org-node" key={team.id}>
+      <div
+        className={`people-org-node${draggingTeamId === team.id ? " is-dragging" : ""}${dropTarget?.id === team.id && draggingTeamId !== team.id ? ` drop-${dropTarget.edge}` : ""}`}
+        key={team.id}
+        draggable={orderingSiblings}
+        onDragStart={(event) => { if (!orderingSiblings) return; event.stopPropagation(); setDraggingTeamId(team.id); setDropTarget(null); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", team.id); }}
+        onDragOver={(event) => { if (!orderingSiblings || !draggingTeamId) return; event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = "move"; const rect = event.currentTarget.querySelector(".people-org-item")?.getBoundingClientRect(); if (rect && draggingTeamId !== team.id) setDropTarget({ id: team.id, edge: event.clientY < rect.top + rect.height / 2 ? "before" : "after" }); }}
+        onDrop={(event) => { if (!orderingSiblings) return; event.preventDefault(); event.stopPropagation(); if (draggingTeamId && draggingTeamId !== team.id) { const rect = event.currentTarget.querySelector(".people-org-item")?.getBoundingClientRect(); dropTeam(team.id, rect && event.clientY >= rect.top + rect.height / 2 ? "after" : "before"); } setDraggingTeamId(null); setDropTarget(null); }}
+        onDragEnd={(event) => { event.stopPropagation(); setDraggingTeamId(null); setDropTarget(null); }}
+      >
         <div
           className={`people-org-item${selected ? " active" : ""}${accent ? " colored" : ""}${team.isRoot ? " root" : ""}`}
           style={itemStyle}
@@ -1203,12 +1286,13 @@ function PeoplePage() {
             <span className="people-org-name">{team.name}</span>
           </span>
 
+          {orderingSiblings && <span className="people-org-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span>}
           <span className="people-org-count">{teamPeopleCounts.get(team.id) ?? 0}</span>
         </div>
 
         {hasChildren && !collapsed && (
           <div className={`people-org-children ${team.isRoot ? "root-children" : "nested-children"}`}>
-            {children.map((child) => renderTeamNode(child, depth + 1))}
+            {(reorderParentId === team.id ? draftOrder.map((id) => children.find((child) => child.id === id)).filter((child): child is TeamGroup => Boolean(child)) : children).map((child) => renderTeamNode(child, depth + 1))}
           </div>
         )}
       </div>
@@ -1269,6 +1353,11 @@ function PeoplePage() {
             )}
           </div>
 
+          {reorderParentId && <div className="people-reorder-toolbar" role="region" aria-label="Reorder teams">
+            <span>Reorder mode: drag teams into position, then save.</span>
+            <button className="secondary-button" type="button" disabled={saving} onClick={cancelTeamReorder}>Cancel</button>
+            <button className="primary-button" type="button" disabled={saving} onClick={() => void saveTeamReorder()}>{saving ? "Saving…" : "Save order"}</button>
+          </div>}
           <div className="people-org-tree">
             {rootTeams.length
               ? rootTeams.map((team) => renderTeamNode(team))
@@ -1276,7 +1365,7 @@ function PeoplePage() {
           </div>
 
           {options?.capabilities.canManageOrganization && (
-            <div className="people-org-help">Right-click a non-root team for subteam, rename, color, or delete actions.</div>
+            <div className="people-org-help">Right-click a non-root team for reorder, subteam, rename, color, or delete actions.</div>
           )}
         </aside>
 
@@ -1441,6 +1530,7 @@ function PeoplePage() {
           style={{ left: teamContextMenu.x, top: teamContextMenu.y }}
           onClick={(event) => event.stopPropagation()}
         >
+          <button type="button" onClick={() => beginTeamReorder(contextTeam)}>Reorder</button>
           <button type="button" onClick={() => openTeamAction("create", contextTeam)}>Add subteam</button>
           <button type="button" onClick={() => openTeamAction("rename", contextTeam)}>Rename team</button>
           <button type="button" onClick={() => openTeamColor(contextTeam)}>Team color</button>
@@ -1520,7 +1610,7 @@ function PeoplePage() {
                 <span>Team</span>
                 <div className="people-select-shell">
                   <select value={inviteTeamId} onChange={(event) => setInviteTeamId(event.target.value)}>
-                    {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
+                    {orderedTeams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
                   </select>
                   <span className="people-select-caret" aria-hidden="true">&#9662;</span>
                 </div>
@@ -1568,7 +1658,7 @@ function PeoplePage() {
                   <span>New team</span>
                   <div className="people-select-shell">
                     <select value={batchTeamId} onChange={(event) => setBatchTeamId(event.target.value)}>
-                      {teams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
+                      {orderedTeams.map((team) => <option key={team.id} value={team.id}>{teamOptionLabel(team)}</option>)}
                     </select>
                     <span className="people-select-caret" aria-hidden="true">&#9662;</span>
                   </div>
