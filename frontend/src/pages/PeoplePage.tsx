@@ -270,6 +270,7 @@ function PeoplePage() {
   const [reorderParentId, setReorderParentId] = useState<string | null>(null);
   const [draftOrder, setDraftOrder] = useState<string[]>([]);
   const [draggingTeamId, setDraggingTeamId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; edge: "before" | "after" } | null>(null);
   const [teamModalAction, setTeamModalAction] = useState<TeamModalAction>(null);
   const [teamActionTargetId, setTeamActionTargetId] = useState<string | null>(null);
   const [teamName, setTeamName] = useState("");
@@ -1053,13 +1054,17 @@ function PeoplePage() {
     setDraftOrder(siblings.map((sibling) => sibling.id));
   }
 
-  function moveTeam(id: string, destinationIndex: number) {
+  function dropTeam(id: string, edge: "before" | "after") {
+    if (!draggingTeamId || draggingTeamId === id) return;
     setDraftOrder((previous) => {
-      const source = previous.indexOf(id);
-      if (source < 0 || destinationIndex < 0 || destinationIndex >= previous.length || source === destinationIndex) return previous;
+      const from = previous.indexOf(draggingTeamId);
+      const target = previous.indexOf(id);
+      if (from < 0 || target < 0) return previous;
+      let insertAt = target + (edge === "after" ? 1 : 0);
       const next = previous.slice();
-      next.splice(source, 1);
-      next.splice(destinationIndex, 0, id);
+      next.splice(from, 1);
+      if (from < insertAt) insertAt -= 1;
+      next.splice(insertAt, 0, draggingTeamId);
       return next;
     });
   }
@@ -1068,6 +1073,7 @@ function PeoplePage() {
     setReorderParentId(null);
     setDraftOrder([]);
     setDraggingTeamId(null);
+    setDropTarget(null);
   }
 
   async function saveTeamReorder() {
@@ -1221,8 +1227,6 @@ function PeoplePage() {
   function renderTeamNode(team: TeamGroup, depth = 0) {
     const children = childrenByParent.get(team.id) ?? [];
     const orderingSiblings = reorderParentId === team.parentId && !team.isRoot;
-    const siblingIds = orderingSiblings ? draftOrder : [];
-    const siblingPosition = siblingIds.indexOf(team.id);
     const hasChildren = children.length > 0;
     const collapsed = collapsedTeamIds.includes(team.id);
     const selected = team.id === selectedTeamId;
@@ -1233,13 +1237,13 @@ function PeoplePage() {
 
     return (
       <div
-        className="people-org-node"
+        className={`people-org-node${draggingTeamId === team.id ? " is-dragging" : ""}${dropTarget?.id === team.id && draggingTeamId !== team.id ? ` drop-${dropTarget.edge}` : ""}`}
         key={team.id}
         draggable={orderingSiblings}
-        onDragStart={(event) => { if (!orderingSiblings) return; event.stopPropagation(); setDraggingTeamId(team.id); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", team.id); }}
-        onDragOver={(event) => { if (orderingSiblings) { event.preventDefault(); event.stopPropagation(); } }}
-        onDrop={(event) => { event.preventDefault(); event.stopPropagation(); if (orderingSiblings && draggingTeamId) moveTeam(draggingTeamId, siblingPosition); setDraggingTeamId(null); }}
-        onDragEnd={(event) => { event.stopPropagation(); setDraggingTeamId(null); }}
+        onDragStart={(event) => { if (!orderingSiblings) return; event.stopPropagation(); setDraggingTeamId(team.id); setDropTarget(null); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", team.id); }}
+        onDragOver={(event) => { if (!orderingSiblings || !draggingTeamId) return; event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = "move"; const rect = event.currentTarget.querySelector(".people-org-item")?.getBoundingClientRect(); if (rect && draggingTeamId !== team.id) setDropTarget({ id: team.id, edge: event.clientY < rect.top + rect.height / 2 ? "before" : "after" }); }}
+        onDrop={(event) => { if (!orderingSiblings) return; event.preventDefault(); event.stopPropagation(); if (draggingTeamId && draggingTeamId !== team.id) { const rect = event.currentTarget.querySelector(".people-org-item")?.getBoundingClientRect(); dropTeam(team.id, rect && event.clientY >= rect.top + rect.height / 2 ? "after" : "before"); } setDraggingTeamId(null); setDropTarget(null); }}
+        onDragEnd={(event) => { event.stopPropagation(); setDraggingTeamId(null); setDropTarget(null); }}
       >
         <div
           className={`people-org-item${selected ? " active" : ""}${accent ? " colored" : ""}${team.isRoot ? " root" : ""}`}
@@ -1282,11 +1286,7 @@ function PeoplePage() {
             <span className="people-org-name">{team.name}</span>
           </span>
 
-          {orderingSiblings && <span className="people-org-reorder-actions" onClick={(event) => event.stopPropagation()}>
-            <span aria-hidden="true" title="Drag to reorder">⠿</span>
-            <button type="button" aria-label={`Move ${team.name} up`} disabled={siblingPosition <= 0} onClick={() => moveTeam(team.id, siblingPosition - 1)}>↑</button>
-            <button type="button" aria-label={`Move ${team.name} down`} disabled={siblingPosition >= draftOrder.length - 1} onClick={() => moveTeam(team.id, siblingPosition + 1)}>↓</button>
-          </span>}
+          {orderingSiblings && <span className="people-org-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span>}
           <span className="people-org-count">{teamPeopleCounts.get(team.id) ?? 0}</span>
         </div>
 
@@ -1354,7 +1354,7 @@ function PeoplePage() {
           </div>
 
           {reorderParentId && <div className="people-reorder-toolbar" role="region" aria-label="Reorder teams">
-            <span>Reorder mode: drag teams or use the arrow buttons.</span>
+            <span>Reorder mode: drag teams into position, then save.</span>
             <button className="secondary-button" type="button" disabled={saving} onClick={cancelTeamReorder}>Cancel</button>
             <button className="primary-button" type="button" disabled={saving} onClick={() => void saveTeamReorder()}>{saving ? "Saving…" : "Save order"}</button>
           </div>}
