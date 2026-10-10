@@ -2062,7 +2062,11 @@
 .people-reorder-toolbar > button { flex:0 0 auto; }
 .people-org-node[draggable="true"] > .people-org-item { cursor:grab; }
 .people-org-node[draggable="true"]:active > .people-org-item { cursor:grabbing; }
-.people-org-reorder-actions { display:inline-flex; gap:4px; align-items:center; margin-left:auto; flex-shrink:0; }
-.people-org-reorder-actions button { width:25px; height:25px; border:1px solid var(--border, #444); border-radius:5px; background:transparent; color:inherit; cursor:pointer; }
-.people-org-reorder-actions button:disabled { opacity:.3; cursor:not-allowed; }
-.people-org-reorder-actions button:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+.people-org-drag-handle { display:inline-flex; align-items:center; margin-left:auto; padding:0 5px; cursor:grab; opacity:.75; font-size:19px; user-select:none; }
+.people-org-node.is-dragging > .people-org-item { opacity:.4; }
+.people-org-node.drop-before > .people-org-item,
+.people-org-node.drop-after > .people-org-item { position:relative; }
+.people-org-node.drop-before > .people-org-item::before,
+.people-org-node.drop-after > .people-org-item::after { content:""; position:absolute; left:3px; right:3px; height:3px; border-radius:3px; background:var(--text, #fff); pointer-events:none; z-index:5; }
+.people-org-node.drop-before > .people-org-item::before { top:-2px; }
+.people-org-node.drop-after > .people-org-item::after { bottom:-2px; }
