@@ -14,13 +14,13 @@ The reset script:
 - removes Owner creator assignments and stacked non-Owner roles so the test environment is clean;
 - never targets Production.
 
-The utility intentionally clears Staging audit events together with the old test dataset.
+The utility intentionally clears Staging audit events together with the old test dataset. It also clears disciplinary Strikes and reasons before deleting their referenced employees/policy, and restores a single default 30-day ladder. Strike records and reasons start empty; use the normal reason-configuration and explicit issue workflow to create disciplinary test cases. QA incidents are independent records and never expire or automatically create Strikes.
 
 ## Seeded coverage
 
 The deterministic dataset includes:
 
-- 15 staff records covering Ops Manager, Manager, QC, Chatter, Trial Chatter, Dev, Accountant and General Staff;
+- 9 staff records covering Ops Manager, Manager, QC, Chatter, Trial Chatter, Dev, Accountant and General Staff;
 - active, pending-setup and deactivated People states;
 - a stacked `QC + Chatter` employee;
 - 6 creators, including one inactive creator;
@@ -28,13 +28,13 @@ The deterministic dataset includes:
 - 4 severities and 4 strike weights;
 - 7 QA rules, including one archived rule and a versioned rule;
 - the default 30-day strike ladder;
-- 15 incidents spanning OPEN, RESOLVED, VOIDED and expired-strike scenarios.
+- QA incidents spanning OPEN, RESOLVED and VOIDED states for the selected demo chatters.
 
 Demo People records use reserved `.test` email addresses. They are intended for UI/data testing, not real email-2FA login.
 
 ## Validation only
 
-This does not connect to or modify the database:
+This type-checks the utility, exercises database-free access/reset regressions, and validates the seed references. It does not connect to or modify the database:
 
 ```powershell
 npm run staging:validate-test-data
@@ -49,7 +49,7 @@ $env:STAGING_RESET_PRESERVE_EMAILS="dim@xyzofm.xyz"
 railway run npm run staging:reset-test-data -- --dry-run
 ```
 
-The dry run prints the Owner accounts that will be preserved and current row counts scheduled for replacement.
+The dry run prints the Owner accounts that will be preserved and current row counts scheduled for replacement, including disciplinary Strikes, reasons and ladder versions.
 
 ## Destructive Staging reset
 
@@ -76,9 +76,10 @@ Confirm that:
 - Owners remain hidden from ordinary People Management views;
 - People displays the RDR staff and mixed account states;
 - Creators displays six seeded creators and one inactive creator;
-- QA Overview has meaningful counts;
-- Incidents contains current, resolved, voided and expired examples;
+- the dashboard has meaningful QA counts;
+- Incidents contains open, resolved and voided examples;
 - Chatters displays current People names;
 - Rules shows the versioned and archived examples;
 - Configuration shows the seeded severity, weight and strike-ladder data;
+- Strikes and Strike Reasons have clean empty states, ready for deliberate test setup;
 - hierarchy filters and creator/model scope behave as expected.

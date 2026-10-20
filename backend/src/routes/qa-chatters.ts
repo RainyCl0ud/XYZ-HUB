@@ -127,9 +127,12 @@ router.get(
       const chatters =
         await prisma.chatter.findMany({
           where: {
-            ...buildChatterModelWhere(
-              scope
-            ),
+            // Keep creator authorization separate from the search OR below.
+            AND: [
+              buildChatterModelWhere(
+                scope
+              ),
+            ],
             ...(status
               ? {
                   status,

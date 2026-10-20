@@ -2,6 +2,8 @@
 
 import "dotenv/config";
 
+import { pathToFileURL } from "node:url";
+
 import {
   ChatterStatus,
   IncidentStatus,
@@ -722,7 +724,7 @@ const demoIncidents: DemoIncidentDefinition[] = [
     daysAgo: 35,
     status: IncidentStatus.OPEN,
     details:
-      "Historical strike retained to test expired-strike presentation for a deactivated employee.",
+      "Historical QA incident retained for a deactivated employee; QA history does not expire.",
   },
   {
     chatterKey: "micah",
@@ -767,7 +769,7 @@ const demoIncidents: DemoIncidentDefinition[] = [
     daysAgo: 20,
     status: IncidentStatus.RESOLVED,
     details:
-      "Older resolved strike retained to verify active-until-expiry behavior.",
+      "Older resolved QA incident retained to verify historical coaching notes.",
   },
   {
     chatterKey: "javier",
@@ -1231,6 +1233,12 @@ async function printDryRun() {
       await prisma.agencyModel.count(),
     incidents:
       await prisma.incident.count(),
+    strikes:
+      await prisma.strike.count(),
+    strikeReasons:
+      await prisma.strikeReason.count(),
+    strikeLadderVersions:
+      await prisma.strikeLadderVersion.count(),
     rules:
       await prisma.rule.count(),
     severities:
@@ -1468,6 +1476,23 @@ await tx.teamGroup.upsert({
               ROOT_TEAM_GROUP_NAME,
             parentId: null,
             isRoot: true,
+          },
+        });
+
+        /* Clear discipline before referenced people/policy and QA traceability. */
+        await tx.strike.deleteMany();
+        await tx.strikeReason.deleteMany();
+        await tx.strikeLadderStep.deleteMany();
+        await tx.strikeLadderVersion.deleteMany();
+
+        await tx.strikeLadderVersion.create({
+          data: {
+            versionNumber: 1,
+            durationDays: STRIKE_DURATION_DAYS,
+            isCurrent: true,
+            steps: {
+              create: strikeLadderSteps.map((step) => ({ ...step })),
+            },
           },
         });
 
@@ -2001,12 +2026,6 @@ await tx.teamGroup.upsert({
                   60 *
                   1000
             );
-          const expiresAt =
-            new Date(
-              occurredAt.getTime() +
-                STRIKE_DURATION_DAYS *
-                  dayMs
-            );
           const workflowAt =
             new Date(
               occurredAt.getTime() +
@@ -2030,7 +2049,6 @@ await tx.teamGroup.upsert({
               weightValueSnapshot:
                 version.weightValueSnapshot,
               occurredAt,
-              expiresAt,
               details:
                 definition.details,
               evidenceUrl:
@@ -2051,7 +2069,7 @@ await tx.teamGroup.upsert({
               voidReason:
                 definition.status ===
                 IncidentStatus.VOIDED
-                  ? "QA review determined the original strike should not count."
+                  ? "QA review determined the original incident was not valid."
                   : null,
               voidedAt:
                 definition.status ===
@@ -2075,6 +2093,12 @@ await tx.teamGroup.upsert({
             await tx.agencyModel.count(),
           incidents:
             await tx.incident.count(),
+          strikes:
+            await tx.strike.count(),
+          strikeReasons:
+            await tx.strikeReason.count(),
+          strikeLadderVersions:
+            await tx.strikeLadderVersion.count(),
           rules:
             await tx.rule.count(),
           severities:
@@ -2190,14 +2214,19 @@ async function main() {
   await performReset();
 }
 
-main()
-  .catch((error) => {
-    console.error(
-      "Staging reset failed:",
-      error
-    );
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Importing this utility for isolated regression tests must never execute a reset.
+export { main as runStagingReset, prisma as resetPrisma };
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main()
+    .catch((error) => {
+      console.error(
+        "Staging reset failed:",
+        error
+      );
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
