@@ -19,10 +19,6 @@ import {
   reconcileQaChatterProfiles,
 } from "./qa-chatter-profile-sync.js";
 
-import {
-  canViewQa,
-} from "./qa-access.js";
-
 function incidentModelWhere(
   access: AccessContext
 ) {
@@ -119,8 +115,9 @@ export async function getPersonQaSummary(
     );
 
   const canViewQaHistory =
-    canViewQa(
-      access
+    hasPermission(
+      access,
+      "quality.incidents.view"
     );
 
 

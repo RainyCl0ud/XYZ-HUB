@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": [
+    "src",
+    "scripts/reset-staging-test-data.ts",
+    "scripts/test-staging-access-regressions.ts",
+    "scripts/test-staging-reset-regressions.ts"
+  ]
+}

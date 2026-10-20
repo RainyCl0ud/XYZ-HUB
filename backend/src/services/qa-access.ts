@@ -299,37 +299,18 @@ export function buildChatterModelWhere(
   }
 
   return {
-    OR: [
-      {
-        user: {
-          modelAssignments: {
-            some: {
-              modelId: {
-                in:
-                  scope.modelIds,
-              },
-            },
+    // Creator-scoped roster/profile access follows current assignments only.
+    // Historical QA records never grant membership in a former creator's roster.
+    user: {
+      modelAssignments: {
+        some: {
+          modelId: {
+            in:
+              scope.modelIds,
           },
         },
       },
-      {
-        /*
-         * Transitional support for legacy QA
-         * chatter records that are not linked
-         * to a Login Gate user yet. If they have
-         * model-tagged incident history inside the
-         * viewer's scope, they remain reviewable.
-         */
-        incidents: {
-          some: {
-            modelId: {
-              in:
-                scope.modelIds,
-            },
-          },
-        },
-      },
-    ],
+    },
   };
 }
 
