@@ -75,16 +75,63 @@ async function main() {
     return { status, ids: body.data?.map((row) => row.id) ?? [] };
   }
 
-  assert.deepEqual((await list(access(), { search: "Alex", status: "ACTIVE" })).ids, ["local", "legacy"]);
-  assert.deepEqual((await list(access(), { search: "Alex" })).ids, ["local", "legacy", "inactive"]);
-  assert.deepEqual((await list(access(), {})).ids, ["local", "legacy", "inactive", "renamed"]);
+  assert.deepEqual((await list(access(), { search: "Alex", status: "ACTIVE" })).ids, ["local"]);
+  assert.deepEqual((await list(access(), { search: "Alex" })).ids, ["local", "inactive"]);
+  assert.deepEqual((await list(access(), {})).ids, ["local", "inactive", "renamed"]);
   assert.deepEqual((await list(access({ assignedModelIds: [] }), { search: "Alex" })).ids, []);
   assert.deepEqual((await list(access({ canSeeAllModels: true }), { search: "Alex" })).ids, ["local", "remote", "legacy", "inactive"]);
-  assert.deepEqual((await list(access({ canSeeAllModels: true }), { search: "Alex" }, "creator-a")).ids, ["local", "legacy", "inactive"]);
+  assert.deepEqual((await list(access({ canSeeAllModels: true }), { search: "Alex" }, "creator-a")).ids, ["local", "inactive"]);
   assert.deepEqual((await list(access(), { search: "beatrice" })).ids, ["renamed"]);
   assert.equal((await list(access(), {}, "creator-b")).status, 403);
   assert.equal((await list(undefined, { search: "Alex" })).status, 401);
-  console.log("Passed: scoped, unrestricted, legacy, empty-assignment, selected-creator, status and linked-name searches.");
+  console.log("Passed: current-assignment searches, unrestricted legacy access, empty assignments, creator selection, status and linked names.");
+
+  records.push(
+    { id: "transferred", name: "Alex Transferred", status: "ACTIVE", user: { name: "Alex Transferred", modelAssignments: [{ modelId: "creator-b" }] }, incidents: [{ modelId: "creator-a" }] },
+    { id: "unassigned", name: "Alex Unassigned", status: "ACTIVE", user: { name: "Alex Unassigned", modelAssignments: [] }, incidents: [{ modelId: "creator-a" }] },
+    { id: "shared", name: "Alex Shared", status: "ACTIVE", user: { name: "Alex Shared", modelAssignments: [{ modelId: "creator-a" }, { modelId: "creator-b" }] }, incidents: [] },
+    { id: "other-team", name: "Alex Other Team", status: "ACTIVE", user: { name: "Alex Other Team", teamGroupId: "other-team", modelAssignments: [{ modelId: "creator-a" }] }, incidents: [] },
+    { id: "pending", name: "Alex Pending", status: "INACTIVE", user: { name: "Alex Pending", status: "PENDING_SETUP", modelAssignments: [{ modelId: "creator-a" }] }, incidents: [] },
+  );
+  const currentA = (await list(access(), { search: "Alex" })).ids;
+  assert.ok(!currentA.includes("transferred"), "Old QA history must not expose a transferred chatter.");
+  assert.ok(!currentA.includes("unassigned"), "Old QA history must not expose an unassigned chatter.");
+  assert.ok(currentA.includes("shared"));
+  assert.ok(currentA.includes("other-team"), "QA creator membership is independent of organization team.");
+  assert.ok(currentA.includes("pending"), "Account setup status must not replace creator assignment checks.");
+  assert.ok(!(await list(access(), { search: "Alex", status: "ACTIVE" })).ids.includes("pending"));
+  const currentB = (await list(access({ assignedModelIds: ["creator-b"] }), { search: "Alex" })).ids;
+  assert.ok(currentB.includes("transferred"));
+  assert.ok(currentB.includes("shared"));
+  assert.ok(!(await list(access({ canSeeAllModels: true }), { search: "Transferred" }, "creator-a")).ids.includes("transferred"));
+
+  replace(prisma.chatter, "findFirst", async (args: { where: Row }) =>
+    records.find((row) => matches(row, args.where)) ?? null);
+  const detailRoute = chatterRoutes.stack.map((layer) => layer.route).find((route) => route?.path === "/:id");
+  assert.ok(detailRoute);
+  async function detail(viewer: AccessContext, id: string, selectedCreator?: string) {
+    let status = 200;
+    const response = {
+      status(code: number) { status = code; return this; },
+      json() { return this; },
+    } as unknown as Response;
+    await detailRoute!.stack[0].handle({ access: viewer, params: { id }, headers: { "x-xyz-model-id": selectedCreator } } as unknown as AuthenticatedRequest, response, () => {});
+    return status;
+  }
+  assert.equal(await detail(access(), "transferred"), 404);
+  assert.equal(await detail(access(), "legacy"), 404);
+  assert.equal(await detail(access(), "unassigned"), 404);
+  assert.equal(await detail(access({ assignedModelIds: ["creator-b"] }), "transferred"), 200);
+  assert.equal(await detail(access({ canSeeAllModels: true }), "transferred", "creator-a"), 404);
+  assert.equal(await detail(access({ canSeeAllModels: true }), "legacy"), 200);
+
+  const local = records.find((row) => row.id === "local")!;
+  local.incidents = [{ modelId: "creator-a" }];
+  (local.user as Row).modelAssignments = [{ modelId: "creator-b" }];
+  assert.ok(!(await list(access(), { search: "Alex" })).ids.includes("local"));
+  assert.equal(await detail(access(), "local"), 404);
+  assert.ok((await list(access({ assignedModelIds: ["creator-b"] }), { search: "Alex" })).ids.includes("local"));
+  console.log("Passed: transfers remove old-creator roster/detail access immediately; team/setup status and historical QA cannot grant creator membership.");
 
   replace(prisma.user, "findMany", async () => []);
   replace(prisma.chatter, "findMany", async () => []);
