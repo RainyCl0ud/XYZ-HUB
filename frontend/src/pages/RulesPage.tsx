@@ -1059,14 +1059,11 @@ function RulesPage() {
           </p>
 
           <h2>
-            Rules & Strike Reasons
+            Quality & Incidents Rules
           </h2>
 
           <p className="page-description">
-            Manage strike reasons
-            while preserving the
-            exact rule version used
-            by historical incidents.
+            Configure quality standards, incident policies, and enforcement rules.
           </p>
         </div>
 
