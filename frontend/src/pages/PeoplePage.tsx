@@ -95,6 +95,7 @@ type AssignableModel = {
 };
 
 type PeopleOptions = {
+  creatorModels: (AssignableModel & { creatorUserId: string | null })[];
   roles: AssignableRole[];
   inviteRoles: AssignableRole[];
   models: AssignableModel[];
@@ -254,6 +255,9 @@ function PeoplePage() {
   const [inviteTeamId, setInviteTeamId] = useState("");
   const [inviteRoleIds, setInviteRoleIds] = useState<string[]>([]);
   const [inviteModelIds, setInviteModelIds] = useState<string[]>([]);
+  const [inviteCreatorModelId, setInviteCreatorModelId] = useState("");
+  const inviteIsCreator = options?.inviteRoles.some((role) =>
+    role.systemKey === "MODEL" && inviteRoleIds.includes(role.id)) ?? false;
 
   const [showAddExisting, setShowAddExisting] = useState(false);
   const [existingSearch, setExistingSearch] = useState("");
@@ -871,6 +875,7 @@ function PeoplePage() {
     setInviteEmail("");
     setInviteRoleIds([]);
     setInviteModelIds([]);
+    setInviteCreatorModelId("");
     setInviteTeamId(teamId ?? selectedTeamId ?? defaultTeamId ?? "");
   }
 
@@ -906,6 +911,7 @@ function PeoplePage() {
           teamGroupId: inviteTeamId,
           roleIds: inviteRoleIds,
           modelIds: inviteModelIds,
+          creatorModelId: inviteIsCreator ? inviteCreatorModelId || null : undefined,
         }),
       });
       toast.success("The account invitation was created and sent.", "Invitation sent");
@@ -1625,6 +1631,19 @@ function PeoplePage() {
                   </label>
                 ))}</div>
               </div>
+
+              {inviteIsCreator && (
+                <label className="form-field">
+                  <span>Creator profile</span>
+                  <select value={inviteCreatorModelId} onChange={(event) => setInviteCreatorModelId(event.target.value)}>
+                    <option value="">Create automatically from this account's name</option>
+                    {(options.creatorModels ?? []).filter((model) => !model.creatorUserId).map((model) => (
+                      <option key={model.id} value={model.id}>{model.name}{model.isActive ? "" : " (inactive)"}</option>
+                    ))}
+                  </select>
+                  <small>This account will appear in Creator Management. Connect an existing profile to keep its staff assignments and history.</small>
+                </label>
+              )}
 
               <div className="people-option-section">
                 <span className="people-section-label">Creator assignments</span>

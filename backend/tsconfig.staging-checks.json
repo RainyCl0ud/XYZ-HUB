@@ -8,6 +8,7 @@
     "src",
     "scripts/reset-staging-test-data.ts",
     "scripts/test-staging-access-regressions.ts",
-    "scripts/test-staging-reset-regressions.ts"
+    "scripts/test-staging-reset-regressions.ts",
+    "scripts/test-creator-account.ts"
   ]
 }

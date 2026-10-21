@@ -393,6 +393,12 @@ export function canInviteRole(
     return false;
   }
 
+  // Creator accounts are unranked. Only Owners may invite one, matching
+  // the existing protection for assigning the Creator role to an account.
+  if (targetRole.systemKey === "MODEL") {
+    return isOwner(access);
+  }
+
   return canAssignRankedRole(
     access,
     targetRole.rank

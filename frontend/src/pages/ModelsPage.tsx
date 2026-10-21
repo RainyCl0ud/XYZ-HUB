@@ -12,6 +12,7 @@ import type {
 
 import {
   apiRequest,
+  PEOPLE_CHANGED_EVENT,
 } from "../lib/api";
 
 import {
@@ -36,6 +37,8 @@ type AgencyModel = {
   updatedAt: string;
   peopleCount: number;
   incidentCount: number;
+  hasLinkedAccount: boolean;
+  creatorAccount: { id: string; name: string; status: string; hasCreatorRole: boolean } | null;
 };
 
 type ModelsResponse = {
@@ -246,6 +249,12 @@ function ModelsPage() {
       loadModels,
     ]
   );
+
+  useEffect(() => {
+    const refresh = () => { void loadModels(); };
+    window.addEventListener(PEOPLE_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(PEOPLE_CHANGED_EVENT, refresh);
+  }, [loadModels]);
 
   const activeCount =
     models.filter(
@@ -780,6 +789,13 @@ function ModelsPage() {
                       {model.name}
                     </strong>
 
+                    <small>
+                      {model.creatorAccount
+                        ? "Account: " + model.creatorAccount.name + (model.creatorAccount.hasCreatorRole ? "" : " (Creator role removed)")
+                        : model.hasLinkedAccount ? "Creator account connected" : "No creator account connected"}
+                    </small>
+                    {model.creatorAccount?.status === "PENDING_SETUP" && <small>Account pending setup</small>}
+                    {model.creatorAccount?.status === "DEACTIVATED" && <small>Login account deactivated</small>}
                     <small>
                       Created {formatTexasDateTime(
                         model.createdAt

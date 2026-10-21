@@ -87,6 +87,7 @@ export async function getPeopleManagementOptions(
           id: true,
           name: true,
           isActive: true,
+          creatorUserId: true,
         },
         orderBy: {
           name:
@@ -152,10 +153,12 @@ const isOwnerUser =
       assignableRoles,
 
     models:
-      assignableModels,
+      assignableModels.map(({ id, name, isActive }) => ({ id, name, isActive })),
 
     inviteRoles,
-    inviteModels,
+    inviteModels: inviteModels.map(({ id, name, isActive }) => ({ id, name, isActive })),
+
+    creatorModels: isOwnerUser ? models : [],
 
     organization,
 

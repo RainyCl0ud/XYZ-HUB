@@ -80,6 +80,7 @@ model User {
   invitesCreated Invite[] @relation("InviteCreator")
 
   chatterProfile Chatter?
+  creatorProfile AgencyModel? @relation("CreatorAccount")
 
   strikesReceived Strike[] @relation("StrikeTarget")
   strikesIssued   Strike[] @relation("StrikeIssuer")
@@ -237,6 +238,9 @@ model AgencyModel {
   id String @id @default(cuid())
 
   name String @unique
+
+  creatorUserId String? @unique
+  creatorUser User? @relation("CreatorAccount", fields: [creatorUserId], references: [id], onDelete: SetNull)
 
   isActive Boolean @default(true)
 
