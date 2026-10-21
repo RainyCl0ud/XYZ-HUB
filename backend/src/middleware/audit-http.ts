@@ -41,6 +41,7 @@ type PersonAccessSnapshot = {
   roleNames: string[];
   modelIds: string[];
   modelNames: string[];
+  creatorProfile: { id: string; name: string } | null;
 };
 
 type TeamGroupSnapshot = {
@@ -228,6 +229,7 @@ async function getPersonAccessSnapshot(
           },
         },
 
+        creatorProfile: { select: { id: true, name: true } },
         modelAssignments: {
           select: {
             modelId:
@@ -283,6 +285,7 @@ async function getPersonAccessSnapshot(
             item.role.name
         )
         .sort(),
+    creatorProfile: user.creatorProfile ?? null,
     modelIds:
       user.modelAssignments
         .map(
@@ -570,6 +573,7 @@ async function prepareAudit(
         before:
           null,
         requested: {
+          creatorModelId: typeof req.body?.creatorModelId === "string" ? req.body.creatorModelId : null,
           email:
             email ||
             null,
@@ -796,6 +800,7 @@ async function prepareAudit(
         metadata: {
           before,
           requested: {
+            creatorModelId: typeof req.body?.creatorModelId === "string" ? req.body.creatorModelId : null,
             roleIds:
               Array.isArray(
                 req.body

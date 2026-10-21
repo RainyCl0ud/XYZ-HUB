@@ -69,6 +69,17 @@ import {
   getProfileAvatar,
 } from "../services/profile-avatar.js";
 
+import { CreatorAccountError } from "../services/creator-account.js";
+
+function handleCreatorAccountError(error: unknown, res: import("express").Response): boolean {
+  if (!(error instanceof CreatorAccountError)) return false;
+  const status = error.code === "CREATOR_ACCOUNT_OWNER_REQUIRED" || error.code === "CREATOR_ACCOUNT_PERMISSION_REQUIRED"
+    ? 403 : error.code === "CREATOR_PROFILE_NOT_FOUND" ? 404
+    : error.code === "CREATOR_ROLE_REQUIRED" || error.code === "CREATOR_NAME_INVALID" ? 400 : 409;
+  res.status(status).json({ error: error.code, message: error.message });
+  return true;
+}
+
 const router =
   Router();
 
@@ -100,6 +111,8 @@ const invitePersonSchema =
         )
         .default([]),
 
+    creatorModelId: z.string().trim().min(1).nullable().optional(),
+
     teamGroupId:
       z
         .string()
@@ -123,6 +136,8 @@ const invitePersonSchema =
           z.string().min(1)
         )
         .default([]),
+
+    creatorModelId: z.string().trim().min(1).nullable().optional(),
 
     teamGroupId:
       z
@@ -612,6 +627,7 @@ router.post(
 
             teamGroupId:
               parsed.data.teamGroupId,
+            creatorModelId: parsed.data.creatorModelId,
           },
 
           req.access
@@ -688,6 +704,7 @@ router.post(
         },
       });
     } catch (error) {
+      if (handleCreatorAccountError(error, res)) return;
       if (
         error instanceof
         PeopleInviteError
@@ -1233,6 +1250,7 @@ router.put(
 
             teamGroupId:
               parsed.data.teamGroupId,
+            creatorModelId: parsed.data.creatorModelId,
           },
 
           req.access
@@ -1245,6 +1263,7 @@ router.put(
         user,
       });
     } catch (error) {
+      if (handleCreatorAccountError(error, res)) return;
       if (
         error instanceof
         PeopleAccessUpdateError

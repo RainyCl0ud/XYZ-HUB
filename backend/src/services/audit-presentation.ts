@@ -875,6 +875,15 @@ function buildChanges(
       );
     }
 
+    if (after && "creatorProfile" in after) {
+      pushChange(
+        changes,
+        "Creator profile",
+        snapshotName(asRecord(before?.creatorProfile)),
+        snapshotName(asRecord(after.creatorProfile)),
+      );
+    }
+
     return changes;
   }
 

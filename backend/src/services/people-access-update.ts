@@ -13,12 +13,14 @@ import {
 import {
   getVisibleTeamGroupIds,
 } from "./team-hierarchy.js";
+import { ensureCreatorAccount } from "./creator-account.js";
 
 export type UpdatePersonAccessInput = {
   userId: string;
   roleIds: string[];
   modelIds: string[];
   teamGroupId?: string;
+  creatorModelId?: string | null;
 };
 
 export type PeopleAccessUpdateErrorCode =
@@ -507,6 +509,8 @@ await prisma.$transaction(
     async (
       tx
     ) => {
+      await ensureCreatorAccount(tx, target, roles, input.creatorModelId, access);
+
       if (
         roleIdsToRemove.length >
         0

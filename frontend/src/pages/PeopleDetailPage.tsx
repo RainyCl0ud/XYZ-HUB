@@ -112,6 +112,7 @@ type TeamGroup = {
 };
 
 type PeopleOptions = {
+  creatorModels: (AssignableModel & { creatorUserId: string | null })[];
   roles: AssignableRole[];
   models: AssignableModel[];
   organization: {
@@ -345,6 +346,7 @@ function getProfileTab(
 
 
 function PeopleDetailPage() {
+  const [creatorModelId, setCreatorModelId] = useState("");
   const navigate =
     useNavigate();
 
@@ -919,6 +921,7 @@ function PeopleDetailPage() {
       )
     );
 
+    setCreatorModelId((options.creatorModels ?? []).find((model) => model.creatorUserId === person.id)?.id ?? "");
     setShowRoleEditor(
       true
     );
@@ -989,6 +992,8 @@ function PeopleDetailPage() {
 
               roleIds:
                 assignedRoleIds,
+              creatorModelId: options.roles.some((role) => role.systemKey === "MODEL" && assignedRoleIds.includes(role.id))
+                ? creatorModelId || null : undefined,
 
               modelIds:
                 options.capabilities.canAssignModels
@@ -1976,6 +1981,23 @@ function PeopleDetailPage() {
                   )}
                 </div>
               </div>
+
+              {options.roles.some((role) => role.systemKey === "MODEL" && assignedRoleIds.includes(role.id)) && (
+                <label className="form-field">
+                  <span>Creator profile</span>
+                  <select
+                    value={creatorModelId}
+                    disabled={(options.creatorModels ?? []).some((model) => model.creatorUserId === person.id)}
+                    onChange={(event) => setCreatorModelId(event.target.value)}
+                  >
+                    <option value="">Create automatically from this account's name</option>
+                    {(options.creatorModels ?? []).filter((model) => !model.creatorUserId || model.creatorUserId === person.id).map((model) => (
+                      <option key={model.id} value={model.id}>{model.name}{model.isActive ? "" : " (inactive)"}</option>
+                    ))}
+                  </select>
+                  <small>The Creator role connects this account to Creator Management. Existing profiles keep their staff assignments and history.</small>
+                </label>
+              )}
 
               {options.capabilities.canAssignModels && (
               <div className="people-option-section">

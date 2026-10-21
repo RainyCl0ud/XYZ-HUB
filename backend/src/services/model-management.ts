@@ -8,6 +8,7 @@ import {
 
 import {
   hasPermission,
+  isOwner,
   type AccessContext,
 } from "./access-control.js";
 
@@ -77,6 +78,15 @@ const modelSummaryArgs =
       createdAt: true,
       updatedAt: true,
 
+      creatorUser: {
+        select: {
+          id: true, name: true, status: true,
+          roleMemberships: {
+            where: { role: { systemKey: "MODEL", archivedAt: null } },
+            select: { id: true }, take: 1,
+          },
+        },
+      },
       _count: {
         select: {
           assignments: true,
@@ -90,7 +100,8 @@ function formatModel(
   model:
     Prisma.AgencyModelGetPayload<
       typeof modelSummaryArgs
-    >
+    >,
+  access: AccessContext,
 ) {
   return {
     id:
@@ -108,6 +119,13 @@ function formatModel(
     updatedAt:
       model.updatedAt,
 
+    hasLinkedAccount: Boolean(model.creatorUser),
+    creatorAccount: isOwner(access) && model.creatorUser ? {
+      id: model.creatorUser.id,
+      name: model.creatorUser.name,
+      status: model.creatorUser.status,
+      hasCreatorRole: model.creatorUser.roleMemberships.length > 0,
+    } : null,
     peopleCount:
       model._count
         .assignments,
@@ -153,9 +171,7 @@ export async function listManagedModels(
       ],
     });
 
-  return models.map(
-    formatModel
-  );
+  return models.map((model) => formatModel(model, access));
 }
 
 async function findNameConflict(
@@ -227,7 +243,7 @@ export async function createManagedModel(
     });
 
   return formatModel(
-    created
+    created, access
   );
 }
 
@@ -295,7 +311,7 @@ export async function renameManagedModel(
     });
 
   return formatModel(
-    updated
+    updated, access
   );
 }
 
@@ -355,7 +371,7 @@ export async function deactivateManagedModel(
     });
 
   return formatModel(
-    updated
+    updated, access
   );
 }
 
@@ -415,6 +431,6 @@ export async function reactivateManagedModel(
     });
 
   return formatModel(
-    updated
+    updated, access
   );
 }

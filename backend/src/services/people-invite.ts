@@ -27,6 +27,7 @@ import {
   generateInviteToken,
   hashInviteToken,
 } from "./invite-token.js";
+import { ensureCreatorAccount } from "./creator-account.js";
 
 export type InvitePersonInput = {
   name: string;
@@ -34,6 +35,7 @@ export type InvitePersonInput = {
   roleIds: string[];
   modelIds: string[];
   teamGroupId?: string | null;
+  creatorModelId?: string | null;
 };
 
 export type InvitePersonResult = {
@@ -365,6 +367,8 @@ export async function invitePerson(
                 })
               ),
           });
+
+          await ensureCreatorAccount(tx, user, roles, input.creatorModelId, access);
 
           if (
             modelIds.length >
