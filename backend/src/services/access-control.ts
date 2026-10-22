@@ -15,6 +15,7 @@ const OWNER_ONLY_CAPABILITY_KEYS =
     "people.status.manage",
     "people.delete",
     "audit.access",
+    "chat.private.general.review",
   ]);
 
 export type AccessContext = {

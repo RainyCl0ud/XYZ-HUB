@@ -1,3 +1,5 @@
+import { CHAT_PERMISSION_DEFINITIONS } from "./chat-permissions.js";
+
 export type PermissionDefinition = {
   key: string;
   name: string;
@@ -790,6 +792,8 @@ export const PERMISSION_CATALOG:
      * audit.access starts clean from actual effective access.
      * =====================================================
      */
+    // Block 2 ordinary creator chat (separately enabled for rollout).
+    ...CHAT_PERMISSION_DEFINITIONS.filter((permission) => permission.key !== "chat.private.general.review"),
   ];
 
 

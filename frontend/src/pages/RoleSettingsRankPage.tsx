@@ -109,6 +109,8 @@ const MODULE_LABELS:
   models:
     "Creators",
 
+  chat: "Chat",
+
   roles:
     "Role Settings",
 
@@ -123,6 +125,7 @@ const MODULE_ORDER = [
   "quality",
   "strikes",
   "models",
+  "chat",
   "roles",
   "audit",
 ] as const;

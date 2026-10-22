@@ -14,6 +14,8 @@ import {
   getVisibleTeamGroupIds,
 } from "./team-hierarchy.js";
 import { ensureCreatorAccount } from "./creator-account.js";
+import { isCreatorChatEnabled } from "./creator-chat.js";
+import { syncUserStandingChats } from "./standing-chat.js";
 
 export type UpdatePersonAccessInput = {
   userId: string;
@@ -509,7 +511,7 @@ await prisma.$transaction(
     async (
       tx
     ) => {
-      await ensureCreatorAccount(tx, target, roles, input.creatorModelId, access);
+      await ensureCreatorAccount(tx, target, roles, input.creatorModelId, access, { deferStandingChat: true });
 
       if (
         roleIdsToRemove.length >
@@ -595,6 +597,7 @@ await prisma.$transaction(
           },
         });
       }
+      if (isCreatorChatEnabled()) await syncUserStandingChats(tx, target.id);
     }
   );
 

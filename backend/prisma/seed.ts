@@ -84,7 +84,7 @@ const defaultRolePermissions: Record<
   readonly string[]
 > = {
   OWNER:
-    MANAGED_PERMISSION_KEYS,
+    MANAGED_PERMISSION_KEYS.filter((key) => !["chat.private.creator", "chat.private.staff", "chat.private.accountant", "chat.private.general", "chat.trial_feedback.restricted"].includes(key)),
 
   OPS_MANAGER: [
     "dashboard.view",

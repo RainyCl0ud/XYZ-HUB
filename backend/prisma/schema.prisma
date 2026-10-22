@@ -81,6 +81,8 @@ model User {
 
   chatterProfile Chatter?
   creatorProfile AgencyModel? @relation("CreatorAccount")
+  chatMessages ChatMessage[]
+  standingChats ChatStandingConversation[]
 
   strikesReceived Strike[] @relation("StrikeTarget")
   strikesIssued   Strike[] @relation("StrikeIssuer")
@@ -158,6 +160,7 @@ model Role {
 
   userRoles       UserRole[]
   rolePermissions RolePermission[]
+  chatGrants ChatRoleGrant[]
 
   @@index([rank])
   @@index([isSystem])
@@ -249,6 +252,8 @@ model AgencyModel {
 
   assignments UserModelAssignment[]
   incidents   Incident[]
+  chatArea ChatArea?
+  standingChats ChatStandingConversation[]
 
   @@index([isActive])
 }
@@ -266,6 +271,7 @@ model UserModelAssignment {
   user       User        @relation("UserModelMember", fields: [userId], references: [id], onDelete: Cascade)
   model      AgencyModel @relation(fields: [modelId], references: [id], onDelete: Restrict)
   assignedBy User?       @relation("UserModelAssigner", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+  chatGrants ChatPersonGrant[]
 
   @@unique([userId, modelId])
   @@index([userId])
@@ -767,4 +773,105 @@ model AuditEvent {
   @@index([success])
   @@index([actorUserId])
   @@index([targetType, targetId])
+}
+
+// Ordinary creator channels only. Protected standing chats are deliberately
+// separate work: they must never inherit ordinary role/person grants.
+model ChatSetup {
+  id String @id
+  createdAt DateTime @default(now())
+}
+
+model ChatArea {
+  modelId String @id
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  model AgencyModel @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  channels ChatChannel[]
+}
+
+model ChatChannel {
+  id String @id @default(cuid())
+  modelId String
+  key String
+  name String
+  sortOrder Int
+  createdAt DateTime @default(now())
+  area ChatArea @relation(fields: [modelId], references: [modelId], onDelete: Restrict)
+  roleGrants ChatRoleGrant[]
+  personGrants ChatPersonGrant[]
+  messages ChatMessage[]
+  @@unique([modelId, key])
+  @@index([modelId, sortOrder])
+}
+
+model ChatRoleGrant {
+  channelId String
+  roleId String
+  canView Boolean @default(false)
+  canPost Boolean @default(false)
+  channel ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([channelId, roleId])
+  @@index([roleId])
+}
+
+model ChatPersonGrant {
+  channelId String
+  // A grant belongs to this assignment episode. Unassignment deletes it;
+  // returning to the creator cannot resurrect the previous named access.
+  assignmentId String
+  canView Boolean @default(false)
+  canPost Boolean @default(false)
+  channel ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  assignment UserModelAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  @@id([channelId, assignmentId])
+  @@index([assignmentId])
+}
+
+model ChatMessage {
+  id String @id @default(cuid())
+  channelId String?
+  conversationId String?
+  authorUserId String?
+  authorName String
+  clientNonce String
+  text String
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  channel ChatChannel? @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  conversation ChatStandingConversation? @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  author User? @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  @@unique([channelId, authorUserId, clientNonce])
+  @@unique([conversationId, authorUserId, clientNonce])
+  @@index([channelId, createdAt, id])
+  @@index([conversationId, createdAt, id])
+}
+
+enum ChatStandingKind {
+  CREATOR
+  STAFF
+  ACCOUNTANT
+  GENERAL_STAFF
+}
+
+// Protected conversations have NO role/person grant relation. Their membership
+// is calculated from current assignments and explicit private-chat abilities.
+model ChatStandingConversation {
+  id String @id @default(cuid())
+  kind ChatStandingKind
+  modelId String?
+  subjectUserId String?
+  subjectName String
+  // Immutable assignment-episode snapshot, deliberately not a foreign key.
+  // Removing an assignment must retain the old conversation and its messages.
+  assignmentId String?
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  model AgencyModel? @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  subjectUser User? @relation(fields: [subjectUserId], references: [id], onDelete: SetNull)
+  messages ChatMessage[]
+  @@index([modelId, archivedAt])
+  @@index([subjectUserId, kind, archivedAt])
 }

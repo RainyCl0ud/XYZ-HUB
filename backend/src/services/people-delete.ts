@@ -16,6 +16,8 @@ import {
 import {
   publishLiveUpdate,
 } from "./live-updates.js";
+import { isCreatorChatEnabled } from "./creator-chat.js";
+import { archiveUserStandingChats } from "./standing-chat.js";
 
 
 export type DeletePersonInput = {
@@ -266,6 +268,7 @@ export async function deletePerson(
           });
         }
 
+        if (isCreatorChatEnabled()) await archiveUserStandingChats(tx, user.id);
         await tx.user.delete({
           where: {
             id:

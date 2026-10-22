@@ -5,6 +5,7 @@ import {
 import {
   prisma,
 } from "../lib/prisma.js";
+import { isCreatorChatEnabled, provisionCreatorChat } from "./creator-chat.js";
 
 import {
   hasPermission,
@@ -233,13 +234,13 @@ export async function createManagedModel(
   }
 
   const created =
-    await prisma.agencyModel.create({
-      data: {
-        name:
-          normalizedName,
-      },
-
-      ...modelSummaryArgs,
+    await prisma.$transaction(async (tx) => {
+      const model = await tx.agencyModel.create({
+        data: { name: normalizedName },
+        ...modelSummaryArgs,
+      });
+      if (isCreatorChatEnabled()) await provisionCreatorChat(tx, model.id);
+      return model;
     });
 
   return formatModel(

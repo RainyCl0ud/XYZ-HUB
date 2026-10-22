@@ -28,6 +28,8 @@ import {
   hashInviteToken,
 } from "./invite-token.js";
 import { ensureCreatorAccount } from "./creator-account.js";
+import { isCreatorChatEnabled } from "./creator-chat.js";
+import { syncUserStandingChats } from "./standing-chat.js";
 
 export type InvitePersonInput = {
   name: string;
@@ -389,6 +391,8 @@ export async function invitePerson(
                 ),
             });
           }
+
+          if (isCreatorChatEnabled()) await syncUserStandingChats(tx, user.id);
 
           const invite =
             await tx.invite.create({
