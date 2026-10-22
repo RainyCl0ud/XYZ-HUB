@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, apiRequest } from "../lib/api";
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
@@ -12,6 +12,24 @@ const time = (value: string) => new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
 }).format(new Date(value));
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Unable to load chat. Please try again.";
+const day = (value: string) => new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Chicago", month: "long", day: "numeric", year: "numeric",
+}).format(new Date(value));
+type IconName = "channel" | "lock" | "search" | "people" | "send" | "menu" | "close" | "settings" | "chat";
+function ChatIcon({ name }: { name: IconName }) {
+  const paths: Record<IconName, string> = {
+    channel: "M5 9h14M4 15h14M11 3 7 21M17 3l-4 18",
+    lock: "M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3",
+    search: "m21 21-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
+    people: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M15 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
+    send: "m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13",
+    menu: "M4 6h16M4 12h16M4 18h16",
+    close: "m6 6 12 12M6 18 18 6",
+    settings: "M4 7h16M4 17h16M8 4v6M16 14v6",
+    chat: "M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5a9.5 9.5 0 1 1 19 0ZM7 9h9M7 13h6",
+  };
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>;
+}
 
 export default function ChatPage() {
   const [areas, setAreas] = useState<Area[]>([]);
@@ -25,6 +43,9 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [showChannels, setShowChannels] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+  const [channelSearch, setChannelSearch] = useState("");
+  const [channelFilter, setChannelFilter] = useState<"all" | "channels" | "private">("all");
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [settings, setSettings] = useState<{ modelId: string; channelId?: string; name: string } | null>(null);
   const selectedRef = useRef(selected);
   const requestRef = useRef<AbortController | null>(null);
@@ -32,13 +53,21 @@ export default function ChatPage() {
   const messagePane = useRef<HTMLDivElement>(null);
   const followMessages = useRef(true);
   const earlierScroll = useRef<{ top: number; height: number } | null>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
   const area = areas.find((a) => a.channels.some((c) => c.id === selected));
   const channel = area?.channels.find((c) => c.id === selected);
+  const browseArea = area ?? areas[0];
+  const query = channelSearch.trim().toLocaleLowerCase();
+  const visibleChannels = browseArea?.channels.filter((c) => c.name.toLocaleLowerCase().includes(query) &&
+    (channelFilter === "all" || (channelFilter === "private" ? c.isPrivate : !c.isPrivate))) ?? [];
+  const ordinaryChannels = visibleChannels.filter((c) => !c.isPrivate);
+  const privateChannels = visibleChannels.filter((c) => c.isPrivate);
 
   const chooseChannel = useCallback((id: string) => {
     selectedRef.current = id;
     setSelected(id); setTranscript(null); setMembers([]); setDraft(""); setEdit(null); setError("");
     setSettings(null);
+    setShowMembers(false);
     pendingSend.current = null;
     followMessages.current = true;
     earlierScroll.current = null;
@@ -148,8 +177,9 @@ export default function ChatPage() {
     } finally { setSending(false); }
   }
   async function loadOlder() {
-    if (!transcript?.nextBefore) return;
+    if (!transcript?.nextBefore || loadingOlder) return;
     const channelId = selected;
+    setLoadingOlder(true);
     try {
       const older = await apiRequest<Transcript>(`/api/chat/channels/${channelId}/messages?before=${encodeURIComponent(transcript.nextBefore)}`, { signal: requestRef.current?.signal });
       if (selectedRef.current !== channelId) return;
@@ -157,36 +187,68 @@ export default function ChatPage() {
       setTranscript((old) => old ? { ...old, hasMore: older.hasMore, nextBefore: older.nextBefore,
         messages: [...older.messages.filter((m) => !old.messages.some((p) => p.id === m.id)), ...old.messages] } : older);
     } catch (e) { if (selectedRef.current === channelId) setError(errorText(e)); }
+    finally { setLoadingOlder(false); }
+  }
+  function channelRow(c: Channel) {
+    return <button type="button" key={c.id} className="creator-chat-channel-row" aria-current={c.id === selected ? "page" : undefined}
+      onClick={() => { chooseChannel(c.id); setShowChannels(false); }}>
+      <ChatIcon name={c.isPrivate ? "lock" : "channel"} />
+      <span className="creator-chat-channel-name">{c.name}</span>
+      {c.archived && <span className="creator-chat-row-badge">Archived</span>}
+    </button>;
   }
   return (
-    <section className="creator-chat">
-      <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1>Chat</h1><p>Your team conversations in one place.</p></div></header>
+    <section className="creator-chat" aria-labelledby="chat-page-title">
+      <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1 id="chat-page-title">Chat</h1><p>Find your creator, choose a conversation and stay connected.</p></div><span className="creator-chat-timezone">All times in US Central</span></header>
       {error && <div className="creator-chat-error" role="alert">{error}</div>}
-      {loading ? <p role="status">Loading your channels…</p> : !areas.length ? <div className="creator-chat-empty">No chat channels are available for your current access.</div> : (
-        <div className="creator-chat-shell">
-          <aside className={`creator-chat-channels ${showChannels ? "is-open" : ""}`} aria-label="Creator channels">
-            <div className="creator-chat-channel-heading"><strong>Channels</strong><button type="button" className="creator-chat-mobile" onClick={() => setShowChannels(false)}>Close</button></div>
-            {areas.map((a) => <div className="creator-chat-area" key={a.modelId}><h2>{a.name}{a.archived ? " · Archived" : ""}</h2>{a.canManage && <button type="button" className="creator-chat-add-channel" onClick={() => { setSettings({ modelId: a.modelId, name: "" }); setShowChannels(false); }}>+ Add channel</button>}{a.channels.map((c) => (
-              <button type="button" key={c.id} aria-current={c.id === selected ? "page" : undefined} onClick={() => { chooseChannel(c.id); setShowChannels(false); }}><span aria-hidden="true">{c.isPrivate ? "◈" : "#"}</span>{c.name}{c.archived ? " · Archived" : ""}</button>
-            ))}</div>)}
+      {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
+        <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""}`}>
+          <aside className="creator-chat-channels" aria-label="Browse conversations">
+            <div className="creator-chat-browse-tools">
+              <div className="creator-chat-channel-heading"><strong>Conversations</strong><button type="button" className="creator-chat-mobile" onClick={() => setShowChannels(false)} aria-label="Back to conversation"><ChatIcon name="close" /></button></div>
+              <label className="creator-chat-field-label" htmlFor="chat-workspace">Creator / workspace</label>
+              <select id="chat-workspace" value={browseArea?.modelId ?? ""} onChange={(e) => {
+                const next = areas.find((a) => a.modelId === e.target.value);
+                setChannelSearch(""); setChannelFilter("all"); chooseChannel(next?.channels[0]?.id ?? "");
+              }}>{areas.map((a) => <option key={a.modelId} value={a.modelId}>{a.name}{a.archived ? " · Archived" : ""}</option>)}</select>
+              <div className="creator-chat-search"><ChatIcon name="search" /><label className="creator-chat-sr" htmlFor="chat-find-channel">Find a conversation</label><input id="chat-find-channel" type="search" value={channelSearch} onChange={(e) => setChannelSearch(e.target.value)} placeholder="Find a conversation…" /></div>
+              <div className="creator-chat-filters" role="group" aria-label="Conversation type">
+                {([['all', 'All'], ['channels', 'Channels'], ['private', 'Private']] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={channelFilter === value} onClick={() => setChannelFilter(value)}>{label}</button>)}
+              </div>
+            </div>
+            <nav className="creator-chat-channel-list" aria-label={`${browseArea?.name ?? "Your"} conversations`}>
+              {!!ordinaryChannels.length && <div className="creator-chat-channel-group"><h2>Channels <span>{ordinaryChannels.length}</span></h2>{ordinaryChannels.map(channelRow)}</div>}
+              {!!privateChannels.length && <div className="creator-chat-channel-group"><h2>Private chats <span>{privateChannels.length}</span></h2>{privateChannels.map(channelRow)}</div>}
+              {!visibleChannels.length && <div className="creator-chat-no-results"><p>No conversations match.</p><button type="button" onClick={() => { setChannelSearch(""); setChannelFilter("all"); }}>Clear filters</button></div>}
+            </nav>
+            <div className="creator-chat-browse-footer">{browseArea?.canManage ? <button type="button" onClick={() => { setSettings({ modelId: browseArea.modelId, name: "" }); setShowChannels(false); }}>+ New channel</button> : <p>Only conversations you can access appear here.</p>}</div>
           </aside>
-          <main className="creator-chat-conversation" aria-label="Conversation">
-            <header className="creator-chat-channel-header"><button type="button" className="creator-chat-mobile" onClick={() => setShowChannels(true)}>Channels</button><div><p>{area?.name}{channel?.isPrivate ? " · Protected private chat" : ""}</p><h2>{channel?.isPrivate ? "◈" : "#"} {channel?.name}</h2></div><div className="creator-chat-header-actions">{channel?.canManage && area && <button type="button" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}>Settings</button>}<button type="button" aria-expanded={showMembers} onClick={() => setShowMembers(!showMembers)}>Members ({members.length})</button></div></header>
-            {showMembers && <aside className="creator-chat-members" aria-label="Channel members"><h3>Channel members</h3>{members.map((m) => <p key={m.id}>{m.name}<span>{m.canPost ? "Can post" : "Read only"}</span></p>)}</aside>}
-            <div ref={messagePane} className="creator-chat-messages" role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
+          <div className="creator-chat-conversation" role="region" aria-label="Conversation">
+            <header className="creator-chat-channel-header">
+              <button type="button" className="creator-chat-mobile creator-chat-browse-button" onClick={() => setShowChannels(true)} aria-label="Browse conversations"><ChatIcon name="menu" /><span>Browse</span></button>
+              <div className={`creator-chat-title-icon ${channel?.isPrivate ? "is-private" : ""}`}><ChatIcon name={channel?.isPrivate ? "lock" : "channel"} /></div>
+              <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
+              <div className="creator-chat-header-actions">{channel?.canManage && area && <button type="button" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}<button type="button" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.length}</span></button></div>
+            </header>
+            {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span></div>}
+            {showMembers && <aside id="chat-members" className="creator-chat-members" aria-label="Conversation members"><header><h3>Who has access</h3><button type="button" onClick={() => setShowMembers(false)} aria-label="Close member list"><ChatIcon name="close" /></button></header><p className="creator-chat-members-hint">{members.length} {members.length === 1 ? "member" : "members"} can view this conversation.</p>{members.map((m) => <div className="creator-chat-member" key={m.id}><span className="creator-chat-avatar" aria-hidden="true">{m.name.slice(0, 1).toUpperCase()}</span><strong>{m.name}</strong><span>{m.canPost ? "Can post" : "Read only"}</span></div>)}</aside>}
+            <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
               {!transcript ? <p role="status">Loading messages…</p> : <>
-                {transcript.hasMore && <button type="button" onClick={() => void loadOlder()}>Load earlier messages</button>}
-                {!transcript.messages.length && <div className="creator-chat-empty"><h3>Start the conversation</h3><p>{channel?.isPrivate ? "This is the beginning of your private chat." : `This is the beginning of #${channel?.name}.`}</p></div>}
-                {transcript.messages.map((m) => <article className="creator-chat-message" key={m.id}><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><div><header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{time(m.createdAt)}</time>{m.version > 1 && <small>Edited</small>}</header><p>{m.text}</p>{m.canEdit && <button type="button" className="creator-chat-edit" onClick={() => { setEdit(m); setDraft(m.text); }}>Edit</button>}</div></article>)}
+                {transcript.hasMore && <button className="creator-chat-load-older" type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load earlier messages"}</button>}
+                {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p><button type="button" onClick={() => setShowMembers(true)}>View members</button></div>}
+                {transcript.messages.map((m, index) => <Fragment key={m.id}>
+                  {(index === 0 || day(transcript.messages[index - 1].createdAt) !== day(m.createdAt)) && <div className="creator-chat-day"><span>{day(m.createdAt)}</span></div>}
+                  <article className="creator-chat-message"><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><div><header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{time(m.createdAt)}</time>{m.version > 1 && <small>Edited</small>}</header><p>{m.text}</p>{m.canEdit && <button type="button" className="creator-chat-edit" aria-label={`Edit message by ${m.authorName} at ${time(m.createdAt)}`} onClick={() => { setEdit(m); setDraft(m.text); composer.current?.focus(); }}>Edit</button>}</div></article>
+                </Fragment>)}
               </>}
             </div>
             {transcript?.canPost ? <form className="creator-chat-composer" onSubmit={(e) => void submit(e)}>
-              {edit && <div>Editing your message <button type="button" onClick={() => { setEdit(null); setDraft(""); }}>Cancel</button></div>}
-              <label className="creator-chat-sr" htmlFor="chat-message">Message {channel?.isPrivate ? "" : "#"}{channel?.name}</label>
-              <textarea id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={8000} rows={3} placeholder={channel?.isPrivate ? "Write a private message" : `Message #${channel?.name ?? "channel"}`} disabled={sending} />
-              <div><small>Times shown in US Central</small><button type="submit" disabled={sending || !draft.trim()}>{sending ? "Sending…" : edit ? "Save changes" : "Send message"}</button></div>
-            </form> : transcript && <div className="creator-chat-readonly">{channel?.archived ? "This conversation is archived and read-only." : "You have read-only access to this channel."}</div>}
-          </main>
+              {edit && <div className="creator-chat-editing" role="status"><strong>Editing your message</strong><button type="button" onClick={() => { setEdit(null); setDraft(""); composer.current?.focus(); }}>Cancel edit</button></div>}
+              <label className="creator-chat-sr" htmlFor="chat-message">Message {channel?.name}</label>
+              <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
+              <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Ctrl / ⌘ + Enter to send</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000` : ""}</span></small><button type="submit" disabled={sending || !draft.trim()}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button></div>
+            </form> : transcript && <div className="creator-chat-readonly"><ChatIcon name="lock" /><div><strong>{channel?.archived ? "Archived conversation" : "Read-only conversation"}</strong><p>{channel?.archived ? "You can read the history here. New messages are disabled." : "You can read messages here, but your access does not include posting."}</p></div></div>}
+          </div>
         </div>
       )}
       {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId} target={settings} onClose={() => setSettings(null)} onSaved={async (id) => { await refreshAreas(); if (id) chooseChannel(id); }} />}
