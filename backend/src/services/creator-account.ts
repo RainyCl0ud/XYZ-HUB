@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { hasPermission, isOwner, type AccessContext } from "./access-control.js";
+import { isCreatorChatEnabled, provisionCreatorChat } from "./creator-chat.js";
 
 export type CreatorAccountErrorCode =
   | "CREATOR_ACCOUNT_OWNER_REQUIRED"
@@ -28,6 +29,7 @@ export async function ensureCreatorAccount(
   roles: { systemKey: string | null }[],
   selectedModelId: string | null | undefined,
   access: AccessContext,
+  options: { deferStandingChat?: boolean } = {},
 ) {
   const selectedId = selectedModelId?.trim() || null;
   const hasCreatorRole = roles.some((role) => role.systemKey === "MODEL");
@@ -49,6 +51,7 @@ export async function ensureCreatorAccount(
     if (selectedId && current.id !== selectedId) {
       throw new CreatorAccountError("CREATOR_PROFILE_ALREADY_LINKED", "This account is already connected to a different creator. Its existing profile has been kept.");
     }
+    if (isCreatorChatEnabled()) await provisionCreatorChat(tx, current.id, { includeStanding: !options.deferStandingChat });
     return current;
   }
 
@@ -72,6 +75,7 @@ export async function ensureCreatorAccount(
       if (claim.count !== 1) {
         throw new CreatorAccountError("CREATOR_ACCOUNT_CONFLICT", "That creator profile was connected by another request. Refresh and try again.");
       }
+      if (isCreatorChatEnabled()) await provisionCreatorChat(tx, selected.id, { includeStanding: !options.deferStandingChat });
       return { ...selected, creatorUserId: user.id };
     }
 
@@ -88,9 +92,11 @@ export async function ensureCreatorAccount(
     if (conflict) {
       throw new CreatorAccountError("CREATOR_NAME_NEEDS_LINK", "A creator with this name already exists. Select the existing creator profile to connect it, or use a different account name.");
     }
-    return await tx.agencyModel.create({
+    const created = await tx.agencyModel.create({
       data: { name, creatorUserId: user.id }, select: profileSelect,
     });
+    if (isCreatorChatEnabled()) await provisionCreatorChat(tx, created.id, { includeStanding: !options.deferStandingChat });
+    return created;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       throw new CreatorAccountError("CREATOR_ACCOUNT_CONFLICT", "The creator name or account was connected by another request. Refresh and select the existing profile.");

@@ -24,6 +24,11 @@ rows.set("strikeReason", [{ id: "old-reason" }]);
 rows.set("strikeLadderVersion", [{ id: "old-ladder", versionNumber: 7 }]);
 rows.set("strikeLadderStep", [{ id: "old-step", ladderVersionId: "old-ladder" }]);
 rows.set("incident", [{ id: "old-incident" }]);
+rows.set("chatMessage", [{ id: "old-chat-message" }]);
+rows.set("chatChannel", [{ id: "old-chat-channel" }]);
+rows.set("chatArea", [{ modelId: "old-creator" }]);
+rows.set("chatStandingConversation", [{ id: "old-private-chat", modelId: "old-creator" }]);
+rows.set("chatSetup", [{ id: "ordinary-creator-chat-v1" }]);
 
 function matches(row: Row, where: Row = {}): boolean {
   return Object.entries(where).every(([key, filter]) => {
@@ -77,6 +82,10 @@ function delegate(model: string) {
       return row ? Object.assign(row, args.update) : create(model, args.create);
     },
     async deleteMany(args: { where?: Row } = {}) {
+      if (model === "chatChannel") assert.equal(rows.get("chatMessage")?.length, 0);
+      if (model === "chatArea") assert.equal(rows.get("chatChannel")?.length, 0);
+      if (model === "chatStandingConversation") assert.equal(rows.get("chatMessage")?.length, 0);
+      if (model === "agencyModel") { assert.equal(rows.get("chatArea")?.length, 0); assert.equal(rows.get("chatStandingConversation")?.length, 0); }
       if (["strikeReason", "strikeLadderStep", "strikeLadderVersion", "user", "incident"].includes(model)) {
         assert.equal(rows.get("strike")?.length, 0, "Clear Strikes before deleting their policy, identities or QA source history.");
       }

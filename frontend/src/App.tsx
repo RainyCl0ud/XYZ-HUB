@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import {
   Navigate,
   Route,
@@ -31,6 +32,7 @@ import ModelsPage from "./pages/ModelsPage";
 import RoleBuilderPage from "./pages/RoleSettingsPage";
 import AuditPage from "./pages/AuditPage";
 import AccountPage from "./pages/AccountPage";
+const ChatPage = lazy(() => import("./pages/ChatPage"));
 
 
 function App() {
@@ -44,6 +46,7 @@ function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
+          {import.meta.env.VITE_BLOCK2_CHAT_ENABLED === "true" && <Route path="/chat" element={<RequirePermission permission="chat.access"><Suspense fallback={<p role="status">Loading chat…</p>}><ChatPage /></Suspense></RequirePermission>} />}
           <Route
             path="/"
             element={

@@ -194,6 +194,13 @@ function actionLabel(
       string,
       string
     > = {
+    "chat.message.send": "Chat message sent",
+    "chat.message.edit": "Chat message edited",
+    "chat.channel.create": "Chat channel created",
+    "chat.channel.rename": "Chat channel renamed",
+    "chat.channel.grant": "Chat channel access updated",
+    "chat.private.create": "Private chat created",
+    "chat.private.archive": "Private chat archived",
     "auth.password_verified":
       "Password verified",
     "auth.sign_in_succeeded":
@@ -733,6 +740,18 @@ function buildChanges(
 
   const changes:
     AuditDisplayChange[] = [];
+
+  if (event.targetType === "chat") {
+    if (event.action === "chat.message.send") pushChange(changes, "Message text", null, asString(metadata?.text));
+    if (event.action === "chat.message.edit") pushChange(changes, "Message text", asString(metadata?.before), asString(metadata?.after));
+    if (event.action === "chat.channel.rename") pushChange(changes, "Channel name", asString(metadata?.before), asString(metadata?.after));
+    if (event.action === "chat.private.archive") pushChange(changes, "Archive reason", null, asString(metadata?.reason));
+    if (event.action === "chat.channel.grant") {
+      const describe = (value: unknown) => { const grant = asRecord(value); return grant?.canPost ? "See and post" : grant?.canView ? "See only" : "No direct grant"; };
+      pushChange(changes, asString(metadata?.recipientName) ?? "Channel access", describe(metadata?.beforeGrant), describe(metadata?.afterGrant));
+    }
+    return changes;
+  }
 
   if (
     event.targetType ===
@@ -1681,6 +1700,8 @@ export async function presentAuditEvents(
           kind:
             "invitation",
         };
+      } else if (event.targetType === "chat") {
+        target = { label: asString(metadata?.channelName) ?? "Chat", secondary: null, kind: "chat" };
       } else {
         target = {
           label:

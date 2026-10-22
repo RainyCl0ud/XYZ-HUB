@@ -1,0 +1,183 @@
+import "dotenv/config";
+import assert from "node:assert/strict";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
+import express from "express";
+import cookieParser from "cookie-parser";
+import { loadSession } from "../src/middleware/session-auth.js";
+import { createSession } from "../src/services/session.js";
+import chatRoutes from "../src/routes/chat.js";
+import { prisma } from "../src/lib/prisma.js";
+import { ChatError, chatGrantOptions, createChatChannel, editChatMessage, installCreatorChatDefaults, listChatAreas, listChatMembers, listChatMessages, provisionCreatorChat, renameChatChannel, sendChatMessage, setChatGrant } from "../src/services/creator-chat.js";
+import { installStandingChatDefaults, syncUserStandingChats } from "../src/services/standing-chat.js";
+import { getAccessContext } from "../src/services/access-control.js";
+import { createManagedModel } from "../src/services/model-management.js";
+import { ensureCreatorAccount } from "../src/services/creator-account.js";
+import { updatePersonAccess } from "../src/services/people-access-update.js";
+import { deletePerson } from "../src/services/people-delete.js";
+import { ROOT_TEAM_GROUP_ID } from "../src/services/team-hierarchy.js";
+import { getRoleBuilderData } from "../src/services/role-management.js";
+import { presentAuditEvents } from "../src/services/audit-presentation.js";
+
+async function main() {
+  assert.ok(["127.0.0.1", "localhost", "[::1]"].includes(new URL(process.env.DATABASE_URL ?? "").hostname), "Protected-chat tests require an isolated local database.");
+  process.env.BLOCK2_CHAT_ENABLED = "true";
+  await prisma.$transaction(async (tx) => { await installCreatorChatDefaults(tx); await installStandingChatDefaults(tx); });
+  const prefix = `standing-test-${Date.now()}`;
+  const users: string[] = [], models: string[] = [];
+  const roles = new Map((await prisma.role.findMany({ where: { systemKey: { not: null } } })).map((r) => [r.systemKey!, r]));
+  let passed = 0;
+  const check = (label: string) => { passed++; console.log(`✓ ${label}`); };
+  const denied = (fn: () => Promise<unknown>, status = 404) => assert.rejects(fn, (e: unknown) => e instanceof ChatError && e.status === status);
+  const makeUser = async (label: string, key: string) => {
+    const user = await prisma.user.create({ data: { name: `${prefix} ${label}`, email: `${prefix}-${label}@example.test`, status: "ACTIVE", teamGroupId: ROOT_TEAM_GROUP_ID,
+      roleMemberships: { create: { roleId: roles.get(key)!.id } } } }); users.push(user.id); return user;
+  };
+  const before = { incidents: await prisma.incident.count(), strikes: await prisma.strike.count() };
+  try {
+    const owner = await makeUser("owner", "OWNER"), ops = await makeUser("ops", "OPS_MANAGER"), developer = await makeUser("developer", "DEV");
+    const creator = await makeUser("creator", "MODEL"), manager = await makeUser("manager", "MANAGER"), qc = await makeUser("qc", "QC");
+    const chatter = await makeUser("chatter", "CHATTER"), trial = await makeUser("trial", "TRIAL_CHATTER"), accountant = await makeUser("accountant", "ACCOUNTANT"), general = await makeUser("general", "GENERAL_STAFF");
+    const access = await getAccessContext(owner.id);
+    for (const name of ["Mei", "Other"]) models.push((await createManagedModel(`${prefix} ${name}`, access)).id);
+    const [mei, other] = models;
+    const update = async (userId: string, role: string, modelIds: string[]) => updatePersonAccess({ userId, roleIds: [roles.get(role)!.id], modelIds }, access);
+    await prisma.$transaction((tx) => ensureCreatorAccount(tx, creator, [{ systemKey: "MODEL" }], mei, access));
+    for (const [user, role] of [[manager, "MANAGER"], [qc, "QC"], [trial, "TRIAL_CHATTER"]] as const) await update(user.id, role, [mei]);
+    await update(chatter.id, "CHATTER", [mei, other]);
+    for (const user of [accountant, general]) await prisma.$transaction((tx) => syncUserStandingChats(tx, user.id));
+    const creatorChats = (await listChatAreas(creator.id)).flatMap((a) => a.channels);
+    assert.equal(creatorChats.length, 1); assert.equal(creatorChats[0].isPrivate, true);
+    const creatorChat = creatorChats[0].id;
+    assert.equal(creatorChats[0].canPost, true);
+    check("A linked Creator login sees exactly her own protected chat and can post");
+    const participants = await listChatMembers(creator.id, creatorChat);
+    for (const user of [owner, ops, developer, creator, manager]) assert.ok(participants.some((p) => p.id === user.id));
+    for (const user of [qc, chatter, trial, accountant, general]) assert.ok(!participants.some((p) => p.id === user.id));
+    await denied(() => listChatMessages(qc.id, creatorChat));
+    await denied(() => listChatMessages(chatter.id, creatorChat));
+    await denied(() => listChatMessages(trial.id, creatorChat));
+    await denied(() => listChatMessages(accountant.id, creatorChat));
+    check("Creator-private membership is Creator/current Managers/Ops/Owners plus Developer read oversight; QC cannot enter");
+    await denied(() => setChatGrant(owner.id, creatorChat, { personId: qc.id, canView: true, canPost: true }), 403);
+    await denied(() => setChatGrant(owner.id, creatorChat, { roleId: roles.get("QC")!.id, canView: true, canPost: true }), 403);
+    await denied(() => chatGrantOptions(owner.id, creatorChat), 403);
+    await denied(() => renameChatChannel(owner.id, creatorChat, "Not allowed"), 403);
+    check("Neither named grants, role grants nor channel management can alter protected membership");
+    const ordinary = await prisma.chatChannel.findUniqueOrThrow({ where: { modelId_key: { modelId: mei, key: "general" } } });
+    await prisma.userModelAssignment.create({ data: { userId: creator.id, modelId: mei } });
+    await setChatGrant(owner.id, ordinary.id, { personId: creator.id, canView: true, canPost: true });
+    assert.equal((await listChatAreas(creator.id)).flatMap((a) => a.channels).length, 1);
+    await denied(() => listChatMessages(creator.id, ordinary.id));
+    check("Even an accidental staff assignment plus named grant cannot expose ordinary channels to a Creator-only account");
+    await update(manager.id, "MANAGER", [other]);
+    await denied(() => listChatMessages(manager.id, creatorChat));
+    await update(manager.id, "MANAGER", [mei]);
+    assert.ok((await listChatMessages(manager.id, creatorChat)).canPost);
+    check("Manager transfer immediately removes old creator-private access and current assignment restores permitted membership");
+    const ownChats = (await listChatAreas(chatter.id)).flatMap((a) => a.channels.filter((c) => c.isPrivate));
+    assert.equal(ownChats.length, 2);
+    const staffChat = (await listChatAreas(chatter.id)).find((a) => a.modelId === mei)!.channels.find((c) => c.isPrivate)!.id;
+    assert.ok((await listChatMembers(chatter.id, staffChat)).some((p) => p.id === qc.id));
+    const trialChat = (await listChatAreas(trial.id)).find((a) => a.modelId === mei)!.channels.find((c) => c.isPrivate)!.id;
+    await denied(() => listChatMessages(chatter.id, trialChat));
+    const coaching = await sendChatMessage(chatter.id, staffChat, "Private coaching history", "private-message-01");
+    await editChatMessage(chatter.id, staffChat, coaching.id, "Private coaching history (updated)", 1);
+    const coachingAudit = await prisma.auditEvent.findFirstOrThrow({ where: { action: "chat.message.edit", targetId: coaching.id } });
+    const presented = await presentAuditEvents([{ ...coachingAudit, occurredAt: coachingAudit.occurredAt.toISOString(), metadata: coachingAudit.metadata as Record<string, unknown> }]);
+    assert.equal(presented[0].actionLabel, "Chat message edited");
+    assert.ok(presented[0].changes.some((change) => change.before === "Private coaching history" && change.after === "Private coaching history (updated)"));
+    check("Owner audit presentation shows the complete original and edited private-message text");
+    check("Each assignment gets its own protected staff chat; other chatters cannot enter each other's chats");
+    await update(chatter.id, "CHATTER", [other]);
+    await denied(() => listChatMessages(chatter.id, staffChat));
+    await denied(() => listChatMessages(manager.id, staffChat));
+    await denied(() => listChatMessages(qc.id, staffChat));
+    assert.equal((await listChatMessages(owner.id, staffChat)).canPost, false);
+    assert.equal((await listChatMessages(developer.id, staffChat)).messages[0].text, "Private coaching history (updated)");
+    await denied(() => sendChatMessage(owner.id, staffChat, "Frozen", "archived-private-01"), 403);
+    check("Unassignment archives the private episode; staff/QC/Manager lose history while Owner/Developer retain a frozen archive");
+    await update(chatter.id, "CHATTER", [mei, other]);
+    const newStaffChat = (await listChatAreas(chatter.id)).find((a) => a.modelId === mei)!.channels.find((c) => c.isPrivate)!.id;
+    assert.notEqual(newStaffChat, staffChat); assert.equal((await listChatMessages(chatter.id, newStaffChat)).messages.length, 0);
+    check("Returning staff receive a fresh private chat with none of the old conversation copied");
+    await prisma.$transaction((tx) => syncUserStandingChats(tx, chatter.id));
+    await prisma.$transaction((tx) => provisionCreatorChat(tx, mei));
+    assert.equal((await listChatAreas(chatter.id)).find((a) => a.modelId === mei)!.channels.filter((c) => c.isPrivate).length, 1);
+    check("Repeated provisioning does not duplicate current private conversations or reopen archives");
+    const legacy = await createManagedModel(`${prefix} legacy creator`, access); models.push(legacy.id);
+    const legacyConversation = await prisma.chatStandingConversation.findFirstOrThrow({ where: { kind: "CREATOR", modelId: legacy.id, archivedAt: null } });
+    await sendChatMessage(owner.id, legacyConversation.id, "Existing creator conversation", "legacy-private-01");
+    const newCreator = await makeUser("new-creator-login", "GENERAL_STAFF");
+    await updatePersonAccess({ userId: newCreator.id, roleIds: [roles.get("MODEL")!.id], modelIds: [], creatorModelId: legacy.id }, access);
+    const newCreatorChannels = (await listChatAreas(newCreator.id)).flatMap((a) => a.channels);
+    assert.equal(newCreatorChannels.length, 1); assert.equal(newCreatorChannels[0].id, legacyConversation.id);
+    assert.equal((await listChatMessages(newCreator.id, legacyConversation.id)).messages[0].text, "Existing creator conversation");
+    check("Adding Creator role and explicitly linking an existing creator preserves her existing private conversation");
+    const generalChat = (await listChatAreas(general.id)).flatMap((a) => a.channels);
+    assert.equal(generalChat.length, 1);
+    const generalMembers = await listChatMembers(general.id, generalChat[0].id);
+    assert.ok(generalMembers.some((p) => p.id === owner.id));
+    assert.ok(!generalMembers.some((p) => p.id === ops.id || p.id === developer.id || p.id === creator.id));
+    await denied(() => listChatMessages(ops.id, generalChat[0].id));
+    await denied(() => listChatMessages(developer.id, generalChat[0].id));
+    const protectedPermission = await prisma.permission.findUniqueOrThrow({ where: { key: "chat.private.general.review" } });
+    assert.ok(!(await getRoleBuilderData(access)).permissions.some((p) => p.id === protectedPermission.id));
+    await prisma.rolePermission.create({ data: { roleId: roles.get("QC")!.id, permissionId: protectedPermission.id } });
+    try { await denied(() => listChatMessages(qc.id, generalChat[0].id)); }
+    finally { await prisma.rolePermission.deleteMany({ where: { roleId: roles.get("QC")!.id, permissionId: protectedPermission.id } }); }
+    check("General Staff private chats remain limited to that staff member and Owners");
+    const accountantChat = (await listChatAreas(accountant.id)).flatMap((a) => a.channels);
+    assert.equal(accountantChat.length, 1); assert.ok(accountantChat[0].isPrivate);
+    assert.ok((await listChatMembers(accountant.id, accountantChat[0].id)).some((p) => p.id === ops.id));
+    await denied(() => listChatMessages(accountant.id, ordinary.id));
+    check("Accountant receives a separate personal chat and no creator operations channels");
+    await denied(() => sendChatMessage(developer.id, creatorChat, "Read only", "developer-private-01"), 403);
+    assert.ok((await listChatMessages(developer.id, creatorChat)).messages);
+    check("Developer oversight does not grant private-chat posting");
+    await denied(() => createChatChannel(chatter.id, mei, "Forbidden"), 403);
+    await denied(() => createChatChannel(manager.id, other, "Wrong creator"));
+    const custom = await createChatChannel(manager.id, mei, "Custom coaching");
+    assert.equal((await listChatAreas(chatter.id)).flatMap((a) => a.channels).some((c) => c.id === custom.id), false);
+    await setChatGrant(manager.id, custom.id, { roleId: roles.get("CHATTER")!.id, canView: true, canPost: false });
+    assert.equal((await listChatMessages(chatter.id, custom.id)).canPost, false);
+    await setChatGrant(manager.id, custom.id, { personId: chatter.id, canView: true, canPost: true });
+    assert.equal((await listChatMessages(chatter.id, custom.id)).canPost, true);
+    await renameChatChannel(manager.id, custom.id, "Custom support");
+    await denied(() => createChatChannel(manager.id, mei, "Custom support"), 409);
+    check("Managers create/rename ordinary channels within their creators and combine role/named see/post grants");
+    const app = express(); app.use(express.json(), cookieParser(), loadSession); app.use("/api/chat", chatRoutes);
+    const server = app.listen(0, "127.0.0.1");
+    try {
+      await once(server, "listening");
+      const session = await createSession({ userId: owner.id, expiresAt: new Date(Date.now() + 60_000) });
+      const headers = { Cookie: `xyz_session=${session.token}`, "Content-Type": "application/json" };
+      const endpoint = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/chat/channels`;
+      for (const [path, method, body] of [
+        [`${custom.id}`, "PATCH", { name: "Custom support HTTP" }],
+        [`${custom.id}/grants`, "PUT", { roleId: roles.get("CHATTER")!.id, canView: true, canPost: true }],
+      ] as const) {
+        const response = await fetch(`${endpoint}/${path}`, { method, headers, body: JSON.stringify(body) });
+        assert.equal(response.status, 200); assert.deepEqual(await response.json(), { success: true });
+      }
+      assert.equal((await fetch(`${endpoint}/${creatorChat}/grants`, { method: "PUT", headers, body: JSON.stringify({ roleId: roles.get("QC")!.id, canView: true, canPost: true }) })).status, 403);
+    } finally { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); }
+    check("Authenticated settings endpoints return JSON save confirmations and reject protected-chat grants");
+    await sendChatMessage(chatter.id, newStaffChat, "Keep after deletion", "private-delete-01");
+    await deletePerson({ userId: chatter.id, confirmEmail: chatter.email }, access);
+    assert.ok((await listChatMessages(owner.id, newStaffChat)).messages.some((m) => m.text === "Keep after deletion" && m.authorUserId === null && m.authorName === chatter.name));
+    assert.ok(await prisma.chatStandingConversation.findFirst({ where: { id: newStaffChat, archivedAt: { not: null }, subjectUserId: null } }));
+    check("Account deletion freezes the private conversation and preserves messages, names and audit history");
+    assert.deepEqual({ incidents: await prisma.incident.count(), strikes: await prisma.strike.count() }, before);
+    check("The existing incident and strike records are unchanged");
+    console.log(`\n${passed} protected-chat and channel-management checks passed.`);
+  } finally {
+    await prisma.chatMessage.deleteMany({ where: { OR: [{ channel: { modelId: { in: models } } }, { conversation: { OR: [{ modelId: { in: models } }, { subjectUserId: { in: users } }] } }] } });
+    await prisma.chatStandingConversation.deleteMany({ where: { OR: [{ modelId: { in: models } }, { subjectUserId: { in: users } }] } });
+    await prisma.chatChannel.deleteMany({ where: { modelId: { in: models } } });
+    await prisma.chatArea.deleteMany({ where: { modelId: { in: models } } });
+    await prisma.user.deleteMany({ where: { id: { in: users } } });
+    await prisma.agencyModel.deleteMany({ where: { id: { in: models } } });
+  }
+}
+main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => prisma.$disconnect());

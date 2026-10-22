@@ -1249,6 +1249,11 @@ async function printDryRun() {
       await prisma.teamGroup.count(),
     auditEvents:
       await prisma.auditEvent.count(),
+    chatAreas: await prisma.chatArea.count(),
+    chatChannels: await prisma.chatChannel.count(),
+    chatMessages: await prisma.chatMessage.count(),
+    chatNamedGrants: await prisma.chatPersonGrant.count(),
+    chatPrivateConversations: await prisma.chatStandingConversation.count(),
   };
 
   console.log("");
@@ -1503,6 +1508,16 @@ await tx.teamGroup.upsert({
         await tx.severityOption.deleteMany();
         await tx.weightOption.deleteMany();
         await tx.chatter.deleteMany();
+
+        /* Disposable staging chat data must be cleared before its creator FKs.
+         * The one-time marker also resets because role defaults are rebuilt. */
+        await tx.chatMessage.deleteMany();
+        await tx.chatStandingConversation.deleteMany();
+        await tx.chatPersonGrant.deleteMany();
+        await tx.chatRoleGrant.deleteMany();
+        await tx.chatChannel.deleteMany();
+        await tx.chatArea.deleteMany();
+        await tx.chatSetup.deleteMany();
 
         /* Creator assignments/catalog. */
         await tx.userModelAssignment.deleteMany();

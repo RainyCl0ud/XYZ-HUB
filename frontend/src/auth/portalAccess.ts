@@ -19,6 +19,24 @@ export const PORTAL_PERMISSION_DEPENDENCIES:
       readonly string[]
     >
   > = {
+  "chat.ordinary.access": ["chat.access"],
+  "chat.private.all": ["chat.access"],
+  "chat.private.general.review": ["chat.access"],
+  "chat.private.creator": ["chat.access"],
+  "chat.private.creator.review": ["chat.access"],
+  "chat.private.staff": ["chat.access"],
+  "chat.private.staff.review": ["chat.access"],
+  "chat.private.accountant": ["chat.access"],
+  "chat.private.general": ["chat.access"],
+  "chat.areas.all": ["chat.access"],
+  "chat.channels.all": ["chat.access"],
+  "chat.channels.post_all": ["chat.access"],
+  "chat.channels.manage": ["chat.access"],
+  "chat.messages.send": ["chat.access"],
+  "chat.messages.edit_own": ["chat.access"],
+  "chat.trial_feedback.restricted": ["chat.access"],
+  "chat.trial_feedback.review": ["chat.access"],
+  "chat.archives.view": ["chat.access"],
   "people.profile.view": [
     "people.access",
   ],
