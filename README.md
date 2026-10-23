@@ -2,6 +2,10 @@
 
 Internal operations management system for agency workflows.
 
+## Agency styling
+
+Follow the [XYZ design reference](docs/xyz-design-reference.md) for every UI change. It records Dim's supplied style guide, the approved monochrome tokens and the known Chat styling corrections to address next. Discord-inspired navigation must retain XYZ's visual identity.
+
 ## Current V1 Scope
 
 - Chatter management

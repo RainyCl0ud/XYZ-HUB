@@ -84,6 +84,8 @@ model User {
   chatMessages ChatMessage[]
   standingChats ChatStandingConversation[]
 
+  clockShifts ClockShift[]
+
   strikesReceived Strike[] @relation("StrikeTarget")
   strikesIssued   Strike[] @relation("StrikeIssuer")
   strikesVoided   Strike[] @relation("StrikeVoider")
@@ -780,6 +782,53 @@ model AuditEvent {
 model ChatSetup {
   id String @id
   createdAt DateTime @default(now())
+}
+
+enum ClockBreakKind {
+  SHORT_ONE
+  SHORT_TWO
+  MEAL
+}
+
+enum ClockBreakEndReason {
+  MANUAL
+  LIMIT
+  CLOCK_OUT
+}
+
+model ClockSetup {
+  id String @id
+  createdAt DateTime @default(now())
+}
+
+model ClockShift {
+  id String @id @default(cuid())
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  personName String
+  startedAt DateTime @db.Timestamptz(0)
+  endedAt DateTime? @db.Timestamptz(0)
+  startDay String
+  startWeek String
+  startRequestId String @unique
+  breaks ClockBreak[]
+
+  @@index([userId, startedAt])
+  @@index([userId, startWeek])
+}
+
+model ClockBreak {
+  id String @id @default(cuid())
+  shiftId String
+  shift ClockShift @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  kind ClockBreakKind
+  startedAt DateTime @db.Timestamptz(0)
+  endedAt DateTime? @db.Timestamptz(0)
+  endReason ClockBreakEndReason?
+  startRequestId String @unique
+
+  @@unique([shiftId, kind])
+  @@index([shiftId, startedAt])
 }
 
 model ChatArea {

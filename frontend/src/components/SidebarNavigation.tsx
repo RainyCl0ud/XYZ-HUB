@@ -23,6 +23,7 @@ type IconName =
   | "models"
   | "roles"
   | "chat"
+  | "clock"
   | "audit";
 
 
@@ -128,6 +129,7 @@ function ModuleIcon({
       string
     > = {
     chat: "M4 4h16v12H9l-5 4V4Z M8 8h8 M8 12h5",
+    clock: "M12 8v5l3 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0",
     dashboard:
       "M4 4h6v6H4V4Z M14 4h6v4h-6V4Z M14 12h6v8h-6v-8Z M4 14h6v6H4v-6Z",
 
@@ -523,6 +525,9 @@ export default function SidebarNavigation({
 
   if (import.meta.env.VITE_BLOCK2_CHAT_ENABLED === "true" && hasPortalPermission(access, "chat.access")) {
     agency.push({ id: "chat", label: "Chat", to: "/chat" });
+  }
+  if (import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && hasPortalPermission(access, "clock.self.view")) {
+    agency.push({ id: "clock", label: "Clock & Hours", to: "/clock" });
   }
 
   if (

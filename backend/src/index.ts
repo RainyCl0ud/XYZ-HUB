@@ -57,6 +57,7 @@ import strikeRoutes from "./routes/strikes.js";
 import strikeReasonRoutes from "./routes/strike-reasons.js";
 import liveRoutes from "./routes/live.js";
 import chatRoutes from "./routes/chat.js";
+import clockRoutes from "./routes/clock.js";
 import legacyMaintenanceRoutes from "./routes/legacy-maintenance.js";
 
 import chatterRoutes from "./routes/qa-chatters.js";
@@ -226,6 +227,7 @@ app.use(
   liveRoutes
 );
 app.use("/api/chat", chatRoutes);
+app.use("/api/clock", clockRoutes);
 
 app.use(
   "/api/audit",

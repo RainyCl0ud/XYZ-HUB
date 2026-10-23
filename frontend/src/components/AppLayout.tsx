@@ -73,6 +73,7 @@ const PAGE_TITLES:
   > = {
   "/":
     "Dashboard",
+  "/clock": "Clock & Hours",
   "/incidents":
     "Incidents",
   "/chatters":

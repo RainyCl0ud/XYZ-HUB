@@ -201,6 +201,12 @@ function actionLabel(
     "chat.channel.grant": "Chat channel access updated",
     "chat.private.create": "Private chat created",
     "chat.private.archive": "Private chat archived",
+    "clock.in": "Clocked in",
+    "clock.out": "Clocked out",
+    "clock.break.start": "Paid break started",
+    "clock.break.end": "Paid break ended",
+    "clock.break.auto_end": "Paid break ended at its limit",
+    "clock.defaults.install": "Clock defaults installed",
     "auth.password_verified":
       "Password verified",
     "auth.sign_in_succeeded":
@@ -740,6 +746,17 @@ function buildChanges(
 
   const changes:
     AuditDisplayChange[] = [];
+
+  if (event.targetType === "clock") {
+    pushChange(changes, "Clock-in time (UTC)", null, asString(metadata?.startedAt));
+    pushChange(changes, "End time (UTC)", null, asString(metadata?.endedAt));
+    const breakLabels: Record<string, string> = { SHORT_ONE: "Short break 1", SHORT_TWO: "Short break 2", MEAL: "Meal break" };
+    const breakKind = asString(metadata?.kind);
+    pushChange(changes, "Paid break", null, breakKind ? breakLabels[breakKind] ?? breakKind : null);
+    if (typeof metadata?.workedSeconds === "number") pushChange(changes, "Worked seconds (paid breaks included)", null, String(metadata.workedSeconds));
+    pushChange(changes, "Reason", null, asString(metadata?.reason));
+    return changes;
+  }
 
   if (event.targetType === "chat") {
     if (event.action === "chat.message.send") pushChange(changes, "Message text", null, asString(metadata?.text));
@@ -1702,6 +1719,8 @@ export async function presentAuditEvents(
         };
       } else if (event.targetType === "chat") {
         target = { label: asString(metadata?.channelName) ?? "Chat", secondary: null, kind: "chat" };
+      } else if (event.targetType === "clock") {
+        target = { label: asString(metadata?.personName) ?? event.actorLabel ?? "Attendance", secondary: null, kind: "clock" };
       } else {
         target = {
           label:

@@ -9,6 +9,7 @@ import {
   MANAGED_PERMISSION_KEYS,
   PERMISSION_CATALOG,
 } from "../src/permissions/permission-catalog.js";
+import { CLOCK_ROLE_DEFAULTS } from "../src/permissions/clock-permissions.js";
 
 const prisma = new PrismaClient();
 
@@ -308,10 +309,10 @@ async function main() {
        * removed through the Role Builder.
        */
 
-      const permissionKeys =
-        defaultRolePermissions[
-          roleDefinition.systemKey
-        ] ?? [];
+      const permissionKeys = [...new Set([
+        ...(defaultRolePermissions[roleDefinition.systemKey] ?? []),
+        ...(CLOCK_ROLE_DEFAULTS[roleDefinition.systemKey] ?? []),
+      ])];
 
       for (const permissionKey of permissionKeys) {
         const permissionId =
