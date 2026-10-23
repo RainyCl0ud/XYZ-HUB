@@ -206,6 +206,10 @@ function actionLabel(
     "clock.break.start": "Paid break started",
     "clock.break.end": "Paid break ended",
     "clock.break.auto_end": "Paid break ended at its limit",
+    "clock.break.reminder": "Paid break reminder recorded",
+    "clock.break.limit_flag": "Automatic break end flagged",
+    "clock.shift.flag": "Open shift flagged at 14 hours",
+    "clock.alert_defaults.install": "Attendance alert defaults installed",
     "clock.defaults.install": "Clock defaults installed",
     "auth.password_verified":
       "Password verified",
@@ -754,6 +758,8 @@ function buildChanges(
     const breakKind = asString(metadata?.kind);
     pushChange(changes, "Paid break", null, breakKind ? breakLabels[breakKind] ?? breakKind : null);
     if (typeof metadata?.workedSeconds === "number") pushChange(changes, "Worked seconds (paid breaks included)", null, String(metadata.workedSeconds));
+    pushChange(changes, "Due time (UTC)", null, asString(metadata?.dueAt));
+    pushChange(changes, "Recorded time (UTC)", null, asString(metadata?.recordedAt));
     pushChange(changes, "Reason", null, asString(metadata?.reason));
     return changes;
   }

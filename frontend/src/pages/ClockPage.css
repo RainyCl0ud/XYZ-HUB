@@ -59,3 +59,12 @@
 .clock-dialog > div { display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
 @media (max-width: 1000px) { .clock-overview { grid-template-columns: minmax(0, 1fr); } .clock-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .clock-totals .clock-hours-note { grid-column: 1 / -1; } .clock-break-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 720px) { .clock-page { padding: 24px 16px 32px; } .clock-page-heading { display: block; margin-bottom: 24px; } .clock-zone { display: block; text-align: left; margin-top: 12px; } .clock-current { padding: 16px; } .clock-page h1 { overflow-wrap: anywhere; } .clock-current h2 { font-size: 24px; } .clock-totals { gap: 12px; } .clock-totals > div { padding: 16px; } .clock-totals strong { font-size: clamp(18px, 6vw, 24px); } .clock-break-card { padding: 16px; } .clock-active-break { padding: 16px; gap: 16px; } .clock-dialog > div > button { flex: 1; }  }
+
+.clock-callout > p { margin: 8px 0 0; }
+.clock-break-details { min-width: 176px; }
+.clock-break-details summary { color: #FFFFFF; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
+.clock-break-details summary:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.clock-break-details ul { list-style: none; margin: 12px 0 0; padding: 0; }
+.clock-break-details li { padding: 8px 0; }
+.clock-break-details strong, .clock-break-details span { display: block; }
+.clock-break-details span { color: #999999; margin-top: 4px; }

@@ -59,7 +59,8 @@
     "chat:prepare-staging": "tsx scripts/assert-staging-chat.ts && npm run migrate:deploy && tsx scripts/provision-creator-chat.ts --apply --require-staging",
     "chat:provision": "tsx scripts/provision-creator-chat.ts",
     "test:clock": "tsx scripts/test-clock.ts",
-    "test:clock-upgrade": "tsx scripts/test-clock-upgrade.ts"
+    "test:clock-upgrade": "tsx scripts/test-clock-upgrade.ts",
+    "test:clock-alerts": "tsx scripts/test-clock-alerts.ts"
   },
   "keywords": [],
   "author": "",

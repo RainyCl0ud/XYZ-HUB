@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js";
 import { createRateLimit } from "../middleware/rate-limit.js";
 import { ClockError, clockIn, clockOut, endBreak, getOwnClock, isClockEnabled, startBreak } from "../services/clock.js";
+import { listClockAlerts, markClockAlertRead } from "../services/clock-alerts.js";
 const router = Router();
 router.use((_req, res, next) => isClockEnabled() ? next() : res.sendStatus(404));
 router.use(requireAuth);
@@ -22,6 +23,13 @@ const run = (fn: (req: Request, res: Response, userId: string) => Promise<unknow
     next(error);
   }
 };
+router.get("/alerts", run(async (req, res, userId) => {
+  const query = z.object({ filter: z.enum(["unread", "all"]).optional(), before: z.string().min(1).max(100).optional() }).strict().parse(req.query);
+  res.json(await listClockAlerts(userId, query.filter, query.before));
+}));
+router.post("/alerts/:alertId/read", run(async (req, res, userId) => {
+  empty.parse(req.body); res.json(await markClockAlertRead(userId, id(req, "alertId")));
+}));
 router.get("/me", run(async (req, res, userId) => {
   const before = req.query.before;
   if (Object.keys(req.query).some((key) => key !== "before") || (before !== undefined && (typeof before !== "string" || before.length > 100))) throw new ClockError(400, "Invalid attendance history request.");

@@ -58,6 +58,7 @@ import strikeReasonRoutes from "./routes/strike-reasons.js";
 import liveRoutes from "./routes/live.js";
 import chatRoutes from "./routes/chat.js";
 import clockRoutes from "./routes/clock.js";
+import { startClockWorker } from "./services/clock-worker.js";
 import legacyMaintenanceRoutes from "./routes/legacy-maintenance.js";
 
 import chatterRoutes from "./routes/qa-chatters.js";
@@ -476,6 +477,7 @@ app.get(
 app.listen(
   PORT,
   () => {
+    startClockWorker();
     console.log(
       `API running on http://localhost:${PORT}`
     );

@@ -22,6 +22,8 @@ export const PORTAL_PERMISSION_DEPENDENCIES:
   "clock.self.view": ["clock.access"],
   "clock.self.track": ["clock.access", "clock.self.view"],
   "clock.exempt": ["clock.access"],
+  "clock.alerts.team": ["clock.access"],
+  "clock.alerts.all": ["clock.access"],
   "chat.ordinary.access": ["chat.access"],
   "chat.private.all": ["chat.access"],
   "chat.private.general.review": ["chat.access"],

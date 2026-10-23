@@ -85,6 +85,7 @@ model User {
   standingChats ChatStandingConversation[]
 
   clockShifts ClockShift[]
+  clockAlertReads ClockAlertRead[]
 
   strikesReceived Strike[] @relation("StrikeTarget")
   strikesIssued   Strike[] @relation("StrikeIssuer")
@@ -812,6 +813,7 @@ model ClockShift {
   startWeek String
   startRequestId String @unique
   breaks ClockBreak[]
+  alerts ClockAlert[]
 
   @@index([userId, startedAt])
   @@index([userId, startWeek])
@@ -829,6 +831,39 @@ model ClockBreak {
 
   @@unique([shiftId, kind])
   @@index([shiftId, startedAt])
+}
+
+enum ClockAlertKind {
+  BREAK_REMINDER
+  BREAK_LIMIT
+  OPEN_SHIFT
+}
+
+// One durable event per threshold. Its audience is checked against CURRENT
+// permissions/assignments on each read, never a stale recipient snapshot.
+model ClockAlert {
+  id String @id @default(cuid())
+  eventKey String @unique
+  shiftId String
+  shift ClockShift @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  breakId String?
+  breakKind ClockBreakKind?
+  kind ClockAlertKind
+  occurredAt DateTime @db.Timestamptz(0)
+  recordedAt DateTime @db.Timestamptz(0)
+  reads ClockAlertRead[]
+  @@index([shiftId, kind])
+  @@index([occurredAt, id])
+}
+
+model ClockAlertRead {
+  alertId String
+  userId String
+  readAt DateTime @db.Timestamptz(0)
+  alert ClockAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([alertId, userId])
+  @@index([userId])
 }
 
 model ChatArea {

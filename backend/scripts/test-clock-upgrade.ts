@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { installCreatorChatDefaults, provisionCreatorChat } from "../src/services/creator-chat.js";
 import { installStandingChatDefaults, syncUserStandingChats } from "../src/services/standing-chat.js";
+import { installClockDefaults, getOwnClock } from "../src/services/clock.js";
+import { centralDayKey, centralWeekKey } from "../src/services/clock-time.js";
 import { prisma } from "../src/lib/prisma.js";
 import { CHAT_STAGING_ENVIRONMENT_ID, CHAT_STAGING_PROJECT_ID } from "../src/services/chat-staging-target.js";
 
@@ -24,16 +26,16 @@ async function main() {
   mkdirSync(join(baseline, "migrations"));
   copyFileSync(join(backend, "prisma", "schema.prisma"), join(baseline, "schema.prisma"));
   copyFileSync(join(backend, "prisma", "migrations", "migration_lock.toml"), join(baseline, "migrations", "migration_lock.toml"));
-  const migrations = readdirSync(join(backend, "prisma", "migrations"), { withFileTypes: true }).filter((e) => e.isDirectory() && e.name < "20261023080000");
-  assert.equal(migrations.length, 19);
+  const migrations = readdirSync(join(backend, "prisma", "migrations"), { withFileTypes: true }).filter((e) => e.isDirectory() && e.name < "20261023100000");
+  assert.equal(migrations.length, 20);
   for (const migration of migrations) {
     mkdirSync(join(baseline, "migrations", migration.name));
     copyFileSync(join(backend, "prisma", "migrations", migration.name, "migration.sql"), join(baseline, "migrations", migration.name, "migration.sql"));
   }
   // migrate deploy applies migration files, not a schema diff. First apply only
-  // the nineteen migrations already on the staging branch before this release.
+  // the twenty migrations already running on staging before the alert release.
   execFileSync(process.execPath, [join(root, "node_modules", "prisma", "build", "index.js"), "migrate", "deploy", "--schema", join(baseline, "schema.prisma")], { cwd: root, stdio: "inherit" });
-  const clockAbsent = await prisma.$queryRaw<{ count: bigint }[]>`SELECT count(*) AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ClockShift'`;
+  const clockAbsent = await prisma.$queryRaw<{ count: bigint }[]>`SELECT count(*) AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ClockAlert'`;
   assert.equal(Number(clockAbsent[0].count), 0);
   execFileSync(process.execPath, [npmCli, "run", "seed", "--workspace=backend"], { cwd: root, stdio: "inherit" });
   const [creatorRole, chatterRole] = await Promise.all(["MODEL", "CHATTER"].map((systemKey) => prisma.role.findUniqueOrThrow({ where: { systemKey } })));
@@ -56,6 +58,18 @@ async function main() {
   // The legacy creator is inactive. Retain a pre-existing message directly in
   // the rehearsal fixture; no live account/channel is involved.
   await prisma.chatMessage.create({ data: { channelId: channel.id, authorUserId: staff.id, authorName: staff.name, text: "Existing chat must survive Clock rollout", clientNonce: randomUUID() } });
+  await prisma.$transaction((tx) => installClockDefaults(tx));
+  // Simulate the previous permission catalog, with existing customised Clock
+  // grants. New alert defaults may be added, but old grants must not return.
+  await prisma.rolePermission.deleteMany({ where: { permission: { key: { startsWith: "clock.alerts." } } } });
+  const tracking = await prisma.permission.findUniqueOrThrow({ where: { key: "clock.self.track" } });
+  await prisma.rolePermission.deleteMany({ where: { roleId: chatterRole.id, permissionId: tracking.id } });
+  const completedStart = new Date("2026-10-20T12:00:00Z"), activeStart = new Date();
+  const completed = await prisma.clockShift.create({ data: { userId: staff.id, personName: staff.name, startedAt: completedStart, endedAt: new Date("2026-10-20T16:00:00Z"), startDay: centralDayKey(completedStart), startWeek: centralWeekKey(completedStart), startRequestId: randomUUID() } });
+  await prisma.clockBreak.create({ data: { shiftId: completed.id, kind: "SHORT_ONE", startedAt: new Date("2026-10-20T13:00:00Z"), endedAt: new Date("2026-10-20T13:15:00Z"), endReason: "MANUAL", startRequestId: randomUUID() } });
+  const active = await prisma.clockShift.create({ data: { userId: staff.id, personName: staff.name, startedAt: activeStart, startDay: centralDayKey(activeStart), startWeek: centralWeekKey(activeStart), startRequestId: randomUUID() } });
+  await prisma.clockBreak.create({ data: { shiftId: active.id, kind: "MEAL", startedAt: activeStart, startRequestId: randomUUID() } });
+  const previousGrants = await prisma.rolePermission.findMany({ orderBy: { id: "asc" } });
   const audit = await prisma.auditEvent.create({ data: { action: "upgrade.legacy.record", success: true, statusCode: 200, actorUserId: staff.id, actorLabel: staff.name, metadata: { text: "Preserve original audit" } } });
   const snapshot = () => Promise.all([
     prisma.user.findMany({ orderBy: { id: "asc" } }), prisma.userRole.findMany({ orderBy: { id: "asc" } }), prisma.userModelAssignment.findMany({ orderBy: { id: "asc" } }),
@@ -64,6 +78,7 @@ async function main() {
     prisma.chatArea.findMany({ orderBy: { modelId: "asc" } }), prisma.chatChannel.findMany({ orderBy: { id: "asc" } }),
     prisma.chatStandingConversation.findMany({ orderBy: { id: "asc" } }), prisma.chatMessage.findMany({ orderBy: { id: "asc" } }),
     prisma.chatRoleGrant.findMany({ orderBy: [{ channelId: "asc" }, { roleId: "asc" }] }), prisma.chatPersonGrant.findMany({ orderBy: [{ channelId: "asc" }, { assignmentId: "asc" }] }),
+    prisma.clockShift.findMany({ orderBy: { id: "asc" } }), prisma.clockBreak.findMany({ orderBy: { id: "asc" } }),
     prisma.session.findMany({ orderBy: { id: "asc" } }), prisma.auditEvent.findUniqueOrThrow({ where: { id: audit.id } }),
   ]);
   const before = await snapshot();
@@ -74,7 +89,12 @@ async function main() {
   assert.equal(await prisma.chatChannel.count({ where: { modelId: model.id } }), 13);
   assert.equal(await prisma.chatStandingConversation.count({ where: { modelId: model.id, archivedAt: null } }), 2);
   assert.ok(await prisma.clockSetup.findUnique({ where: { id: "clock-core-v1" } }));
-  assert.equal(await prisma.clockShift.count(), 0);
-  console.log("Passed: the actual guarded staging pre-deploy command upgraded the previous 19-migration schema; original accounts, sessions, creator links, assignments, QA/coaching, strikes, ladder, Chat records/messages/grants and audit record values are unchanged.");
+  assert.ok(await prisma.clockSetup.findUnique({ where: { id: "clock-alerts-v1" } }));
+  assert.equal(await prisma.clockShift.count(), 2);
+  assert.equal(await prisma.clockAlert.count(), 0);
+  assert.deepEqual(await prisma.rolePermission.findMany({ where: { id: { in: previousGrants.map((p) => p.id) } }, orderBy: { id: "asc" } }), previousGrants);
+  assert.equal(await prisma.rolePermission.count({ where: { roleId: chatterRole.id, permissionId: tracking.id } }), 0);
+  assert.equal((await getOwnClock(staff.id)).currentShift!.id, active.id);
+  console.log("Passed: the actual guarded staging pre-deploy command upgraded the previous 20-migration schema; original accounts, sessions, creator links, assignments, QA/coaching, strikes, ladder, Chat records/messages/grants audit values and existing Clock shifts/breaks are unchanged; removed tracking grants stay removed.");
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => prisma.$disconnect());

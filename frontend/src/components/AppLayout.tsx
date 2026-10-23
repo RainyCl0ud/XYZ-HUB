@@ -29,6 +29,7 @@ import {
 } from "../lib/profile-avatar";
 
 import UserAvatar from "./UserAvatar";
+import ClockAlerts from "./ClockAlerts";
 
 import xyzManagementLogo from "../assets/xyz-management-logo.svg";
 
@@ -851,6 +852,7 @@ function AppLayout() {
         )}
 
         <div className="portal-command-meta">
+          <ClockAlerts />
           <div
             className="portal-command-role"
             aria-label="Current signed-in role"
