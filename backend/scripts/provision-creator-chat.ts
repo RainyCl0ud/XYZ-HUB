@@ -3,6 +3,7 @@ import { prisma } from "../src/lib/prisma.js";
 import { installCreatorChatDefaults, provisionCreatorChat } from "../src/services/creator-chat.js";
 import { installStandingChatDefaults, syncUserStandingChats } from "../src/services/standing-chat.js";
 import { assertChatStagingTarget } from "../src/services/chat-staging-target.js";
+import { installClockDefaults, isClockEnabled } from "../src/services/clock.js";
 
 async function main() {
   if (process.argv.includes("--require-staging")) assertChatStagingTarget(process.env);
@@ -17,6 +18,10 @@ async function main() {
   if (!process.argv.includes("--apply")) { console.log("Preview only. Add --apply to install once and provision missing ordinary channels."); return; }
   await prisma.$transaction((tx) => installCreatorChatDefaults(tx));
   await prisma.$transaction((tx) => installStandingChatDefaults(tx));
+  if (isClockEnabled()) {
+    await prisma.$transaction((tx) => installClockDefaults(tx));
+    console.log("Clock permissions prepared. Existing customisations are preserved on repeat deployments.");
+  }
   let created = 0;
   for (const model of models) created += await prisma.$transaction((tx) => provisionCreatorChat(tx, model.id));
   const users = await prisma.user.findMany({ select: { id: true } });

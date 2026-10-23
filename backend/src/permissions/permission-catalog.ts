@@ -1,4 +1,5 @@
 import { CHAT_PERMISSION_DEFINITIONS } from "./chat-permissions.js";
+import { CLOCK_PERMISSION_DEFINITIONS } from "./clock-permissions.js";
 
 export type PermissionDefinition = {
   key: string;
@@ -794,6 +795,7 @@ export const PERMISSION_CATALOG:
      */
     // Block 2 ordinary creator chat (separately enabled for rollout).
     ...CHAT_PERMISSION_DEFINITIONS.filter((permission) => permission.key !== "chat.private.general.review"),
+    ...CLOCK_PERMISSION_DEFINITIONS,
   ];
 
 

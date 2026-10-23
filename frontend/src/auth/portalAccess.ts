@@ -19,6 +19,9 @@ export const PORTAL_PERMISSION_DEPENDENCIES:
       readonly string[]
     >
   > = {
+  "clock.self.view": ["clock.access"],
+  "clock.self.track": ["clock.access", "clock.self.view"],
+  "clock.exempt": ["clock.access"],
   "chat.ordinary.access": ["chat.access"],
   "chat.private.all": ["chat.access"],
   "chat.private.general.review": ["chat.access"],

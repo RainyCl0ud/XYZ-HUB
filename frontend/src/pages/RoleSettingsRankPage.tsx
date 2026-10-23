@@ -110,6 +110,7 @@ const MODULE_LABELS:
     "Creators",
 
   chat: "Chat",
+  clock: "Clock & Hours",
 
   roles:
     "Role Settings",

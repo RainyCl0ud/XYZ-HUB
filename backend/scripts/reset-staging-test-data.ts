@@ -1254,6 +1254,8 @@ async function printDryRun() {
     chatMessages: await prisma.chatMessage.count(),
     chatNamedGrants: await prisma.chatPersonGrant.count(),
     chatPrivateConversations: await prisma.chatStandingConversation.count(),
+    clockShifts: await prisma.clockShift.count(),
+    clockBreaks: await prisma.clockBreak.count(),
   };
 
   console.log("");
@@ -1518,6 +1520,10 @@ await tx.teamGroup.upsert({
         await tx.chatChannel.deleteMany();
         await tx.chatArea.deleteMany();
         await tx.chatSetup.deleteMany();
+         /* Attendance is disposable only in this guarded staging reset. */
+         await tx.clockBreak.deleteMany();
+         await tx.clockShift.deleteMany();
+         await tx.clockSetup.deleteMany();
 
         /* Creator assignments/catalog. */
         await tx.userModelAssignment.deleteMany();
