@@ -28,6 +28,10 @@ rows.set("chatMessage", [{ id: "old-chat-message" }]);
 rows.set("chatChannel", [{ id: "old-chat-channel" }]);
 rows.set("chatArea", [{ modelId: "old-creator" }]);
 rows.set("chatStandingConversation", [{ id: "old-private-chat", modelId: "old-creator" }]);
+rows.set("clockShift", [{ id: "old-clock-shift" }]);
+rows.set("clockBreak", [{ id: "old-clock-break", shiftId: "old-clock-shift" }]);
+rows.set("clockAlert", [{ id: "old-clock-alert", shiftId: "old-clock-shift" }]);
+rows.set("clockAlertRead", [{ alertId: "old-clock-alert", userId: "old-staff" }]);
 rows.set("chatSetup", [{ id: "ordinary-creator-chat-v1" }]);
 
 function matches(row: Row, where: Row = {}): boolean {
@@ -82,6 +86,8 @@ function delegate(model: string) {
       return row ? Object.assign(row, args.update) : create(model, args.create);
     },
     async deleteMany(args: { where?: Row } = {}) {
+      if (model === "clockAlert") assert.equal(rows.get("clockAlertRead")?.length, 0);
+      if (model === "clockShift") { assert.equal(rows.get("clockBreak")?.length, 0); assert.equal(rows.get("clockAlert")?.length, 0); }
       if (model === "chatChannel") assert.equal(rows.get("chatMessage")?.length, 0);
       if (model === "chatArea") assert.equal(rows.get("chatChannel")?.length, 0);
       if (model === "chatStandingConversation") assert.equal(rows.get("chatMessage")?.length, 0);

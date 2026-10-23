@@ -104,7 +104,7 @@ async function main() {
     await clockOut(other.id, raceShift.id);
     check("Two simultaneous clock-ins create exactly one active shift");
     const mealShift = (await clockIn(other.id, { requestId: randomUUID() })).currentShift!;
-    const mealStart = new Date(Date.now() - 7200_000);
+    const mealStart = new Date(Math.floor(Date.now() / 1000) * 1000 - 7200_000);
     await prisma.clockShift.update({ where: { id: mealShift.id }, data: { startedAt: mealStart, startDay: centralDayKey(mealStart), startWeek: centralWeekKey(mealStart) } });
     const mealState = await startBreak(other.id, mealShift.id, { kind: "MEAL", requestId: randomUUID() });
     const mealBreak = mealState.currentShift!.breaks[0];
@@ -182,6 +182,7 @@ async function main() {
   } finally {
     await prisma.auditEvent.deleteMany({ where: { actorUserId: { in: users } } });
     const shifts = await prisma.clockShift.findMany({ where: { personName: { startsWith: prefix } }, select: { id: true } });
+    await prisma.clockAlert.deleteMany({ where: { shiftId: { in: shifts.map((s) => s.id) } } });
     await prisma.clockBreak.deleteMany({ where: { shiftId: { in: shifts.map((s) => s.id) } } });
     await prisma.clockShift.deleteMany({ where: { personName: { startsWith: prefix } } });
     await prisma.user.deleteMany({ where: { id: { in: users } } });

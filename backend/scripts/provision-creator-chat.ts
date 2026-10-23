@@ -3,6 +3,7 @@ import { prisma } from "../src/lib/prisma.js";
 import { installCreatorChatDefaults, provisionCreatorChat } from "../src/services/creator-chat.js";
 import { installStandingChatDefaults, syncUserStandingChats } from "../src/services/standing-chat.js";
 import { assertChatStagingTarget } from "../src/services/chat-staging-target.js";
+import { installClockAlertDefaults } from "../src/services/clock-alerts.js";
 import { installClockDefaults, isClockEnabled } from "../src/services/clock.js";
 
 async function main() {
@@ -20,6 +21,7 @@ async function main() {
   await prisma.$transaction((tx) => installStandingChatDefaults(tx));
   if (isClockEnabled()) {
     await prisma.$transaction((tx) => installClockDefaults(tx));
+    await prisma.$transaction((tx) => installClockAlertDefaults(tx));
     console.log("Clock permissions prepared. Existing customisations are preserved on repeat deployments.");
   }
   let created = 0;

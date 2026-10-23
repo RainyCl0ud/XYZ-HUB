@@ -1,0 +1,36 @@
+.clock-alerts-control { color: #FFFFFF; min-width: 0; }
+.clock-alerts-control button, .clock-alerts-dialog button { display: inline-flex; justify-content: center; align-items: center; min-height: 40px; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 700; color: #FFFFFF; background: #141414; border: 1px solid #666666; border-radius: 2px; cursor: pointer; }
+.clock-alerts-control button:hover, .clock-alerts-dialog button:hover { border-color: #FFFFFF; background: #1A1A1A; }
+.clock-alerts-control .clock-alerts-trigger { position: relative; width: 40px; min-width: 40px; padding: 8px; }
+.clock-alerts-trigger > span { position: absolute; top: -4px; right: -4px; display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; font-size: 11px; font-weight: 700; line-height: 1; background: #FFFFFF; color: #000000; padding: 4px; border-radius: 2px; }
+.clock-alerts-control :is(button, a):focus-visible, .clock-alerts-dialog :is(button, a):focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.clock-alert-toast { position: fixed; z-index: 30; bottom: 64px; right: 24px; width: min(400px, calc(100vw - 32px)); padding: 16px; border: 2px solid #FFFFFF; border-radius: 2px; color: #FFFFFF; background: #141414; font-size: 13px; line-height: 1.5; text-align: left; }
+.clock-alert-toast strong { display: block; font-size: 15px; }
+.clock-alert-toast p { color: #CCCCCC; margin: 8px 0 16px; }
+.clock-alert-toast > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
+.clock-alerts-dialog { box-sizing: border-box; width: min(640px, calc(100vw - 32px)); max-height: 85dvh; padding: 24px; background: #141414; color: #FFFFFF; border: 1px solid #FFFFFF; border-radius: 2px; font-size: 15px; line-height: 1.5; overflow-y: auto; overflow-wrap: anywhere; }
+.clock-alerts-dialog *, .clock-alert-toast * { box-sizing: border-box; }
+.clock-alerts-dialog::backdrop { background: #000000; }
+.clock-alerts-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #FFFFFF; margin-bottom: 16px; padding-bottom: 16px; }
+.clock-alerts-dialog h2 { font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -.02em; }
+.clock-alerts-dialog h3 { font-size: 18px; font-weight: 800; line-height: 1.3; margin: 8px 0; }
+.clock-alerts-dialog p { color: #CCCCCC; margin: 0 0 16px; }
+.clock-alerts-dialog .clock-alert-eyebrow { font-size: 11px; letter-spacing: .16em; font-weight: 700; color: #8E8E8E; margin-bottom: 4px; }
+.clock-alert-scope { border-left: 2px solid #FFFFFF; padding-left: 12px; font-size: 13px; }
+.clock-alert-toolbar, .clock-alert-toolbar > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.clock-alert-toolbar { justify-content: space-between; margin: 24px 0 16px; }
+.clock-alerts-dialog [aria-pressed="true"] { background: #FFFFFF; color: #000000; border-color: #FFFFFF; }
+.clock-alert-list { list-style: none; margin: 0; padding: 0; }
+.clock-alert-list > li { padding: 24px 0; border-bottom: 1px solid #333333; }
+.clock-alert-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.clock-alert-person { font-size: 13px; color: #CCCCCC; }
+.clock-alert-status { border: 1px solid #666666; padding: 4px 8px; font-size: 13px; border-radius: 2px; }
+.clock-alert-list time { display: block; font-size: 13px; color: #999999; margin: 0 0 12px; font-variant-numeric: tabular-nums; }
+.clock-alert-list button:disabled { color: #5C5C5C; border-color: #333333; cursor: default; }
+.clock-alert-empty { text-align: center; padding: 32px 16px; background: #0D0D0D; border: 1px solid #666666; }
+.clock-alert-empty p { font-size: 13px; margin-bottom: 0; }
+.clock-alert-pagination { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.clock-alerts-dialog .clock-alert-error { padding: 12px; border: 2px solid #FFFFFF; font-size: 13px; font-weight: 700; }
+.clock-alert-link { display: inline-block; color: #FFFFFF; font-size: 13px; margin: 16px 0; text-decoration: underline; text-underline-offset: 4px; }
+.clock-alerts-dialog .clock-alert-footnote { color: #999999; font-size: 13px; margin-bottom: 0; }
+@media (max-width: 720px) { .clock-alerts-dialog { padding: 16px; } .clock-alert-toast { bottom: 64px; right: 16px; } }

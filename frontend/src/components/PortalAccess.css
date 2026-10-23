@@ -1690,6 +1690,34 @@
   }
 }
 
+/* Attendance adds a third header control. Keep it on the same row as the
+   clock and account; on narrow phones the page heading below supplies the title. */
+@media (max-width: 720px) {
+  .portal-command-bar-v2:has(.clock-alerts-control) {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+  }
+  .portal-command-bar-v2:has(.clock-alerts-control) .portal-command-meta {
+    grid-template-columns: 40px minmax(128px, 1fr) 34px;
+    gap: 8px;
+  }
+  .portal-command-bar-v2:has(.clock-alerts-control) .portal-clock-time {
+    font-size: 15px !important;
+  }
+  .portal-command-bar-v2:has(.clock-alerts-control) .portal-clock-date {
+    font-size: 13px;
+  }
+}
+@media (max-width: 430px) {
+  .portal-command-bar-v2:has(.clock-alerts-control) {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+  .portal-command-bar-v2:has(.clock-alerts-control) .portal-page-context { display: none; }
+  .portal-command-bar-v2:has(.clock-alerts-control) .portal-command-meta {
+    grid-column: 2;
+    grid-template-columns: 40px minmax(0, 1fr) 32px;
+  }
+}
+
 @media (max-width: 430px) {
   .portal-command-bar-v2 {
     grid-template-columns:

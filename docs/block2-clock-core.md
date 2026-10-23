@@ -18,9 +18,11 @@ This staging batch includes personal clock-in/out, an elapsed timer, two paid 15
 
 ## Break-limit behavior in this batch
 
-When attendance is read or changed, an overdue short break is closed at exactly 30 minutes and a meal break at exactly 60 minutes. Its effective end time is the limit, even if the next refresh occurs later. The audit also records when reconciliation happened. Clock-out closes an unfinished break.
+A background check runs every 15 seconds in the approved staging environment, including when nobody has the Hub open. Reading/changing attendance also uses the same reconciliation. An overdue short break is closed at exactly 30 minutes and a meal break at exactly 60 minutes. Its effective end time is the limit, even if the next refresh occurs later. The audit also records when reconciliation happened. Clock-out closes an unfinished break.
 
-This is not yet a background reminder/notification system. Five-minute-overrun push/Hub reminders, proactive manager flags, 14-hour-open-shift alerts, corrections and approvals, manager/team views and complete attendance exports remain for the next batch. No claim of full Clock acceptance or complete Block 2 delivery.
+Hub reminders now appear at 20 minutes for a short break and 35 minutes for a meal. Automatic ends at 30/60 minutes create a staff/management flag. A shift still open after 14 hours is flagged without changing its hours or automatically clocking out. The attendance bell is available across Hub pages, with unread counts, a dismissible notice, personal read state, bounded history and Central timestamps. Completed-shift rows can expand to show each paid break and how it ended.
+
+These are **Hub notices**, not device push. Browser push, corrections/approvals, manager hours views and complete attendance exports remain for the next batch. No claim of full Clock acceptance or complete Block 2 delivery.
 
 ## Staging activation — same commands
 
@@ -32,7 +34,7 @@ After this release reaches the staging branch:
 2. Staging → Frontend → Variables: add `VITE_BLOCK2_CLOCK_ENABLED=true`, then rebuild/deploy after Backend success. A restart alone does not enable the screen.
 3. Reload Staging and sign in as a made-up staff account. Open **Clock & Hours**. Owner/Developer/Creator accounts are exempt, so use a staff test account to exercise the buttons.
 
-The additive migration creates only Clock tables, types and constraints. Existing records and Chat grants/messages remain. Clock permission installation uses its own one-time marker and does not restore customisations on later deploys. No reset, credential change, new paid service or Production change is required. Feature flags are off by default. Keeping both Clock flags off hides the new feature while leaving its additive data intact.
+The additive migrations create only Clock tables, types, constraints and indexes. Existing records and Chat grants/messages remain. Clock permission installation uses its own one-time marker and does not restore customisations on later deploys. No reset, credential change, new paid service or Production change is required. Feature flags are off by default. Keeping both Clock flags off hides the new feature while leaving its additive data intact.
 
 ## Staging test checklist
 
@@ -50,6 +52,34 @@ The daylight-saving fixtures are in the automated local tests: 1 November 2026 m
 
 ## Verification
 
-`test:clock` runs meaningful Postgres and authenticated HTTP checks in a loopback database only. `test:clock-upgrade` requires an empty local database with a name ending `_upgrade_rehearsal`; it applies the previous 19 migrations, creates existing account/QA/Strike/Chat fixtures and runs the actual guarded pre-deploy command to add Clock. Original record values are compared unchanged. The rehearsal never clears an existing database.
+`test:clock` runs meaningful Postgres and authenticated HTTP checks in a loopback database only. `test:clock-upgrade` requires an empty local database with a name ending `_upgrade_rehearsal`; it applies the previous 20 migrations, creates existing account/QA/Strike/Chat fixtures plus completed and open Clock shifts/breaks and runs the actual guarded pre-deploy command to add alerts. Removed tracking grants and all previous record values are checked unchanged. Original record values are compared unchanged. The rehearsal never clears an existing database.
 
 Chat styling now follows the [agency reference](xyz-design-reference.md): approved monochrome colours, Helvetica-first typography, 2px corners, no shadows, visible white focus and a 1200px content maximum. The improved selector/search/private filters and existing Chat permissions remain.
+
+## Attendance alerts: audience and reliability
+
+- The person sees their own break reminders, automatic ends and 14-hour flags. `clock.self.view` is required.
+- `clock.alerts.team` defaults to Managers and requires `clock.access`. It permits flags for staff sharing a **current active creator assignment**, irrespective of their team. With several creators, each eligible current Manager can review the flag. A Manager never gains other staff's raw hours or correction powers from this permission.
+- Accountant/General Staff flags are excluded from ordinary Manager routing, even if those staff have a creator assignment. `clock.alerts.all` defaults to Owners/Ops; it covers these and unassigned staff. Owners retain agency oversight. Developer is not automatically granted other people's attendance flags; the brief's Developer-wide Chat access does not imply global attendance access.
+- New custom roles receive no automatic alert capability. Dependencies and archived-role status are checked. The new default installer has its own `clock-alerts-v1` marker, so later deployments do not restore removed grants or change existing attendance permissions.
+- Permissions/active accounts/assignments are rechecked on every list/read request. Removal or creator closure removes manager access to old alerts too; another person's cursor/alert ID cannot bypass the check. Self hours remain available independently of assignments.
+- Marking a notice read clears **only that person's** unread state, never another Manager's flag, and never changes times. Dismissing the small on-page notice just hides it in the current view. Read notices remain under All alerts. Finishing a break/shift updates its alert status.
+- Threshold events, auto-ended breaks and readable system audit records commit together. Unique event keys and common person-row locks prevent duplicate flags/automatic ends across workers, tabs and retries. Read markers use an atomic insert so two tabs can safely acknowledge the same notice.
+- Due times and first read times are saved in Postgres. Restarting the Backend catches up on open records; there is no per-person in-memory timer. An already expired break gets its automatic-end flag without an obsolete reminder. Closed historical shifts are not backfilled with invented reminders.
+- The worker considers at most 100 due shifts per pass and skips locked rows for the next pass. Threshold times are exact; recording/Hub delivery can follow by a polling interval, or longer during downtime/backlogs. Repeated failed items are retried and a generic error is logged without credentials or person records.
+- The worker starts only with Clock enabled on the approved Staging project/environment, or a loopback development database. It refuses Production/unknown targets. It uses the existing Backend process; no paid service, scheduler service or new Railway command/variable is needed.
+- Deleting an account keeps system alerts and name snapshots alongside its hours. Personal read markers disappear with the deleted login. The guarded staging-only reset understands the new tables; this release never runs that reset against staging or Production.
+
+## Test this release on staging
+
+Keep both existing Clock flags enabled and all build/pre-deploy/start/database settings unchanged. Wait for the new Backend and Frontend deployments to succeed, then refresh.
+
+1. Check the attendance bell on Clock and Chat. With no notices it shows an empty inbox; compare two test staff accounts.
+2. Leave a test short break running: before 20 minutes there is no reminder; at 20 minutes a Hub notice appears (allow the background and browser polling intervals). Dismiss the small notice, then use the bell. Mark as read, switch to All alerts and confirm the history remains. Reload to check persistence.
+3. Leave a short break running past 30 minutes while the Clock page is closed. Return; the break ended exactly at its limit and all time remains paid. The worker works even when no browser is connected.
+4. Check the flag as a Manager sharing a current creator, an unrelated Manager, Ops and the staff member. Removing the shared creator assignment must remove that Manager's alert access on their next refresh, including history/direct IDs. Accountant/General Staff flags should reach Ops/Owner, not an ordinary Manager.
+5. For a meal, the reminder threshold is 35 minutes and automatic end 60 minutes. Do not shorten real limits or adjust the live server clock to accelerate testing.
+6. A 14-hour-open test shift alerts the person and management, but does not end the shift. The automated local fixtures cover this boundary without requiring a 14-hour wait or fabricating staging records.
+7. Expand Break details on a completed shift. Check whether each break ended manually, automatically or with clock-out. Try phone widths and keyboard navigation; there should be no page-wide horizontal scroll.
+
+`test:clock-alerts` runs real Postgres/HTTP checks on an isolated named loopback database: thresholds, restart-style catch-up, concurrent workers/manual requests, atomic rollback/retry, private concurrent acknowledgements, current permission/assignment routing, role dependencies, deactivation, retained snapshots, no-store responses and bounded cursor pages. The original `test:clock` covers personal hours, paid totals and DST.

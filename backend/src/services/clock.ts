@@ -1,28 +1,14 @@
-import { Prisma, ClockBreakKind, ClockBreakEndReason } from "@prisma/client";
+import { Prisma, ClockBreakKind } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { CLOCK_PERMISSION_DEFINITIONS, CLOCK_ROLE_DEFAULTS } from "../permissions/clock-permissions.js";
 import { centralDayKey, centralWeekKey, elapsedSeconds } from "./clock-time.js";
 
 export const isClockEnabled = () => process.env.BLOCK2_CLOCK_ENABLED === "true";
-export class ClockError extends Error {
-  constructor(readonly status: number, message: string) { super(message); }
-}
-export const BREAKS = {
-  SHORT_ONE: { label: "Short break 1", allowanceSeconds: 900, limitSeconds: 1800 },
-  SHORT_TWO: { label: "Short break 2", allowanceSeconds: 900, limitSeconds: 1800 },
-  MEAL: { label: "Meal break", allowanceSeconds: 1800, limitSeconds: 3600 },
-} as const;
+export { ClockError, BREAKS } from "./clock-policy.js";
+import { ClockError, BREAKS, clockAllowed as allowed, clockViewerInclude as viewerInclude, type ClockViewer as Viewer, clockDatabaseNow } from "./clock-policy.js";
+import { reconcileClockShift } from "./clock-alerts.js";
 const include = { breaks: { orderBy: { startedAt: "asc" as const } } } satisfies Prisma.ClockShiftInclude;
 type Shift = Prisma.ClockShiftGetPayload<{ include: typeof include }>;
-const viewerInclude = {
-  roleMemberships: { where: { role: { archivedAt: null } }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } },
-} satisfies Prisma.UserInclude;
-type Viewer = Prisma.UserGetPayload<{ include: typeof viewerInclude }>;
-function allowed(viewer: Viewer, key: string): boolean {
-  const permissions = new Set(viewer.roleMemberships.flatMap((r) => r.role.rolePermissions.map((p) => p.permission.key)));
-  const check = (value: string): boolean => permissions.has(value) && (CLOCK_PERMISSION_DEFINITIONS.find((p) => p.key === value)?.requires ?? []).every(check);
-  return check(key);
-}
 function canTrack(viewer: Viewer) { return allowed(viewer, "clock.self.track") && !allowed(viewer, "clock.exempt"); }
 async function withViewer<T>(userId: string, action: (tx: Prisma.TransactionClient, viewer: Viewer, now: Date) => Promise<T>) {
   return prisma.$transaction(async (tx) => {
@@ -32,8 +18,7 @@ async function withViewer<T>(userId: string, action: (tx: Prisma.TransactionClie
     const viewer = await tx.user.findUnique({ where: { id: userId }, include: viewerInclude });
     if (!viewer || viewer.status !== "ACTIVE") throw new ClockError(401, "Please sign in again.");
     if (!allowed(viewer, "clock.self.view")) throw new ClockError(403, "Access to your hours is required.");
-    const [clock] = await tx.$queryRaw<{ now: Date }[]>`SELECT date_trunc('second', clock_timestamp()) AS "now"`;
-    return action(tx, viewer, clock.now);
+    return action(tx, viewer, await clockDatabaseNow(tx));
   }, { timeout: 15_000 });
 }
 function requireTrack(viewer: Viewer) {
@@ -47,16 +32,6 @@ async function ownedShift(tx: Prisma.TransactionClient, userId: string, shiftId:
   if (!shift) throw new ClockError(404, "Shift not found.");
   return shift;
 }
-async function finishExpiredBreak(tx: Prisma.TransactionClient, viewer: Viewer, shift: Shift, now: Date) {
-  for (const pause of shift.breaks.filter((b) => !b.endedAt)) {
-    const limit = new Date(pause.startedAt.getTime() + BREAKS[pause.kind].limitSeconds * 1000);
-    if (now >= limit) {
-      await tx.clockBreak.update({ where: { id: pause.id }, data: { endedAt: limit, endReason: "LIMIT" } });
-      await audit(tx, viewer, "break.auto_end", shift.id, now, { breakId: pause.id, kind: pause.kind, endedAt: limit.toISOString(), recordedAt: now.toISOString(), reason: "Maximum break length reached; reconciled on attendance refresh." });
-      pause.endedAt = limit; pause.endReason = ClockBreakEndReason.LIMIT;
-    }
-  }
-}
 function shiftDto(shift: Shift, now: Date) {
   const end = shift.endedAt ?? now;
   return { id: shift.id, personName: shift.personName, startedAt: shift.startedAt, endedAt: shift.endedAt, startDay: shift.startDay, startWeek: shift.startWeek,
@@ -68,7 +43,7 @@ function shiftDto(shift: Shift, now: Date) {
 }
 async function state(tx: Prisma.TransactionClient, viewer: Viewer, now: Date, before?: string) {
   const current = await tx.clockShift.findFirst({ where: { userId: viewer.id, endedAt: null }, include });
-  if (current) await finishExpiredBreak(tx, viewer, current, now);
+  if (current) await reconcileClockShift(tx, current, now);
   let cursor: { startedAt: Date; id: string } | null = null;
   if (before) {
     cursor = await tx.clockShift.findFirst({ where: { userId: viewer.id, id: before }, select: { startedAt: true, id: true } });
@@ -106,7 +81,7 @@ export function clockOut(userId: string, shiftId: string) {
     const shift = await ownedShift(tx, userId, shiftId);
     if (shift.endedAt) return state(tx, viewer, now);
     if (now < shift.startedAt) throw new ClockError(409, "The server clock is earlier than this shift. Ask an Owner to investigate.");
-    await finishExpiredBreak(tx, viewer, shift, now);
+    await reconcileClockShift(tx, shift, now);
     for (const pause of shift.breaks.filter((b) => !b.endedAt)) {
       await tx.clockBreak.update({ where: { id: pause.id }, data: { endedAt: now, endReason: "CLOCK_OUT" } });
       await audit(tx, viewer, "break.end", shift.id, now, { breakId: pause.id, kind: pause.kind, endedAt: now.toISOString(), reason: "Clocked out" });
@@ -126,7 +101,7 @@ export function startBreak(userId: string, shiftId: string, input: { kind: Clock
       return state(tx, viewer, now);
     }
     if (shift.endedAt) throw new ClockError(409, "This shift has ended. Clock in before taking a break.");
-    await finishExpiredBreak(tx, viewer, shift, now);
+    await reconcileClockShift(tx, shift, now);
     if (shift.breaks.some((b) => !b.endedAt)) throw new ClockError(409, "End your current break before starting another.");
     if (shift.breaks.some((b) => b.kind === input.kind)) throw new ClockError(409, "You have already used this break in this shift.");
     if (now < shift.startedAt) throw new ClockError(409, "The server clock is earlier than this shift. Ask an Owner to investigate.");
@@ -142,7 +117,7 @@ export function endBreak(userId: string, shiftId: string, breakId: string) {
     const pause = shift.breaks.find((b) => b.id === breakId);
     if (!pause) throw new ClockError(404, "Break not found.");
     if (!pause.endedAt && now < pause.startedAt) throw new ClockError(409, "The server clock is earlier than this break. Ask an Owner to investigate.");
-    await finishExpiredBreak(tx, viewer, shift, now);
+    await reconcileClockShift(tx, shift, now);
     if (!pause.endedAt && !shift.endedAt) {
       await tx.clockBreak.update({ where: { id: pause.id }, data: { endedAt: now, endReason: "MANUAL" } });
       await audit(tx, viewer, "break.end", shift.id, now, { breakId, kind: pause.kind, endedAt: now.toISOString(), reason: "Returned from break" });
