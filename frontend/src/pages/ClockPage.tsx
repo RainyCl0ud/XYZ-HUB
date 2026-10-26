@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, apiRequest } from "../lib/api";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
+import ClockCorrections from "../components/ClockCorrections";
 import "./ClockPage.css";
 
 type BreakKind = "SHORT_ONE" | "SHORT_TWO" | "MEAL";
 type PaidBreak = { id: string; kind: BreakKind; label: string; startedAt: string; endedAt: string | null; endReason: string | null; elapsedSeconds: number; allowanceSeconds: number; limitSeconds: number };
-type Shift = { id: string; personName: string; startedAt: string; endedAt: string | null; startDay: string; startWeek: string; workedSeconds: number; paidBreakSeconds: number; breaks: PaidBreak[] };
-type ClockState = { serverNow: string; timeZone: string; canTrack: boolean; exempt: boolean; currentShift: Shift | null; history: Shift[]; hasMore: boolean; nextBefore: string | null; totals: { dayKey: string; weekKey: string; todaySeconds: number; weekSeconds: number } };
+type Shift = { id: string; recordVersion: string; correctionCount: number; personName: string; startedAt: string; endedAt: string | null; startDay: string; startWeek: string; workedSeconds: number; paidBreakSeconds: number; breaks: PaidBreak[] };
+type ClockState = { serverNow: string; historyVersion: string; timeZone: string; canTrack: boolean; canRequestCorrections: boolean; canReviewCorrections: boolean; exempt: boolean; currentShift: Shift | null; history: Shift[]; hasMore: boolean; nextBefore: string | null; totals: { dayKey: string; weekKey: string; todaySeconds: number; weekSeconds: number } };
 const BREAK_OPTIONS: { kind: BreakKind; label: string; minutes: number }[] = [
   { kind: "SHORT_ONE", label: "Short break 1", minutes: 15 },
   { kind: "SHORT_TWO", label: "Short break 2", minutes: 15 },
@@ -44,11 +45,13 @@ export default function ClockPage() {
     }
     setData((previous) => {
       if (!previous) return next;
-      const merged = new Map((older ? [...previous.history, ...next.history] : [...next.history, ...previous.history]).map((s) => [s.id, s]));
+      if (stale) return previous;
+      const changedHistory = previous.historyVersion !== next.historyVersion;
+      const merged = new Map((changedHistory ? next.history : older ? [...previous.history, ...next.history] : [...next.history, ...previous.history]).map((s) => [s.id, s]));
       // Fresh server rows replace old snapshots, while older loaded history stays.
       if (!older) for (const shift of next.history) merged.set(shift.id, shift);
       const history = [...merged.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt) || b.id.localeCompare(a.id));
-      const keepCursor = !older && previous.history.some((s) => !next.history.some((n) => n.id === s.id));
+      const keepCursor = !older && !changedHistory && previous.history.some((s) => !next.history.some((n) => n.id === s.id));
       return { ...(stale ? previous : next), history,
         ...(older ? { hasMore: next.hasMore, nextBefore: next.nextBefore } : keepCursor ? { hasMore: previous.hasMore, nextBefore: previous.nextBefore } : {}) };
     });
@@ -105,7 +108,10 @@ export default function ClockPage() {
     setLoadingOlder(true);
     try {
       const result = await apiRequest<ClockState>(`/api/clock/me?before=${encodeURIComponent(data.nextBefore)}`);
-      if (mounted.current && generation === operation.current && !writing.current) accept(result, true);
+      if (mounted.current && generation === operation.current && !writing.current) {
+        if (data.historyVersion !== result.historyVersion) { await refresh(); setNotice("Approved corrections changed your history. The latest shifts have been refreshed."); }
+        else accept(result, true);
+      }
     } catch (e) { if (mounted.current) setLoadError(describeError(e)); }
     finally { if (mounted.current) setLoadingOlder(false); }
   }
@@ -123,7 +129,7 @@ export default function ClockPage() {
     {actionError && <div className="clock-error" role="alert">! {actionError}</div>}
     {notice && <div className="clock-notice" role="status">{notice}</div>}
     {!data ? <p role="status">{loadError ? "Your attendance could not be loaded." : "Loading your attendance…"}</p> : <>
-      {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>! Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. Contact management if a time needs correcting.</p></div>}
+      {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>! Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. Use Time corrections below if a recorded time needs changing.</p></div>}
       <div className="clock-overview">
         <section className="clock-current" aria-labelledby="current-shift-title">
           <header><h2 id="current-shift-title">Current shift</h2><span className="clock-status">{shift ? activeBreak ? "On paid break" : "Clocked in" : "Clocked out"}</span></header>
@@ -147,9 +153,10 @@ export default function ClockPage() {
         })}</div><p className="clock-break-help">A Hub reminder appears at 20 minutes for a short break or 35 minutes for a meal. At 30 or 60 minutes, the break ends automatically and management is flagged. All break time stays paid.</p>
       </section>}
       <section className="clock-history" aria-labelledby="history-title"><header><h2 id="history-title">Your completed shifts</h2><p>Times are shown in US Central. Overnight shifts belong to the day and week they started.</p></header>
-        {!data.history.length ? <div className="clock-empty"><h3>No completed shifts yet</h3><p>After you clock out, your shift and paid breaks will appear here.</p></div> : <div className="clock-table-scroll" role="region" aria-label="Completed shifts table" tabIndex={0}><table><thead><tr><th scope="col">CLOCKED IN</th><th scope="col">CLOCKED OUT</th><th scope="col" className="clock-number">WORKED TIME</th><th scope="col" className="clock-number">PAID BREAKS</th><th scope="col">BREAK DETAILS</th></tr></thead><tbody>{data.history.map((s) => <tr key={s.id}><td>{formatClockTime(s.startedAt)}</td><td>{formatClockTime(s.endedAt!)}</td><td className="clock-number">{duration(s.workedSeconds)}</td><td className="clock-number">{duration(s.paidBreakSeconds)}</td><td><details className="clock-break-details"><summary>{s.breaks.length ? `View ${s.breaks.length} paid ${s.breaks.length === 1 ? "break" : "breaks"}` : "No breaks"}</summary>{!!s.breaks.length && <ul>{s.breaks.map((b) => <li key={b.id}><strong>{b.label}</strong><span>{duration(b.elapsedSeconds)} · {b.endReason === "LIMIT" ? "Ended automatically at the limit" : b.endReason === "CLOCK_OUT" ? "Ended with clock-out" : "Returned from break"}</span></li>)}</ul>}</details></td></tr>)}</tbody></table></div>}
+        {!data.history.length ? <div className="clock-empty"><h3>No completed shifts yet</h3><p>After you clock out, your shift and paid breaks will appear here.</p></div> : <div className="clock-table-scroll" role="region" aria-label="Completed shifts table" tabIndex={0}><table><thead><tr><th scope="col">CLOCKED IN</th><th scope="col">CLOCKED OUT</th><th scope="col" className="clock-number">WORKED TIME</th><th scope="col" className="clock-number">PAID BREAKS</th><th scope="col">BREAK DETAILS</th></tr></thead><tbody>{data.history.map((s) => <tr key={s.id}><td>{formatClockTime(s.startedAt)}{!!s.correctionCount && <span className="clock-corrected-label">Approved correction applied</span>}</td><td>{formatClockTime(s.endedAt!)}</td><td className="clock-number">{duration(s.workedSeconds)}</td><td className="clock-number">{duration(s.paidBreakSeconds)}</td><td><details className="clock-break-details"><summary>{s.breaks.length ? `View ${s.breaks.length} paid ${s.breaks.length === 1 ? "break" : "breaks"}` : "No breaks"}</summary>{!!s.breaks.length && <ul>{s.breaks.map((b) => <li key={b.id}><strong>{b.label}</strong><span>{duration(b.elapsedSeconds)} · {b.endReason === "LIMIT" ? "Ended automatically at the limit" : b.endReason === "CLOCK_OUT" ? "Ended with clock-out" : b.endReason === "CORRECTION" ? "Corrected with approval" : "Returned from break"}</span></li>)}</ul>}</details></td></tr>)}</tbody></table></div>}
         {data.hasMore && <button type="button" disabled={loadingOlder || busy} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load earlier shifts"}</button>}
       </section>
+      <ClockCorrections canRequest={data.canRequestCorrections} canReview={data.canReviewCorrections} canAddMissing={data.canTrack} shifts={[...(data.currentShift ? [data.currentShift] : []), ...data.history]} disabled={busy || !online} onChanged={() => { void refresh().catch((e: unknown) => setLoadError(describeError(e))); }} />
     </>}
     <dialog ref={dialog} className="clock-dialog" aria-labelledby="clock-out-title" onCancel={() => setConfirmOut(false)}><h2 id="clock-out-title">End your shift?</h2><p>Your worked time is {duration(shiftSeconds)}, including paid breaks.</p>{activeBreak && <p>Your current break will end when you clock out.</p>}<div><button type="button" disabled={busy} onClick={() => setConfirmOut(false)}>Keep working</button><button type="button" className="clock-primary" disabled={busy || !shift || !online} onClick={() => shift && void write("out", `/api/clock/shifts/${shift.id}/out`, {})}>{busy ? "Saving…" : "Confirm clock out"}</button></div></dialog>
   </section>;

@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.staging-checks.json",
+  "compilerOptions": {
+    "rootDir": ".."
+  },
+  "include": [
+    "src",
+    "scripts/test-clock-corrections.ts",
+    "../frontend/src/lib/clock-correction-time.ts",
+    "../frontend/src/lib/time.ts",
+    "scripts/test-clock-corrections-upgrade.ts"
+  ]
+}

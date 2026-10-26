@@ -201,6 +201,11 @@ function actionLabel(
     "chat.channel.grant": "Chat channel access updated",
     "chat.private.create": "Private chat created",
     "chat.private.archive": "Private chat archived",
+    "clock.correction.request": "Attendance correction requested",
+    "clock.correction.approve": "Attendance correction approved",
+    "clock.correction.reject": "Attendance correction rejected",
+    "clock.correction.withdraw": "Attendance correction cancelled",
+    "clock.correction_defaults.install": "Attendance correction defaults installed",
     "clock.in": "Clocked in",
     "clock.out": "Clocked out",
     "clock.break.start": "Paid break started",
@@ -761,6 +766,21 @@ function buildChanges(
     pushChange(changes, "Due time (UTC)", null, asString(metadata?.dueAt));
     pushChange(changes, "Recorded time (UTC)", null, asString(metadata?.recordedAt));
     pushChange(changes, "Reason", null, asString(metadata?.reason));
+    if (event.action.startsWith("clock.correction.")) {
+      const before = asRecord(metadata?.before), after = asRecord(metadata?.after);
+      pushChange(changes, "Recorded / requested clock-in (UTC)", asString(before?.startedAt), asString(after?.startedAt));
+      pushChange(changes, "Recorded / requested clock-out (UTC)", asString(before?.endedAt), asString(after?.endedAt));
+      pushChange(changes, "Review note", null, asString(metadata?.reviewNote));
+      const previousBreaks = Array.isArray(before?.breaks) ? before.breaks.map(asRecord) : [];
+      const nextBreaks = Array.isArray(after?.breaks) ? after.breaks.map(asRecord) : [];
+      for (const pause of nextBreaks) {
+        const kind = asString(pause?.kind);
+        const previous = previousBreaks.find((b) => asString(b?.kind) === kind);
+        const label = kind ? breakLabels[kind] ?? kind : "Paid break";
+        pushChange(changes, `${label} start (UTC)`, asString(previous?.startedAt), asString(pause?.startedAt));
+        pushChange(changes, `${label} end (UTC)`, asString(previous?.endedAt), asString(pause?.endedAt));
+      }
+    }
     return changes;
   }
 

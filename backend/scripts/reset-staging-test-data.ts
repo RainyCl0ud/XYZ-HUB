@@ -1254,6 +1254,7 @@ async function printDryRun() {
     chatMessages: await prisma.chatMessage.count(),
     chatNamedGrants: await prisma.chatPersonGrant.count(),
     chatPrivateConversations: await prisma.chatStandingConversation.count(),
+    clockCorrections: await prisma.clockCorrection.count(),
     clockAlerts: await prisma.clockAlert.count(),
     clockAlertReads: await prisma.clockAlertRead.count(),
     clockShifts: await prisma.clockShift.count(),
@@ -1523,6 +1524,7 @@ await tx.teamGroup.upsert({
         await tx.chatArea.deleteMany();
         await tx.chatSetup.deleteMany();
          /* Attendance is disposable only in this guarded staging reset. */
+         await tx.clockCorrection.deleteMany();
          await tx.clockAlertRead.deleteMany();
          await tx.clockAlert.deleteMany();
          await tx.clockBreak.deleteMany();
