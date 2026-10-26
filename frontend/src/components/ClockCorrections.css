@@ -1,0 +1,46 @@
+.clock-corrections { margin-top: 32px; min-width: 0; }
+.clock-corrections > header { border-bottom: 2px solid #FFFFFF; padding-bottom: 16px; margin-bottom: 24px; }
+.clock-corrections > header p { margin: 12px 0 0; font-size: 13px; }
+.clock-corrections :is(label, select, input, textarea), .correction-dialog :is(label, select, input, textarea) { font: inherit; color: #FFFFFF; }
+.clock-corrections label, .correction-dialog label { display: block; font-size: 13px; font-weight: 700; }
+.clock-corrections select, .correction-dialog :is(input, select, textarea) { display: block; width: 100%; min-width: 0; min-height: 40px; padding: 8px 12px; margin-top: 8px; background: #0D0D0D; border: 1px solid #666666; border-radius: 2px; font-size: 15px; color-scheme: dark; accent-color: #FFFFFF; }
+.correction-dialog :is(input, select, textarea):focus-visible, .clock-corrections :is(select, summary):focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.correction-start { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 24px; border: 1px solid #666666; background: #141414; margin-bottom: 24px; }
+.correction-start > div { flex: 1 1 280px; min-width: 0; }
+.correction-start p { margin: 8px 0 0; font-size: 13px; color: #999999; }
+.correction-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+.correction-tabs { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+.correction-tabs [aria-pressed="true"] { border: 2px solid #FFFFFF; background: #1A1A1A; }
+.correction-controls > label { min-width: 144px; }
+.correction-card { border: 1px solid #666666; border-radius: 2px; padding: 24px; background: #141414; margin-bottom: 16px; overflow-wrap: anywhere; }
+.correction-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.correction-card > header p { font-size: 13px; color: #999999; margin: 8px 0 0; }
+.correction-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0; }
+.correction-comparison > div { border-left: 2px solid #666666; padding-left: 12px; }
+.correction-comparison p { margin: 4px 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.correction-comparison details { grid-column: 1 / -1; font-size: 13px; }
+.correction-comparison summary { cursor: pointer; padding: 8px 0; text-decoration: underline; text-underline-offset: 4px; }
+.correction-comparison details > div { border-bottom: 1px solid #333333; padding: 12px 0; }
+.correction-quoted-reason, .correction-review-note span { white-space: pre-wrap; overflow-wrap: anywhere; }
+.clock-page .correction-quoted-reason { margin: 16px 0; }
+.correction-review-note { font-size: 13px; border-top: 1px solid #333333; padding-top: 16px; }
+.correction-review-note span { display: block; margin-top: 8px; }
+.correction-hint { border-left: 2px solid #FFFFFF; padding: 12px 16px; margin: 16px 0; font-size: 13px; color: #CCCCCC; }
+.correction-card-actions, .correction-pagination, .correction-dialog-actions, .correction-add-breaks { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.correction-card-actions { justify-content: flex-end; }
+.correction-dialog { width: min(760px, calc(100vw - 32px)); }
+.correction-dialog fieldset { margin: 24px 0; padding: 16px; border: 1px solid #666666; min-width: 0; }
+.correction-dialog legend { font-size: 15px; font-weight: 700; padding: 0 8px; }
+.correction-dialog fieldset > p { font-size: 13px; }
+.correction-time-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.correction-time { min-width: 0; }
+.correction-time label span { font-weight: 400; color: #999999; }
+.correction-time > select { font-size: 13px; }
+.correction-time > label:not(:first-child) { margin-top: 12px; }
+.correction-time .correction-field-error { font-size: 13px; font-weight: 700; margin: 8px 0 0; }
+.correction-break { border-top: 1px solid #333333; padding-top: 16px; margin-top: 16px; }
+.correction-break-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.correction-dialog textarea { min-height: 112px; resize: vertical; }
+.correction-dialog-actions { justify-content: flex-end; margin-top: 24px; }
+.correction-dialog :disabled { color: #5C5C5C; }
+@media (max-width: 720px) { .correction-start, .correction-card { padding: 16px; } .correction-start > div { flex-basis: 100%; } .correction-time-grid, .correction-comparison { grid-template-columns: minmax(0, 1fr); } .correction-comparison details { grid-column: 1; } .correction-controls > label { flex: 1; } .correction-tabs { flex-basis: 100%; } .correction-dialog { padding: 16px; } .correction-dialog fieldset { padding: 12px; } .correction-card-actions button, .correction-dialog-actions button { flex: 1; } }

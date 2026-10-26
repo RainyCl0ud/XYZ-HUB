@@ -4,6 +4,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js"
 import { createRateLimit } from "../middleware/rate-limit.js";
 import { ClockError, clockIn, clockOut, endBreak, getOwnClock, isClockEnabled, startBreak } from "../services/clock.js";
 import { listClockAlerts, markClockAlertRead } from "../services/clock-alerts.js";
+import { cancelClockCorrection, correctionDecisionSchema, correctionRequestSchema, listClockCorrections, requestClockCorrection, reviewClockCorrection } from "../services/clock-corrections.js";
 const router = Router();
 router.use((_req, res, next) => isClockEnabled() ? next() : res.sendStatus(404));
 router.use(requireAuth);
@@ -19,10 +20,24 @@ const run = (fn: (req: Request, res: Response, userId: string) => Promise<unknow
   try { await fn(req, res, (req as AuthenticatedRequest).userId!); }
   catch (error) {
     if (error instanceof ClockError) return res.status(error.status).json({ error: "CLOCK_ERROR", message: error.message });
-    if (error instanceof z.ZodError) return res.status(400).json({ error: "INVALID_CLOCK_INPUT", message: "Check the submitted attendance details. Event times are recorded by the server." });
+    if (error instanceof z.ZodError) return res.status(400).json({ error: "INVALID_CLOCK_INPUT", message: "Check the submitted attendance details. Use valid times and include a reason for corrections." });
     next(error);
   }
 };
+router.get("/corrections", run(async (req, res, userId) => {
+  const query = z.object({ scope: z.enum(["mine", "review"]).optional(), filter: z.enum(["pending", "all"]).optional(), before: z.string().min(1).max(100).optional() }).strict().parse(req.query);
+  res.json(await listClockCorrections(userId, query.scope, query.filter, query.before));
+}));
+router.post("/corrections", run(async (req, res, userId) => {
+  res.status(201).json(await requestClockCorrection(userId, correctionRequestSchema.parse(req.body)));
+}));
+router.post("/corrections/:correctionId/review", run(async (req, res, userId) => {
+  const input = correctionDecisionSchema.parse(req.body);
+  res.json(await reviewClockCorrection(userId, id(req, "correctionId"), input.decision, input.note));
+}));
+router.post("/corrections/:correctionId/cancel", run(async (req, res, userId) => {
+  empty.parse(req.body); res.json(await cancelClockCorrection(userId, id(req, "correctionId")));
+}));
 router.get("/alerts", run(async (req, res, userId) => {
   const query = z.object({ filter: z.enum(["unread", "all"]).optional(), before: z.string().min(1).max(100).optional() }).strict().parse(req.query);
   res.json(await listClockAlerts(userId, query.filter, query.before));

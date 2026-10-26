@@ -68,3 +68,5 @@
 .clock-break-details li { padding: 8px 0; }
 .clock-break-details strong, .clock-break-details span { display: block; }
 .clock-break-details span { color: #999999; margin-top: 4px; }
+
+.clock-corrected-label { display: block; color: #999999; font-size: 11px; margin-top: 8px; }

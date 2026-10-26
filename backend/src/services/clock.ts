@@ -6,8 +6,10 @@ import { centralDayKey, centralWeekKey, elapsedSeconds } from "./clock-time.js";
 export const isClockEnabled = () => process.env.BLOCK2_CLOCK_ENABLED === "true";
 export { ClockError, BREAKS } from "./clock-policy.js";
 import { ClockError, BREAKS, clockAllowed as allowed, clockViewerInclude as viewerInclude, type ClockViewer as Viewer, clockDatabaseNow } from "./clock-policy.js";
+import { clockRecordVersion } from "./clock-record.js";
+import { correctionCapabilities } from "./clock-corrections.js";
 import { reconcileClockShift } from "./clock-alerts.js";
-const include = { breaks: { orderBy: { startedAt: "asc" as const } } } satisfies Prisma.ClockShiftInclude;
+const include = { corrections: { where: { status: "APPROVED" as const }, select: { id: true } }, breaks: { orderBy: { startedAt: "asc" as const } } } satisfies Prisma.ClockShiftInclude;
 type Shift = Prisma.ClockShiftGetPayload<{ include: typeof include }>;
 function canTrack(viewer: Viewer) { return allowed(viewer, "clock.self.track") && !allowed(viewer, "clock.exempt"); }
 async function withViewer<T>(userId: string, action: (tx: Prisma.TransactionClient, viewer: Viewer, now: Date) => Promise<T>) {
@@ -34,7 +36,7 @@ async function ownedShift(tx: Prisma.TransactionClient, userId: string, shiftId:
 }
 function shiftDto(shift: Shift, now: Date) {
   const end = shift.endedAt ?? now;
-  return { id: shift.id, personName: shift.personName, startedAt: shift.startedAt, endedAt: shift.endedAt, startDay: shift.startDay, startWeek: shift.startWeek,
+  return { id: shift.id, recordVersion: clockRecordVersion(shift), correctionCount: shift.corrections.length, personName: shift.personName, startedAt: shift.startedAt, endedAt: shift.endedAt, startDay: shift.startDay, startWeek: shift.startWeek,
     workedSeconds: elapsedSeconds(shift.startedAt, end),
     paidBreakSeconds: shift.breaks.reduce((sum, b) => sum + elapsedSeconds(b.startedAt, b.endedAt ?? end), 0),
     breaks: shift.breaks.map((b) => ({ id: b.id, kind: b.kind, label: BREAKS[b.kind].label, startedAt: b.startedAt, endedAt: b.endedAt, endReason: b.endReason,
@@ -52,7 +54,8 @@ async function state(tx: Prisma.TransactionClient, viewer: Viewer, now: Date, be
   const history = await tx.clockShift.findMany({ where: { userId: viewer.id, endedAt: { not: null }, ...(cursor ? { OR: [{ startedAt: { lt: cursor.startedAt } }, { startedAt: cursor.startedAt, id: { lt: cursor.id } }] } : {}) }, include, orderBy: [{ startedAt: "desc" }, { id: "desc" }], take: 26 });
   const weekKey = centralWeekKey(now), dayKey = centralDayKey(now);
   const weekShifts = await tx.clockShift.findMany({ where: { userId: viewer.id, startWeek: weekKey }, select: { startedAt: true, endedAt: true, startDay: true } });
-  return { serverNow: now, timeZone: "America/Chicago", canTrack: canTrack(viewer), exempt: allowed(viewer, "clock.exempt"),
+  const corrections = await tx.clockCorrection.aggregate({ where: { userId: viewer.id, status: "APPROVED" }, _count: { _all: true }, _max: { reviewedAt: true } });
+  return { serverNow: now, historyVersion: `${corrections._count._all}:${corrections._max.reviewedAt?.toISOString() ?? "none"}`, ...correctionCapabilities(viewer), timeZone: "America/Chicago", canTrack: canTrack(viewer), exempt: allowed(viewer, "clock.exempt"),
     currentShift: current ? shiftDto(current, now) : null,
     history: history.slice(0, 25).map((s) => shiftDto(s, now)), hasMore: history.length > 25, nextBefore: history.length > 25 ? history[24].id : null,
     totals: { dayKey, weekKey, todaySeconds: weekShifts.filter((s) => s.startDay === dayKey).reduce((n, s) => n + elapsedSeconds(s.startedAt, s.endedAt ?? now), 0),

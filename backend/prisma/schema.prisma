@@ -86,6 +86,8 @@ model User {
 
   clockShifts ClockShift[]
   clockAlertReads ClockAlertRead[]
+  clockCorrections ClockCorrection[] @relation("ClockCorrectionSubject")
+  clockCorrectionReviews ClockCorrection[] @relation("ClockCorrectionReviewer")
 
   strikesReceived Strike[] @relation("StrikeTarget")
   strikesIssued   Strike[] @relation("StrikeIssuer")
@@ -795,6 +797,7 @@ enum ClockBreakEndReason {
   MANUAL
   LIMIT
   CLOCK_OUT
+  CORRECTION
 }
 
 model ClockSetup {
@@ -814,6 +817,7 @@ model ClockShift {
   startRequestId String @unique
   breaks ClockBreak[]
   alerts ClockAlert[]
+  corrections ClockCorrection[]
 
   @@index([userId, startedAt])
   @@index([userId, startWeek])
@@ -958,4 +962,45 @@ model ChatStandingConversation {
   messages ChatMessage[]
   @@index([modelId, archivedAt])
   @@index([subjectUserId, kind, archivedAt])
+}
+
+
+enum ClockCorrectionKind {
+  SHIFT_TIMES
+  MISSING_SHIFT
+}
+
+enum ClockCorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// Before/after snapshots and names survive account deletion. A request never
+// changes hours until an authorized, different person approves it atomically.
+model ClockCorrection {
+  id String @id @default(cuid())
+  requestId String @unique
+  userId String?
+  subject User? @relation("ClockCorrectionSubject", fields: [userId], references: [id], onDelete: SetNull)
+  personName String
+  shiftId String?
+  shift ClockShift? @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  kind ClockCorrectionKind
+  status ClockCorrectionStatus @default(PENDING)
+  reason String
+  basisVersion String?
+  beforeSnapshot Json?
+  proposedSnapshot Json
+  submittedAt DateTime @default(now()) @db.Timestamptz(0)
+  reviewerId String?
+  reviewer User? @relation("ClockCorrectionReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerName String?
+  reviewNote String?
+  reviewedAt DateTime? @db.Timestamptz(0)
+
+  @@index([userId, submittedAt, id])
+  @@index([status, submittedAt, id])
+  @@index([shiftId])
 }

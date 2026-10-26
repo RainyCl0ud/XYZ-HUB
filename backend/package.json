@@ -60,7 +60,9 @@
     "chat:provision": "tsx scripts/provision-creator-chat.ts",
     "test:clock": "tsx scripts/test-clock.ts",
     "test:clock-upgrade": "tsx scripts/test-clock-upgrade.ts",
-    "test:clock-alerts": "tsx scripts/test-clock-alerts.ts"
+    "test:clock-alerts": "tsx scripts/test-clock-alerts.ts",
+    "test:clock-corrections": "tsx scripts/test-clock-corrections.ts",
+    "test:clock-corrections-upgrade": "tsx scripts/test-clock-corrections-upgrade.ts"
   },
   "keywords": [],
   "author": "",
