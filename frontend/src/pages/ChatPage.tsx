@@ -6,7 +6,7 @@ import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type
 
 type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; archived: boolean; isPrivate: boolean };
 type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; channels: Channel[] };
-type Transcript = { messages: Message[]; canPost: boolean; hasMore: boolean; nextBefore: string | null };
+type Transcript = { messages: Message[]; canPost: boolean; canPin?: boolean; hasMore: boolean; nextBefore: string | null };
 type Member = { id: string; name: string; canPost: boolean };
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Unable to load chat. Please try again.";
 const day = (value: string) => new Intl.DateTimeFormat("en-US", {
@@ -113,7 +113,7 @@ export default function ChatPage() {
           apiRequest<Transcript>(`/api/chat/channels/${selected}/messages`, { signal: controller.signal }),
           apiRequest<{ members: Member[] }>(`/api/chat/channels/${selected}/members`, { signal: controller.signal }),
         ]);
-        const olderIds = transcriptRef.current?.messages.slice(0, -50).map((m) => m.id) ?? [];
+        const olderIds = typeof response.canPin === "boolean" ? transcriptRef.current?.messages.slice(0, -50).map((m) => m.id) ?? [] : [];
         const refreshed = new Map<string, Message>();
         for (let i = 0; i < olderIds.length; i += 100) {
           const params = new URLSearchParams({ ids: olderIds.slice(i, i + 100).join(",") });
@@ -264,7 +264,7 @@ export default function ChatPage() {
               <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
               <div className="creator-chat-header-actions">{channel?.canManage && area && <button type="button" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}<button type="button" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.length}</span></button></div>
             </header>
-            <div className="creator-chat-conversation-tools" role="group" aria-label="Message tools"><button type="button" disabled={!transcript} onClick={() => setTools({ kind: "search", channelId: selected, channelName: channel?.name ?? "Conversation" })}><ChatIcon name="search" />Search messages</button><button type="button" disabled={!transcript} onClick={() => setTools({ kind: "pins", channelId: selected, channelName: channel?.name ?? "Conversation" })}>Pinned messages</button></div>
+            <div className="creator-chat-conversation-tools" role="group" aria-label="Message tools"><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "search", channelId: selected, channelName: channel?.name ?? "Conversation" })}><ChatIcon name="search" />Search messages</button><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "pins", channelId: selected, channelName: channel?.name ?? "Conversation" })}>Pinned messages</button></div>
             {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span></div>}
             {showMembers && <aside id="chat-members" className="creator-chat-members" aria-label="Conversation members"><header><h3>Who has access</h3><button type="button" onClick={() => setShowMembers(false)} aria-label="Close member list"><ChatIcon name="close" /></button></header><p className="creator-chat-members-hint">{members.length} {members.length === 1 ? "member" : "members"} can view this conversation.</p>{members.map((m) => <div className="creator-chat-member" key={m.id}><span className="creator-chat-avatar" aria-hidden="true">{m.name.slice(0, 1).toUpperCase()}</span><strong>{m.name}</strong><span>{m.canPost ? "Can post" : "Read only"}</span></div>)}</aside>}
             <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>

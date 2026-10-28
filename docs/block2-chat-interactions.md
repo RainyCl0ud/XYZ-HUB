@@ -11,6 +11,8 @@ All reads and writes use current account status, configured permissions, creator
 
 The transcript continues its five-second refresh, including bounded refresh batches for older loaded messages. Open message/pin dialogs also refresh. Search refresh begins at fifteen seconds and slows as more pages are loaded to respect request limits. These controls use the existing polling foundation; this release does not introduce a live event stream, attachments or moderation/deletion.
 
+Rolling deployments are compatible with the previous message response: missing reaction data is treated as an empty list, and message-tool controls/history refresh wait until the API exposes the new capabilities. Existing message reading and sending continue while the services update independently.
+
 The UI follows the XYZ monochrome kit, labels actions in text, uses native focus-trapped dialogs and supports narrow phone screens. Reaction emoji are message content.
 
 ## Data and audit
@@ -22,6 +24,7 @@ Reply sends and actual reaction/pin changes write an audit event in the same tra
 ## Validation completed locally — October 28, 2026
 
 - Backend build, frontend build, frontend lint and staging-check TypeScript compilation.
+- `npm run test:chat-compat --workspace=frontend` renders the real message component with the previous backend response, confirming ordinary text/edit controls remain usable without the new fields.
 - **23 Chat interaction integration groups**: reply target/nonce isolation, database reply constraints, edited previews, reaction concurrency/retries, bounded palette, pin authority/versioning, current access changes, protected and archived search, literal matching, stable pagination, old-history refresh, audit rollback, real authenticated HTTP mutations, strict validation, no-store responses, rate limits, feature gating, deactivation and name retention. Existing QA/strike/attendance/correction counts are unchanged.
 - Existing regression suites: creator Chat **22**, standing/private Chat **18**, Clock **18**, attendance alerts **15**, Clock corrections **18**, Role Builder **19**, audit presentation **6**; staging access/reset adapter checks also pass. The reset adapter uses fake in-memory data; no live reset command was run.
 - A fresh local rehearsal ran the **actual guarded staging pre-deploy command** from the previous 22 migrations to 23. Existing messages, names, grants, accounts, sessions, creator assignments, shifts, breaks and a valid pending correction were retained. A second deploy added no duplicates and did not restore a removed pin grant.
