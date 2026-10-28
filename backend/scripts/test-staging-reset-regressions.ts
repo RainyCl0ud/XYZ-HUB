@@ -24,6 +24,7 @@ rows.set("strikeReason", [{ id: "old-reason" }]);
 rows.set("strikeLadderVersion", [{ id: "old-ladder", versionNumber: 7 }]);
 rows.set("strikeLadderStep", [{ id: "old-step", ladderVersionId: "old-ladder" }]);
 rows.set("incident", [{ id: "old-incident" }]);
+rows.set("chatReaction", [{ messageId: "old-chat-message", userId: "old-staff", emoji: "👍" }]);
 rows.set("chatMessage", [{ id: "old-chat-message" }]);
 rows.set("chatChannel", [{ id: "old-chat-channel" }]);
 rows.set("chatArea", [{ modelId: "old-creator" }]);
@@ -89,6 +90,7 @@ function delegate(model: string) {
     async deleteMany(args: { where?: Row } = {}) {
       if (model === "clockAlert") assert.equal(rows.get("clockAlertRead")?.length, 0);
       if (model === "clockShift") { assert.equal(rows.get("clockCorrection")?.length, 0); assert.equal(rows.get("clockBreak")?.length, 0); assert.equal(rows.get("clockAlert")?.length, 0); }
+      if (model === "chatMessage") assert.equal(rows.get("chatReaction")?.length, 0);
       if (model === "chatChannel") assert.equal(rows.get("chatMessage")?.length, 0);
       if (model === "chatArea") assert.equal(rows.get("chatChannel")?.length, 0);
       if (model === "chatStandingConversation") assert.equal(rows.get("chatMessage")?.length, 0);

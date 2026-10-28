@@ -18,6 +18,8 @@
     "scripts/provision-creator-chat.ts",
     "scripts/test-clock.ts",
     "scripts/test-clock-upgrade.ts",
-    "scripts/test-clock-alerts.ts"
+    "scripts/test-clock-alerts.ts",
+    "scripts/test-chat-interactions.ts",
+    "scripts/test-chat-interactions-upgrade.ts"
   ]
 }

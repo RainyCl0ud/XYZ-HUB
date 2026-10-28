@@ -62,7 +62,9 @@
     "test:clock-upgrade": "tsx scripts/test-clock-upgrade.ts",
     "test:clock-alerts": "tsx scripts/test-clock-alerts.ts",
     "test:clock-corrections": "tsx scripts/test-clock-corrections.ts",
-    "test:clock-corrections-upgrade": "tsx scripts/test-clock-corrections-upgrade.ts"
+    "test:clock-corrections-upgrade": "tsx scripts/test-clock-corrections-upgrade.ts",
+    "test:chat-interactions": "tsx scripts/test-chat-interactions.ts",
+    "test:chat-interactions-upgrade": "tsx scripts/test-chat-interactions-upgrade.ts"
   },
   "keywords": [],
   "author": "",

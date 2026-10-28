@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js";
 import { createRateLimit } from "../middleware/rate-limit.js";
 import { ChatError, chatGrantOptions, editChatMessage, isCreatorChatEnabled, listChatAreas, listChatMembers, listChatMessages, sendChatMessage, setChatGrant } from "../services/creator-chat.js";
+import { getChatMessage, refreshChatMessages, searchChatMessages, listChatPins, setChatPin, setChatReaction } from "../services/creator-chat.js";
 import { createChatChannel, renameChatChannel } from "../services/creator-chat.js";
 
 const router = Router();
@@ -16,7 +17,11 @@ const writeLimit = createRateLimit({ windowMs: 60_000, max: 60, keyPrefix: "chat
 router.use((req, res, next) => req.method === "GET" ? next() : writeLimit(req, res, next));
 const textSchema = z.string().trim().min(1).max(8000);
 const channelNameSchema = z.object({ name: z.string().trim().min(1).max(80) }).strict();
-const sendSchema = z.object({ text: textSchema, clientNonce: z.string().regex(/^[\w-]{8,80}$/) }).strict();
+const sendSchema = z.object({ text: textSchema, clientNonce: z.string().regex(/^[\w-]{8,80}$/), replyToId: z.string().min(1).max(100).optional() }).strict();
+const reactionSchema = z.object({ emoji: z.string().min(1).max(16), active: z.boolean() }).strict();
+const pinSchema = z.object({ pinned: z.boolean(), version: z.number().int().min(0) }).strict();
+const searchSchema = z.object({ q: z.string().trim().min(2).max(120), channelId: z.string().min(1).max(100).optional(), before: z.string().min(1).max(100).optional() }).strict();
+const pageSchema = z.object({ before: z.string().min(1).max(100).optional() }).strict();
 const editSchema = z.object({ text: textSchema, version: z.number().int().min(1) }).strict();
 const grantSchema = z.object({ roleId: z.string().min(1).optional(), personId: z.string().min(1).optional(), canView: z.boolean(), canPost: z.boolean() }).strict();
 const param = (req: Request, key: string) => String(req.params[key] ?? "");
@@ -46,7 +51,7 @@ router.get("/channels/:channelId/messages", run(async (req, res) => {
 router.get("/channels/:channelId/members", run(async (req, res) => res.json({ members: await listChatMembers(user(req), param(req, "channelId")) })));
 router.post("/channels/:channelId/messages", run(async (req, res) => {
   const input = sendSchema.parse(req.body);
-  res.status(201).json({ message: await sendChatMessage(user(req), param(req, "channelId"), input.text, input.clientNonce) });
+  res.status(201).json({ message: await sendChatMessage(user(req), param(req, "channelId"), input.text, input.clientNonce, input.replyToId) });
 }));
 router.patch("/channels/:channelId/messages/:messageId", run(async (req, res) => {
   const input = editSchema.parse(req.body);
@@ -56,5 +61,24 @@ router.get("/channels/:channelId/grants", run(async (req, res) => res.json(await
 router.put("/channels/:channelId/grants", run(async (req, res) => {
   await setChatGrant(user(req), param(req, "channelId"), grantSchema.parse(req.body));
   res.json({ success: true });
+}));
+const searchLimit = createRateLimit({ windowMs: 60_000, max: 30, keyPrefix: "chat-search", getIdentity: (req) => (req as AuthenticatedRequest).userId! });
+router.get("/search", searchLimit, run(async (req, res) => {
+  const input = searchSchema.parse(req.query);
+  res.json(await searchChatMessages(user(req), input.q, input.channelId, input.before));
+}));
+router.get("/channels/:channelId/pins", run(async (req, res) => res.json(await listChatPins(user(req), param(req, "channelId"), pageSchema.parse(req.query).before))));
+router.get("/channels/:channelId/messages/refresh", run(async (req, res) => {
+  const input = z.object({ ids: z.string().min(1).max(10100) }).strict().parse(req.query);
+  res.json(await refreshChatMessages(user(req), param(req, "channelId"), input.ids.split(",")));
+}));
+router.get("/channels/:channelId/messages/:messageId", run(async (req, res) => res.json({ message: await getChatMessage(user(req), param(req, "channelId"), param(req, "messageId")) })));
+router.put("/channels/:channelId/messages/:messageId/reaction", run(async (req, res) => {
+  const input = reactionSchema.parse(req.body);
+  res.json({ message: await setChatReaction(user(req), param(req, "channelId"), param(req, "messageId"), input.emoji, input.active) });
+}));
+router.put("/channels/:channelId/messages/:messageId/pin", run(async (req, res) => {
+  const input = pinSchema.parse(req.body);
+  res.json({ message: await setChatPin(user(req), param(req, "channelId"), param(req, "messageId"), input.pinned, input.version) });
 }));
 export default router;
