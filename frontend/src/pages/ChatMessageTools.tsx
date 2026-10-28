@@ -19,6 +19,8 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   message: ChatMessage; channelId: string; onReply: (message: ChatMessage) => void; onEdit?: (message: ChatMessage) => void;
   onChanged: (message: ChatMessage) => void; onOpen: (messageId: string) => void; onError: (e: unknown) => void;
 }) {
+  // During a rolling deploy the older API still returns ordinary messages.
+  const reactions = m.reactions ?? [];
   const [busy, setBusy] = useState(false);
   const reactionMenu = useRef<HTMLDetailsElement>(null);
   const request = useRef<AbortController | null>(null);
@@ -41,15 +43,15 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.version > 1 && <small>Edited</small>}</header>
     {m.pinnedAt && <small className="creator-chat-pin-label">Pinned by {m.pinnedByName}</small>}
     <p>{m.text}</p>
-    {!!m.reactions.length && <div className="creator-chat-reactions" aria-label="Message reactions">{m.reactions.map((r) => m.canReply ?
+    {!!reactions.length && <div className="creator-chat-reactions" aria-label="Message reactions">{reactions.map((r) => m.canReply ?
       <button type="button" key={r.emoji} aria-pressed={r.mine} aria-label={`${palette.find(([emoji]) => emoji === r.emoji)?.[1] ?? "Reaction"}: ${r.count}${r.mine ? ", yours; remove reaction" : "; add reaction"}`} disabled={busy}
         onClick={() => void update("reaction", { emoji: r.emoji, active: !r.mine })}><span>{r.emoji}</span><span>{r.count}</span></button> :
       <span className="creator-chat-reaction-count" key={r.emoji} aria-label={`${r.emoji}: ${r.count}`}>{r.emoji} {r.count}</span>)}</div>}
     {(m.canReply || (m.canEdit && onEdit) || m.canPin) && <div className="creator-chat-message-actions">
       {m.canReply && <button type="button" onClick={() => onReply(m)}>Reply</button>}
-      {m.canReply && <details ref={reactionMenu} className="creator-chat-reaction-menu"><summary>React</summary><div role="group" aria-label="Choose a reaction">{palette.map(([emoji, label]) => <button type="button" key={emoji} disabled={busy} aria-label={label} aria-pressed={m.reactions.some((r) => r.emoji === emoji && r.mine)} onClick={() => {
+      {m.canReply && <details ref={reactionMenu} className="creator-chat-reaction-menu"><summary>React</summary><div role="group" aria-label="Choose a reaction">{palette.map(([emoji, label]) => <button type="button" key={emoji} disabled={busy} aria-label={label} aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)} onClick={() => {
         if (reactionMenu.current) reactionMenu.current.open = false;
-        void update("reaction", { emoji, active: !m.reactions.some((r) => r.emoji === emoji && r.mine) });
+        void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
       }}>{emoji}</button>)}</div></details>}
       {m.canPin && <button type="button" disabled={busy} onClick={() => void update("pin", { pinned: !m.pinnedAt, version: m.pinVersion })}>{m.pinnedAt ? "Unpin" : "Pin"}</button>}
       {m.canEdit && onEdit && <button type="button" onClick={() => onEdit(m)}>Edit</button>}
