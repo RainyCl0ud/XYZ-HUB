@@ -196,6 +196,11 @@ function actionLabel(
     > = {
     "chat.message.send": "Chat message sent",
     "chat.message.edit": "Chat message edited",
+    "chat.message.pin": "Chat message pinned",
+    "chat.message.unpin": "Chat message unpinned",
+    "chat.reaction.add": "Chat reaction added",
+    "chat.reaction.remove": "Chat reaction removed",
+    "chat.interaction_defaults.install": "Chat interaction defaults installed",
     "chat.channel.create": "Chat channel created",
     "chat.channel.rename": "Chat channel renamed",
     "chat.channel.grant": "Chat channel access updated",
@@ -785,6 +790,8 @@ function buildChanges(
   }
 
   if (event.targetType === "chat") {
+    if (["chat.message.pin", "chat.message.unpin"].includes(event.action)) pushChange(changes, "Message text", null, asString(metadata?.text));
+    if (["chat.reaction.add", "chat.reaction.remove"].includes(event.action)) pushChange(changes, "Reaction", null, asString(metadata?.emoji));
     if (event.action === "chat.message.send") pushChange(changes, "Message text", null, asString(metadata?.text));
     if (event.action === "chat.message.edit") pushChange(changes, "Message text", asString(metadata?.before), asString(metadata?.after));
     if (event.action === "chat.channel.rename") pushChange(changes, "Channel name", asString(metadata?.before), asString(metadata?.after));

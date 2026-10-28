@@ -2,15 +2,12 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import { ApiError, apiRequest } from "../lib/api";
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
+import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
 
 type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; archived: boolean; isPrivate: boolean };
 type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; channels: Channel[] };
-type Message = { id: string; authorName: string; text: string; version: number; createdAt: string; updatedAt: string; canEdit: boolean };
 type Transcript = { messages: Message[]; canPost: boolean; hasMore: boolean; nextBefore: string | null };
 type Member = { id: string; name: string; canPost: boolean };
-const time = (value: string) => new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
-}).format(new Date(value));
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Unable to load chat. Please try again.";
 const day = (value: string) => new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Chicago", month: "long", day: "numeric", year: "numeric",
@@ -38,6 +35,8 @@ export default function ChatPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [draft, setDraft] = useState("");
   const [edit, setEdit] = useState<Message | null>(null);
+  const [reply, setReply] = useState<Message | null>(null);
+  const [tools, setTools] = useState<ChatToolTarget | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -49,11 +48,15 @@ export default function ChatPage() {
   const [settings, setSettings] = useState<{ modelId: string; channelId?: string; name: string } | null>(null);
   const selectedRef = useRef(selected);
   const requestRef = useRef<AbortController | null>(null);
-  const pendingSend = useRef<{ channelId: string; text: string; nonce: string } | null>(null);
+  const pendingSend = useRef<{ channelId: string; text: string; replyToId?: string; nonce: string } | null>(null);
+  const transcriptRef = useRef(transcript);
+  const messageRevision = useRef(0);
+  useLayoutEffect(() => { transcriptRef.current = transcript; }, [transcript]);
   const messagePane = useRef<HTMLDivElement>(null);
   const followMessages = useRef(true);
   const earlierScroll = useRef<{ top: number; height: number } | null>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { if (reply) composer.current?.focus(); }, [reply]);
   const area = areas.find((a) => a.channels.some((c) => c.id === selected));
   const channel = area?.channels.find((c) => c.id === selected);
   const browseArea = area ?? areas[0];
@@ -67,6 +70,7 @@ export default function ChatPage() {
     selectedRef.current = id;
     setSelected(id); setTranscript(null); setMembers([]); setDraft(""); setEdit(null); setError("");
     setSettings(null);
+    setReply(null); setTools(null);
     setShowMembers(false);
     pendingSend.current = null;
     followMessages.current = true;
@@ -101,6 +105,7 @@ export default function ChatPage() {
     const controller = new AbortController();
     requestRef.current = controller;
     const refresh = async () => {
+      const revision = messageRevision.current;
       try {
         // A fresh authenticated request rechecks roles and assignments on every
         // refresh. Never keep an old transcript visible after access is denied.
@@ -108,24 +113,34 @@ export default function ChatPage() {
           apiRequest<Transcript>(`/api/chat/channels/${selected}/messages`, { signal: controller.signal }),
           apiRequest<{ members: Member[] }>(`/api/chat/channels/${selected}/members`, { signal: controller.signal }),
         ]);
+        const olderIds = transcriptRef.current?.messages.slice(0, -50).map((m) => m.id) ?? [];
+        const refreshed = new Map<string, Message>();
+        for (let i = 0; i < olderIds.length; i += 100) {
+          const params = new URLSearchParams({ ids: olderIds.slice(i, i + 100).join(",") });
+          const history = await apiRequest<{ messages: Message[] }>(`/api/chat/channels/${selected}/messages/refresh?${params}`, { signal: controller.signal });
+          history.messages.forEach((m) => refreshed.set(m.id, m));
+        }
         if (stopped || selectedRef.current !== selected) return;
         setTranscript((previous) => {
+          if (revision !== messageRevision.current) return previous;
           // Keep older loaded history when refreshing the latest page.
           if (!previous?.messages.length) return response;
           const latestIds = new Set(response.messages.map((m) => m.id));
           const oldest = response.messages[0];
           const older = oldest ? previous.messages.filter((m) => !latestIds.has(m.id) &&
             (m.createdAt < oldest.createdAt || (m.createdAt === oldest.createdAt && m.id < oldest.id))) : [];
-          return { ...response, messages: [...older, ...response.messages],
+          const requested = new Set(olderIds);
+          return { ...response, messages: [...older.filter((m) => !requested.has(m.id) || refreshed.has(m.id)).map((m) => refreshed.get(m.id) ?? m), ...response.messages],
             ...(older.length ? { hasMore: previous.hasMore, nextBefore: previous.nextBefore } : {}) };
         });
         setMembers(people.members);
+        if (!response.canPost) { setReply(null); setEdit(null); setDraft(""); }
         setError("");
         await refreshAreas(controller.signal);
       } catch (e) {
         if (stopped || selectedRef.current !== selected) return;
         if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
-          setTranscript(null); setMembers([]); setAreas([]); setEdit(null); setDraft("");
+          setTranscript(null); setMembers([]); setAreas([]); setEdit(null); setDraft(""); setReply(null); setTools(null);
           void refreshAreas(controller.signal).catch(() => {});
         }
         setError(errorText(e));
@@ -159,19 +174,20 @@ export default function ChatPage() {
           method: "PATCH", body: JSON.stringify({ text, version: edit.version }), signal: requestRef.current?.signal,
         });
       } else {
-        if (pendingSend.current?.channelId !== channelId || pendingSend.current.text !== text) {
-          pendingSend.current = { channelId, text, nonce: crypto.randomUUID() };
+        if (pendingSend.current?.channelId !== channelId || pendingSend.current.text !== text || pendingSend.current.replyToId !== reply?.id) {
+          pendingSend.current = { channelId, text, replyToId: reply?.id, nonce: crypto.randomUUID() };
         }
         response = await apiRequest(`/api/chat/channels/${channelId}/messages`, {
-          method: "POST", body: JSON.stringify({ text, clientNonce: pendingSend.current.nonce }), signal: requestRef.current?.signal,
+          method: "POST", body: JSON.stringify({ text, clientNonce: pendingSend.current.nonce, replyToId: pendingSend.current.replyToId }), signal: requestRef.current?.signal,
         });
       }
       if (selectedRef.current !== channelId) return;
+      messageRevision.current++;
       followMessages.current = true;
       setTranscript((old) => old ? { ...old, messages: old.messages.some((m) => m.id === response.message.id)
         ? old.messages.map((m) => m.id === response.message.id ? response.message : m)
         : [...old.messages, response.message] } : old);
-      setDraft(""); setEdit(null); pendingSend.current = null;
+      setDraft(""); setEdit(null); setReply(null); pendingSend.current = null;
     } catch (e) {
       if (selectedRef.current === channelId) setError(errorText(e));
     } finally { setSending(false); }
@@ -188,6 +204,24 @@ export default function ChatPage() {
         messages: [...older.messages.filter((m) => !old.messages.some((p) => p.id === m.id)), ...old.messages] } : older);
     } catch (e) { if (selectedRef.current === channelId) setError(errorText(e)); }
     finally { setLoadingOlder(false); }
+  }
+  function changedMessage(channelId: string, message: Message) {
+    if (selectedRef.current !== channelId) return;
+    messageRevision.current++;
+    setTranscript((old) => old ? { ...old, messages: old.messages.map((m) => m.id === message.id ? message :
+      m.replyTo?.id === message.id ? { ...m, replyTo: message } : m) } : old);
+    setReply((old) => old?.id === message.id ? message : old);
+  }
+  function startReply(channelId: string, message: Message) {
+    if (selectedRef.current !== channelId) chooseChannel(channelId);
+    setEdit(null); setReply(message); setTools(null); setShowChannels(false); composer.current?.focus();
+  }
+  function messageError(e: unknown) {
+    setError(errorText(e));
+    if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
+      setTranscript(null); setReply(null); setEdit(null); setTools(null); setDraft("");
+      void refreshAreas().catch(() => {});
+    }
   }
   function channelRow(c: Channel) {
     return <button type="button" key={c.id} className="creator-chat-channel-row" aria-current={c.id === selected ? "page" : undefined}
@@ -230,6 +264,7 @@ export default function ChatPage() {
               <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
               <div className="creator-chat-header-actions">{channel?.canManage && area && <button type="button" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}<button type="button" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.length}</span></button></div>
             </header>
+            <div className="creator-chat-conversation-tools" role="group" aria-label="Message tools"><button type="button" disabled={!transcript} onClick={() => setTools({ kind: "search", channelId: selected, channelName: channel?.name ?? "Conversation" })}><ChatIcon name="search" />Search messages</button><button type="button" disabled={!transcript} onClick={() => setTools({ kind: "pins", channelId: selected, channelName: channel?.name ?? "Conversation" })}>Pinned messages</button></div>
             {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span></div>}
             {showMembers && <aside id="chat-members" className="creator-chat-members" aria-label="Conversation members"><header><h3>Who has access</h3><button type="button" onClick={() => setShowMembers(false)} aria-label="Close member list"><ChatIcon name="close" /></button></header><p className="creator-chat-members-hint">{members.length} {members.length === 1 ? "member" : "members"} can view this conversation.</p>{members.map((m) => <div className="creator-chat-member" key={m.id}><span className="creator-chat-avatar" aria-hidden="true">{m.name.slice(0, 1).toUpperCase()}</span><strong>{m.name}</strong><span>{m.canPost ? "Can post" : "Read only"}</span></div>)}</aside>}
             <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
@@ -238,12 +273,13 @@ export default function ChatPage() {
                 {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p><button type="button" onClick={() => setShowMembers(true)}>View members</button></div>}
                 {transcript.messages.map((m, index) => <Fragment key={m.id}>
                   {(index === 0 || day(transcript.messages[index - 1].createdAt) !== day(m.createdAt)) && <div className="creator-chat-day"><span>{day(m.createdAt)}</span></div>}
-                  <article className="creator-chat-message"><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><div><header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{time(m.createdAt)}</time>{m.version > 1 && <small>Edited</small>}</header><p>{m.text}</p>{m.canEdit && <button type="button" className="creator-chat-edit" aria-label={`Edit message by ${m.authorName} at ${time(m.createdAt)}`} onClick={() => { setEdit(m); setDraft(m.text); composer.current?.focus(); }}>Edit</button>}</div></article>
+                  <article className="creator-chat-message"><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} onReply={(message) => startReply(selected, message)} onEdit={(message) => { setReply(null); setEdit(message); setDraft(message.text); composer.current?.focus(); }} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => setTools({ kind: "message", channelId: selected, channelName: channel?.name ?? "Conversation", messageId })} /></article>
                 </Fragment>)}
               </>}
             </div>
             {transcript?.canPost ? <form className="creator-chat-composer" onSubmit={(e) => void submit(e)}>
               {edit && <div className="creator-chat-editing" role="status"><strong>Editing your message</strong><button type="button" onClick={() => { setEdit(null); setDraft(""); composer.current?.focus(); }}>Cancel edit</button></div>}
+              {reply && <div className="creator-chat-replying" role="status"><div><strong>Replying to {reply.authorName}</strong><p>{reply.text}</p></div><button type="button" onClick={() => { setReply(null); composer.current?.focus(); }}>Cancel reply</button></div>}
               <label className="creator-chat-sr" htmlFor="chat-message">Message {channel?.name}</label>
               <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
               <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Ctrl / ⌘ + Enter to send</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000` : ""}</span></small><button type="submit" disabled={sending || !draft.trim()}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button></div>
@@ -252,6 +288,7 @@ export default function ChatPage() {
         </div>
       )}
       {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId} target={settings} onClose={() => setSettings(null)} onSaved={async (id) => { await refreshAreas(); if (id) chooseChannel(id); }} />}
+      {tools && <ChatMessageTools key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" ? tools.messageId : ""}`} target={tools} onClose={() => setTools(null)} onOpen={setTools} onConversation={(id) => { chooseChannel(id); setTools(null); }} onReply={startReply} onChanged={changedMessage} />}
     </section>
   );
 }

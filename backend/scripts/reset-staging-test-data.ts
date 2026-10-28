@@ -1252,6 +1252,7 @@ async function printDryRun() {
     chatAreas: await prisma.chatArea.count(),
     chatChannels: await prisma.chatChannel.count(),
     chatMessages: await prisma.chatMessage.count(),
+    chatReactions: await prisma.chatReaction.count(),
     chatNamedGrants: await prisma.chatPersonGrant.count(),
     chatPrivateConversations: await prisma.chatStandingConversation.count(),
     clockCorrections: await prisma.clockCorrection.count(),
@@ -1516,6 +1517,7 @@ await tx.teamGroup.upsert({
 
         /* Disposable staging chat data must be cleared before its creator FKs.
          * The one-time marker also resets because role defaults are rebuilt. */
+        await tx.chatReaction.deleteMany();
         await tx.chatMessage.deleteMany();
         await tx.chatStandingConversation.deleteMany();
         await tx.chatPersonGrant.deleteMany();

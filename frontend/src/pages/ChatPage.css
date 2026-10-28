@@ -183,3 +183,49 @@
 
 .creator-chat-browse-tools :is(input, select) { font-size: 15px; }
 @media (max-width: 720px) { .creator-chat-browse-tools :is(input, select) { font-size: 16px; } }
+
+.creator-chat-conversation-tools { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 24px; border-bottom: 1px solid #333333; flex-shrink: 0; }
+.creator-chat-conversation-tools button { font-size: 13px; padding: 6px 10px; }
+.creator-chat-message-content { min-width: 0; }
+.creator-chat-message-content > header { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 12px; }
+.creator-chat-message-content > p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.5; margin: 8px 0; }
+.creator-chat-message-content :is(time, small) { color: #999999; font-size: 13px; }
+.creator-chat-message-content .creator-chat-pin-label { display: block; color: #CCCCCC; margin-top: 6px; }
+.creator-chat .creator-chat-quote { display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 4px; width: 100%; min-width: 0; border: 0; border-left: 2px solid #999999; border-radius: 0; background: #0D0D0D; padding: 8px 12px; margin-bottom: 8px; }
+.creator-chat-quote strong { color: #CCCCCC; font-size: 13px; }
+.creator-chat-quote span, .creator-chat-replying p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #999999; font-size: 13px; }
+.creator-chat-message-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+.creator-chat-message-actions > button, .creator-chat-reaction-menu summary { border: 0; padding: 4px 0; color: #CCCCCC; font-size: 13px; background: transparent; cursor: pointer; }
+.creator-chat-message-actions > span { font-size: 13px; color: #999999; }
+.creator-chat-reaction-menu { position: relative; }
+.creator-chat-reaction-menu summary { list-style: none; }
+.creator-chat-reaction-menu summary::-webkit-details-marker { display: none; }
+.creator-chat-reaction-menu summary:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.creator-chat-reaction-menu[open] > div { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; background: #0D0D0D; border: 1px solid #666666; border-radius: 2px; margin: 4px 0; }
+.creator-chat-reaction-menu button { padding: 6px; font-size: 17px; min-height: 36px; min-width: 36px; }
+.creator-chat-reactions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.creator-chat-reactions button, .creator-chat-reaction-count { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid #666666; border-radius: 2px; font-size: 13px; }
+.creator-chat-reactions button[aria-pressed=true], .creator-chat-reaction-menu button[aria-pressed=true] { border-color: #FFFFFF; background: #1A1A1A; }
+.creator-chat-replying { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-left: 2px solid #FFFFFF; margin-bottom: 12px; padding-left: 12px; font-size: 13px; }
+.creator-chat-replying > div { min-width: 0; }
+.creator-chat-replying p { margin: 4px 0 0; }
+.creator-chat-replying button { flex-shrink: 0; }
+.creator-chat-tools { width: min(760px, calc(100vw - 32px)); }
+.creator-chat-tools-context { color: #999999; overflow-wrap: anywhere; }
+.creator-chat-message-search input { width: 100%; }
+.creator-chat-message-search > div { display: flex; gap: 8px; margin-top: 8px; }
+.creator-chat-message-search select { min-width: 0; flex: 1; }
+.creator-chat-message-search label { margin-top: 16px; margin-bottom: 8px; }
+.creator-chat-tool-result { border-top: 1px solid #333333; padding: 20px 0; min-width: 0; }
+.creator-chat-tool-result > :is(small, strong) { display: block; overflow-wrap: anywhere; font-size: 13px; }
+.creator-chat-tool-result > small { color: #999999; margin-bottom: 8px; }
+.creator-chat-tool-result > p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; max-height: 180px; overflow-y: auto; }
+.creator-chat-tool-result > button { margin-top: 12px; }
+.creator-chat-tools .creator-chat-message-content p { font-size: 15px; }
+.creator-chat-tools :is(input, select) { background: #0D0D0D; color: #FFFFFF; border: 1px solid #666666; border-radius: 2px; padding: 10px 12px; font: inherit; }
+@media (max-width: 720px) {
+  .creator-chat-conversation-tools { padding: 8px 12px; }
+  .creator-chat-tools { padding: 16px; max-height: 90dvh; }
+  .creator-chat-tools :is(input, select) { font-size: 16px; }
+  .creator-chat-message-actions > button, .creator-chat-reaction-menu summary { min-height: 36px; display: flex; align-items: center; }
+}
