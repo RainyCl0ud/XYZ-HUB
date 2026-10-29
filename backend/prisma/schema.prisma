@@ -86,6 +86,7 @@ model User {
 
   chatReactions ChatReaction[]
   chatPinnedMessages ChatMessage[] @relation("ChatPinnedBy")
+  chatDeletedMessages ChatMessage[] @relation("ChatDeletedBy")
 
   clockShifts ClockShift[]
   clockAlertReads ClockAlertRead[]
@@ -936,6 +937,11 @@ model ChatMessage {
   pinVersion Int @default(0)
   pinnedBy User? @relation("ChatPinnedBy", fields: [pinnedById], references: [id], onDelete: SetNull)
   reactions ChatReaction[]
+  deletedAt DateTime?
+  deletedById String?
+  deletedByName String?
+  deletionReason String?
+  deletedBy User? @relation("ChatDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
   text String
   version Int @default(1)
   createdAt DateTime @default(now())
@@ -946,6 +952,8 @@ model ChatMessage {
   @@index([replyToId])
   @@index([channelId, pinnedAt, id])
   @@index([conversationId, pinnedAt, id])
+  @@index([channelId, deletedAt, id])
+  @@index([conversationId, deletedAt, id])
   @@unique([channelId, authorUserId, clientNonce])
   @@unique([conversationId, authorUserId, clientNonce])
   @@index([channelId, createdAt, id])

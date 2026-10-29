@@ -9,7 +9,7 @@
 
 All reads and writes use current account status, configured permissions, creator assignments, ordinary channel grants and protected private-chat membership. General Staff private chats remain limited to the subject and Owners. Returning staff cannot search a previous private-chat episode. Permitted archive readers can search and view pins; archived conversations remain read-only. Authors retain their existing editing rights.
 
-The transcript continues its five-second refresh, including bounded refresh batches for older loaded messages. Open message/pin dialogs also refresh. Search refresh begins at fifteen seconds and slows as more pages are loaded to respect request limits. These controls use the existing polling foundation; this release does not introduce a live event stream, attachments or moderation/deletion.
+The transcript continues its five-second refresh, including bounded refresh batches for older loaded messages. Open message/pin dialogs also refresh. Search refresh begins at five seconds and slows as more pages are loaded to respect request limits. These controls use the existing polling foundation; they do not introduce a live event stream or attachments. Message moderation is described separately in [block2-chat-moderation.md](block2-chat-moderation.md).
 
 Rolling deployments are compatible with the previous message response: missing reaction data is treated as an empty list, and message-tool controls/history refresh wait until the API exposes the new capabilities. Existing message reading and sending continue while the services update independently.
 
@@ -51,4 +51,4 @@ After both Staging services deploy successfully:
 3. Search in the conversation and all permitted conversations. Open a result, reply to it, and verify the destination. Repeat a private phrase from a non-member login: neither the text nor a hidden result count should appear.
 4. Check a phone-size screen and older loaded history after another person edits, reacts or pins. The selected channel's posting and pin controls must follow current permissions.
 
-**Staging acceptance is pending until those deployed-build checks are confirmed.** The separate Clock correction approval walkthrough also remains pending: the submitted QC test request was seen Awaiting review; a completed Manager approval has not yet been confirmed.
+**Staging acceptance was user-confirmed complete on October 28, 2026.** The user checked all 19 items covering replies, reactions, pins, search, phone usability and the Clock correction approval/self-approval checks. Screenshots directly show several Chat flows; the other items are recorded as user-confirmed, not independently observed. The five-minute Clock correction changed 19:56 to 24:56 with the original retained. New moderation acceptance is tracked separately.

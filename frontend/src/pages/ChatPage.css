@@ -223,9 +223,24 @@
 .creator-chat-tool-result > button { margin-top: 12px; }
 .creator-chat-tools .creator-chat-message-content p { font-size: 15px; }
 .creator-chat-tools :is(input, select) { background: #0D0D0D; color: #FFFFFF; border: 1px solid #666666; border-radius: 2px; padding: 10px 12px; font: inherit; }
+.creator-chat-message-content.is-deleted { border: 2px solid #FFFFFF; border-radius: 2px; padding: 12px; }
+.creator-chat-deleted-notice { padding: 8px 0; border-bottom: 1px solid #666666; font-size: 13px; }
+.creator-chat-deleted-notice > strong { display: inline-block; border: 1px solid #FFFFFF; padding: 4px 8px; }
+.creator-chat-deleted-notice p, .creator-chat-message-content .creator-chat-unavailable { color: #CCCCCC; font-size: 13px; margin: 8px 0; }
+.creator-chat-notice { border: 1px solid #666666; padding: 12px 16px; font-size: 13px; }
+.creator-chat-revision-list > article { border-top: 1px solid #666666; padding: 16px 0; }
+.creator-chat-revision-list header { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; }
+.creator-chat-revision-list time { color: #999999; }
+.creator-chat-revision-list article > div { padding: 12px; margin-top: 12px; border-left: 2px solid #999999; background: #0D0D0D; }
+.creator-chat-revision-list article p, .creator-chat-moderation blockquote p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.creator-chat-moderation blockquote { margin: 16px 0; padding: 12px; border-left: 2px solid #999999; background: #0D0D0D; max-height: 180px; overflow-y: auto; }
+.creator-chat-moderation textarea { display: block; width: 100%; margin-top: 8px; padding: 12px; font: inherit; font-size: 15px; color: #FFFFFF; background: #0D0D0D; border: 1px solid #666666; border-radius: 2px; resize: vertical; }
+.creator-chat-moderation textarea:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.creator-chat .creator-chat-delete-confirm { color: #000000; background: #FFFFFF; border: 2px solid #FFFFFF; font-weight: 700; }
+.creator-chat .creator-chat-delete-confirm::before { content: '!'; }
 @media (max-width: 720px) {
   .creator-chat-conversation-tools { padding: 8px 12px; }
   .creator-chat-tools { padding: 16px; max-height: 90dvh; }
-  .creator-chat-tools :is(input, select) { font-size: 16px; }
+  .creator-chat-tools :is(input, select), .creator-chat-moderation textarea { font-size: 16px; }
   .creator-chat-message-actions > button, .creator-chat-reaction-menu summary { min-height: 36px; display: flex; align-items: center; }
 }
