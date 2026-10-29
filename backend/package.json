@@ -6,6 +6,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "test:strike-creator-scope": "tsx scripts/test-strike-creator-scope.ts",
     "build": "prisma generate && tsc",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts",
