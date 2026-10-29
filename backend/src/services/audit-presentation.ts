@@ -196,6 +196,8 @@ function actionLabel(
     > = {
     "chat.message.send": "Chat message sent",
     "chat.message.edit": "Chat message edited",
+    "chat.message.delete": "Chat message deleted (retained for Owners)",
+    "chat.moderation_defaults.install": "Chat moderation defaults installed",
     "chat.message.pin": "Chat message pinned",
     "chat.message.unpin": "Chat message unpinned",
     "chat.reaction.add": "Chat reaction added",
@@ -790,6 +792,11 @@ function buildChanges(
   }
 
   if (event.targetType === "chat") {
+    if (event.action === "chat.message.delete") {
+      pushChange(changes, "Retained message text", asString(metadata?.text), "Deleted from normal conversations");
+      pushChange(changes, "Reason", null, asString(metadata?.reason));
+      pushChange(changes, "Original author", null, asString(metadata?.authorName));
+    }
     if (["chat.message.pin", "chat.message.unpin"].includes(event.action)) pushChange(changes, "Message text", null, asString(metadata?.text));
     if (["chat.reaction.add", "chat.reaction.remove"].includes(event.action)) pushChange(changes, "Reaction", null, asString(metadata?.emoji));
     if (event.action === "chat.message.send") pushChange(changes, "Message text", null, asString(metadata?.text));

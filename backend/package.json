@@ -64,7 +64,9 @@
     "test:clock-corrections": "tsx scripts/test-clock-corrections.ts",
     "test:clock-corrections-upgrade": "tsx scripts/test-clock-corrections-upgrade.ts",
     "test:chat-interactions": "tsx scripts/test-chat-interactions.ts",
-    "test:chat-interactions-upgrade": "tsx scripts/test-chat-interactions-upgrade.ts"
+    "test:chat-interactions-upgrade": "tsx scripts/test-chat-interactions-upgrade.ts",
+    "test:chat-moderation": "tsx scripts/test-chat-moderation.ts",
+    "test:chat-moderation-upgrade": "tsx scripts/test-chat-moderation-upgrade.ts"
   },
   "keywords": [],
   "author": "",

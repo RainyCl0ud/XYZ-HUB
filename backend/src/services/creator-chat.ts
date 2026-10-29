@@ -60,11 +60,12 @@ const viewerInclude = {
 type ViewerUser = Prisma.UserGetPayload<{ include: typeof viewerInclude }>;
 function makeViewer(user: ViewerUser) {
   const permissions = new Set(user.roleMemberships.flatMap(({ role }) => role.rolePermissions.map(({ permission }) => permission.key)));
+  const isOwner = user.roleMemberships.some(({ role }) => role.systemKey === "OWNER");
   // General Staff privacy is an Owner-only system boundary, matching the
   // existing Owner-only access controls. Stale/custom grants cannot widen it.
   permissions.delete("chat.private.general.review");
-  if (user.roleMemberships.some(({ role }) => role.systemKey === "OWNER")) permissions.add("chat.private.general.review");
-  return { user, permissions, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
+  if (isOwner) permissions.add("chat.private.general.review");
+  return { user, permissions, isOwner, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
 }
 type Viewer = ReturnType<typeof makeViewer>;
 async function loadViewer(tx: Prisma.TransactionClient, userId: string) {
@@ -137,23 +138,31 @@ function audit(tx: Prisma.TransactionClient, viewer: Viewer, action: string, tar
 }
 export const CHAT_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅"] as const;
 const messageInclude = {
-  replyTo: { select: { id: true, authorName: true, text: true, version: true, createdAt: true } },
+  replyTo: { select: { id: true, authorName: true, text: true, version: true, createdAt: true, deletedAt: true } },
   reactions: { select: { emoji: true, userId: true } },
 } satisfies Prisma.ChatMessageInclude;
 type MessageRow = Prisma.ChatMessageGetPayload<{ include: typeof messageInclude }>;
-function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean) {
+function visibleMessages(viewer: Viewer): Prisma.ChatMessageWhereInput { return viewer.isOwner ? {} : { deletedAt: null }; }
+function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archived: boolean) {
+  if (message.deletedAt && !viewer.isOwner) throw new ChatError(404, "Message not found.");
+  const active = !message.deletedAt;
+  const parent = message.replyTo && (!message.replyTo.deletedAt || viewer.isOwner) ? message.replyTo : null;
   return {
     id: message.id, authorUserId: message.authorUserId, authorName: message.authorName,
     text: message.text, version: message.version, createdAt: message.createdAt, updatedAt: message.updatedAt,
-    replyTo: message.replyTo,
+    replyTo: parent ? { id: parent.id, authorName: parent.authorName, text: parent.text, version: parent.version, createdAt: parent.createdAt, deleted: !!parent.deletedAt } : null,
+    replyUnavailable: !!message.replyTo && !parent,
+    deleted: message.deletedAt ? { at: message.deletedAt, by: message.deletedByName, reason: message.deletionReason } : null,
+    canModerate: active && !archived && viewer.permissions.has("chat.messages.moderate"),
+    canViewHistory: viewer.isOwner,
     pinnedAt: message.pinnedAt, pinnedByName: message.pinnedByName, pinVersion: message.pinVersion,
-    canReply: canPost,
-    canPin: canPost && viewer.permissions.has("chat.messages.pin"),
+    canReply: active && canPost,
+    canPin: active && canPost && viewer.permissions.has("chat.messages.pin"),
     reactions: CHAT_REACTIONS.flatMap((emoji) => {
       const entries = message.reactions.filter((r) => r.emoji === emoji);
       return entries.length ? [{ emoji, count: entries.length, mine: entries.some((r) => r.userId === viewer.user.id) }] : [];
     }),
-    canEdit: canPost && message.authorUserId === viewer.user.id && viewer.permissions.has("chat.messages.edit_own"),
+    canEdit: active && canPost && message.authorUserId === viewer.user.id && viewer.permissions.has("chat.messages.edit_own"),
   };
 }
 
@@ -195,15 +204,16 @@ export async function listChatAreas(userId: string) {
 export async function listChatMessages(userId: string, channelId: string, before?: string) {
   return prisma.$transaction(async (tx) => {
     const { viewer, access, scope } = await openChannel(tx, userId, channelId);
-    const cursor = before ? await tx.chatMessage.findFirst({ where: { id: before, ...scope }, select: { id: true, createdAt: true } }) : null;
+    const cursor = before ? await tx.chatMessage.findFirst({ where: { id: before, ...scope, ...visibleMessages(viewer) }, select: { id: true, createdAt: true } }) : null;
     if (before && !cursor) throw new ChatError(400, "The message cursor is invalid.");
     const rows = await tx.chatMessage.findMany({ where: {
       ...scope,
+      ...visibleMessages(viewer),
       ...(cursor ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] } : {}),
     }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 51, include: messageInclude });
     const hasMore = rows.length > 50;
-    const messages = rows.slice(0, 50).reverse().map((m) => messageDto(m, viewer, access.canPost));
-    return { messages, canPost: access.canPost, canPin: access.canPost && viewer.permissions.has("chat.messages.pin"), hasMore, nextBefore: hasMore ? messages[0].id : null };
+    const messages = rows.slice(0, 50).reverse().map((m) => messageDto(m, viewer, access.canPost, access.archived));
+    return { messages, canPost: access.canPost, canViewDeleted: viewer.isOwner, canPin: access.canPost && viewer.permissions.has("chat.messages.pin"), hasMore, nextBefore: hasMore ? messages[0].id : null };
   });
 }
 
@@ -214,12 +224,16 @@ export async function sendChatMessage(userId: string, channelId: string, text: s
     const { viewer, access, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost) throw new ChatError(403, "This channel is read-only for you.");
     const target = channel ? { channelId } : { conversationId: channelId };
-    if (replyToId && !await tx.chatMessage.findFirst({ where: { id: replyToId, ...target }, select: { id: true } })) throw new ChatError(404, "Reply message not found in this conversation.");
+    if (replyToId) {
+      await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${replyToId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR SHARE`;
+      if (!await tx.chatMessage.findFirst({ where: { id: replyToId, ...target, deletedAt: null }, select: { id: true } })) throw new ChatError(404, "Reply message not found in this conversation.");
+    }
     const created = await tx.chatMessage.createMany({ data: { ...target, authorUserId: userId, authorName: viewer.user.name, text: normalized, clientNonce, replyToId: replyToId ?? null }, skipDuplicates: true });
     const message = await tx.chatMessage.findFirstOrThrow({ where: { ...target, authorUserId: userId, clientNonce }, include: messageInclude });
+    if (message.deletedAt) throw new ChatError(409, "This message reference is no longer available. Send a new message instead.");
     if (message.text !== normalized || message.replyToId !== (replyToId ?? null)) throw new ChatError(409, "This message reference was already used. Refresh before sending again.");
     if (created.count) await audit(tx, viewer, "chat.message.send", message.id, { channelId, channelName: channel?.name ?? `${conversation?.subjectName} · Private`, text: message.text, replyToId: message.replyToId });
-    return messageDto(message, viewer, access.canPost);
+    return messageDto(message, viewer, access.canPost, access.archived);
   });
 }
 
@@ -229,14 +243,14 @@ export async function editChatMessage(userId: string, channelId: string, message
   return prisma.$transaction(async (tx) => {
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost || !viewer.permissions.has("chat.messages.edit_own")) throw new ChatError(403, "You cannot edit messages here.");
-    const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope } });
+    const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null } });
     if (!previous) throw new ChatError(404, "Message not found.");
     if (previous.authorUserId !== userId) throw new ChatError(403, "You can only edit your own messages.");
     if (previous.version !== version) throw new ChatError(409, "This message changed. Refresh before editing again.");
-    const updated = await tx.chatMessage.updateMany({ where: { id: messageId, version, ...scope }, data: { text: normalized, version: { increment: 1 } } });
+    const updated = await tx.chatMessage.updateMany({ where: { id: messageId, version, ...scope, deletedAt: null }, data: { text: normalized, version: { increment: 1 } } });
     if (!updated.count) throw new ChatError(409, "This message changed. Refresh before editing again.");
     await audit(tx, viewer, "chat.message.edit", messageId, { channelId, channelName: channel?.name ?? `${conversation?.subjectName} · Private`, before: previous.text, after: normalized, version: version + 1 });
-    return messageDto(await tx.chatMessage.findUniqueOrThrow({ where: { id: messageId }, include: messageInclude }), viewer, true);
+    return messageDto(await tx.chatMessage.findUniqueOrThrow({ where: { id: messageId }, include: messageInclude }), viewer, true, access.archived);
   });
 }
 
@@ -335,9 +349,9 @@ export async function renameChatChannel(userId: string, channelId: string, name:
 export async function getChatMessage(userId: string, channelId: string, messageId: string) {
   return prisma.$transaction(async (tx) => {
     const { viewer, access, scope } = await openChannel(tx, userId, channelId);
-    const message = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope }, include: messageInclude });
+    const message = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, ...visibleMessages(viewer) }, include: messageInclude });
     if (!message) throw new ChatError(404, "Message not found.");
-    return messageDto(message, viewer, access.canPost);
+    return messageDto(message, viewer, access.canPost, access.archived);
   });
 }
 
@@ -347,8 +361,8 @@ export async function refreshChatMessages(userId: string, channelId: string, ids
   if (!ids.length || ids.length > 100 || ids.some((id) => !id || id.length > 100)) throw new ChatError(400, "Refresh up to 100 message references at a time.");
   return prisma.$transaction(async (tx) => {
     const { viewer, access, scope } = await openChannel(tx, userId, channelId);
-    const rows = await tx.chatMessage.findMany({ where: { ...scope, id: { in: ids } }, include: messageInclude });
-    return { messages: rows.map((m) => messageDto(m, viewer, access.canPost)) };
+    const rows = await tx.chatMessage.findMany({ where: { ...scope, ...visibleMessages(viewer), id: { in: ids } }, include: messageInclude });
+    return { messages: rows.map((m) => messageDto(m, viewer, access.canPost, access.archived)) };
   });
 }
 
@@ -361,7 +375,7 @@ export async function setChatReaction(userId: string, channelId: string, message
     await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${messageId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR UPDATE`;
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost) throw new ChatError(403, "This conversation is read-only for you.");
-    if (!await tx.chatMessage.findFirst({ where: { id: messageId, ...scope }, select: { id: true } })) throw new ChatError(404, "Message not found.");
+    if (!await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null }, select: { id: true } })) throw new ChatError(404, "Message not found.");
     const key = { messageId, userId, emoji };
     const changed = active
       ? await tx.chatReaction.createMany({ data: key, skipDuplicates: true })
@@ -370,7 +384,7 @@ export async function setChatReaction(userId: string, channelId: string, message
       channelId, channelName: channel?.name ?? (conversation?.subjectName + " · Private"), emoji,
     });
     // No notification, email or push is scheduled for reactions.
-    return messageDto(await tx.chatMessage.findUniqueOrThrow({ where: { id: messageId }, include: messageInclude }), viewer, access.canPost);
+    return messageDto(await tx.chatMessage.findUniqueOrThrow({ where: { id: messageId }, include: messageInclude }), viewer, access.canPost, access.archived);
   });
 }
 
@@ -381,9 +395,9 @@ export async function setChatPin(userId: string, channelId: string, messageId: s
     await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${messageId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR UPDATE`;
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost || !viewer.permissions.has("chat.messages.pin")) throw new ChatError(403, "Your access does not allow managing pins here.");
-    const message = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope }, include: messageInclude });
+    const message = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null }, include: messageInclude });
     if (!message) throw new ChatError(404, "Message not found.");
-    if (!!message.pinnedAt === pinned) return messageDto(message, viewer, access.canPost);
+    if (!!message.pinnedAt === pinned) return messageDto(message, viewer, access.canPost, access.archived);
     if (message.pinVersion !== expectedVersion) throw new ChatError(409, "The pin changed. Refresh before trying again.");
     const updated = await tx.chatMessage.update({ where: { id: messageId }, data: {
       pinnedAt: pinned ? new Date() : null, pinnedById: pinned ? userId : null,
@@ -393,20 +407,20 @@ export async function setChatPin(userId: string, channelId: string, messageId: s
       channelId, channelName: channel?.name ?? (conversation?.subjectName + " · Private"), text: message.text,
       pinVersion: updated.pinVersion,
     });
-    return messageDto(updated, viewer, access.canPost);
+    return messageDto(updated, viewer, access.canPost, access.archived);
   });
 }
 
 export async function listChatPins(userId: string, channelId: string, before?: string) {
   return prisma.$transaction(async (tx) => {
     const { viewer, access, scope } = await openChannel(tx, userId, channelId);
-    const audience = { ...scope, pinnedAt: { not: null } } satisfies Prisma.ChatMessageWhereInput;
+    const audience = { ...scope, deletedAt: null, pinnedAt: { not: null } } satisfies Prisma.ChatMessageWhereInput;
     const cursor = before ? await tx.chatMessage.findFirst({ where: { ...audience, id: before }, select: { id: true, pinnedAt: true } }) : null;
     if (before && !cursor) throw new ChatError(400, "The pin cursor is invalid. Refresh the pinned messages.");
     const rows = await tx.chatMessage.findMany({ where: { AND: [audience, ...(cursor ? [{ OR: [
       { pinnedAt: { lt: cursor.pinnedAt! } }, { pinnedAt: cursor.pinnedAt, id: { lt: cursor.id } },
     ] }] : [])] }, orderBy: [{ pinnedAt: "desc" }, { id: "desc" }], take: 26, include: messageInclude });
-    return { messages: rows.slice(0, 25).map((m) => messageDto(m, viewer, access.canPost)), hasMore: rows.length > 25, nextBefore: rows.length > 25 ? rows[24].id : null };
+    return { messages: rows.slice(0, 25).map((m) => messageDto(m, viewer, access.canPost, access.archived)), hasMore: rows.length > 25, nextBefore: rows.length > 25 ? rows[24].id : null };
   });
 }
 
@@ -424,7 +438,7 @@ export async function searchChatMessages(userId: string, query: string, channelI
     const byId = new Map(selected.map((c) => [c.id, c]));
     // Escape LIKE syntax: %, _ and backslash are literal search characters.
     const literal = q.replace(/[\\%_]/g, (character) => "\\" + character);
-    const audience: Prisma.ChatMessageWhereInput = { text: { contains: literal, mode: "insensitive" }, OR: [
+    const audience: Prisma.ChatMessageWhereInput = { ...visibleMessages(viewer), text: { contains: literal, mode: "insensitive" }, OR: [
       { channelId: { in: selected.filter((c) => !c.isPrivate).map((c) => c.id) } },
       { conversationId: { in: selected.filter((c) => c.isPrivate).map((c) => c.id) } },
     ] };
@@ -435,7 +449,7 @@ export async function searchChatMessages(userId: string, query: string, channelI
     ] }] : [])] }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 26, include: messageInclude });
     return { results: rows.slice(0, 25).map((m) => {
       const place = byId.get(m.channelId ?? m.conversationId!)!;
-      return { channelId: place.id, channelName: place.name, areaName: place.areaName, isPrivate: place.isPrivate, message: messageDto(m, viewer, place.canPost) };
+      return { channelId: place.id, channelName: place.name, areaName: place.areaName, isPrivate: place.isPrivate, message: messageDto(m, viewer, place.canPost, place.archived) };
     }), hasMore: rows.length > 25, nextBefore: rows.length > 25 ? rows[24].id : null };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 10_000 });
 }
@@ -450,5 +464,85 @@ export async function installChatInteractionDefaults(tx: Prisma.TransactionClien
   await tx.rolePermission.createMany({ data: roles.map((r) => ({ roleId: r.id, permissionId: permission.id })), skipDuplicates: true });
   await tx.chatSetup.create({ data: { id: "chat-interactions-v1" } });
   await tx.auditEvent.create({ data: { action: "chat.interaction_defaults.install", success: true, statusCode: 200, targetType: "chat", metadata: { version: 1 } } });
+  return true;
+}
+
+export async function deleteChatMessage(userId: string, channelId: string, messageId: string, version: number, reason: string) {
+  const normalized = reason.trim();
+  if (!normalized || normalized.length > 1000 || !Number.isInteger(version) || version < 1) throw new ChatError(400, "Give a reason of 1–1,000 characters and refresh the message before deleting it.");
+  return prisma.$transaction(async (tx) => {
+    await openChannel(tx, userId, channelId);
+    await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${messageId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR UPDATE`;
+    const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
+    if (access.archived || !viewer.permissions.has("chat.messages.moderate")) throw new ChatError(403, "Your access does not allow deleting messages here.");
+    const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope }, include: messageInclude });
+    if (!previous) throw new ChatError(404, "Message not found.");
+    // Desired-state retries return no retained content to a non-Owner, even
+    // when that person is the original moderator or author.
+    if (previous.deletedAt) return { id: messageId, message: viewer.isOwner ? messageDto(previous, viewer, false, access.archived) : null };
+    if (previous.version !== version) throw new ChatError(409, "This message was edited. Review the latest text before deleting it.");
+    const updated = await tx.chatMessage.update({ where: { id: messageId }, data: {
+      deletedAt: new Date(), deletedById: userId, deletedByName: viewer.user.name, deletionReason: normalized,
+      pinnedAt: null, pinnedById: null, pinnedByName: null,
+      ...(previous.pinnedAt ? { pinVersion: { increment: 1 } } : {}),
+    }, include: messageInclude });
+    await audit(tx, viewer, "chat.message.delete", messageId, {
+      channelId, channelName: channel?.name ?? `${conversation?.subjectName} · Private`,
+      text: previous.text, version: previous.version, authorName: previous.authorName,
+      authorUserId: previous.authorUserId, createdAt: previous.createdAt.toISOString(), replyToId: previous.replyToId,
+      reason: normalized, deletedAt: updated.deletedAt!.toISOString(),
+      previousPin: previous.pinnedAt ? { at: previous.pinnedAt.toISOString(), by: previous.pinnedByName, version: previous.pinVersion } : null,
+      reactions: previous.reactions,
+    });
+    return { id: messageId, message: viewer.isOwner ? messageDto(updated, viewer, false, access.archived) : null };
+  });
+}
+
+export async function listDeletedChatMessages(userId: string, channelId: string, before?: string) {
+  return prisma.$transaction(async (tx) => {
+    const { viewer, access, scope } = await openChannel(tx, userId, channelId);
+    if (!viewer.isOwner) throw new ChatError(403, "Only Owners can view retained deleted messages.");
+    const audience: Prisma.ChatMessageWhereInput = { ...scope, deletedAt: { not: null } };
+    const cursor = before ? await tx.chatMessage.findFirst({ where: { ...audience, id: before }, select: { id: true, deletedAt: true } }) : null;
+    if (before && !cursor) throw new ChatError(400, "The history cursor is invalid. Refresh deleted messages.");
+    const rows = await tx.chatMessage.findMany({ where: { AND: [audience, ...(cursor ? [{ OR: [
+      { deletedAt: { lt: cursor.deletedAt! } }, { deletedAt: cursor.deletedAt, id: { lt: cursor.id } },
+    ] }] : [])] }, orderBy: [{ deletedAt: "desc" }, { id: "desc" }], take: 26, include: messageInclude });
+    return { messages: rows.slice(0, 25).map((m) => messageDto(m, viewer, false, access.archived)), nextBefore: rows.length > 25 ? rows[24].id : null };
+  });
+}
+
+export async function getChatMessageHistory(userId: string, channelId: string, messageId: string, before?: string) {
+  return prisma.$transaction(async (tx) => {
+    const { viewer, scope } = await openChannel(tx, userId, channelId);
+    if (!viewer.isOwner) throw new ChatError(403, "Only Owners can view retained message history.");
+    if (!await tx.chatMessage.findFirst({ where: { ...scope, id: messageId }, select: { id: true } })) throw new ChatError(404, "Message not found.");
+    const audience = { targetType: "chat", targetId: messageId, success: true, action: { in: ["chat.message.send", "chat.message.edit", "chat.message.delete"] } } satisfies Prisma.AuditEventWhereInput;
+    const cursor = before ? await tx.auditEvent.findFirst({ where: { ...audience, id: before }, select: { id: true, occurredAt: true } }) : null;
+    if (before && !cursor) throw new ChatError(400, "The history cursor is invalid. Refresh the message history.");
+    const events = await tx.auditEvent.findMany({ where: { AND: [audience, ...(cursor ? [{ OR: [
+      { occurredAt: { lt: cursor.occurredAt } }, { occurredAt: cursor.occurredAt, id: { lt: cursor.id } },
+    ] }] : [])] }, orderBy: [{ occurredAt: "desc" }, { id: "desc" }], take: 26 });
+    return { events: events.slice(0, 25).map((event) => {
+      const m = event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata) ? event.metadata : {};
+      const text = (key: string) => typeof m[key] === "string" ? m[key] as string : null;
+      return { id: event.id, action: event.action, actorName: event.actorLabel ?? "Former account", occurredAt: event.occurredAt,
+        beforeText: event.action === "chat.message.edit" ? text("before") : event.action === "chat.message.delete" ? text("text") : null,
+        afterText: event.action === "chat.message.send" ? text("text") : event.action === "chat.message.edit" ? text("after") : null,
+        reason: event.action === "chat.message.delete" ? text("reason") : null };
+    }), nextBefore: events.length > 25 ? events[24].id : null };
+  });
+}
+
+export async function installChatModerationDefaults(tx: Prisma.TransactionClient) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(62942121)`;
+  if (await tx.chatSetup.findUnique({ where: { id: "chat-moderation-v1" } })) return false;
+  const definition = CHAT_PERMISSION_DEFINITIONS.find((p) => p.key === "chat.messages.moderate")!;
+  const { requires: _requires, ...data } = definition;
+  const permission = await tx.permission.upsert({ where: { key: data.key }, create: data, update: {} });
+  const roles = await tx.role.findMany({ where: { archivedAt: null, systemKey: { in: ["OWNER", "OPS_MANAGER", "MANAGER"] } } });
+  await tx.rolePermission.createMany({ data: roles.map((role) => ({ roleId: role.id, permissionId: permission.id })), skipDuplicates: true });
+  await tx.chatSetup.create({ data: { id: "chat-moderation-v1" } });
+  await tx.auditEvent.create({ data: { action: "chat.moderation_defaults.install", success: true, statusCode: 200, targetType: "chat", metadata: { version: 1 } } });
   return true;
 }

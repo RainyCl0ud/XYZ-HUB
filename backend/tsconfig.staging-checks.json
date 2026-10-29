@@ -20,6 +20,8 @@
     "scripts/test-clock-upgrade.ts",
     "scripts/test-clock-alerts.ts",
     "scripts/test-chat-interactions.ts",
-    "scripts/test-chat-interactions-upgrade.ts"
+    "scripts/test-chat-interactions-upgrade.ts",
+    "scripts/test-chat-moderation.ts",
+    "scripts/test-chat-moderation-upgrade.ts"
   ]
 }

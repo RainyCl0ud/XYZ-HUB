@@ -5,6 +5,7 @@ import { createRateLimit } from "../middleware/rate-limit.js";
 import { ChatError, chatGrantOptions, editChatMessage, isCreatorChatEnabled, listChatAreas, listChatMembers, listChatMessages, sendChatMessage, setChatGrant } from "../services/creator-chat.js";
 import { getChatMessage, refreshChatMessages, searchChatMessages, listChatPins, setChatPin, setChatReaction } from "../services/creator-chat.js";
 import { createChatChannel, renameChatChannel } from "../services/creator-chat.js";
+import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } from "../services/creator-chat.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -23,6 +24,7 @@ const pinSchema = z.object({ pinned: z.boolean(), version: z.number().int().min(
 const searchSchema = z.object({ q: z.string().trim().min(2).max(120), channelId: z.string().min(1).max(100).optional(), before: z.string().min(1).max(100).optional() }).strict();
 const pageSchema = z.object({ before: z.string().min(1).max(100).optional() }).strict();
 const editSchema = z.object({ text: textSchema, version: z.number().int().min(1) }).strict();
+const deleteSchema = z.object({ version: z.number().int().min(1), reason: z.string().trim().min(1).max(1000) }).strict();
 const grantSchema = z.object({ roleId: z.string().min(1).optional(), personId: z.string().min(1).optional(), canView: z.boolean(), canPost: z.boolean() }).strict();
 const param = (req: Request, key: string) => String(req.params[key] ?? "");
 const user = (req: Request) => (req as AuthenticatedRequest).userId!;
@@ -73,6 +75,12 @@ router.get("/channels/:channelId/messages/refresh", run(async (req, res) => {
   res.json(await refreshChatMessages(user(req), param(req, "channelId"), input.ids.split(",")));
 }));
 router.get("/channels/:channelId/messages/:messageId", run(async (req, res) => res.json({ message: await getChatMessage(user(req), param(req, "channelId"), param(req, "messageId")) })));
+router.get("/channels/:channelId/deleted", run(async (req, res) => res.json(await listDeletedChatMessages(user(req), param(req, "channelId"), pageSchema.parse(req.query).before))));
+router.get("/channels/:channelId/messages/:messageId/history", run(async (req, res) => res.json(await getChatMessageHistory(user(req), param(req, "channelId"), param(req, "messageId"), pageSchema.parse(req.query).before))));
+router.delete("/channels/:channelId/messages/:messageId", run(async (req, res) => {
+  const input = deleteSchema.parse(req.body);
+  res.json(await deleteChatMessage(user(req), param(req, "channelId"), param(req, "messageId"), input.version, input.reason));
+}));
 router.put("/channels/:channelId/messages/:messageId/reaction", run(async (req, res) => {
   const input = reactionSchema.parse(req.body);
   res.json({ message: await setChatReaction(user(req), param(req, "channelId"), param(req, "messageId"), input.emoji, input.active) });

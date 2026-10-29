@@ -1,9 +1,9 @@
 // System keys are used ONLY when installing defaults. Runtime chat decisions
 // use configured permissions and channel grants, including for custom roles.
 export const CHAT_ROLE_DEFAULTS: Readonly<Record<string, readonly string[]>> = {
-  OWNER: ["chat.access", "chat.areas.all", "chat.channels.all", "chat.channels.post_all", "chat.channels.manage", "chat.messages.pin", "chat.messages.send", "chat.messages.edit_own", "chat.trial_feedback.review", "chat.archives.view"],
-  OPS_MANAGER: ["chat.access", "chat.areas.all", "chat.channels.all", "chat.channels.post_all", "chat.channels.manage", "chat.messages.pin", "chat.messages.send", "chat.messages.edit_own", "chat.trial_feedback.review"],
-  MANAGER: ["chat.access", "chat.channels.all", "chat.channels.manage", "chat.messages.pin", "chat.messages.send", "chat.messages.edit_own", "chat.trial_feedback.review"],
+  OWNER: ["chat.access", "chat.areas.all", "chat.channels.all", "chat.channels.post_all", "chat.channels.manage", "chat.messages.pin", "chat.messages.moderate", "chat.messages.send", "chat.messages.edit_own", "chat.trial_feedback.review", "chat.archives.view"],
+  OPS_MANAGER: ["chat.access", "chat.areas.all", "chat.channels.all", "chat.channels.post_all", "chat.channels.manage", "chat.messages.pin", "chat.messages.moderate", "chat.messages.send", "chat.messages.edit_own", "chat.trial_feedback.review"],
+  MANAGER: ["chat.access", "chat.channels.all", "chat.channels.manage", "chat.messages.pin", "chat.messages.moderate", "chat.messages.send", "chat.messages.edit_own", "chat.trial_feedback.review"],
   QC: ["chat.access", "chat.messages.send", "chat.messages.edit_own", "chat.trial_feedback.review"],
   CHATTER: ["chat.access", "chat.messages.send", "chat.messages.edit_own", "chat.trial_feedback.restricted"],
   TRIAL_CHATTER: ["chat.access", "chat.messages.send", "chat.messages.edit_own"],
@@ -30,6 +30,7 @@ export const CHAT_PERMISSION_DEFINITIONS = [
   ["channels.post_all", "Post in All Ordinary Channels", "Bypass ordinary channel posting grants inside permitted areas."],
   ["channels.manage", "Manage Ordinary Channels", "Create and rename channels and configure their role and named access."],
   ["messages.pin", "Manage Pinned Messages", "Pin and unpin messages only in active conversations where you can post. Default: Owner, Ops and assigned Manager."],
+  ["messages.moderate", "Moderate Chat Messages", "Delete messages in active conversations you can access. Original content is retained for Owners. Default: Owner, Ops and assigned Manager."],
   ["messages.send", "Send Chat Messages", "Send text where a channel grants posting access."],
   ["messages.edit_own", "Edit Own Chat Messages", "Edit your own messages with full before-and-after audit history."],
   ["trial_feedback.restricted", "Restrict Trial Feedback", "Keep Chatter-only accounts out of Trial feedback, including named grants; the review permission takes priority."],

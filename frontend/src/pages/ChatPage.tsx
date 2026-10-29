@@ -3,10 +3,11 @@ import { ApiError, apiRequest } from "../lib/api";
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
+import ChatModerationDialog, { type ModerationTarget } from "./ChatModerationDialog";
 
 type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; archived: boolean; isPrivate: boolean };
 type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; channels: Channel[] };
-type Transcript = { messages: Message[]; canPost: boolean; canPin?: boolean; hasMore: boolean; nextBefore: string | null };
+type Transcript = { messages: Message[]; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; hasMore: boolean; nextBefore: string | null };
 type Member = { id: string; name: string; canPost: boolean };
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Unable to load chat. Please try again.";
 const day = (value: string) => new Intl.DateTimeFormat("en-US", {
@@ -37,6 +38,8 @@ export default function ChatPage() {
   const [edit, setEdit] = useState<Message | null>(null);
   const [reply, setReply] = useState<Message | null>(null);
   const [tools, setTools] = useState<ChatToolTarget | null>(null);
+  const [deleting, setDeleting] = useState<ModerationTarget | null>(null);
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -51,12 +54,15 @@ export default function ChatPage() {
   const pendingSend = useRef<{ channelId: string; text: string; replyToId?: string; nonce: string } | null>(null);
   const transcriptRef = useRef(transcript);
   const messageRevision = useRef(0);
+  const draftTargets = useRef({ edit, reply });
+  useLayoutEffect(() => { draftTargets.current = { edit, reply }; }, [edit, reply]);
   useLayoutEffect(() => { transcriptRef.current = transcript; }, [transcript]);
   const messagePane = useRef<HTMLDivElement>(null);
   const followMessages = useRef(true);
   const earlierScroll = useRef<{ top: number; height: number } | null>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => { if (reply) composer.current?.focus(); }, [reply]);
+  const replyId = reply?.id;
+  useEffect(() => { if (replyId) composer.current?.focus(); }, [replyId]);
   const area = areas.find((a) => a.channels.some((c) => c.id === selected));
   const channel = area?.channels.find((c) => c.id === selected);
   const browseArea = area ?? areas[0];
@@ -70,7 +76,7 @@ export default function ChatPage() {
     selectedRef.current = id;
     setSelected(id); setTranscript(null); setMembers([]); setDraft(""); setEdit(null); setError("");
     setSettings(null);
-    setReply(null); setTools(null);
+    setReply(null); setTools(null); setDeleting(null); setNotice("");
     setShowMembers(false);
     pendingSend.current = null;
     followMessages.current = true;
@@ -113,7 +119,11 @@ export default function ChatPage() {
           apiRequest<Transcript>(`/api/chat/channels/${selected}/messages`, { signal: controller.signal }),
           apiRequest<{ members: Member[] }>(`/api/chat/channels/${selected}/members`, { signal: controller.signal }),
         ]);
-        const olderIds = typeof response.canPin === "boolean" ? transcriptRef.current?.messages.slice(0, -50).map((m) => m.id) ?? [] : [];
+        const latest = new Map(response.messages.map((m) => [m.id, m]));
+        const olderIds = typeof response.canPin === "boolean" ? [...new Set([
+          ...(transcriptRef.current?.messages.map((m) => m.id) ?? []),
+          ...[draftTargets.current.edit?.id, draftTargets.current.reply?.id].filter((id): id is string => !!id),
+        ])].filter((id) => !latest.has(id)) : [];
         const refreshed = new Map<string, Message>();
         for (let i = 0; i < olderIds.length; i += 100) {
           const params = new URLSearchParams({ ids: olderIds.slice(i, i + 100).join(",") });
@@ -130,17 +140,25 @@ export default function ChatPage() {
           const older = oldest ? previous.messages.filter((m) => !latestIds.has(m.id) &&
             (m.createdAt < oldest.createdAt || (m.createdAt === oldest.createdAt && m.id < oldest.id))) : [];
           const requested = new Set(olderIds);
-          return { ...response, messages: [...older.filter((m) => !requested.has(m.id) || refreshed.has(m.id)).map((m) => refreshed.get(m.id) ?? m), ...response.messages],
-            ...(older.length ? { hasMore: previous.hasMore, nextBefore: previous.nextBefore } : {}) };
+          const kept = older.filter((m) => !requested.has(m.id) || refreshed.has(m.id)).map((m) => refreshed.get(m.id) ?? m);
+          return { ...response, messages: [...kept, ...response.messages],
+            ...(kept.length ? { hasMore: previous.hasMore, nextBefore: previous.hasMore ? kept[0].id : null } : {}) };
         });
         setMembers(people.members);
+        const currentEdit = draftTargets.current.edit, currentReply = draftTargets.current.reply;
+        if (revision === messageRevision.current) {
+          const edited = currentEdit && (latest.get(currentEdit.id) ?? refreshed.get(currentEdit.id));
+          const parent = currentReply && (latest.get(currentReply.id) ?? refreshed.get(currentReply.id));
+          if ((currentEdit && !edited?.canEdit) || (currentReply && (!parent || parent.deleted))) { setReply(null); setEdit(null); setDraft(""); }
+          else if (parent) setReply(parent);
+        }
         if (!response.canPost) { setReply(null); setEdit(null); setDraft(""); }
         setError("");
         await refreshAreas(controller.signal);
       } catch (e) {
         if (stopped || selectedRef.current !== selected) return;
         if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
-          setTranscript(null); setMembers([]); setAreas([]); setEdit(null); setDraft(""); setReply(null); setTools(null);
+          setTranscript(null); setMembers([]); setAreas([]); setEdit(null); setDraft(""); setReply(null); setTools(null); setDeleting(null);
           void refreshAreas(controller.signal).catch(() => {});
         }
         setError(errorText(e));
@@ -209,7 +227,7 @@ export default function ChatPage() {
     if (selectedRef.current !== channelId) return;
     messageRevision.current++;
     setTranscript((old) => old ? { ...old, messages: old.messages.map((m) => m.id === message.id ? message :
-      m.replyTo?.id === message.id ? { ...m, replyTo: message } : m) } : old);
+      m.replyTo?.id === message.id ? { ...m, replyTo: { id: message.id, authorName: message.authorName, text: message.text, version: message.version, createdAt: message.createdAt, deleted: !!message.deleted } } : m) } : old);
     setReply((old) => old?.id === message.id ? message : old);
   }
   function startReply(channelId: string, message: Message) {
@@ -223,6 +241,18 @@ export default function ChatPage() {
       void refreshAreas().catch(() => {});
     }
   }
+  function startModeration(channelId: string, message: Message) {
+    setTools(null); setDeleting({ channelId, message }); setNotice("");
+  }
+  function messageDeleted(channelId: string, id: string, retained: Message | null) {
+    setDeleting(null); setTools(null); setNotice("Message deleted. The full content and history are retained for Owners.");
+    if (selectedRef.current !== channelId) return;
+    messageRevision.current++;
+    setTranscript((old) => old ? { ...old, messages: old.messages.flatMap((m) => m.id === id ? retained ? [retained] : [] : [
+      m.replyTo?.id === id ? { ...m, replyTo: retained ? { id, authorName: retained.authorName, text: retained.text, version: retained.version, createdAt: retained.createdAt, deleted: true } : null, replyUnavailable: !retained } : m,
+    ]) } : old);
+    if (draftTargets.current.edit?.id === id || draftTargets.current.reply?.id === id) { setEdit(null); setReply(null); setDraft(""); }
+  }
   function channelRow(c: Channel) {
     return <button type="button" key={c.id} className="creator-chat-channel-row" aria-current={c.id === selected ? "page" : undefined}
       onClick={() => { chooseChannel(c.id); setShowChannels(false); }}>
@@ -235,6 +265,7 @@ export default function ChatPage() {
     <section className="creator-chat" aria-labelledby="chat-page-title">
       <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1 id="chat-page-title">Chat</h1><p>Find your creator, choose a conversation and stay connected.</p></div><span className="creator-chat-timezone">All times in US Central</span></header>
       {error && <div className="creator-chat-error" role="alert">{error}</div>}
+      {notice && <p className="creator-chat-notice" role="status">{notice}</p>}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
         <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">
@@ -264,7 +295,7 @@ export default function ChatPage() {
               <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
               <div className="creator-chat-header-actions">{channel?.canManage && area && <button type="button" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}<button type="button" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.length}</span></button></div>
             </header>
-            <div className="creator-chat-conversation-tools" role="group" aria-label="Message tools"><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "search", channelId: selected, channelName: channel?.name ?? "Conversation" })}><ChatIcon name="search" />Search messages</button><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "pins", channelId: selected, channelName: channel?.name ?? "Conversation" })}>Pinned messages</button></div>
+            <div className="creator-chat-conversation-tools" role="group" aria-label="Message tools"><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "search", channelId: selected, channelName: channel?.name ?? "Conversation" })}><ChatIcon name="search" />Search messages</button><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "pins", channelId: selected, channelName: channel?.name ?? "Conversation" })}>Pinned messages</button>{transcript?.canViewDeleted && <button type="button" onClick={() => setTools({ kind: "deleted", channelId: selected, channelName: channel?.name ?? "Conversation" })}>Deleted messages</button>}</div>
             {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span></div>}
             {showMembers && <aside id="chat-members" className="creator-chat-members" aria-label="Conversation members"><header><h3>Who has access</h3><button type="button" onClick={() => setShowMembers(false)} aria-label="Close member list"><ChatIcon name="close" /></button></header><p className="creator-chat-members-hint">{members.length} {members.length === 1 ? "member" : "members"} can view this conversation.</p>{members.map((m) => <div className="creator-chat-member" key={m.id}><span className="creator-chat-avatar" aria-hidden="true">{m.name.slice(0, 1).toUpperCase()}</span><strong>{m.name}</strong><span>{m.canPost ? "Can post" : "Read only"}</span></div>)}</aside>}
             <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
@@ -273,7 +304,7 @@ export default function ChatPage() {
                 {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p><button type="button" onClick={() => setShowMembers(true)}>View members</button></div>}
                 {transcript.messages.map((m, index) => <Fragment key={m.id}>
                   {(index === 0 || day(transcript.messages[index - 1].createdAt) !== day(m.createdAt)) && <div className="creator-chat-day"><span>{day(m.createdAt)}</span></div>}
-                  <article className="creator-chat-message"><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} onReply={(message) => startReply(selected, message)} onEdit={(message) => { setReply(null); setEdit(message); setDraft(message.text); composer.current?.focus(); }} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => setTools({ kind: "message", channelId: selected, channelName: channel?.name ?? "Conversation", messageId })} /></article>
+                  <article className="creator-chat-message"><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} onReply={(message) => startReply(selected, message)} onEdit={(message) => { setReply(null); setEdit(message); setDraft(message.text); composer.current?.focus(); }} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => setTools({ kind: "message", channelId: selected, channelName: channel?.name ?? "Conversation", messageId })} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: channel?.name ?? "Conversation", messageId })} /></article>
                 </Fragment>)}
               </>}
             </div>
@@ -288,7 +319,8 @@ export default function ChatPage() {
         </div>
       )}
       {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId} target={settings} onClose={() => setSettings(null)} onSaved={async (id) => { await refreshAreas(); if (id) chooseChannel(id); }} />}
-      {tools && <ChatMessageTools key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" ? tools.messageId : ""}`} target={tools} onClose={() => setTools(null)} onOpen={setTools} onConversation={(id) => { chooseChannel(id); setTools(null); }} onReply={startReply} onChanged={changedMessage} />}
+      {tools && <ChatMessageTools key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => setTools(null)} onOpen={setTools} onConversation={(id) => { chooseChannel(id); setTools(null); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} />}
+      {deleting && <ChatModerationDialog key={deleting.message.id} target={deleting} onClose={() => setDeleting(null)} onDeleted={messageDeleted} />}
     </section>
   );
 }
