@@ -132,7 +132,8 @@ async function main() {
     const members = await listChatMembers(trial.id, feedback.id);
     assert.ok(!members.some((m) => m.id === chatter.id));
     assert.ok(members.some((m) => m.id === developer.id && !m.canPost));
-    assert.ok(members.every((m) => Object.keys(m).every((key) => ["id", "name", "canPost"].includes(key))));
+    assert.ok(members.every((m) => Object.keys(m).every((key) => ["id", "name", "canView", "canPost", "quarantine"].includes(key))));
+    assert.ok(members.every((m) => m.quarantine === null));
     check("Member lists include only people who can actually open the channel and expose no email directory");
     const preservedGrant = await prisma.chatRoleGrant.findUniqueOrThrow({ where: { channelId_roleId: { channelId: general.id, roleId: roles.get("CHATTER")!.id } } });
     await prisma.chatChannel.update({ where: { id: general.id }, data: { name: "Custom General name" } });

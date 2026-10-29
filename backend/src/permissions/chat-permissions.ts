@@ -25,6 +25,9 @@ export const STANDING_CHAT_ROLE_DEFAULTS: Readonly<Record<string, readonly strin
 
 export const CHAT_PERMISSION_DEFINITIONS = [
   ["access", "Access Chat", "Open creator chat areas permitted by assignments and channel grants."],
+  ["quarantine.trials", "Pause Assigned Trial Chats", "Pause/lift Trial-only staff chats for an assigned creator; their own management chat and Clock stay available. Default: QC."],
+  ["quarantine.staff", "Pause Assigned Staff Chats", "Pause/lift Chatter and Trial chats for an assigned creator. Higher and protected roles are excluded. Default: Manager."],
+  ["quarantine.all", "Pause Staff Chats Across Creators", "Pause/lift Chatter and Trial chats for a selected creator. This never pauses all creators at once. Default: Owner and Ops."],
   ["areas.all", "Access All Creator Chat Areas", "Enter every creator's chat area without a staff assignment."],
   ["channels.all", "See All Ordinary Channels", "See every ordinary channel inside permitted creator areas."],
   ["channels.post_all", "Post in All Ordinary Channels", "Bypass ordinary channel posting grants inside permitted areas."],
