@@ -687,6 +687,41 @@ function serializeStrike(
   };
 }
 
+// This helper is used only by canViewStrikeRecord and listStrikeHistoryForUser.
+// Issue/preview/void and eligible-user selection retain canManageTarget and
+// the original canViewTarget, neither of which calls this read exception.
+async function canReadSiblingCreatorTarget(
+  access: AccessContext,
+  target: StrikeTargetRecord
+) {
+  if (
+    access.effectiveDataScope !== RoleDataScope.SELF_AND_TEAM ||
+    !access.teamGroupId || !target.teamGroupId ||
+    hasOwnerRole(target) || !hasEligibleStrikeRole(target) ||
+    access.highestRank === null || target.roleMemberships.length === 0 ||
+    !target.roleMemberships.every(({ role }) =>
+      role.rank !== null && role.rank > access.highestRank!
+    ) ||
+    access.assignedModelIds.length !== 1 ||
+    target.modelAssignments.length !== 1 ||
+    access.assignedModelIds[0] !== target.modelAssignments[0]!.modelId
+  ) {
+    return false;
+  }
+
+  // Require both explicit single-creator assignments AND the same immediate
+  // organization parent. Shared staff and other organization branches keep
+  // their original rules; a global creator-view flag is not membership.
+  const groups = await prisma.teamGroup.findMany({
+    where: { id: { in: [access.teamGroupId, target.teamGroupId] } },
+    select: { id: true, parentId: true },
+  });
+  const reviewerGroup = groups.find((group) => group.id === access.teamGroupId);
+  const targetGroup = groups.find((group) => group.id === target.teamGroupId);
+  return Boolean(reviewerGroup?.parentId &&
+    reviewerGroup.parentId === targetGroup?.parentId);
+}
+
 async function canViewStrikeRecord(
   strike:
     StrikeRecord,
@@ -713,10 +748,8 @@ async function canViewStrikeRecord(
     );
   }
 
-  return canViewTarget(
-    access,
-    strike.user
-  );
+  return await canViewTarget(access, strike.user) ||
+    await canReadSiblingCreatorTarget(access, strike.user);
 }
 
 export async function listStrikes(
@@ -794,10 +827,8 @@ export async function listStrikeHistoryForUser(
 
   if (
     !target ||
-    !await canViewTarget(
-      access,
-      target
-    )
+    !(await canViewTarget(access, target) ||
+      await canReadSiblingCreatorTarget(access, target))
   ) {
     return null;
   }
