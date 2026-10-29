@@ -27,6 +27,7 @@ try {
   assert.ok(redacted.includes("Original message unavailable"));
   assert.ok(!redacted.includes("Deleted · Owner view") && !redacted.includes("Test retained reason"));
   const moderator = render({ ...legacy, canModerate: true, canViewHistory: false });
-  assert.ok(moderator.includes(">Delete</button>") && !moderator.includes(">View history</button>"));
+  assert.ok(moderator.includes(">Delete message…</button>") && !moderator.includes(">View history</button>"));
+  assert.ok(moderator.includes('class="creator-chat-action-menu"') && moderator.includes('More actions for message by Test author'));
   console.log("PASS: redacted reply previews reveal no deleted source and moderation/history controls follow separate server capabilities.");
 } finally { await vite.close(); }
