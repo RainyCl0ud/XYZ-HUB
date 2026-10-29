@@ -4,11 +4,12 @@ import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
 import ChatModerationDialog, { type ModerationTarget } from "./ChatModerationDialog";
+import ChatQuarantineDialog, { type QuarantineControl } from "./ChatQuarantineDialog";
 
 type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; archived: boolean; isPrivate: boolean };
-type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; channels: Channel[] };
-type Transcript = { messages: Message[]; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; hasMore: boolean; nextBefore: string | null };
-type Member = { id: string; name: string; canPost: boolean };
+type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; pausedForYou?: boolean; channels: Channel[] };
+type Transcript = { messages: Message[]; quarantine?: QuarantineControl | null; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; hasMore: boolean; nextBefore: string | null };
+type Member = { id: string; name: string; canView?: boolean; canPost: boolean; quarantine?: QuarantineControl | null };
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Unable to load chat. Please try again.";
 const day = (value: string) => new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Chicago", month: "long", day: "numeric", year: "numeric",
@@ -39,6 +40,7 @@ export default function ChatPage() {
   const [reply, setReply] = useState<Message | null>(null);
   const [tools, setTools] = useState<ChatToolTarget | null>(null);
   const [deleting, setDeleting] = useState<ModerationTarget | null>(null);
+  const [quarantining, setQuarantining] = useState<QuarantineControl | null>(null);
   const [notice, setNotice] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
   const [toolsRevision, setToolsRevision] = useState(0);
@@ -90,6 +92,7 @@ export default function ChatPage() {
     selectedRef.current = id;
     setSelected(id); setTranscript(null); setMembers([]); setDraft(saved?.text ?? ""); setEdit(null); setError("");
     setSettings(null);
+    setQuarantining(null);
     setReply(saved?.reply ?? null); setTools(null); setDeleting(null); setNotice(saved?.text ? "Your unsent draft was kept for this conversation." : "");
     setShowMembers(false);
     pendingSend.current = null;
@@ -176,7 +179,7 @@ export default function ChatPage() {
         if (stopped || selectedRef.current !== selected) return;
         if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
           conversationDrafts.current.delete(selected);
-          setTranscript(null); setMembers([]); setAreas([]); setEdit(null); setDraft(""); setReply(null); setTools(null); setDeleting(null);
+          setTranscript(null); setMembers([]); setAreas([]); setEdit(null); setDraft(""); setReply(null); setTools(null); setDeleting(null); setQuarantining(null); setSettings(null);
           void refreshAreas(controller.signal).catch(() => {});
         }
         setError(errorText(e));
@@ -324,11 +327,12 @@ export default function ChatPage() {
               <button type="button" className="creator-chat-mobile creator-chat-browse-button" onClick={() => setShowChannels(true)} aria-label="Browse conversations"><ChatIcon name="menu" /><span>Browse</span></button>
               <div className={`creator-chat-title-icon ${channel?.isPrivate ? "is-private" : ""}`}><ChatIcon name={channel?.isPrivate ? "lock" : "channel"} /></div>
               <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
-              <div className="creator-chat-header-actions">{channel?.canManage && area && <button type="button" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}<button type="button" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.length}</span></button></div>
+              <div className="creator-chat-header-actions">{channel?.canManage && area && <button type="button" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}<button type="button" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button></div>
             </header>
             <div className="creator-chat-conversation-tools" role="group" aria-label="Message tools"><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "search", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}><ChatIcon name="search" />Search messages</button><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "pins", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>Pinned messages</button>{transcript?.canViewDeleted && <button type="button" onClick={() => setTools({ kind: "deleted", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>Deleted messages</button>}</div>
-            {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span></div>}
-            {showMembers && <aside id="chat-members" className="creator-chat-members" aria-label="Conversation members"><header><h3>Who has access</h3><button type="button" onClick={() => setShowMembers(false)} aria-label="Close member list"><ChatIcon name="close" /></button></header><p className="creator-chat-members-hint">{members.length} {members.length === 1 ? "member" : "members"} can view this conversation.</p>{members.map((m) => <div className="creator-chat-member" key={m.id}><span className="creator-chat-avatar" aria-hidden="true">{m.name.slice(0, 1).toUpperCase()}</span><strong>{m.name}</strong><span>{m.canPost ? "Can post" : "Read only"}</span></div>)}</aside>}
+            {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span>{transcript?.quarantine && <button type="button" onClick={() => setQuarantining(transcript.quarantine!)}>{transcript.quarantine.active ? "Review / lift chat pause" : "Pause creator chats…"}</button>}</div>}
+            {area?.pausedForYou && <div className="creator-chat-pause-notice" role="status"><strong>Your other chats for {area.name} are paused.</strong><p>Use your private management chat below. Login, Clock &amp; Hours and other creators are unaffected.</p></div>}
+            {showMembers && <aside id="chat-members" className="creator-chat-members" aria-label="Conversation members"><header><h3>People and access</h3><button type="button" onClick={() => setShowMembers(false)} aria-label="Close member list"><ChatIcon name="close" /></button></header><p className="creator-chat-members-hint">Current members are listed below. Authorized reviewers can also see people whose creator chats are paused.</p>{members.map((m) => <div className="creator-chat-member" key={m.id}><span className="creator-chat-avatar" aria-hidden="true">{m.name.slice(0, 1).toUpperCase()}</span><strong>{m.name}</strong><span>{m.quarantine?.active ? "Creator chats paused" : m.canPost ? "Can post" : "Read only"}</span>{m.quarantine && <button type="button" onClick={() => setQuarantining(m.quarantine!)} aria-label={`${m.quarantine.active ? "Review or lift pause for" : "Pause creator chats for"} ${m.name}`}>{m.quarantine.active ? "Review / lift pause" : "Pause chats…"}</button>}</div>)}</aside>}
             <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
               {!transcript ? <p role="status">Loading messages…</p> : <>
                 {transcript.hasMore && <button className="creator-chat-load-older" type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load earlier messages"}</button>}
@@ -353,6 +357,10 @@ export default function ChatPage() {
       {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId} target={settings} onClose={() => setSettings(null)} onSaved={async (id) => { await refreshAreas(); if (id) chooseChannel(id); }} />}
       {tools && <ChatMessageTools key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { chooseChannel(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} />}
       {deleting && <ChatModerationDialog key={deleting.message.id} target={deleting} onClose={() => setDeleting(null)} onDeleted={messageDeleted} />}
+      {quarantining && <ChatQuarantineDialog key={`${quarantining.modelId}:${quarantining.userId}`} target={quarantining} onClose={() => { setQuarantining(null); setRefreshTick((n) => n + 1); }} onSaved={(result) => {
+        setQuarantining(null); setNotice(`${result.personName}: ${result.active ? "chats paused" : "chat pause lifted"} for ${result.creatorName}. ${result.active ? "Their private management chat stays open." : "Access now follows current assignments and permissions."}`);
+        setRefreshTick((n) => n + 1); void refreshAreas().catch((e: unknown) => setError(errorText(e)));
+      }} />}
     </section>
   );
 }

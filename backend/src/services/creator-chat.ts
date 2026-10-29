@@ -1,8 +1,8 @@
 import { Prisma } from "@prisma/client";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { CHAT_ROLE_DEFAULTS, CHAT_PERMISSION_DEFINITIONS } from "../permissions/chat-permissions.js";
-import { syncCreatorStandingChat } from "./standing-chat.js";
+import { syncCreatorStandingChat, syncUserStandingChats } from "./standing-chat.js";
 
 export const isCreatorChatEnabled = () => process.env.BLOCK2_CHAT_ENABLED === "true";
 export class ChatError extends Error {
@@ -55,6 +55,7 @@ export async function installCreatorChatDefaults(tx: Prisma.TransactionClient) {
 
 const viewerInclude = {
   modelAssignments: true,
+  chatQuarantines: { where: { active: true } },
   roleMemberships: { where: { role: { archivedAt: null } }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } },
 } satisfies Prisma.UserInclude;
 type ViewerUser = Prisma.UserGetPayload<{ include: typeof viewerInclude }>;
@@ -69,6 +70,9 @@ function makeViewer(user: ViewerUser) {
 }
 type Viewer = ReturnType<typeof makeViewer>;
 async function loadViewer(tx: Prisma.TransactionClient, userId: string) {
+  // Pausing takes this same person's exclusive lock. In-flight reads/writes
+  // finish first; after the pause commits every new Chat request rechecks it.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtextextended(${'chat-access:' + userId}, 0))`;
   const user = await tx.user.findUnique({ where: { id: userId }, include: viewerInclude });
   if (!user || user.status !== "ACTIVE") throw new ChatError(401, "Please sign in again.");
   const viewer = makeViewer(user);
@@ -81,7 +85,8 @@ type Channel = Prisma.ChatChannelGetPayload<{ include: typeof channelInclude }>;
 function channelAccess(viewer: Viewer, channel: Channel) {
   const p = viewer.permissions;
   const assignment = viewer.user.modelAssignments.find((a) => a.modelId === channel.modelId);
-  const inArea = p.has("chat.access") && p.has("chat.ordinary.access") && (!!assignment || p.has("chat.areas.all"));
+  const paused = viewer.user.chatQuarantines.some((q) => q.modelId === channel.modelId);
+  const inArea = !paused && p.has("chat.access") && p.has("chat.ordinary.access") && (!!assignment || p.has("chat.areas.all"));
   const archived = !!channel.area.archivedAt;
   // A Chatter restriction beats named or custom-role grants. A QC/Manager (or
   // equivalent explicitly configured reviewer) wins when that person has both.
@@ -127,7 +132,11 @@ function standingAccess(viewer: Viewer, conversation: StandingConversation) {
   const oversight = general ? p.has("chat.private.general.review") : p.has("chat.private.all");
   const isSubject = viewer.user.id === conversation.subjectUserId && !!currentSubject;
   const reviewer = assigned && ((conversation.kind === "STAFF" && p.has("chat.private.staff.review")) || (conversation.kind === "CREATOR" && p.has("chat.private.creator.review")));
-  const canView = p.has("chat.access") && (archived ? oversight && p.has("chat.archives.view") : oversight || isSubject || reviewer);
+  // A pause keeps only this person's own current staff-management chat in the
+  // affected area. Their reviewer access to other staff/creator chats pauses too.
+  const paused = viewer.user.chatQuarantines.some((q) => q.modelId === conversation.modelId);
+  const pauseAllows = !paused || (conversation.kind === "STAFF" && isSubject && !archived);
+  const canView = pauseAllows && p.has("chat.access") && (archived ? oversight && p.has("chat.archives.view") : oversight || isSubject || reviewer);
   return { canView, canPost: canView && !archived && p.has("chat.messages.send"), canManage: false, archived };
 }
 function audit(tx: Prisma.TransactionClient, viewer: Viewer, action: string, targetId: string, metadata: Prisma.InputJsonObject) {
@@ -145,16 +154,17 @@ type MessageRow = Prisma.ChatMessageGetPayload<{ include: typeof messageInclude 
 function visibleMessages(viewer: Viewer): Prisma.ChatMessageWhereInput { return viewer.isOwner ? {} : { deletedAt: null }; }
 function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archived: boolean) {
   if (message.deletedAt && !viewer.isOwner) throw new ChatError(404, "Message not found.");
-  const active = !message.deletedAt;
+  const active = !message.deletedAt && !message.systemEventKey;
   const parent = message.replyTo && (!message.replyTo.deletedAt || viewer.isOwner) ? message.replyTo : null;
   return {
     id: message.id, authorUserId: message.authorUserId, authorName: message.authorName,
     text: message.text, version: message.version, createdAt: message.createdAt, updatedAt: message.updatedAt,
+    systemNotice: !!message.systemEventKey,
     replyTo: parent ? { id: parent.id, authorName: parent.authorName, text: parent.text, version: parent.version, createdAt: parent.createdAt, deleted: !!parent.deletedAt } : null,
     replyUnavailable: !!message.replyTo && !parent,
     deleted: message.deletedAt ? { at: message.deletedAt, by: message.deletedByName, reason: message.deletionReason } : null,
     canModerate: active && !archived && viewer.permissions.has("chat.messages.moderate"),
-    canViewHistory: viewer.isOwner,
+    canViewHistory: viewer.isOwner && !message.systemEventKey,
     pinnedAt: message.pinnedAt, pinnedByName: message.pinnedByName, pinVersion: message.pinVersion,
     canReply: active && canPost,
     canPin: active && canPost && viewer.permissions.has("chat.messages.pin"),
@@ -178,8 +188,9 @@ async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: Viewer)
         const access = channelAccess(viewer, channel);
         return access.canView ? [{ id: channel.id, name: channel.name, isPrivate: false, ...access }] : [];
       });
-      const inArea = viewer.permissions.has("chat.ordinary.access") && (viewer.permissions.has("chat.areas.all") || viewer.user.modelAssignments.some((a) => a.modelId === area.modelId));
-      return { modelId: area.modelId, name: area.model.name, archived: !!area.archivedAt, canManage: inArea && !area.archivedAt && viewer.permissions.has("chat.channels.manage"), channels };
+      const pausedForYou = viewer.user.chatQuarantines.some((q) => q.modelId === area.modelId);
+      const inArea = !pausedForYou && viewer.permissions.has("chat.ordinary.access") && (viewer.permissions.has("chat.areas.all") || viewer.user.modelAssignments.some((a) => a.modelId === area.modelId));
+      return { modelId: area.modelId, name: area.model.name, archived: !!area.archivedAt, pausedForYou, canManage: inArea && !area.archivedAt && viewer.permissions.has("chat.channels.manage"), channels };
     });
     const standing = await tx.chatStandingConversation.findMany({ where: { OR: [
       { subjectUserId: userId }, { modelId: { in: viewer.user.modelAssignments.map((a) => a.modelId) } },
@@ -191,7 +202,7 @@ async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: Viewer)
       if (!access.canView) continue;
       const areaId = conversation.modelId ?? "personal";
       let area = result.find((a) => a.modelId === areaId);
-      if (!area) { area = { modelId: areaId, name: conversation.model?.name ?? "Private workspace", archived: !!conversation.model?.chatArea?.archivedAt, canManage: false, channels: [] }; result.push(area); }
+      if (!area) { area = { modelId: areaId, name: conversation.model?.name ?? "Private workspace", archived: !!conversation.model?.chatArea?.archivedAt, pausedForYou: viewer.user.chatQuarantines.some((q) => q.modelId === areaId), canManage: false, channels: [] }; result.push(area); }
       const name = conversation.kind === "CREATOR" ? `${conversation.model?.name ?? conversation.subjectName} · Private` : conversation.subjectUserId === userId ? "Your private chat" : `${conversation.subjectUser?.name ?? conversation.subjectName} · Private`;
       area.channels.push({ id: conversation.id, name, isPrivate: true, ...access });
     }
@@ -203,7 +214,7 @@ export async function listChatAreas(userId: string) {
 
 export async function listChatMessages(userId: string, channelId: string, before?: string) {
   return prisma.$transaction(async (tx) => {
-    const { viewer, access, scope } = await openChannel(tx, userId, channelId);
+    const { viewer, access, scope, conversation } = await openChannel(tx, userId, channelId);
     const cursor = before ? await tx.chatMessage.findFirst({ where: { id: before, ...scope, ...visibleMessages(viewer) }, select: { id: true, createdAt: true } }) : null;
     if (before && !cursor) throw new ChatError(400, "The message cursor is invalid.");
     const rows = await tx.chatMessage.findMany({ where: {
@@ -213,7 +224,10 @@ export async function listChatMessages(userId: string, channelId: string, before
     }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 51, include: messageInclude });
     const hasMore = rows.length > 50;
     const messages = rows.slice(0, 50).reverse().map((m) => messageDto(m, viewer, access.canPost, access.archived));
-    return { messages, canPost: access.canPost, canViewDeleted: viewer.isOwner, canPin: access.canPost && viewer.permissions.has("chat.messages.pin"), hasMore, nextBefore: hasMore ? messages[0].id : null };
+    const control = conversation?.kind === "STAFF" && conversation.modelId && conversation.subjectUser
+      ? quarantineControl(viewer, makeViewer(conversation.subjectUser), conversation.modelId) : null;
+    const quarantine = control && (!access.archived || (control.active && control.canLift)) ? control : null;
+    return { messages, quarantine, canPost: access.canPost, canViewDeleted: viewer.isOwner, canPin: access.canPost && viewer.permissions.has("chat.messages.pin"), hasMore, nextBefore: hasMore ? messages[0].id : null };
   });
 }
 
@@ -226,7 +240,7 @@ export async function sendChatMessage(userId: string, channelId: string, text: s
     const target = channel ? { channelId } : { conversationId: channelId };
     if (replyToId) {
       await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${replyToId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR SHARE`;
-      if (!await tx.chatMessage.findFirst({ where: { id: replyToId, ...target, deletedAt: null }, select: { id: true } })) throw new ChatError(404, "Reply message not found in this conversation.");
+      if (!await tx.chatMessage.findFirst({ where: { id: replyToId, ...target, deletedAt: null, systemEventKey: null }, select: { id: true } })) throw new ChatError(404, "Reply message not found in this conversation.");
     }
     const created = await tx.chatMessage.createMany({ data: { ...target, authorUserId: userId, authorName: viewer.user.name, text: normalized, clientNonce, replyToId: replyToId ?? null }, skipDuplicates: true });
     const message = await tx.chatMessage.findFirstOrThrow({ where: { ...target, authorUserId: userId, clientNonce }, include: messageInclude });
@@ -245,6 +259,7 @@ export async function editChatMessage(userId: string, channelId: string, message
     if (!access.canPost || !viewer.permissions.has("chat.messages.edit_own")) throw new ChatError(403, "You cannot edit messages here.");
     const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null } });
     if (!previous) throw new ChatError(404, "Message not found.");
+    if (previous.systemEventKey) throw new ChatError(403, "Chat notices cannot be edited.");
     if (previous.authorUserId !== userId) throw new ChatError(403, "You can only edit your own messages.");
     if (previous.version !== version) throw new ChatError(409, "This message changed. Refresh before editing again.");
     const updated = await tx.chatMessage.updateMany({ where: { id: messageId, version, ...scope, deletedAt: null }, data: { text: normalized, version: { increment: 1 } } });
@@ -256,7 +271,7 @@ export async function editChatMessage(userId: string, channelId: string, message
 
 export async function listChatMembers(userId: string, channelId: string) {
   return prisma.$transaction(async (tx) => {
-    const { channel, conversation } = await openChannel(tx, userId, channelId);
+    const { viewer, channel, conversation, access: conversationAccess } = await openChannel(tx, userId, channelId);
     const modelId = channel?.modelId ?? conversation?.modelId;
     const people = await tx.user.findMany({ where: { status: "ACTIVE", OR: [
       ...(modelId ? [{ modelAssignments: { some: { modelId } } }] : []),
@@ -266,8 +281,12 @@ export async function listChatMembers(userId: string, channelId: string) {
       { roleMemberships: { some: { role: { systemKey: "OWNER", archivedAt: null } } } },
     ] }, include: viewerInclude, orderBy: [{ name: "asc" }, { id: "asc" }] });
     return people.flatMap((user) => {
-      const access = channel ? channelAccess(makeViewer(user), channel) : standingAccess(makeViewer(user), conversation!);
-      return access.canView ? [{ id: user.id, name: user.name, canPost: access.canPost }] : [];
+      const subject = makeViewer(user);
+      const access = channel ? channelAccess(subject, channel) : standingAccess(subject, conversation!);
+      const quarantine = modelId && !conversationAccess.archived ? quarantineControl(viewer, subject, modelId) : null;
+      // Only an authorized reviewer sees paused targets who no longer belong
+      // to this ordinary channel. There is no team-wide quarantine notice.
+      return access.canView || quarantine?.active ? [{ id: user.id, name: user.name, canView: access.canView, canPost: access.canPost, quarantine }] : [];
     });
   });
 }
@@ -375,7 +394,7 @@ export async function setChatReaction(userId: string, channelId: string, message
     await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${messageId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR UPDATE`;
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost) throw new ChatError(403, "This conversation is read-only for you.");
-    if (!await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null }, select: { id: true } })) throw new ChatError(404, "Message not found.");
+    if (!await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null, systemEventKey: null }, select: { id: true } })) throw new ChatError(404, "Message not found.");
     const key = { messageId, userId, emoji };
     const changed = active
       ? await tx.chatReaction.createMany({ data: key, skipDuplicates: true })
@@ -397,6 +416,7 @@ export async function setChatPin(userId: string, channelId: string, messageId: s
     if (!access.canPost || !viewer.permissions.has("chat.messages.pin")) throw new ChatError(403, "Your access does not allow managing pins here.");
     const message = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null }, include: messageInclude });
     if (!message) throw new ChatError(404, "Message not found.");
+    if (message.systemEventKey) throw new ChatError(403, "Chat notices cannot be pinned.");
     if (!!message.pinnedAt === pinned) return messageDto(message, viewer, access.canPost, access.archived);
     if (message.pinVersion !== expectedVersion) throw new ChatError(409, "The pin changed. Refresh before trying again.");
     const updated = await tx.chatMessage.update({ where: { id: messageId }, data: {
@@ -451,7 +471,7 @@ export async function searchChatMessages(userId: string, query: string, channelI
       const place = byId.get(m.channelId ?? m.conversationId!)!;
       return { channelId: place.id, channelName: place.name, areaName: place.areaName, isPrivate: place.isPrivate, message: messageDto(m, viewer, place.canPost, place.archived) };
     }), hasMore: rows.length > 25, nextBefore: rows.length > 25 ? rows[24].id : null };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 10_000 });
+  }, { timeout: 10_000 });
 }
 
 export async function installChatInteractionDefaults(tx: Prisma.TransactionClient) {
@@ -477,6 +497,7 @@ export async function deleteChatMessage(userId: string, channelId: string, messa
     if (access.archived || !viewer.permissions.has("chat.messages.moderate")) throw new ChatError(403, "Your access does not allow deleting messages here.");
     const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope }, include: messageInclude });
     if (!previous) throw new ChatError(404, "Message not found.");
+    if (previous.systemEventKey) throw new ChatError(403, "Chat notices cannot be deleted.");
     // Desired-state retries return no retained content to a non-Owner, even
     // when that person is the original moderator or author.
     if (previous.deletedAt) return { id: messageId, message: viewer.isOwner ? messageDto(previous, viewer, false, access.archived) : null };
@@ -544,5 +565,144 @@ export async function installChatModerationDefaults(tx: Prisma.TransactionClient
   await tx.rolePermission.createMany({ data: roles.map((role) => ({ roleId: role.id, permissionId: permission.id })), skipDuplicates: true });
   await tx.chatSetup.create({ data: { id: "chat-moderation-v1" } });
   await tx.auditEvent.create({ data: { action: "chat.moderation_defaults.install", success: true, statusCode: 200, targetType: "chat", metadata: { version: 1 } } });
+  return true;
+}
+
+const QUARANTINE_DEFAULTS: Record<string, string[]> = {
+  "chat.quarantine.trials": ["QC"],
+  "chat.quarantine.staff": ["MANAGER"],
+  "chat.quarantine.all": ["OWNER", "OPS_MANAGER"],
+};
+
+function quarantineAuthority(viewer: Viewer, subject: Viewer, modelId: string) {
+  const p = viewer.permissions;
+  const roles = subject.user.roleMemberships.map(({ role }) => role);
+  const staff = roles.some((r) => r.systemKey === "CHATTER" || r.systemKey === "TRIAL_CHATTER");
+  const protectedRole = roles.some((r) => ["OWNER", "OPS_MANAGER", "MANAGER", "QC", "DEV", "MODEL", "ACCOUNTANT", "GENERAL_STAFF"].includes(r.systemKey ?? "") ||
+    (r.rank !== null && r.rank < 5) || r.rolePermissions.some(({ permission }) => permission.key.startsWith("chat.quarantine.")));
+  const targetAssigned = subject.user.modelAssignments.some((a) => a.modelId === modelId);
+  const actorAssigned = viewer.user.modelAssignments.some((a) => a.modelId === modelId);
+  const actorPaused = viewer.user.chatQuarantines.some((q) => q.modelId === modelId);
+  const eligible = staff && !protectedRole && subject.permissions.has("chat.access") && subject.user.status === "ACTIVE";
+  const self = viewer.user.id === subject.user.id;
+  const trialsOnly = !roles.some((r) => r.systemKey === "CHATTER");
+  const authorized = !self && !actorPaused && eligible && targetAssigned &&
+    (p.has("chat.quarantine.all") || (actorAssigned && (p.has("chat.quarantine.staff") || (trialsOnly && p.has("chat.quarantine.trials")))));
+  // Owner recovery may clear an existing pause after unassignment, promotion or
+  // deactivation. This does not grant the ability to create a pause on that role.
+  return { authorized, recover: !self && !actorPaused && viewer.isOwner };
+}
+
+function quarantineControl(viewer: Viewer, subject: Viewer, modelId: string) {
+  const state = subject.user.chatQuarantines.find((q) => q.modelId === modelId);
+  const authority = quarantineAuthority(viewer, subject, modelId);
+  if (!authority.authorized && !(state && authority.recover)) return null;
+  return { modelId, userId: subject.user.id, personName: subject.user.name, active: !!state,
+    canPause: !state && authority.authorized, canLift: !!state && (authority.authorized || authority.recover) };
+}
+
+async function quarantineReview(tx: Prisma.TransactionClient, userId: string, modelId: string, subjectId: string) {
+  const viewer = await loadViewer(tx, userId);
+  const area = await tx.chatArea.findUnique({ where: { modelId }, include: { model: true } });
+  const person = await tx.user.findUnique({ where: { id: subjectId }, include: viewerInclude });
+  if (!area || !person) throw new ChatError(404, "Chat access review not found.");
+  const subject = makeViewer(person);
+  const control = quarantineControl(viewer, subject, modelId);
+  if (!control) throw new ChatError(404, "Chat access review not found.");
+  const state = await tx.chatQuarantine.findUnique({ where: { modelId_userId: { modelId, userId: subjectId } } });
+  const assignment = person.modelAssignments.find((a) => a.modelId === modelId);
+  const privateChat = assignment ? await tx.chatStandingConversation.findFirst({ where: {
+    modelId, subjectUserId: subjectId, assignmentId: assignment.id, kind: "STAFF", archivedAt: null,
+  }, orderBy: { createdAt: "desc" } }) : null;
+  const areaActive = area.model.isActive && !area.archivedAt;
+  return { viewer, subject, state, result: { ...control, creatorName: area.model.name,
+    canPause: control.canPause && areaActive && subject.permissions.has("chat.private.staff"), canLift: control.canLift,
+    version: state?.version ?? 0, assignmentId: assignment?.id ?? null,
+    privateChatId: privateChat?.id ?? null, reason: state?.reason ?? null,
+    changedAt: state?.changedAt ?? null, changedByName: state?.changedByName ?? null } };
+}
+
+export async function getChatQuarantine(userId: string, modelId: string, subjectId: string) {
+  return prisma.$transaction(async (tx) => (await quarantineReview(tx, userId, modelId, subjectId)).result);
+}
+
+export async function setChatQuarantine(userId: string, modelId: string, subjectId: string, input: {
+  active: boolean; version: number; assignmentId: string | null; reason: string; requestId: string;
+}) {
+  const reason = input.reason.trim();
+  if (!reason || reason.length > 1000 || !Number.isInteger(input.version) || input.version < 0 ||
+    typeof input.active !== "boolean" || !/^[0-9a-f-]{36}$/i.test(input.requestId)) throw new ChatError(400, "Review the person and give a reason of 1–1,000 characters.");
+  const hash = createHash("sha256").update(JSON.stringify([userId, modelId, subjectId, input.active, input.version, input.assignmentId, reason])).digest("hex");
+  return prisma.$transaction(async (tx) => {
+    // Stable person locks serialize both opposite actions and Chat requests.
+    for (const id of [...new Set([userId, subjectId])].sort())
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'chat-access:' + id}, 0))`;
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" IN (${userId}, ${subjectId}) ORDER BY "id" FOR SHARE`;
+    const review = await quarantineReview(tx, userId, modelId, subjectId);
+    const { viewer, subject, state, result } = review;
+    if (state?.lastRequestId === input.requestId) {
+      if (state.lastRequestHash !== hash) throw new ChatError(409, "This request reference was already used. Check the current status.");
+      return result;
+    }
+    if (result.version !== input.version || result.assignmentId !== input.assignmentId || result.active === input.active)
+      throw new ChatError(409, "The person’s chat access changed. Check their current status before confirming again.");
+    if (!(input.active ? result.canPause : result.canLift)) throw new ChatError(403, "Your current access does not allow this change.");
+    if (input.assignmentId) {
+      const assignment = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "UserModelAssignment" WHERE "id" = ${input.assignmentId} AND "userId" = ${subjectId} AND "modelId" = ${modelId} FOR SHARE`;
+      if (!assignment.length) throw new ChatError(409, "The creator assignment changed. Check the current status again.");
+    }
+    if (!viewer.permissions.has("chat.quarantine.all") && !viewer.isOwner) {
+      const assignmentId = viewer.user.modelAssignments.find((a) => a.modelId === modelId)?.id;
+      const current = assignmentId ? await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "UserModelAssignment" WHERE "id" = ${assignmentId} AND "userId" = ${userId} FOR SHARE` : [];
+      if (!current.length) throw new ChatError(409, "Your creator assignment changed. Check the current status again.");
+    }
+    if (input.active && !subject.permissions.has("chat.private.staff")) throw new ChatError(409, "A staff–management private chat is required before pausing chats.");
+    if (input.active && !result.privateChatId) {
+      await syncUserStandingChats(tx, subjectId);
+      const current = await quarantineReview(tx, userId, modelId, subjectId);
+      result.privateChatId = current.result.privateChatId;
+      if (!result.privateChatId) throw new ChatError(409, "Their private management chat is not available. No chats were paused.");
+    }
+    const values = { active: input.active, personName: subject.user.name, reason, changedAt: new Date(),
+      changedById: userId, changedByName: viewer.user.name, lastRequestId: input.requestId, lastRequestHash: hash };
+    const updated = await tx.chatQuarantine.upsert({ where: { modelId_userId: { modelId, userId: subjectId } },
+      create: { modelId, userId: subjectId, ...values, version: 1 }, update: { ...values, version: { increment: 1 } } });
+    const notice = input.active
+      ? `Your other chats for ${result.creatorName} are paused. This private management chat stays open. Login, Clock & Hours and your other creators are unaffected.`
+      : `Your chat pause for ${result.creatorName} has been lifted. Available chats now follow your current assignments and permissions.`;
+    let noticeId: string | null = null;
+    if (result.privateChatId) {
+      const message = await tx.chatMessage.create({ data: { conversationId: result.privateChatId, authorName: "Chat access notice",
+        clientNonce: `quarantine-${input.requestId}`, systemEventKey: `quarantine-${input.requestId}`, text: notice } });
+      noticeId = message.id;
+    }
+    await audit(tx, viewer, input.active ? "chat.quarantine.pause" : "chat.quarantine.lift", updated.id, {
+      modelId, creatorName: result.creatorName, subjectId, personName: subject.user.name,
+      assignmentId: result.assignmentId, reason, active: input.active, version: updated.version,
+      conversationId: result.privateChatId, noticeId, scope: "CREATOR_ONLY",
+    });
+    return { ...result, active: updated.active, version: updated.version, reason: updated.reason,
+      changedAt: updated.changedAt, changedByName: updated.changedByName,
+      canPause: !updated.active && quarantineAuthority(viewer, subject, modelId).authorized,
+      canLift: updated.active && (quarantineAuthority(viewer, subject, modelId).authorized || viewer.isOwner) };
+  }, { timeout: 10_000 }).catch((error: unknown) => {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2003", "P2034"].includes(error.code))
+      throw new ChatError(409, "Chat access changed during this request. Check the current status before trying again.");
+    throw error;
+  });
+}
+
+export async function installChatQuarantineDefaults(tx: Prisma.TransactionClient) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(62942124)`;
+  if (await tx.chatSetup.findUnique({ where: { id: "chat-quarantine-v1" } })) return false;
+  for (const [key, roleKeys] of Object.entries(QUARANTINE_DEFAULTS)) {
+    const definition = CHAT_PERMISSION_DEFINITIONS.find((p) => p.key === key)!;
+    const { requires: _requires, ...data } = definition;
+    const permission = await tx.permission.upsert({ where: { key }, create: data, update: {} });
+    const roles = await tx.role.findMany({ where: { systemKey: { in: roleKeys }, archivedAt: null } });
+    await tx.rolePermission.createMany({ data: roles.map((role) => ({ roleId: role.id, permissionId: permission.id })), skipDuplicates: true });
+  }
+  await tx.chatSetup.create({ data: { id: "chat-quarantine-v1" } });
+  await tx.auditEvent.create({ data: { action: "chat.quarantine.defaults.install", success: true, statusCode: 200, targetType: "chat", metadata: { version: 1 } } });
   return true;
 }

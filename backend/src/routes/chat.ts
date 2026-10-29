@@ -6,6 +6,7 @@ import { ChatError, chatGrantOptions, editChatMessage, isCreatorChatEnabled, lis
 import { getChatMessage, refreshChatMessages, searchChatMessages, listChatPins, setChatPin, setChatReaction } from "../services/creator-chat.js";
 import { createChatChannel, renameChatChannel } from "../services/creator-chat.js";
 import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } from "../services/creator-chat.js";
+import { getChatQuarantine, setChatQuarantine } from "../services/creator-chat.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -37,6 +38,9 @@ const run = (action: (req: Request, res: Response) => Promise<unknown>) => async
   }
 };
 router.get("/areas", run(async (req, res) => res.json({ areas: await listChatAreas(user(req)) })));
+const quarantineSchema = z.object({ active: z.boolean(), version: z.number().int().min(0), assignmentId: z.string().min(1).max(100).nullable(), reason: z.string().trim().min(1).max(1000), requestId: z.string().uuid() }).strict();
+router.get("/areas/:modelId/quarantines/:userId", run(async (req, res) => res.json(await getChatQuarantine(user(req), param(req, "modelId"), param(req, "userId")))));
+router.put("/areas/:modelId/quarantines/:userId", run(async (req, res) => res.json(await setChatQuarantine(user(req), param(req, "modelId"), param(req, "userId"), quarantineSchema.parse(req.body)))));
 router.post("/areas/:modelId/channels", run(async (req, res) => {
   const input = channelNameSchema.parse(req.body);
   res.status(201).json({ channel: await createChatChannel(user(req), param(req, "modelId"), input.name) });

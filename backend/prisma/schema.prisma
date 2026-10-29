@@ -83,6 +83,7 @@ model User {
   creatorProfile AgencyModel? @relation("CreatorAccount")
   chatMessages ChatMessage[]
   standingChats ChatStandingConversation[]
+  chatQuarantines ChatQuarantine[]
 
   chatReactions ChatReaction[]
   chatPinnedMessages ChatMessage[] @relation("ChatPinnedBy")
@@ -880,6 +881,28 @@ model ChatArea {
   createdAt DateTime @default(now())
   model AgencyModel @relation(fields: [modelId], references: [id], onDelete: Restrict)
   channels ChatChannel[]
+  quarantines ChatQuarantine[]
+}
+
+// Current creator-local pause. Audit events and private notices retain each
+// transition; lifting changes this state only, never assignments or grants.
+model ChatQuarantine {
+  id String @id @default(cuid())
+  modelId String
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  area ChatArea @relation(fields: [modelId], references: [modelId], onDelete: Restrict)
+  personName String
+  active Boolean @default(false)
+  version Int @default(0)
+  reason String
+  changedAt DateTime @default(now())
+  changedById String
+  changedByName String
+  lastRequestId String @unique
+  lastRequestHash String
+  @@unique([modelId, userId])
+  @@index([userId, active])
 }
 
 model ChatChannel {
@@ -928,6 +951,7 @@ model ChatMessage {
   authorUserId String?
   authorName String
   clientNonce String
+  systemEventKey String? @unique
   replyToId String?
   replyTo ChatMessage? @relation("ChatReply", fields: [replyToId], references: [id], onDelete: Restrict)
   replies ChatMessage[] @relation("ChatReply")

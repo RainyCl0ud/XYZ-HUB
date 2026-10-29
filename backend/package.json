@@ -66,7 +66,9 @@
     "test:chat-interactions": "tsx scripts/test-chat-interactions.ts",
     "test:chat-interactions-upgrade": "tsx scripts/test-chat-interactions-upgrade.ts",
     "test:chat-moderation": "tsx scripts/test-chat-moderation.ts",
-    "test:chat-moderation-upgrade": "tsx scripts/test-chat-moderation-upgrade.ts"
+    "test:chat-moderation-upgrade": "tsx scripts/test-chat-moderation-upgrade.ts",
+    "test:chat-quarantine": "tsx scripts/test-chat-quarantine.ts",
+    "test:chat-quarantine-upgrade": "tsx scripts/test-chat-quarantine-upgrade.ts"
   },
   "keywords": [],
   "author": "",

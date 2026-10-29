@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { prisma } from "../src/lib/prisma.js";
-import { installCreatorChatDefaults, installChatInteractionDefaults, installChatModerationDefaults, provisionCreatorChat } from "../src/services/creator-chat.js";
+import { installCreatorChatDefaults, installChatInteractionDefaults, installChatModerationDefaults, installChatQuarantineDefaults, provisionCreatorChat } from "../src/services/creator-chat.js";
 import { installStandingChatDefaults, syncUserStandingChats } from "../src/services/standing-chat.js";
 import { assertChatStagingTarget } from "../src/services/chat-staging-target.js";
 import { installClockCorrectionDefaults } from "../src/services/clock-corrections.js";
@@ -22,6 +22,7 @@ async function main() {
   await prisma.$transaction((tx) => installStandingChatDefaults(tx));
   await prisma.$transaction((tx) => installChatInteractionDefaults(tx));
   await prisma.$transaction((tx) => installChatModerationDefaults(tx));
+  await prisma.$transaction((tx) => installChatQuarantineDefaults(tx));
   if (isClockEnabled()) {
     await prisma.$transaction((tx) => installClockDefaults(tx));
     await prisma.$transaction((tx) => installClockAlertDefaults(tx));

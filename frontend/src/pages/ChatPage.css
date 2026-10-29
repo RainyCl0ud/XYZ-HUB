@@ -269,6 +269,26 @@
 .creator-chat-edit-conflict p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .creator-chat-edit-conflict summary { cursor: pointer; padding: 8px 0; }
 .creator-chat-edit-conflict button { margin-top: 8px; }
+.creator-chat-private-notice { flex-wrap: wrap; }
+.creator-chat-private-notice > button { margin-left: auto; }
+.creator-chat-pause-notice { flex-shrink: 0; padding: 12px 24px; border-bottom: 1px solid #666666; font-size: 13px; }
+.creator-chat-pause-notice p { margin: 4px 0 0; color: #CCCCCC; }
+.creator-chat-member { flex-wrap: wrap; }
+.creator-chat-member > strong { overflow-wrap: anywhere; }
+.creator-chat-member > button { margin-left: auto; white-space: normal; text-align: left; }
+.creator-chat-quarantine { width: min(640px, calc(100vw - 32px)); }
+.creator-chat-quarantine textarea { display: block; width: 100%; margin-top: 8px; padding: 12px; font: inherit; font-size: 15px; color: #FFFFFF; background: #0D0D0D; border: 1px solid #666666; border-radius: 2px; resize: vertical; box-sizing: border-box; }
+.creator-chat-quarantine textarea:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.creator-chat-quarantine .creator-chat-quarantine-confirm { background: #FFFFFF; color: #000000; border: 2px solid #FFFFFF; font-weight: 700; }
+.creator-chat-quarantine .creator-chat-quarantine-confirm:disabled { color: #5C5C5C; background: transparent; border-color: #333333; }
+.creator-chat-pause-record { margin: 16px 0; padding: 12px; border-left: 2px solid #FFFFFF; background: #0D0D0D; }
+.creator-chat-pause-record p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
+@media (max-width: 720px) {
+  .creator-chat-quarantine { padding: 16px; }
+  .creator-chat-quarantine textarea { font-size: 16px; }
+  .creator-chat-pause-notice { padding: 12px; }
+  .creator-chat-private-notice > button, .creator-chat-member > button { min-height: 44px; }
+}
 @media (max-width: 720px) {
   .creator-chat-action-menu > div { flex-direction: column; align-items: stretch; }
   .creator-chat-action-menu button, .creator-chat-dialog-actions button { min-height: 44px; }
