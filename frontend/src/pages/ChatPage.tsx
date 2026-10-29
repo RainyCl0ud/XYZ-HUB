@@ -40,6 +40,9 @@ export default function ChatPage() {
   const [tools, setTools] = useState<ChatToolTarget | null>(null);
   const [deleting, setDeleting] = useState<ModerationTarget | null>(null);
   const [notice, setNotice] = useState("");
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [toolsRevision, setToolsRevision] = useState(0);
+  const [toolsNotice, setToolsNotice] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -55,6 +58,10 @@ export default function ChatPage() {
   const transcriptRef = useRef(transcript);
   const messageRevision = useRef(0);
   const draftTargets = useRef({ edit, reply });
+  const composeState = useRef({ draft, edit, reply });
+  const conversationDrafts = useRef(new Map<string, { text: string; reply: Message | null }>());
+  const beforeEdit = useRef<{ text: string; reply: Message | null }>({ text: "", reply: null });
+  useLayoutEffect(() => { composeState.current = { draft, edit, reply }; }, [draft, edit, reply]);
   useLayoutEffect(() => { draftTargets.current = { edit, reply }; }, [edit, reply]);
   useLayoutEffect(() => { transcriptRef.current = transcript; }, [transcript]);
   const messagePane = useRef<HTMLDivElement>(null);
@@ -65,6 +72,9 @@ export default function ChatPage() {
   useEffect(() => { if (replyId) composer.current?.focus(); }, [replyId]);
   const area = areas.find((a) => a.channels.some((c) => c.id === selected));
   const channel = area?.channels.find((c) => c.id === selected);
+  const latestEdit = edit && transcript?.messages.find((m) => m.id === edit.id);
+  const editConflict = !!(edit && latestEdit && latestEdit.version !== edit.version);
+  const unchangedEdit = !!edit && draft.trim() === edit.text;
   const browseArea = area ?? areas[0];
   const query = channelSearch.trim().toLocaleLowerCase();
   const visibleChannels = browseArea?.channels.filter((c) => c.name.toLocaleLowerCase().includes(query) &&
@@ -72,11 +82,15 @@ export default function ChatPage() {
   const ordinaryChannels = visibleChannels.filter((c) => !c.isPrivate);
   const privateChannels = visibleChannels.filter((c) => c.isPrivate);
 
-  const chooseChannel = useCallback((id: string) => {
+  const chooseChannel = useCallback((id: string, preserveCurrent = true) => {
+    if (id === selectedRef.current) return;
+    const old = composeState.current;
+    if (selectedRef.current && preserveCurrent) conversationDrafts.current.set(selectedRef.current, old.edit ? beforeEdit.current : { text: old.draft, reply: old.reply });
+    const saved = conversationDrafts.current.get(id);
     selectedRef.current = id;
-    setSelected(id); setTranscript(null); setMembers([]); setDraft(""); setEdit(null); setError("");
+    setSelected(id); setTranscript(null); setMembers([]); setDraft(saved?.text ?? ""); setEdit(null); setError("");
     setSettings(null);
-    setReply(null); setTools(null); setDeleting(null); setNotice("");
+    setReply(saved?.reply ?? null); setTools(null); setDeleting(null); setNotice(saved?.text ? "Your unsent draft was kept for this conversation." : "");
     setShowMembers(false);
     pendingSend.current = null;
     followMessages.current = true;
@@ -87,8 +101,10 @@ export default function ChatPage() {
     const response = await apiRequest<{ areas: Area[] }>("/api/chat/areas", { signal });
     setAreas(response.areas);
     const current = selectedRef.current;
+    const permitted = new Set(response.areas.flatMap((a) => a.channels.map((c) => c.id)));
+    for (const id of conversationDrafts.current.keys()) if (!permitted.has(id)) conversationDrafts.current.delete(id);
     if (!response.areas.some((a) => a.channels.some((c) => c.id === current))) {
-      chooseChannel(response.areas[0]?.channels[0]?.id ?? "");
+      chooseChannel(response.areas[0]?.channels[0]?.id ?? "", false);
     }
     setLoading(false);
   }, [chooseChannel]);
@@ -149,7 +165,8 @@ export default function ChatPage() {
         if (revision === messageRevision.current) {
           const edited = currentEdit && (latest.get(currentEdit.id) ?? refreshed.get(currentEdit.id));
           const parent = currentReply && (latest.get(currentReply.id) ?? refreshed.get(currentReply.id));
-          if ((currentEdit && !edited?.canEdit) || (currentReply && (!parent || parent.deleted))) { setReply(null); setEdit(null); setDraft(""); }
+          if (currentEdit && !edited?.canEdit) { setReply(beforeEdit.current.reply); setEdit(null); setDraft(beforeEdit.current.text); setNotice("That message can no longer be edited. Your unsent draft has been restored."); }
+          else if (currentReply && (!parent || parent.deleted)) { setReply(null); setNotice("The original message is no longer available. Your draft is kept as a normal message."); }
           else if (parent) setReply(parent);
         }
         if (!response.canPost) { setReply(null); setEdit(null); setDraft(""); }
@@ -158,6 +175,7 @@ export default function ChatPage() {
       } catch (e) {
         if (stopped || selectedRef.current !== selected) return;
         if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
+          conversationDrafts.current.delete(selected);
           setTranscript(null); setMembers([]); setAreas([]); setEdit(null); setDraft(""); setReply(null); setTools(null); setDeleting(null);
           void refreshAreas(controller.signal).catch(() => {});
         }
@@ -168,7 +186,7 @@ export default function ChatPage() {
     };
     void refresh();
     return () => { stopped = true; clearTimeout(timer); controller.abort(); requestRef.current = null; };
-  }, [selected, refreshAreas]);
+  }, [selected, refreshAreas, refreshTick]);
 
   useLayoutEffect(() => {
     const pane = messagePane.current;
@@ -181,7 +199,7 @@ export default function ChatPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!selected || !draft.trim() || sending) return;
+    if (!selected || !draft.trim() || sending || editConflict || unchangedEdit) return;
     const channelId = selected;
     const text = draft.trim();
     setSending(true); setError("");
@@ -205,9 +223,11 @@ export default function ChatPage() {
       setTranscript((old) => old ? { ...old, messages: old.messages.some((m) => m.id === response.message.id)
         ? old.messages.map((m) => m.id === response.message.id ? response.message : m)
         : [...old.messages, response.message] } : old);
-      setDraft(""); setEdit(null); setReply(null); pendingSend.current = null;
+      setDraft(edit ? beforeEdit.current.text : ""); setReply(edit ? beforeEdit.current.reply : null); setEdit(null); pendingSend.current = null;
+      if (!edit) conversationDrafts.current.delete(channelId);
     } catch (e) {
       if (selectedRef.current === channelId) setError(errorText(e));
+      if (e instanceof ApiError && e.status === 409) setRefreshTick((v) => v + 1);
     } finally { setSending(false); }
   }
   async function loadOlder() {
@@ -232,29 +252,39 @@ export default function ChatPage() {
   }
   function startReply(channelId: string, message: Message) {
     if (selectedRef.current !== channelId) chooseChannel(channelId);
+    else if (edit) setDraft(beforeEdit.current.text);
     setEdit(null); setReply(message); setTools(null); setShowChannels(false); composer.current?.focus();
+  }
+  function startEdit(message: Message) {
+    if (!edit) beforeEdit.current = { text: draft, reply };
+    setReply(null); setEdit(message); setDraft(message.text); composer.current?.focus();
+  }
+  function cancelEdit() {
+    setEdit(null); setDraft(beforeEdit.current.text); setReply(beforeEdit.current.reply); composer.current?.focus();
   }
   function messageError(e: unknown) {
     setError(errorText(e));
-    if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
-      setTranscript(null); setReply(null); setEdit(null); setTools(null); setDraft("");
-      void refreshAreas().catch(() => {});
-    }
+    // A missing message is not evidence that the whole conversation was lost.
+    // Recheck the transcript before clearing the user's unrelated draft.
+    setRefreshTick((v) => v + 1);
   }
   function startModeration(channelId: string, message: Message) {
-    setTools(null); setDeleting({ channelId, message }); setNotice("");
+    const place = areas.find((a) => a.channels.some((c) => c.id === channelId));
+    const name = place?.channels.find((c) => c.id === channelId)?.name ?? "Conversation";
+    setDeleting({ channelId, conversationName: `${place?.name ?? "Workspace"} / ${name}`, message }); setNotice(""); setToolsNotice("");
   }
   function messageDeleted(channelId: string, id: string, retained: Message | null) {
-    setDeleting(null); setTools(null); setNotice("Message deleted. The full content and history are retained for Owners.");
+    setDeleting(null); setToolsRevision((v) => v + 1); setNotice("Message deleted. Owners keep its full content and history."); setToolsNotice("Message deleted. Owners keep its full content and history.");
     if (selectedRef.current !== channelId) return;
     messageRevision.current++;
     setTranscript((old) => old ? { ...old, messages: old.messages.flatMap((m) => m.id === id ? retained ? [retained] : [] : [
       m.replyTo?.id === id ? { ...m, replyTo: retained ? { id, authorName: retained.authorName, text: retained.text, version: retained.version, createdAt: retained.createdAt, deleted: true } : null, replyUnavailable: !retained } : m,
     ]) } : old);
-    if (draftTargets.current.edit?.id === id || draftTargets.current.reply?.id === id) { setEdit(null); setReply(null); setDraft(""); }
+    if (draftTargets.current.edit?.id === id) cancelEdit();
+    if (draftTargets.current.reply?.id === id) setReply(null);
   }
   function channelRow(c: Channel) {
-    return <button type="button" key={c.id} className="creator-chat-channel-row" aria-current={c.id === selected ? "page" : undefined}
+    return <button type="button" key={c.id} disabled={sending} className="creator-chat-channel-row" aria-current={c.id === selected ? "page" : undefined}
       onClick={() => { chooseChannel(c.id); setShowChannels(false); }}>
       <ChatIcon name={c.isPrivate ? "lock" : "channel"} />
       <span className="creator-chat-channel-name">{c.name}</span>
@@ -265,14 +295,14 @@ export default function ChatPage() {
     <section className="creator-chat" aria-labelledby="chat-page-title">
       <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1 id="chat-page-title">Chat</h1><p>Find your creator, choose a conversation and stay connected.</p></div><span className="creator-chat-timezone">All times in US Central</span></header>
       {error && <div className="creator-chat-error" role="alert">{error}</div>}
-      {notice && <p className="creator-chat-notice" role="status">{notice}</p>}
+      {notice && <div className="creator-chat-notice" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss update" onClick={() => setNotice("")}>Dismiss</button></div>}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
         <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">
             <div className="creator-chat-browse-tools">
               <div className="creator-chat-channel-heading"><strong>Conversations</strong><button type="button" className="creator-chat-mobile" onClick={() => setShowChannels(false)} aria-label="Back to conversation"><ChatIcon name="close" /></button></div>
               <label className="creator-chat-field-label" htmlFor="chat-workspace">Creator / workspace</label>
-              <select id="chat-workspace" value={browseArea?.modelId ?? ""} onChange={(e) => {
+              <select id="chat-workspace" disabled={sending} value={browseArea?.modelId ?? ""} onChange={(e) => {
                 const next = areas.find((a) => a.modelId === e.target.value);
                 setChannelSearch(""); setChannelFilter("all"); chooseChannel(next?.channels[0]?.id ?? "");
               }}>{areas.map((a) => <option key={a.modelId} value={a.modelId}>{a.name}{a.archived ? " · Archived" : ""}</option>)}</select>
@@ -280,6 +310,7 @@ export default function ChatPage() {
               <div className="creator-chat-filters" role="group" aria-label="Conversation type">
                 {([['all', 'All'], ['channels', 'Channels'], ['private', 'Private']] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={channelFilter === value} onClick={() => setChannelFilter(value)}>{label}</button>)}
               </div>
+              {(channelSearch || channelFilter !== "all") && <p className="creator-chat-filter-help">Filters change this list, not your open conversation.</p>}
             </div>
             <nav className="creator-chat-channel-list" aria-label={`${browseArea?.name ?? "Your"} conversations`}>
               {!!ordinaryChannels.length && <div className="creator-chat-channel-group"><h2>Channels <span>{ordinaryChannels.length}</span></h2>{ordinaryChannels.map(channelRow)}</div>}
@@ -295,7 +326,7 @@ export default function ChatPage() {
               <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
               <div className="creator-chat-header-actions">{channel?.canManage && area && <button type="button" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}<button type="button" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.length}</span></button></div>
             </header>
-            <div className="creator-chat-conversation-tools" role="group" aria-label="Message tools"><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "search", channelId: selected, channelName: channel?.name ?? "Conversation" })}><ChatIcon name="search" />Search messages</button><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "pins", channelId: selected, channelName: channel?.name ?? "Conversation" })}>Pinned messages</button>{transcript?.canViewDeleted && <button type="button" onClick={() => setTools({ kind: "deleted", channelId: selected, channelName: channel?.name ?? "Conversation" })}>Deleted messages</button>}</div>
+            <div className="creator-chat-conversation-tools" role="group" aria-label="Message tools"><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "search", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}><ChatIcon name="search" />Search messages</button><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "pins", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>Pinned messages</button>{transcript?.canViewDeleted && <button type="button" onClick={() => setTools({ kind: "deleted", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>Deleted messages</button>}</div>
             {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span></div>}
             {showMembers && <aside id="chat-members" className="creator-chat-members" aria-label="Conversation members"><header><h3>Who has access</h3><button type="button" onClick={() => setShowMembers(false)} aria-label="Close member list"><ChatIcon name="close" /></button></header><p className="creator-chat-members-hint">{members.length} {members.length === 1 ? "member" : "members"} can view this conversation.</p>{members.map((m) => <div className="creator-chat-member" key={m.id}><span className="creator-chat-avatar" aria-hidden="true">{m.name.slice(0, 1).toUpperCase()}</span><strong>{m.name}</strong><span>{m.canPost ? "Can post" : "Read only"}</span></div>)}</aside>}
             <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
@@ -304,22 +335,23 @@ export default function ChatPage() {
                 {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p><button type="button" onClick={() => setShowMembers(true)}>View members</button></div>}
                 {transcript.messages.map((m, index) => <Fragment key={m.id}>
                   {(index === 0 || day(transcript.messages[index - 1].createdAt) !== day(m.createdAt)) && <div className="creator-chat-day"><span>{day(m.createdAt)}</span></div>}
-                  <article className="creator-chat-message"><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} onReply={(message) => startReply(selected, message)} onEdit={(message) => { setReply(null); setEdit(message); setDraft(message.text); composer.current?.focus(); }} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => setTools({ kind: "message", channelId: selected, channelName: channel?.name ?? "Conversation", messageId })} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: channel?.name ?? "Conversation", messageId })} /></article>
+                  <article className="creator-chat-message"><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} onReply={(message) => startReply(selected, message)} onEdit={startEdit} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => setTools({ kind: "message", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} /></article>
                 </Fragment>)}
               </>}
             </div>
             {transcript?.canPost ? <form className="creator-chat-composer" onSubmit={(e) => void submit(e)}>
-              {edit && <div className="creator-chat-editing" role="status"><strong>Editing your message</strong><button type="button" onClick={() => { setEdit(null); setDraft(""); composer.current?.focus(); }}>Cancel edit</button></div>}
+              {edit && <div className="creator-chat-editing" role="status"><strong>Editing your message</strong><button type="button" onClick={cancelEdit}>Cancel edit</button></div>}
+              {editConflict && latestEdit && <div className="creator-chat-edit-conflict" role="alert"><strong>This message changed elsewhere.</strong><p>Your edit is kept below. Review the latest sent text before saving over it.</p><details><summary>View latest sent text</summary><p>{latestEdit.text}</p></details><button type="button" onClick={() => setEdit(latestEdit)}>I reviewed it — keep my edit</button></div>}
               {reply && <div className="creator-chat-replying" role="status"><div><strong>Replying to {reply.authorName}</strong><p>{reply.text}</p></div><button type="button" onClick={() => { setReply(null); composer.current?.focus(); }}>Cancel reply</button></div>}
               <label className="creator-chat-sr" htmlFor="chat-message">Message {channel?.name}</label>
               <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
-              <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Ctrl / ⌘ + Enter to send</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000` : ""}</span></small><button type="submit" disabled={sending || !draft.trim()}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button></div>
+              <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Ctrl / ⌘ + Enter to send</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000 · Draft kept while Chat stays open` : ""}</span></small><button type="submit" disabled={sending || editConflict || unchangedEdit || !draft.trim()}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button></div>
             </form> : transcript && <div className="creator-chat-readonly"><ChatIcon name="lock" /><div><strong>{channel?.archived ? "Archived conversation" : "Read-only conversation"}</strong><p>{channel?.archived ? "You can read the history here. New messages are disabled." : "You can read messages here, but your access does not include posting."}</p></div></div>}
           </div>
         </div>
       )}
       {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId} target={settings} onClose={() => setSettings(null)} onSaved={async (id) => { await refreshAreas(); if (id) chooseChannel(id); }} />}
-      {tools && <ChatMessageTools key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => setTools(null)} onOpen={setTools} onConversation={(id) => { chooseChannel(id); setTools(null); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} />}
+      {tools && <ChatMessageTools key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { chooseChannel(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} />}
       {deleting && <ChatModerationDialog key={deleting.message.id} target={deleting} onClose={() => setDeleting(null)} onDeleted={messageDeleted} />}
     </section>
   );

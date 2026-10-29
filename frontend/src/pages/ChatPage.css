@@ -244,3 +244,33 @@
   .creator-chat-tools :is(input, select), .creator-chat-moderation textarea { font-size: 16px; }
   .creator-chat-message-actions > button, .creator-chat-reaction-menu summary { min-height: 36px; display: flex; align-items: center; }
 }
+
+/* Message management is a separate disclosure, never a floating overlay that
+   can be clipped by a scrolling conversation or cover the next message. */
+.creator-chat-action-menu { min-width: 0; }
+.creator-chat-action-menu summary { list-style: none; cursor: pointer; padding: 8px 0; font-size: 13px; color: #CCCCCC; }
+.creator-chat-action-menu summary::-webkit-details-marker { display: none; }
+.creator-chat-action-menu summary::after { content: ' ▾'; }
+.creator-chat-action-menu summary:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.creator-chat-action-menu[open] { flex-basis: 100%; }
+.creator-chat-action-menu > div { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border: 1px solid #666666; border-radius: 2px; background: #0D0D0D; }
+.creator-chat .creator-chat-delete-action, .creator-chat-settings .creator-chat-delete-action { border: 2px solid #FFFFFF; }
+.creator-chat-delete-action::before { content: '!'; font-weight: 800; }
+.creator-chat-message-actions > button, .creator-chat-reaction-menu summary { min-height: 36px; }
+.creator-chat-filter-help, .creator-chat-settings .creator-chat-owner-help { color: #999999; font-size: 13px; line-height: 1.5; }
+.creator-chat-notice { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.creator-chat-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding-top: 16px; border-top: 1px solid #333333; }
+.creator-chat-moderation blockquote header { flex-wrap: wrap; gap: 8px; font-size: 13px; margin-bottom: 8px; }
+.creator-chat-moderation blockquote time, .creator-chat-moderation blockquote small { font-size: 13px; color: #999999; }
+.creator-chat-back { margin-bottom: 8px; }
+.creator-chat-record-preview > summary { cursor: pointer; padding: 8px 0; font-size: 13px; font-weight: 700; }
+.creator-chat-record-preview[open] > summary { margin-bottom: 12px; }
+.creator-chat-edit-conflict { padding: 12px; margin-bottom: 12px; border: 2px solid #FFFFFF; font-size: 13px; }
+.creator-chat-edit-conflict p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.creator-chat-edit-conflict summary { cursor: pointer; padding: 8px 0; }
+.creator-chat-edit-conflict button { margin-top: 8px; }
+@media (max-width: 720px) {
+  .creator-chat-action-menu > div { flex-direction: column; align-items: stretch; }
+  .creator-chat-action-menu button, .creator-chat-dialog-actions button { min-height: 44px; }
+  .creator-chat-dialog-actions button { flex: 1; }
+}
