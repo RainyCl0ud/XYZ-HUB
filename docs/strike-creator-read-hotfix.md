@@ -12,7 +12,9 @@ The read-only extension requires all of the following:
 - Current View Strikes plus its module permission dependency (existing checks).
 - Self + subordinates, with both employees assigned to an organization group.
 - Exactly one current creator assignment on each account, and the same creator.
-- Both organization groups share the same non-null immediate parent.
+- Both organization groups share the same non-null immediate parent, or the
+  target belongs directly to the reviewer's immediate parent team. Grandparent
+  teams and unrelated branches do not qualify for the new read path.
 - The target holds Chatter or Trial Chatter, has no Owner role, and every target
   role has a numeric authority rank below the reviewer's rank.
 
@@ -54,6 +56,8 @@ People hierarchy and current QA creator-access regressions.
 
 1. Use fictional staging QC/Chatter accounts assigned only to creator A, in
    sibling Quality Checker/Chatter groups under the same immediate team parent.
+   Also check a Chatter directly in that parent team while the QC is in a child
+   group (including a QC whose group happens to be named Trial Chatters).
 2. Confirm the QC role has View Strikes and Self + subordinates. Use an existing
    staging Strike issued by another authorized management account.
 3. Confirm the record appears in the list, employee filter and detail dialog;

@@ -42,7 +42,7 @@ try {
     const row = await prisma.teamGroup.create({ data: { name: `${prefix} ${name}`, parentId } });
     groupIds.push(row.id); return row;
   };
-  const parent = await group("creator"), qcTeam = await group("Quality Checker", parent.id),
+  const agency = await group("agency"), parent = await group("creator", agency.id), qcTeam = await group("Quality Checker", parent.id),
     chatterTeam = await group("Chatter", parent.id), trialTeam = await group("Trial", parent.id),
     childTeam = await group("QC child", qcTeam.id);
   const foreignParent = await group("foreign creator team"), foreignRoleGroup = await group("foreign Chatter", foreignParent.id);
@@ -86,6 +86,14 @@ try {
   const mixedUnranked = await person("mixed-unranked", [systemRoles.get("CHATTER")!, unrankedRole], [creator.id]);
   const noRoles = await person("no-roles", [], [creator.id]);
   const foreignTeam = await person("foreign-team", [systemRoles.get("CHATTER")!], [creator.id], foreignRoleGroup.id);
+  const parentChatter = await person("parent-chatter", [systemRoles.get("CHATTER")!], [creator.id], parent.id);
+  const parentTrial = await person("parent-trial", [systemRoles.get("TRIAL_CHATTER")!], [creator.id], parent.id);
+  const parentOtherCreator = await person("parent-other-creator", [systemRoles.get("CHATTER")!], [otherCreator.id], parent.id);
+  const parentShared = await person("parent-shared", [systemRoles.get("CHATTER")!], [creator.id, otherCreator.id], parent.id);
+  const parentHigher = await person("parent-higher", [systemRoles.get("CHATTER")!, systemRoles.get("MANAGER")!], [creator.id], parent.id);
+  const parentUnranked = await person("parent-unranked", [systemRoles.get("CHATTER")!, unrankedRole], [creator.id], parent.id);
+  const parentUnassigned = await person("parent-unassigned", [systemRoles.get("CHATTER")!], [], parent.id);
+  const agencyChatter = await person("grandparent-chatter", [systemRoles.get("CHATTER")!], [creator.id], agency.id);
   const inactive = await person("inactive", [systemRoles.get("CHATTER")!], [creator.id], chatterTeam.id, "DEACTIVATED");
   const descendant = await person("descendant", [systemRoles.get("CHATTER")!], [creator.id], childTeam.id);
   const owner = await person("Owner", [systemRoles.get("OWNER")!], [], parent.id);
@@ -108,7 +116,10 @@ try {
   const visible = await record(chatter, { sourceIncidentId: `${prefix}-trace` }), trialRecord = await record(trial);
   const expired = await record(chatter, { expiresAt: new Date(Date.now() - 86400000) });
   const voided = await record(chatter, { voidedAt: new Date() });
-  const restricted = await Promise.all([other, shared, unassigned, ungrouped, peer, higher, mixed, mixedUnranked, noRoles, foreignTeam, owner].map((u) => record(u)));
+  const restricted = await Promise.all([other, shared, unassigned, ungrouped, peer, higher, mixed, mixedUnranked, noRoles, foreignTeam,
+    parentOtherCreator, parentShared, parentHigher, parentUnranked, parentUnassigned, agencyChatter, owner].map((u) => record(u)));
+  const parentRecord = await record(parentChatter, { sourceIncidentId: `${prefix}-parent-trace` });
+  const parentTrialRecord = await record(parentTrial);
   const inactiveRecord = await record(inactive), descendantRecord = await record(descendant), selfRecord = await record(self);
   const scope = await getAccessContext(qc.id);
   assert.equal(await canAccessTeamGroup(scope, chatterTeam.id), false, "Reproduce sibling organization groups.");
@@ -123,6 +134,12 @@ try {
   assert.ok(!(await listStrikes({ ...scope, canSeeAllModels: true })).some((r) => r.userId === other.id),
     "Global creator visibility must not bypass the explicit creator-team membership check.");
   pass("Creator-team Chatter/Trial history includes other issuers, expired and voided records; unsafe targets stay hidden");
+  assert.ok(ids.includes(parentRecord.id), "QC in a creator subgroup must read the same creator's lower-ranked Chatter directly in its immediate parent team.");
+  assert.ok(ids.includes(parentTrialRecord.id));
+  assert.equal((await getStrike(parentRecord.id, scope)).id, parentRecord.id);
+  assert.equal((await getStrikeBySourceIncident(`${prefix}-parent-trace`, scope))?.id, parentRecord.id);
+  assert.equal((await listStrikeHistoryForUser(parentChatter.id, scope))?.total, 1);
+  pass("Parent-team Chatter/Trial records are visible from a QC subgroup without exposing grandparents, other creators or protected roles");
   assert.equal((await getStrike(visible.id, scope)).id, visible.id);
   assert.equal((await getStrikeBySourceIncident(`${prefix}-trace`, scope))?.id, visible.id);
   const history = await listStrikeHistoryForUser(chatter.id, scope);
@@ -144,9 +161,12 @@ try {
   await error(() => listEligibleStrikeTargets(scope), "STRIKES_ISSUE_REQUIRED");
   const writerScope = await getAccessContext(writer.id);
   await error(() => voidStrike(visible.id, "Outside existing write scope", writerScope), "STRIKE_NOT_MANAGEABLE");
+  await error(() => voidStrike(parentRecord.id, "No new parent write authority", writerScope), "STRIKE_NOT_MANAGEABLE");
   const eligible = (await listEligibleStrikeTargets(writerScope)).map((u) => u.id);
   assert.ok(eligible.includes(descendant.id));
   assert.ok(!eligible.includes(chatter.id) && !eligible.includes(trial.id), "Read fix must not broaden existing write scope.");
+  assert.ok(!eligible.includes(parentChatter.id) && !eligible.includes(parentTrial.id));
+  await error(() => issueStrike({ ...deniedInput, userId: parentChatter.id }, writerScope), "TARGET_NOT_MANAGEABLE");
   for (const u of [other, shared, unassigned, ungrouped, peer, higher, mixed, mixedUnranked, noRoles, owner, inactive, writer]) assert.ok(!eligible.includes(u.id));
   await error(() => issueStrike(deniedInput, writerScope), "TARGET_NOT_MANAGEABLE");
   const issued = await issueStrike({ ...deniedInput, userId: descendant.id, details: "Existing delegated write scope." }, writerScope); strikeIds.push(issued.id);
@@ -168,6 +188,7 @@ try {
   const response = await request("/", qcCookie); assert.equal(response.status, 200);
   assert.ok((await response.json()).data.some((r: { id: string }) => r.id === visible.id));
   assert.equal((await request(`/${visible.id}`, qcCookie)).status, 200);
+  assert.equal((await request(`/${parentRecord.id}`, qcCookie)).status, 200);
   assert.equal((await request(`/${restricted[0].id}`, qcCookie)).status, 404);
   assert.equal((await request("/eligible-users", qcCookie)).status, 403);
   assert.equal((await request("/", qcCookie, deniedInput)).status, 403);
@@ -176,6 +197,9 @@ try {
   assert.ok(!(await listStrikes(await getAccessContext(qc.id))).some((r) => r.userId === chatter.id));
   await error(async () => getStrike(visible.id, await getAccessContext(qc.id)), "STRIKE_NOT_FOUND");
   await prisma.userModelAssignment.create({ data: { userId: chatter.id, modelId: creator.id } });
+  await prisma.userModelAssignment.deleteMany({ where: { userId: parentChatter.id } });
+  assert.equal((await request(`/${parentRecord.id}`, qcCookie)).status, 404);
+  await prisma.userModelAssignment.create({ data: { userId: parentChatter.id, modelId: creator.id } });
   await prisma.userModelAssignment.deleteMany({ where: { userId: qc.id } });
   assert.ok(!(await listStrikes(await getAccessContext(qc.id))).some((r) => r.id === visible.id));
   assert.equal((await request(`/${visible.id}`, qcCookie)).status, 404, "Existing sessions must use fresh assignments.");
