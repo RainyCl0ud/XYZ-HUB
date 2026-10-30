@@ -7,6 +7,7 @@ import { getChatMessage, refreshChatMessages, searchChatMessages, listChatPins, 
 import { createChatChannel, renameChatChannel } from "../services/creator-chat.js";
 import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } from "../services/creator-chat.js";
 import { getChatQuarantine, setChatQuarantine } from "../services/creator-chat.js";
+import { listChatUnread, markChatMessagesRead } from "../services/creator-chat.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -38,6 +39,12 @@ const run = (action: (req: Request, res: Response) => Promise<unknown>) => async
   }
 };
 router.get("/areas", run(async (req, res) => res.json({ areas: await listChatAreas(user(req)) })));
+router.get("/unread", run(async (req, res) => res.json(await listChatUnread(user(req)))));
+const readSchema = z.union([
+  z.object({ messageIds: z.array(z.string().min(1).max(100)).min(1).max(100) }).strict(),
+  z.object({ throughMessageId: z.string().min(1).max(100) }).strict(),
+]);
+router.put("/channels/:channelId/read", run(async (req, res) => res.json(await markChatMessagesRead(user(req), param(req, "channelId"), readSchema.parse(req.body)))));
 const quarantineSchema = z.object({ active: z.boolean(), version: z.number().int().min(0), assignmentId: z.string().min(1).max(100).nullable(), reason: z.string().trim().min(1).max(1000), requestId: z.string().uuid() }).strict();
 router.get("/areas/:modelId/quarantines/:userId", run(async (req, res) => res.json(await getChatQuarantine(user(req), param(req, "modelId"), param(req, "userId")))));
 router.put("/areas/:modelId/quarantines/:userId", run(async (req, res) => res.json(await setChatQuarantine(user(req), param(req, "modelId"), param(req, "userId"), quarantineSchema.parse(req.body)))));

@@ -86,6 +86,7 @@ model User {
   chatQuarantines ChatQuarantine[]
 
   chatReactions ChatReaction[]
+  chatMessageReads ChatMessageRead[]
   chatPinnedMessages ChatMessage[] @relation("ChatPinnedBy")
   chatDeletedMessages ChatMessage[] @relation("ChatDeletedBy")
 
@@ -961,6 +962,7 @@ model ChatMessage {
   pinVersion Int @default(0)
   pinnedBy User? @relation("ChatPinnedBy", fields: [pinnedById], references: [id], onDelete: SetNull)
   reactions ChatReaction[]
+  reads ChatMessageRead[]
   deletedAt DateTime?
   deletedById String?
   deletedByName String?
@@ -1060,5 +1062,17 @@ model ChatReaction {
   message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([messageId, userId, emoji])
+  @@index([userId])
+}
+
+// This person's explicit reads only. Public read receipts are not exposed.
+// Individual rows avoid timestamp and late-commit read-watermark races.
+model ChatMessageRead {
+  messageId String
+  userId String
+  readAt DateTime @default(now())
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([messageId, userId])
   @@index([userId])
 }
