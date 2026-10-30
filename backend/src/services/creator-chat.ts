@@ -209,7 +209,75 @@ async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: Viewer)
     return result.filter((area) => area.channels.length || area.canManage);
 }
 export async function listChatAreas(userId: string) {
-  return prisma.$transaction(async (tx) => accessibleChatAreas(tx, await loadViewer(tx, userId)));
+  return prisma.$transaction(async (tx) => {
+    const viewer = await loadViewer(tx, userId);
+    const areas = await accessibleChatAreas(tx, viewer);
+    const counts = await unreadCounts(tx, viewer, areas);
+    return areas.map((area) => ({ ...area, unreadCount: area.channels.reduce((sum, c) => sum + (counts.get(c.id)?.count ?? 0), 0),
+      channels: area.channels.map((c) => ({ ...c, unreadCount: counts.get(c.id)?.count ?? 0 })) }));
+  });
+}
+
+async function unreadWhere(tx: Prisma.TransactionClient, viewer: Viewer): Promise<Prisma.ChatMessageWhereInput> {
+  const start = await tx.chatSetup.findUniqueOrThrow({ where: { id: "chat-unread-v1" } });
+  return { deletedAt: null, createdAt: { gte: start.createdAt },
+    OR: [{ authorUserId: null }, { authorUserId: { not: viewer.user.id } }],
+    reads: { none: { userId: viewer.user.id } } };
+}
+async function unreadCounts(tx: Prisma.TransactionClient, viewer: Viewer, areas: Awaited<ReturnType<typeof accessibleChatAreas>>) {
+  const active = areas.flatMap((a) => a.channels.filter((c) => !c.archived));
+  const base = await unreadWhere(tx, viewer);
+  const [channels, conversations] = await Promise.all([
+    tx.chatMessage.groupBy({ by: ["channelId"], where: { AND: [base, { channelId: { in: active.filter((c) => !c.isPrivate).map((c) => c.id) } }] }, _count: { id: true }, _min: { createdAt: true } }),
+    tx.chatMessage.groupBy({ by: ["conversationId"], where: { AND: [base, { conversationId: { in: active.filter((c) => c.isPrivate).map((c) => c.id) } }] }, _count: { id: true }, _min: { createdAt: true } }),
+  ]);
+  const counts = new Map<string, { count: number; oldestAt: Date }>();
+  for (const row of [...channels.map((c) => ({ ...c, id: c.channelId })), ...conversations.map((c) => ({ ...c, id: c.conversationId }))]) {
+    if (row.id && row._min.createdAt) counts.set(row.id, { count: row._count.id, oldestAt: row._min.createdAt });
+  }
+  return counts;
+}
+export async function listChatUnread(userId: string) {
+  return prisma.$transaction(async (tx) => {
+    const viewer = await loadViewer(tx, userId);
+    const counts = await unreadCounts(tx, viewer, await accessibleChatAreas(tx, viewer));
+    const conversations = [...counts].map(([channelId, c]) => ({ channelId, unreadCount: c.count, oldestUnreadAt: c.oldestAt }));
+    return { totalUnread: conversations.reduce((sum, c) => sum + c.unreadCount, 0), conversations };
+  });
+}
+
+/** GET/search/pin/background polling never marks a read. The browser can only
+ * acknowledge this person's visible messages, with current access rechecked. */
+export async function markChatMessagesRead(userId: string, channelId: string, input: { messageIds?: string[]; throughMessageId?: string }) {
+  const ids = input.messageIds;
+  if (!!ids === !!input.throughMessageId || (ids && (!ids.length || ids.length > 100 || ids.some((id) => !id || id.length > 100)))) throw new ChatError(400, "Choose visible messages or a conversation read point.");
+  return prisma.$transaction(async (tx) => {
+    const { viewer, scope, channel, access } = await openChannel(tx, userId, channelId);
+    if (access.archived) throw new ChatError(403, "Archived conversations have no unread messages.");
+    if (ids) {
+      const unique = [...new Set(ids)];
+      const visible = await tx.chatMessage.findMany({ where: { ...scope, deletedAt: null, id: { in: unique } }, select: { id: true } });
+      if (visible.length !== unique.length) throw new ChatError(404, "Message not found in this conversation. Refresh before trying again.");
+      await tx.chatMessageRead.createMany({ data: visible.map((m) => ({ messageId: m.id, userId })), skipDuplicates: true });
+    } else {
+      const anchor = await tx.chatMessage.findFirst({ where: { ...scope, id: input.throughMessageId!, deletedAt: null }, select: { id: true, createdAt: true } });
+      if (!anchor) throw new ChatError(404, "Read point not found. Refresh the conversation.");
+      // A single INSERT SELECT sees only committed messages. An older-started
+      // transaction committing later remains unread, even before this anchor.
+      const target = channel ? Prisma.sql`m."channelId" = ${channelId}` : Prisma.sql`m."conversationId" = ${channelId}`;
+      const start = await tx.chatSetup.findUniqueOrThrow({ where: { id: "chat-unread-v1" } });
+      // Prisma's legacy message column stores UTC without a timezone. Bind ISO
+      // text and cast explicitly, avoiding the database session's local offset.
+      const startTime = start.createdAt.toISOString(), anchorTime = anchor.createdAt.toISOString();
+      await tx.$executeRaw`INSERT INTO "ChatMessageRead" ("messageId", "userId", "readAt")
+        SELECT m."id", ${userId}, clock_timestamp() AT TIME ZONE 'UTC' FROM "ChatMessage" m WHERE ${target} AND m."deletedAt" IS NULL
+        AND m."createdAt" >= ${startTime}::timestamp AND (m."authorUserId" IS NULL OR m."authorUserId" <> ${userId})
+        AND (m."createdAt" < ${anchorTime}::timestamp OR (m."createdAt" = ${anchorTime}::timestamp AND m."id" <= ${anchor.id}))
+        ON CONFLICT ("messageId", "userId") DO NOTHING`;
+    }
+    const count = await tx.chatMessage.count({ where: { AND: [scope, await unreadWhere(tx, viewer)] } });
+    return { unreadCount: count };
+  });
 }
 
 export async function listChatMessages(userId: string, channelId: string, before?: string) {
@@ -224,10 +292,13 @@ export async function listChatMessages(userId: string, channelId: string, before
     }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 51, include: messageInclude });
     const hasMore = rows.length > 50;
     const messages = rows.slice(0, 50).reverse().map((m) => messageDto(m, viewer, access.canPost, access.archived));
+    const unreadMessageIds = access.archived ? [] : (await tx.chatMessage.findMany({ where: {
+      AND: [await unreadWhere(tx, viewer), { id: { in: messages.map((m) => m.id) } }],
+    }, select: { id: true } })).map((m) => m.id);
     const control = conversation?.kind === "STAFF" && conversation.modelId && conversation.subjectUser
       ? quarantineControl(viewer, makeViewer(conversation.subjectUser), conversation.modelId) : null;
     const quarantine = control && (!access.archived || (control.active && control.canLift)) ? control : null;
-    return { messages, quarantine, canPost: access.canPost, canViewDeleted: viewer.isOwner, canPin: access.canPost && viewer.permissions.has("chat.messages.pin"), hasMore, nextBefore: hasMore ? messages[0].id : null };
+    return { messages, unreadMessageIds, quarantine, canPost: access.canPost, canViewDeleted: viewer.isOwner, canPin: access.canPost && viewer.permissions.has("chat.messages.pin"), hasMore, nextBefore: hasMore ? messages[0].id : null };
   });
 }
 
