@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, apiRequest } from "../lib/api";
+import { useAuth } from "../auth/AuthContext";
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
@@ -12,6 +13,22 @@ type Channel = { id: string; name: string; canPost: boolean; canManage: boolean;
 type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; pausedForYou?: boolean; channels: Channel[]; unreadCount?: number };
 type Transcript = { messages: Message[]; unreadMessageIds?: string[]; quarantine?: QuarantineControl | null; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; hasMore: boolean; nextBefore: string | null };
 type Member = { id: string; name: string; canView?: boolean; canPost: boolean; quarantine?: QuarantineControl | null };
+type ChatLocation = { modelId: string; channelId: string };
+const locationKey = (userId: string) => `xyz_chat_location_v1:${userId}`;
+function savedLocation(userId: string): ChatLocation | null {
+  try {
+    const value: unknown = JSON.parse(sessionStorage.getItem(locationKey(userId)) ?? "null");
+    if (value && typeof value === "object" && "modelId" in value && "channelId" in value &&
+      typeof value.modelId === "string" && typeof value.channelId === "string") return value as ChatLocation;
+  } catch { /* Storage can be unavailable; Chat still works without remembering. */ }
+  return null;
+}
+function rememberLocation(userId: string, location: ChatLocation | null) {
+  try {
+    if (location) sessionStorage.setItem(locationKey(userId), JSON.stringify(location));
+    else sessionStorage.removeItem(locationKey(userId));
+  } catch { /* Remembering navigation must never prevent opening Chat. */ }
+}
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Unable to load chat. Please try again.";
 const day = (value: string) => new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Chicago", month: "long", day: "numeric", year: "numeric",
@@ -33,6 +50,12 @@ function ChatIcon({ name }: { name: IconName }) {
 }
 
 export default function ChatPage() {
+  const { user } = useAuth();
+  // A different signed-in account starts with its own state and pending requests.
+  return user ? <ChatWorkspace key={user.id} userId={user.id} /> : null;
+}
+
+function ChatWorkspace({ userId }: { userId: string }) {
   const [areas, setAreas] = useState<Area[]>([]);
   const [selected, setSelected] = useState("");
   const [transcript, setTranscript] = useState<Transcript | null>(null);
@@ -60,6 +83,7 @@ export default function ChatPage() {
   const [readError, setReadError] = useState("");
   const [settings, setSettings] = useState<{ modelId: string; channelId?: string; name: string } | null>(null);
   const selectedRef = useRef(selected);
+  const availableAreas = useRef<Area[]>([]);
   const areasRequest = useRef(0);
   const requestRef = useRef<AbortController | null>(null);
   const pendingSend = useRef<{ channelId: string; text: string; replyToId?: string; nonce: string } | null>(null);
@@ -91,6 +115,9 @@ export default function ChatPage() {
   const privateChannels = visibleChannels.filter((c) => c.isPrivate);
 
   const chooseChannel = useCallback((id: string, preserveCurrent = true) => {
+    const place = availableAreas.current.find((a) => a.channels.some((c) => c.id === id));
+    if (place) rememberLocation(userId, { modelId: place.modelId, channelId: id });
+    else if (!id) rememberLocation(userId, null);
     if (id === selectedRef.current) return;
     setReadError("");
     const old = composeState.current;
@@ -105,21 +132,27 @@ export default function ChatPage() {
     pendingSend.current = null;
     followMessages.current = true;
     earlierScroll.current = null;
-  }, []);
+  }, [userId]);
 
   const refreshAreas = useCallback(async (signal?: AbortSignal) => {
     const request = ++areasRequest.current;
     const response = await apiRequest<{ areas: Area[] }>("/api/chat/areas", { signal });
     if (signal?.aborted || request !== areasRequest.current) return;
+    availableAreas.current = response.areas;
     setAreas(response.areas);
     const current = selectedRef.current;
     const permitted = new Set(response.areas.flatMap((a) => a.channels.map((c) => c.id)));
     for (const id of conversationDrafts.current.keys()) if (!permitted.has(id)) conversationDrafts.current.delete(id);
     if (!response.areas.some((a) => a.channels.some((c) => c.id === current))) {
-      chooseChannel(response.areas[0]?.channels[0]?.id ?? "", false);
+      // Saved IDs are only navigation hints. Restore from the current server
+      // list, never fetch a remembered private chat before checking access.
+      const saved = savedLocation(userId);
+      const savedArea = response.areas.find((a) => a.modelId === saved?.modelId);
+      const restored = savedArea?.channels.find((c) => c.id === saved?.channelId);
+      chooseChannel(restored?.id ?? savedArea?.channels[0]?.id ?? response.areas.flatMap((a) => a.channels)[0]?.id ?? "", false);
     }
     setLoading(false);
-  }, [chooseChannel]);
+  }, [chooseChannel, userId]);
 
   const readsSaved = useCallback((ids: string[]) => {
     setReadError("");
