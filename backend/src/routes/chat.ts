@@ -8,6 +8,7 @@ import { createChatChannel, renameChatChannel } from "../services/creator-chat.j
 import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } from "../services/creator-chat.js";
 import { getChatQuarantine, setChatQuarantine } from "../services/creator-chat.js";
 import { listChatUnread, markChatMessagesRead } from "../services/creator-chat.js";
+import { announcementCapability, previewAnnouncement, publishAnnouncement, listAnnouncements, announcementDetails } from "../services/chat-announcements.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -38,7 +39,15 @@ const run = (action: (req: Request, res: Response) => Promise<unknown>) => async
     next(error);
   }
 };
-router.get("/areas", run(async (req, res) => res.json({ areas: await listChatAreas(user(req)) })));
+router.get("/areas", run(async (req, res) => res.json({ areas: await listChatAreas(user(req)), announcements: await announcementCapability(user(req)) })));
+const announcementSchema = z.object({ title: z.string().trim().min(1).max(120).regex(/^[^\r\n]+$/), text: z.string().trim().min(1).max(7800) }).strict();
+router.get("/announcements", run(async (req, res) => res.json({ announcements: await listAnnouncements(user(req)) })));
+router.get("/announcements/:announcementId", run(async (req, res) => res.json({ announcement: await announcementDetails(user(req), param(req, 'announcementId')) })));
+router.post("/announcements/preview", run(async (req, res) => res.json(await previewAnnouncement(user(req), announcementSchema.parse(req.body)))));
+router.post("/announcements", run(async (req, res) => {
+  const input = announcementSchema.extend({ requestId: z.string().uuid(), previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict().parse(req.body);
+  res.status(201).json(await publishAnnouncement(user(req), input));
+}));
 router.get("/unread", run(async (req, res) => res.json(await listChatUnread(user(req)))));
 const readSchema = z.union([
   z.object({ messageIds: z.array(z.string().min(1).max(100)).min(1).max(100) }).strict(),

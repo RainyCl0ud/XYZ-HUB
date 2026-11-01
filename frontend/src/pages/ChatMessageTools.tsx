@@ -6,6 +6,7 @@ export type ChatMessage = {
   canEdit: boolean; canReply: boolean; canPin: boolean; pinnedAt: string | null; pinnedByName: string | null; pinVersion: number;
   canModerate?: boolean; canViewHistory?: boolean; replyUnavailable?: boolean;
   systemNotice?: boolean;
+  announcement?: boolean;
   deleted?: { at: string; by: string; reason: string } | null;
   replyTo: { id: string; authorName: string; text: string; version: number; createdAt: string; deleted?: boolean } | null;
   reactions: { emoji: string; count: number; mine: boolean }[];
@@ -58,7 +59,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     {m.replyTo && <button type="button" className="creator-chat-quote" onClick={() => onOpen(m.replyTo!.id)} aria-label={`View original message by ${m.replyTo.authorName}`}>
       <strong>Reply to {m.replyTo.authorName}{m.replyTo.deleted ? " · Deleted" : ""}{m.replyTo.version > 1 ? " · edited" : ""}</strong><span>{m.replyTo.text}</span>
     </button>}
-    <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small>System notice</small>}{m.version > 1 && <small>Edited</small>}</header>
+    <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>
     {m.deleted && <div className="creator-chat-deleted-notice"><strong>Deleted · Owner view</strong><p>Deleted by {m.deleted.by} · {chatTime(m.deleted.at)}</p><p>Reason: {m.deleted.reason}</p></div>}
     {m.pinnedAt && <small className="creator-chat-pin-label">Pinned by {m.pinnedByName}</small>}
     <p>{m.text}</p>

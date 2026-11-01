@@ -299,3 +299,22 @@
   .creator-chat-action-menu button, .creator-chat-dialog-actions button { min-height: 44px; }
   .creator-chat-dialog-actions button { flex: 1; }
 }
+.creator-chat-heading-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.creator-chat-heading-tools button { padding: 10px 14px; color: #FFFFFF; background: #131313; border: 1px solid #666666; border-radius: 2px; font: inherit; cursor: pointer; }
+.creator-chat-announcements { width: min(760px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.creator-chat-announcements form { display: flex; flex-direction: column; gap: 12px; }
+.creator-chat-announcements input:not([type="checkbox"]), .creator-chat-announcements textarea { box-sizing: border-box; width: 100%; padding: 12px; background: #0D0D0D; color: #FFFFFF; border: 1px solid #666666; border-radius: 2px; font: inherit; }
+.creator-chat-announcement-body { border: 1px solid #666666; padding: 16px; margin: 20px 0; }
+.creator-chat-announcement-body p, .creator-chat-announcement-deliveries pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.creator-chat-announcement-deliveries { list-style: none; margin: 20px 0 0; padding: 0; }
+.creator-chat-announcement-deliveries > li { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px 0; border-top: 1px solid #333333; overflow-wrap: anywhere; }
+.creator-chat-announcement-deliveries details { width: 100%; }
+.creator-chat-announcements details > summary { cursor: pointer; padding: 12px 0; }
+.creator-chat-announcement-confirm { display: flex; align-items: flex-start; gap: 12px; margin: 20px 0; }
+.creator-chat-announcement-confirm input { margin-top: 3px; accent-color: #FFFFFF; }
+@media (max-width: 720px) {
+  .creator-chat-heading-tools { align-items: flex-start; }
+  .creator-chat-heading-tools button { min-height: 44px; }
+  .creator-chat-announcements { padding: 16px; }
+  .creator-chat-announcements input:not([type="checkbox"]), .creator-chat-announcements textarea { font-size: 16px; }
+}

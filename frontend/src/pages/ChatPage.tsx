@@ -1,6 +1,8 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, apiRequest } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
+import { useSearchParams } from "react-router-dom";
+import ChatAnnouncements from "./ChatAnnouncements";
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
@@ -56,6 +58,9 @@ export default function ChatPage() {
 }
 
 function ChatWorkspace({ userId }: { userId: string }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedConversation = searchParams.get('conversation') ?? '';
+  const [canAnnounce, setCanAnnounce] = useState(false), [showAnnouncements, setShowAnnouncements] = useState(false);
   const [areas, setAreas] = useState<Area[]>([]);
   const [selected, setSelected] = useState("");
   const [transcript, setTranscript] = useState<Transcript | null>(null);
@@ -136,23 +141,26 @@ function ChatWorkspace({ userId }: { userId: string }) {
 
   const refreshAreas = useCallback(async (signal?: AbortSignal) => {
     const request = ++areasRequest.current;
-    const response = await apiRequest<{ areas: Area[] }>("/api/chat/areas", { signal });
+    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean } }>("/api/chat/areas", { signal });
     if (signal?.aborted || request !== areasRequest.current) return;
     availableAreas.current = response.areas;
     setAreas(response.areas);
+    setCanAnnounce(!!response.announcements?.canAnnounce);
     const current = selectedRef.current;
     const permitted = new Set(response.areas.flatMap((a) => a.channels.map((c) => c.id)));
     for (const id of conversationDrafts.current.keys()) if (!permitted.has(id)) conversationDrafts.current.delete(id);
-    if (!response.areas.some((a) => a.channels.some((c) => c.id === current))) {
+    if (linkedConversation || !response.areas.some((a) => a.channels.some((c) => c.id === current))) {
       // Saved IDs are only navigation hints. Restore from the current server
       // list, never fetch a remembered private chat before checking access.
       const saved = savedLocation(userId);
       const savedArea = response.areas.find((a) => a.modelId === saved?.modelId);
       const restored = savedArea?.channels.find((c) => c.id === saved?.channelId);
-      chooseChannel(restored?.id ?? savedArea?.channels[0]?.id ?? response.areas.flatMap((a) => a.channels)[0]?.id ?? "", false);
+      const linked = response.areas.flatMap(a => a.channels).find(c => c.id === linkedConversation);
+      chooseChannel(linked?.id ?? restored?.id ?? savedArea?.channels[0]?.id ?? response.areas.flatMap((a) => a.channels)[0]?.id ?? "", false);
+      if (linkedConversation) setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete('conversation'); return next; }, { replace: true });
     }
     setLoading(false);
-  }, [chooseChannel, userId]);
+  }, [chooseChannel, userId, linkedConversation, setSearchParams]);
 
   const readsSaved = useCallback((ids: string[]) => {
     setReadError("");
@@ -162,7 +170,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   }, [refreshAreas]);
   const readFailed = useCallback(() => setReadError("Read status wasn’t saved. It will retry when messages refresh."), []);
   useChatReadTracking(messagePane, selected, transcript?.unreadMessageIds ?? noUnreadIds,
-    !!(loading || error || tools || deleting || quarantining || settings || showMembers || showChannels || markingRead), readsSaved, readFailed);
+    !!(loading || error || tools || deleting || quarantining || settings || showMembers || showChannels || showAnnouncements || markingRead), readsSaved, readFailed);
 
   async function markConversationRead() {
     const channelId = selected, anchor = transcript?.messages.filter((m) => !m.deleted).at(-1)?.id;
@@ -362,9 +370,10 @@ function ChatWorkspace({ userId }: { userId: string }) {
   }
   return (
     <section className="creator-chat" aria-labelledby="chat-page-title">
-      <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1 id="chat-page-title">Chat</h1><p>Find your creator, choose a conversation and stay connected.</p></div><span className="creator-chat-timezone">All times in US Central</span></header>
+      <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1 id="chat-page-title">Chat</h1><p>Find your creator, choose a conversation and stay connected.</p></div><div className="creator-chat-heading-tools"><span className="creator-chat-timezone">All times in US Central</span>{canAnnounce && <button type="button" onClick={() => setShowAnnouncements(true)}>Staff announcements</button>}</div></header>
       {error && <div className="creator-chat-error" role="alert">{error}</div>}
       {notice && <div className="creator-chat-notice" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss update" onClick={() => setNotice("")}>Dismiss</button></div>}
+      {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
         <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">
