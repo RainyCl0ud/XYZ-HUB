@@ -24,6 +24,7 @@ export const STANDING_CHAT_ROLE_DEFAULTS: Readonly<Record<string, readonly strin
 };
 
 export const CHAT_PERMISSION_DEFINITIONS = [
+  ["announcements.send", "Send Staff Announcements", "Owner/Ops broadcast to active creator Updates and eligible active staff, with individual email and protected-chat fallback. This does not grant private-chat reading access."],
   ["access", "Access Chat", "Open creator chat areas permitted by assignments and channel grants."],
   ["quarantine.trials", "Pause Assigned Trial Chats", "Pause/lift Trial-only staff chats for an assigned creator; their own management chat and Clock stay available. Default: QC."],
   ["quarantine.staff", "Pause Assigned Staff Chats", "Pause/lift Chatter and Trial chats for an assigned creator. Higher and protected roles are excluded. Default: Manager."],

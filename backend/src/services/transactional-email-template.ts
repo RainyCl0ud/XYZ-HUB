@@ -18,6 +18,7 @@ export type BrandedTransactionalEmailInput = {
   title: string;
   greeting?: string;
   intro: string;
+  bodyText?: string;
   action?: BrandedEmailAction;
   code?: string;
   details?: BrandedEmailDetail[];
@@ -226,6 +227,7 @@ export function renderBrandedTransactionalEmail(
 
                 ${greeting}
                 <p style="margin:0;color:#d0d0d0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.7;">${intro}</p>
+                ${input.bodyText ? `<p style="margin:18px 0 0;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;">${escapeEmailHtml(input.bodyText)}</p>` : ""}
 
                 ${code}
                 ${action}

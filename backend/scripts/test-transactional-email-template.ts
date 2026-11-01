@@ -85,13 +85,13 @@ function main() {
 
   assert.ok(
     html.includes(
-      'bgcolor="#f5f3ee"'
+      'bgcolor="#ffffff"'
     )
   );
 
   assert.ok(
     html.includes(
-      'background:#f5f3ee'
+      'background:#ffffff'
     )
   );
 
@@ -115,7 +115,7 @@ function main() {
   );
 
   console.log(
-    "✓ soft neutral outer background and mobile copy-ready verification code render"
+    "✓ agency white outer background and mobile copy-ready verification code render"
   );
 
   assert.ok(
@@ -167,6 +167,15 @@ function main() {
   console.log(
     "✓ legacy XYZ Hub branding is absent from the shared template"
   );
+
+  const announcement = renderBrandedTransactionalEmail({
+    preheader: 'Staff announcement', eyebrow: 'Staff announcement', title: 'Team update',
+    intro: 'Posted by management.', bodyText: 'First line.\n\n<script>unsafe</script> & full ending.',
+  });
+  assert.ok(announcement.includes('First line.\n\n&lt;script&gt;unsafe&lt;/script&gt; &amp; full ending.'));
+  assert.equal(announcement.includes('<script>unsafe</script>'), false);
+  assert.equal(html.includes('white-space:pre-wrap'), false, 'Optional announcement body must not appear in authentication emails.');
+  console.log('✓ full announcement body preserves paragraphs and escapes HTML without changing authentication content');
 
   console.log("");
   console.log(

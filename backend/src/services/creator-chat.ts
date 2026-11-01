@@ -69,6 +69,9 @@ function makeViewer(user: ViewerUser) {
   return { user, permissions, isOwner, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
 }
 type Viewer = ReturnType<typeof makeViewer>;
+// Shared current-access decisions for announcement delivery. These helpers
+// never grant membership or revive an archived assignment episode.
+export { viewerInclude, makeViewer, loadViewer, channelInclude, channelAccess, standingInclude, standingAccess };
 async function loadViewer(tx: Prisma.TransactionClient, userId: string) {
   // Pausing takes this same person's exclusive lock. In-flight reads/writes
   // finish first; after the pause commits every new Chat request rechecks it.
@@ -154,17 +157,18 @@ type MessageRow = Prisma.ChatMessageGetPayload<{ include: typeof messageInclude 
 function visibleMessages(viewer: Viewer): Prisma.ChatMessageWhereInput { return viewer.isOwner ? {} : { deletedAt: null }; }
 function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archived: boolean) {
   if (message.deletedAt && !viewer.isOwner) throw new ChatError(404, "Message not found.");
-  const active = !message.deletedAt && !message.systemEventKey;
+  const active = !message.deletedAt && !message.systemEventKey && !message.announcementKey;
   const parent = message.replyTo && (!message.replyTo.deletedAt || viewer.isOwner) ? message.replyTo : null;
   return {
     id: message.id, authorUserId: message.authorUserId, authorName: message.authorName,
     text: message.text, version: message.version, createdAt: message.createdAt, updatedAt: message.updatedAt,
-    systemNotice: !!message.systemEventKey,
+    systemNotice: !!message.systemEventKey || !!message.announcementKey,
+    announcement: !!message.announcementKey,
     replyTo: parent ? { id: parent.id, authorName: parent.authorName, text: parent.text, version: parent.version, createdAt: parent.createdAt, deleted: !!parent.deletedAt } : null,
     replyUnavailable: !!message.replyTo && !parent,
     deleted: message.deletedAt ? { at: message.deletedAt, by: message.deletedByName, reason: message.deletionReason } : null,
     canModerate: active && !archived && viewer.permissions.has("chat.messages.moderate"),
-    canViewHistory: viewer.isOwner && !message.systemEventKey,
+    canViewHistory: viewer.isOwner && !message.systemEventKey && !message.announcementKey,
     pinnedAt: message.pinnedAt, pinnedByName: message.pinnedByName, pinVersion: message.pinVersion,
     canReply: active && canPost,
     canPin: active && canPost && viewer.permissions.has("chat.messages.pin"),
@@ -311,7 +315,7 @@ export async function sendChatMessage(userId: string, channelId: string, text: s
     const target = channel ? { channelId } : { conversationId: channelId };
     if (replyToId) {
       await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${replyToId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR SHARE`;
-      if (!await tx.chatMessage.findFirst({ where: { id: replyToId, ...target, deletedAt: null, systemEventKey: null }, select: { id: true } })) throw new ChatError(404, "Reply message not found in this conversation.");
+      if (!await tx.chatMessage.findFirst({ where: { id: replyToId, ...target, deletedAt: null, systemEventKey: null, announcementKey: null }, select: { id: true } })) throw new ChatError(404, "Reply message not found in this conversation.");
     }
     const created = await tx.chatMessage.createMany({ data: { ...target, authorUserId: userId, authorName: viewer.user.name, text: normalized, clientNonce, replyToId: replyToId ?? null }, skipDuplicates: true });
     const message = await tx.chatMessage.findFirstOrThrow({ where: { ...target, authorUserId: userId, clientNonce }, include: messageInclude });
@@ -330,7 +334,7 @@ export async function editChatMessage(userId: string, channelId: string, message
     if (!access.canPost || !viewer.permissions.has("chat.messages.edit_own")) throw new ChatError(403, "You cannot edit messages here.");
     const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null } });
     if (!previous) throw new ChatError(404, "Message not found.");
-    if (previous.systemEventKey) throw new ChatError(403, "Chat notices cannot be edited.");
+    if (previous.systemEventKey || previous.announcementKey) throw new ChatError(403, "Chat notices cannot be edited.");
     if (previous.authorUserId !== userId) throw new ChatError(403, "You can only edit your own messages.");
     if (previous.version !== version) throw new ChatError(409, "This message changed. Refresh before editing again.");
     const updated = await tx.chatMessage.updateMany({ where: { id: messageId, version, ...scope, deletedAt: null }, data: { text: normalized, version: { increment: 1 } } });
@@ -465,7 +469,7 @@ export async function setChatReaction(userId: string, channelId: string, message
     await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${messageId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR UPDATE`;
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost) throw new ChatError(403, "This conversation is read-only for you.");
-    if (!await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null, systemEventKey: null }, select: { id: true } })) throw new ChatError(404, "Message not found.");
+    if (!await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null, systemEventKey: null, announcementKey: null }, select: { id: true } })) throw new ChatError(404, "Message not found.");
     const key = { messageId, userId, emoji };
     const changed = active
       ? await tx.chatReaction.createMany({ data: key, skipDuplicates: true })
@@ -487,7 +491,7 @@ export async function setChatPin(userId: string, channelId: string, messageId: s
     if (!access.canPost || !viewer.permissions.has("chat.messages.pin")) throw new ChatError(403, "Your access does not allow managing pins here.");
     const message = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null }, include: messageInclude });
     if (!message) throw new ChatError(404, "Message not found.");
-    if (message.systemEventKey) throw new ChatError(403, "Chat notices cannot be pinned.");
+    if (message.systemEventKey || message.announcementKey) throw new ChatError(403, "Chat notices cannot be pinned.");
     if (!!message.pinnedAt === pinned) return messageDto(message, viewer, access.canPost, access.archived);
     if (message.pinVersion !== expectedVersion) throw new ChatError(409, "The pin changed. Refresh before trying again.");
     const updated = await tx.chatMessage.update({ where: { id: messageId }, data: {
@@ -568,7 +572,7 @@ export async function deleteChatMessage(userId: string, channelId: string, messa
     if (access.archived || !viewer.permissions.has("chat.messages.moderate")) throw new ChatError(403, "Your access does not allow deleting messages here.");
     const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope }, include: messageInclude });
     if (!previous) throw new ChatError(404, "Message not found.");
-    if (previous.systemEventKey) throw new ChatError(403, "Chat notices cannot be deleted.");
+    if (previous.systemEventKey || previous.announcementKey) throw new ChatError(403, "Chat notices cannot be deleted.");
     // Desired-state retries return no retained content to a non-Owner, even
     // when that person is the original moderator or author.
     if (previous.deletedAt) return { id: messageId, message: viewer.isOwner ? messageDto(previous, viewer, false, access.archived) : null };

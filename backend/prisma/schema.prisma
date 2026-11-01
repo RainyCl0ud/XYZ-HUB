@@ -87,6 +87,8 @@ model User {
 
   chatReactions ChatReaction[]
   chatMessageReads ChatMessageRead[]
+  announcementsAuthored ChatAnnouncement[]
+  announcementDeliveries ChatAnnouncementDelivery[]
   chatPinnedMessages ChatMessage[] @relation("ChatPinnedBy")
   chatDeletedMessages ChatMessage[] @relation("ChatDeletedBy")
 
@@ -953,6 +955,7 @@ model ChatMessage {
   authorName String
   clientNonce String
   systemEventKey String? @unique
+  announcementKey String? @unique
   replyToId String?
   replyTo ChatMessage? @relation("ChatReply", fields: [replyToId], references: [id], onDelete: Restrict)
   replies ChatMessage[] @relation("ChatReply")
@@ -1075,4 +1078,68 @@ model ChatMessageRead {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([messageId, userId])
   @@index([userId])
+}
+
+enum ChatAnnouncementDeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  CAPTURED
+  SKIPPED
+  REVIEW
+}
+
+model ChatAnnouncement {
+  id String @id @default(cuid())
+  requestId String @unique
+  inputHash String
+  authorUserId String?
+  author User? @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  authorName String
+  title String
+  text String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  deliveries ChatAnnouncementDelivery[]
+  posts ChatAnnouncementPost[]
+  @@index([createdAt, id])
+}
+
+model ChatAnnouncementPost {
+  announcementId String
+  targetId String
+  isPrivate Boolean
+  messageId String @unique
+  announcement ChatAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  @@id([announcementId, targetId])
+}
+
+model ChatAnnouncementDelivery {
+  id String @id @default(cuid())
+  announcementId String
+  userId String?
+  // Immutable identity avoids a new recipient inheriting an old delivery.
+  userKey String
+  personName String
+  status ChatAnnouncementDeliveryStatus @default(PENDING)
+  destinations Json
+  previewEmail Json?
+  attemptId String?
+  attemptedAt DateTime? @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+  lastError String?
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  announcement ChatAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  recipient User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@unique([announcementId, userKey])
+  @@index([status, updatedAt])
+}
+
+// Conservative reservations include failed/uncertain provider attempts. No
+// message body, recipient address or credential is stored in this quota ledger.
+model MailerCapacityReservation {
+  id String @id @default(cuid())
+  senderKey String
+  category String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([senderKey, createdAt])
 }

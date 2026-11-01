@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { reserveMailerCapacity } from "./mailer-capacity.js";
 
 import {
   JWT,
@@ -182,7 +183,8 @@ async function getGmailAccessToken(): Promise<string> {
 }
 
 async function sendWithGmailApi(
-  email: TransactionalEmail
+  email: TransactionalEmail,
+  beforeSend?: () => Promise<void>
 ): Promise<void> {
   const from =
     requiredEnv(
@@ -198,6 +200,7 @@ async function sendWithGmailApi(
   const accessToken =
     await getGmailAccessToken();
 
+  await beforeSend?.();
   const response =
     await fetch(
       "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
@@ -306,9 +309,12 @@ export function formatEmailExpiry(
 }
 
 export async function sendTransactionalEmail(
-  email: TransactionalEmail
+  email: TransactionalEmail,
+  category: "AUTH" | "CHAT_ANNOUNCEMENT" = "AUTH",
+  beforeSend?: () => Promise<void>
 ): Promise<void> {
+  await reserveMailerCapacity(category);
   await sendWithGmailApi(
-    email
+    email, beforeSend
   );
 }
