@@ -180,7 +180,7 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
   };
 }
 
-async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: Viewer) {
+export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: Viewer) {
     const userId = viewer.user.id;
     const areas = await tx.chatArea.findMany({
       where: viewer.permissions.has("chat.areas.all") ? {} : { modelId: { in: viewer.user.modelAssignments.map((a) => a.modelId) } },
@@ -222,7 +222,7 @@ export async function listChatAreas(userId: string) {
   });
 }
 
-async function unreadWhere(tx: Prisma.TransactionClient, viewer: Viewer): Promise<Prisma.ChatMessageWhereInput> {
+export async function unreadWhere(tx: Prisma.TransactionClient, viewer: Viewer): Promise<Prisma.ChatMessageWhereInput> {
   const start = await tx.chatSetup.findUniqueOrThrow({ where: { id: "chat-unread-v1" } });
   return { deletedAt: null, createdAt: { gte: start.createdAt },
     OR: [{ authorUserId: null }, { authorUserId: { not: viewer.user.id } }],

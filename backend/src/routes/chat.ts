@@ -9,6 +9,8 @@ import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } fro
 import { getChatQuarantine, setChatQuarantine } from "../services/creator-chat.js";
 import { listChatUnread, markChatMessagesRead } from "../services/creator-chat.js";
 import { announcementCapability, previewAnnouncement, publishAnnouncement, listAnnouncements, announcementDetails } from "../services/chat-announcements.js";
+import { unreadReminderHistory } from "../services/chat-unread-reminders.js";
+import { unreadRemindersEnabled } from "../services/chat-unread-reminder-policy.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -39,7 +41,8 @@ const run = (action: (req: Request, res: Response) => Promise<unknown>) => async
     next(error);
   }
 };
-router.get("/areas", run(async (req, res) => res.json({ areas: await listChatAreas(user(req)), announcements: await announcementCapability(user(req)) })));
+router.get("/areas", run(async (req, res) => res.json({ areas: await listChatAreas(user(req)), announcements: await announcementCapability(user(req)), unreadReminders: { enabled: unreadRemindersEnabled() } })));
+router.get("/unread-reminders", run(async (req, res) => res.json(await unreadReminderHistory(user(req)))));
 const announcementSchema = z.object({ title: z.string().trim().min(1).max(120).regex(/^[^\r\n]+$/), text: z.string().trim().min(1).max(7800) }).strict();
 router.get("/announcements", run(async (req, res) => res.json({ announcements: await listAnnouncements(user(req)) })));
 router.get("/announcements/:announcementId", run(async (req, res) => res.json({ announcement: await announcementDetails(user(req), param(req, 'announcementId')) })));

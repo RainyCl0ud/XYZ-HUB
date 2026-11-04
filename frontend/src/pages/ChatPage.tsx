@@ -3,6 +3,7 @@ import { ApiError, apiRequest } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import ChatAnnouncements from "./ChatAnnouncements";
+import ChatUnreadReminders from "./ChatUnreadReminders";
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
@@ -61,6 +62,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const linkedConversation = searchParams.get('conversation') ?? '';
   const [canAnnounce, setCanAnnounce] = useState(false), [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [remindersEnabled, setRemindersEnabled] = useState(false), [showReminders, setShowReminders] = useState(false);
   const [areas, setAreas] = useState<Area[]>([]);
   const [selected, setSelected] = useState("");
   const [transcript, setTranscript] = useState<Transcript | null>(null);
@@ -141,11 +143,12 @@ function ChatWorkspace({ userId }: { userId: string }) {
 
   const refreshAreas = useCallback(async (signal?: AbortSignal) => {
     const request = ++areasRequest.current;
-    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean } }>("/api/chat/areas", { signal });
+    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean } }>("/api/chat/areas", { signal });
     if (signal?.aborted || request !== areasRequest.current) return;
     availableAreas.current = response.areas;
     setAreas(response.areas);
     setCanAnnounce(!!response.announcements?.canAnnounce);
+    setRemindersEnabled(!!response.unreadReminders?.enabled);
     const current = selectedRef.current;
     const permitted = new Set(response.areas.flatMap((a) => a.channels.map((c) => c.id)));
     for (const id of conversationDrafts.current.keys()) if (!permitted.has(id)) conversationDrafts.current.delete(id);
@@ -370,10 +373,11 @@ function ChatWorkspace({ userId }: { userId: string }) {
   }
   return (
     <section className="creator-chat" aria-labelledby="chat-page-title">
-      <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1 id="chat-page-title">Chat</h1><p>Find your creator, choose a conversation and stay connected.</p></div><div className="creator-chat-heading-tools"><span className="creator-chat-timezone">All times in US Central</span>{canAnnounce && <button type="button" onClick={() => setShowAnnouncements(true)}>Staff announcements</button>}</div></header>
+      <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1 id="chat-page-title">Chat</h1><p>Find your creator, choose a conversation and stay connected.</p></div><div className="creator-chat-heading-tools"><span className="creator-chat-timezone">All times in US Central</span>{canAnnounce && <button type="button" onClick={() => setShowAnnouncements(true)}>Staff announcements</button>}{remindersEnabled && <button type="button" onClick={() => setShowReminders(true)}>Email reminders</button>}</div></header>
       {error && <div className="creator-chat-error" role="alert">{error}</div>}
       {notice && <div className="creator-chat-notice" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss update" onClick={() => setNotice("")}>Dismiss</button></div>}
       {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
+      {showReminders && <ChatUnreadReminders onClose={() => setShowReminders(false)} />}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
         <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">
