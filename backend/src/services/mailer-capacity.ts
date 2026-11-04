@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
 import { announcementEmailMode } from './chat-announcement-policy.js';
+import { unreadReminderEmailMode } from './chat-unread-reminder-policy.js';
 
 export class MailerCapacityUnavailable extends Error {}
 const positive = (key: string) => { const value = Number(process.env[key]); return Number.isSafeInteger(value) && value > 0 ? value : null; };
@@ -12,10 +13,11 @@ export function chatMailerCapacityConfig() {
 }
 /** Off/capture never changes authentication delivery. Gmail notifications are
  * fail-closed until a shared sender budget and authentication reserve are set. */
-export async function reserveMailerCapacity(category: 'AUTH' | 'CHAT_ANNOUNCEMENT') {
-  if (announcementEmailMode() !== 'gmail') {
+export async function reserveMailerCapacity(category: 'AUTH' | 'CHAT_ANNOUNCEMENT' | 'CHAT_UNREAD') {
+  const announcements = announcementEmailMode() === 'gmail', unread = unreadReminderEmailMode() === 'gmail';
+  if (category === 'AUTH' ? !announcements && !unread : category === 'CHAT_ANNOUNCEMENT' ? !announcements : !unread) {
     if (category === 'AUTH') return;
-    throw new MailerCapacityUnavailable('Announcement email delivery is not enabled.');
+    throw new MailerCapacityUnavailable('Chat email delivery is not enabled.');
   }
   const config = chatMailerCapacityConfig();
   if (!config) { if (category === 'AUTH') return; throw new MailerCapacityUnavailable('Configure the shared mailer capacity and authentication reserve first.'); }

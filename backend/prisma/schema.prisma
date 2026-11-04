@@ -89,6 +89,8 @@ model User {
   chatMessageReads ChatMessageRead[]
   announcementsAuthored ChatAnnouncement[]
   announcementDeliveries ChatAnnouncementDelivery[]
+  unreadReminderState ChatUnreadReminderState?
+  unreadReminders ChatUnreadReminder[]
   chatPinnedMessages ChatMessage[] @relation("ChatPinnedBy")
   chatDeletedMessages ChatMessage[] @relation("ChatDeletedBy")
 
@@ -1142,4 +1144,38 @@ model MailerCapacityReservation {
   category String
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   @@index([senderKey, createdAt])
+}
+
+enum ChatUnreadReminderStatus {
+  SENDING
+  SENT
+  CAPTURED
+  SKIPPED
+  REVIEW
+}
+
+// A single durable throttle per person, across all creators and workers.
+model ChatUnreadReminderState {
+  userKey String @id
+  userId String? @unique
+  recipient User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lastAttemptAt DateTime? @db.Timestamptz(3)
+  retryAfter DateTime? @db.Timestamptz(3)
+}
+
+// No message text, fan names, channel names or attachments are copied here.
+model ChatUnreadReminder {
+  id String @id @default(cuid())
+  userKey String
+  userId String?
+  recipient User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status ChatUnreadReminderStatus
+  unreadCount Int
+  previewEmail Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  attemptedAt DateTime? @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+  lastError String?
+  @@index([userKey, createdAt])
+  @@index([status, createdAt])
 }

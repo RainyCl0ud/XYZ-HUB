@@ -24,6 +24,8 @@
     "scripts/test-chat-moderation.ts",
     "scripts/test-chat-moderation-upgrade.ts",
     "scripts/test-chat-unread.ts",
+    "scripts/test-chat-unread-reminders.ts",
+    "scripts/test-chat-unread-reminders-upgrade.ts",
     "scripts/test-chat-announcements.ts",
     "scripts/test-chat-announcements-upgrade.ts",
     "scripts/test-chat-unread-upgrade.ts"

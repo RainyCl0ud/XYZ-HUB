@@ -191,16 +191,12 @@ async function sendWithGmailApi(
       "EMAIL_FROM"
     );
 
-  const raw =
-    await createRawMessage(
-      email,
-      from
-    );
-
   const accessToken =
     await getGmailAccessToken();
 
   await beforeSend?.();
+  // Reminder callbacks refresh current recipient/count after token acquisition.
+  const raw = await createRawMessage(email, from);
   const response =
     await fetch(
       "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
@@ -310,7 +306,7 @@ export function formatEmailExpiry(
 
 export async function sendTransactionalEmail(
   email: TransactionalEmail,
-  category: "AUTH" | "CHAT_ANNOUNCEMENT" = "AUTH",
+  category: "AUTH" | "CHAT_ANNOUNCEMENT" | "CHAT_UNREAD" = "AUTH",
   beforeSend?: () => Promise<void>
 ): Promise<void> {
   await reserveMailerCapacity(category);
