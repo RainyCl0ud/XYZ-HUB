@@ -88,12 +88,20 @@ export function visibleAlertMessages(userId: string, messages: BrowserAlert[]) {
 
 export async function alertWorker() {
   const registration = await navigator.serviceWorker.register('/chat-browser-alerts-v1.js', { scope: '/', updateViaCache: 'none' });
-  if (registration.active) return registration.active;
-  const worker = registration.installing ?? registration.waiting;
+  // A deployed fix may be installing alongside the old active worker. Wait for
+  // the newer version so the first offer after refresh uses the fixed code.
+  const worker = registration.installing ?? registration.waiting ?? registration.active;
   if (!worker) throw Error('Notification setup did not finish. Please try again.');
+  if (worker.state === 'activated') return worker;
   return new Promise<ServiceWorker>((resolve, reject) => {
     const timer = setTimeout(() => { worker.removeEventListener('statechange', changed); reject(Error('Notification setup timed out. Please try again.')); }, 10_000);
-    function changed() { if (worker!.state === 'activated') { clearTimeout(timer); worker!.removeEventListener('statechange', changed); resolve(worker!); } }
+    function changed() {
+      if (worker!.state === 'activated' || worker!.state === 'redundant') {
+        clearTimeout(timer); worker!.removeEventListener('statechange', changed);
+        if (worker!.state === 'activated') resolve(worker!);
+        else reject(Error('Notification setup was replaced. Please try again.'));
+      }
+    }
     worker.addEventListener('statechange', changed); changed();
   });
 }

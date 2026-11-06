@@ -70,10 +70,32 @@ try {
   } finally { globalThis.document = priorDocument; globalThis.innerWidth = priorWidth; globalThis.innerHeight = priorHeight; lib.setAlertReadingContext({ userId: '', conversationId: '', paused: true }); }
   pass('Reading suppression uses actual visible uncovered message geometry, focus and account; scrolled-away/modal content is not treated as read');
 
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  try {
+    const listeners = new Set(), oldWorker = { state: 'activated' };
+    const nextWorker = { state: 'installing', addEventListener: (_name, fn) => listeners.add(fn), removeEventListener: (_name, fn) => listeners.delete(fn) };
+    let registration = { active: oldWorker, installing: nextWorker };
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { serviceWorker: { register: async () => registration } } });
+    const ready = lib.alertWorker(); await Promise.resolve();
+    assert.equal(listeners.size, 1, 'Wait for the installing fix rather than returning the old active worker.');
+    nextWorker.state = 'activated'; [...listeners].forEach(fn => fn()); assert.equal(await ready, nextWorker); assert.equal(listeners.size, 0);
+    registration = { active: oldWorker }; assert.equal(await lib.alertWorker(), oldWorker);
+    nextWorker.state = 'installing'; registration = { active: oldWorker, installing: nextWorker };
+    const failed = assert.rejects(lib.alertWorker(), /replaced/); await Promise.resolve(); nextWorker.state = 'redundant'; [...listeners].forEach(fn => fn()); await failed; assert.equal(listeners.size, 0);
+  } finally { if (navigatorDescriptor) Object.defineProperty(globalThis, 'navigator', navigatorDescriptor); else Reflect.deleteProperty(globalThis, 'navigator'); }
+  pass('Worker upgrades wait for the new code before the first alert; replaced updates fail promptly and remove listeners');
+
   const handlers = new Map(), shown = [], navigated = [], focused = [], opened = [];
+  const notificationCentre = new Map(), popups = [];
   let windows = [], currentNotifications = [];
   class Channel { constructor() { this.port1 = { onmessage: null, close() {} }; this.port2 = { postMessage: data => queueMicrotask(() => this.port1.onmessage?.({ data })) }; } }
-  const worker = { location: { origin: 'https://hub.example' }, clients: { claim: async () => {}, matchAll: async () => windows, openWindow: async url => opened.push(url) }, skipWaiting: async () => {}, registration: { showNotification: async (title, options) => shown.push({ title, options }), getNotifications: async () => currentNotifications }, addEventListener: (name, fn) => handlers.set(name, fn) };
+  const worker = { location: { origin: 'https://hub.example' }, clients: { claim: async () => {}, matchAll: async () => windows, openWindow: async url => opened.push(url) }, skipWaiting: async () => {}, registration: { showNotification: async (title, options) => {
+    shown.push({ title, options });
+    // Simulate the platform contract: a same-tag replacement is quiet unless
+    // renotify is requested. Counting API calls alone misses this regression.
+    if (!notificationCentre.has(options.tag) || options.renotify) popups.push({ title, options });
+    notificationCentre.set(options.tag, { title, options });
+  }, getNotifications: async () => currentNotifications }, addEventListener: (name, fn) => handlers.set(name, fn) };
   const source = await readFile(resolve(root, 'public/chat-browser-alerts-v1.js'), 'utf8');
   vm.runInNewContext(source, { self: worker, MessageChannel: Channel, URL, setTimeout, clearTimeout, Date, Set, Promise });
   assert.equal(handlers.has('fetch'), false); assert.equal(handlers.has('push'), false);
@@ -101,6 +123,29 @@ try {
   await offer({ type: 'xyz-chat-alert-clear', userId: 'staff' }); assert.equal(closed, 1);
   const bad = await offer({ messages: [{ id: 'x', conversationId: 'https://attacker.example' }] }); assert.equal(bad.ok, false);
   pass('Sign-out/disable clears only Hub notifications; malformed targets cannot become external click destinations');
+
+  windows = [sender]; notificationCentre.clear(); popups.length = 0;
+  lib.resetAlertHistory(store, 'staff'); save();
+  const second = { id: 'later-message', conversationId: 'channel1' };
+  let incoming = [messages[0]];
+  const repeatBatch = { ...base(), request: async (_path, ids) => response(incoming.filter(m => !ids || ids.includes(m.id))),
+    prepareDelivery: async () => async eligible => { assert.equal((await offer({ messages: eligible })).ok, true); } };
+  await lib.processBrowserAlertBatch(repeatBatch); assert.equal(popups.length, 1);
+  // Leave the original notification in the notification centre, then send again.
+  incoming = [messages[0], second]; await lib.processBrowserAlertBatch(repeatBatch);
+  assert.equal(popups.length, 2, 'A later unread message must alert again even when the earlier notification still exists.');
+  assert.equal(notificationCentre.size, 1, 'Replace the conversation notification instead of filling the notification centre.');
+  await lib.processBrowserAlertBatch(repeatBatch); await lib.processBrowserAlertBatch(repeatBatch);
+  assert.equal(popups.length, 2, 'Polling, another tab and refresh must not replay either message.');
+  const visible = { id: 'visible-later-message', conversationId: 'channel1' };
+  windows = [sender, client('reader', { ...senderAnswer, focused: true, visibleMessageIds: [visible.id] })];
+  incoming.push(visible); await lib.processBrowserAlertBatch(repeatBatch); assert.equal(popups.length, 2);
+  pass('Successive new messages alert again while replacing the previous same-channel notification; retries and visible messages remain quiet');
+  windows = [sender]; notificationCentre.clear(); popups.length = 0;
+  await offer({ messages: [], test: true }); await offer({ messages: [], test: true });
+  assert.equal(popups.length, 2, 'Every explicit test-button click must request a fresh alert.');
+  assert.equal(notificationCentre.size, 1);
+  pass('The test notification button alerts on repeated clicks even when its previous notification remains in the centre');
 
   const { BrowserNotificationsContext } = await vite.ssrLoadModule('/src/components/BrowserNotificationsContext.ts');
   const { default: Dialog } = await vite.ssrLoadModule('/src/pages/ChatBrowserNotifications.tsx');

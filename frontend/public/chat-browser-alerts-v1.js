@@ -37,7 +37,10 @@ async function handle(event) {
   for (const conversationId of groups) {
     await self.registration.showNotification(input.test ? 'XYZ Hub · test notification' : 'XYZ Hub · new message', {
       body: input.test ? 'Browser notifications are working in this browser.' : 'You have a new unread message. Open the Hub to read it.',
-      tag: prefix + input.userId + ':' + conversationId, renotify: false,
+      // Replacing a conversation's existing notification must alert again for
+      // genuinely new messages (or an explicit test). The page's shared ID
+      // ledger still suppresses retries and duplicate offers across tabs.
+      tag: prefix + input.userId + ':' + conversationId, renotify: true,
       data: { kind: 'xyz-chat-alert', userId: input.userId, conversationId },
     });
   }

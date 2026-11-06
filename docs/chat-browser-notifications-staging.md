@@ -58,7 +58,7 @@ Chat validates the destination against current access before opening it.
 - 7 database/API integration groups: environment gates, enable baseline/recent
   window, privacy/no read writes, named-role scope, final-read/quarantine/access
   recheck, protected-chat isolation, authentication/strict limits/rollback.
-- 12 client/worker groups: account-specific choice/history, duplicate prevention,
+- 15 client/worker groups: account-specific choice/history, duplicate prevention,
   async account/choice changes, retry vs uncertain delivery, storage failures,
   other-tab reading/account suppression, generic grouped/test copy, safe click
   routes, cleanup/target validation, actual settings component states.
@@ -84,6 +84,14 @@ Chat validates the destination against current access before opening it.
    there is one pop-up, not two. Refresh and confirm it is not replayed.
 5. Turn notifications off and send again. No new pop-up should appear. Existing
    unread badges and capture-only email reminders should still work.
+
+Repeated alerts: the notification tag stays per conversation to group the
+notification centre, with renotify enabled so a later new message or explicit
+test click can alert again. Regression tests reproduce the former one-pop-up
+failure using platform-style same-tag replacement, then verify subsequent new
+messages/tests, duplicate-tab suppression and focused-message silence together.
+When a newer worker is installing after refresh, setup waits for that version
+instead of sending the first alert to the older active worker.
 
 Still pending: actual staging/device permission+OS delivery acceptance, physical
 mobile support, full closed-browser Web Push and separate real-email approval.
