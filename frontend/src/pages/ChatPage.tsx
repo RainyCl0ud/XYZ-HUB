@@ -4,6 +4,9 @@ import { useAuth } from "../auth/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import ChatAnnouncements from "./ChatAnnouncements";
 import ChatUnreadReminders from "./ChatUnreadReminders";
+import ChatBrowserNotifications from './ChatBrowserNotifications';
+import { useBrowserNotifications } from '../components/BrowserNotificationsContext';
+import { setAlertReadingContext } from '../lib/browser-alerts';
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
@@ -59,6 +62,8 @@ export default function ChatPage() {
 }
 
 function ChatWorkspace({ userId }: { userId: string }) {
+  const browserNotifications = useBrowserNotifications();
+  const [showBrowserNotifications, setShowBrowserNotifications] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const linkedConversation = searchParams.get('conversation') ?? '';
   const [canAnnounce, setCanAnnounce] = useState(false), [showAnnouncements, setShowAnnouncements] = useState(false);
@@ -172,8 +177,13 @@ function ChatWorkspace({ userId }: { userId: string }) {
     void refreshAreas().catch(() => {});
   }, [refreshAreas]);
   const readFailed = useCallback(() => setReadError("Read status wasn’t saved. It will retry when messages refresh."), []);
+  const notificationsPaused = !!(loading || error || tools || deleting || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || showBrowserNotifications || markingRead);
+  useEffect(() => {
+    setAlertReadingContext({ userId, conversationId: selected, paused: notificationsPaused });
+    return () => setAlertReadingContext({ userId: '', conversationId: '', paused: true });
+  }, [userId, selected, notificationsPaused]);
   useChatReadTracking(messagePane, selected, transcript?.unreadMessageIds ?? noUnreadIds,
-    !!(loading || error || tools || deleting || quarantining || settings || showMembers || showChannels || showAnnouncements || markingRead), readsSaved, readFailed);
+    notificationsPaused, readsSaved, readFailed);
 
   async function markConversationRead() {
     const channelId = selected, anchor = transcript?.messages.filter((m) => !m.deleted).at(-1)?.id;
@@ -373,11 +383,12 @@ function ChatWorkspace({ userId }: { userId: string }) {
   }
   return (
     <section className="creator-chat" aria-labelledby="chat-page-title">
-      <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1 id="chat-page-title">Chat</h1><p>Find your creator, choose a conversation and stay connected.</p></div><div className="creator-chat-heading-tools"><span className="creator-chat-timezone">All times in US Central</span>{canAnnounce && <button type="button" onClick={() => setShowAnnouncements(true)}>Staff announcements</button>}{remindersEnabled && <button type="button" onClick={() => setShowReminders(true)}>Email reminders</button>}</div></header>
+      <header className="creator-chat-heading"><div><p className="creator-chat-eyebrow">TEAM COMMUNICATION</p><h1 id="chat-page-title">Chat</h1><p>Find your creator, choose a conversation and stay connected.</p></div><div className="creator-chat-heading-tools"><span className="creator-chat-timezone">All times in US Central</span>{canAnnounce && <button type="button" onClick={() => setShowAnnouncements(true)}>Staff announcements</button>}{remindersEnabled && <button type="button" onClick={() => setShowReminders(true)}>Email reminders</button>}{browserNotifications?.available && <button type="button" onClick={() => setShowBrowserNotifications(true)}>Browser notifications</button>}</div></header>
       {error && <div className="creator-chat-error" role="alert">{error}</div>}
       {notice && <div className="creator-chat-notice" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss update" onClick={() => setNotice("")}>Dismiss</button></div>}
       {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
       {showReminders && <ChatUnreadReminders onClose={() => setShowReminders(false)} />}
+      {showBrowserNotifications && <ChatBrowserNotifications onClose={() => setShowBrowserNotifications(false)} />}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
         <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">

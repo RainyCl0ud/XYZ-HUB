@@ -69,6 +69,7 @@
     "test:chat-moderation": "tsx scripts/test-chat-moderation.ts",
     "test:chat-moderation-upgrade": "tsx scripts/test-chat-moderation-upgrade.ts",
     "test:chat-unread": "tsx scripts/test-chat-unread.ts",
+    "test:chat-browser-notifications": "tsx scripts/test-chat-browser-notifications.ts",
     "test:chat-unread-reminders": "tsx scripts/test-chat-unread-reminders.ts",
     "test:chat-unread-reminders-upgrade": "tsx scripts/test-chat-unread-reminders-upgrade.ts",
     "test:chat-announcements": "tsx scripts/test-chat-announcements.ts",

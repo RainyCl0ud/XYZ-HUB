@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
-import { accessibleChatAreas, unreadWhere, loadViewer, ChatError } from './creator-chat.js';
+import { loadViewer, ChatError } from './creator-chat.js';
+import { notificationUnreadScope } from './chat-notification-scope.js';
 import { singleEmailAddress } from './chat-announcements.js';
 import { unreadRemindersEnabled, unreadReminderEmailMode } from './chat-unread-reminder-policy.js';
 import { renderBrandedTransactionalEmail } from './transactional-email-template.js';
@@ -22,20 +23,8 @@ export async function lockReminderPerson(tx: Prisma.TransactionClient, userId: s
 /** Badges count all accessible messages; email follows the narrower, confirmed
  * role exception. A role grant or all-channel oversight is not a named add. */
 export async function reminderSnapshot(tx: Prisma.TransactionClient, userId: string) {
-  const viewer = await loadViewer(tx, userId);
-  const areas = await accessibleChatAreas(tx, viewer);
-  const limited = viewer.user.roleMemberships.some(({ role }) => ['OWNER', 'OPS_MANAGER', 'DEV'].includes(role.systemKey ?? ''));
-  const active = areas.filter(a => !a.archived).flatMap(a => a.channels.filter(c => !c.archived));
-  let ordinaryIds = active.filter(c => !c.isPrivate).map(c => c.id);
-  if (limited && ordinaryIds.length) {
-    const grants = await tx.chatPersonGrant.findMany({ where: { channelId: { in: ordinaryIds }, assignmentId: { in: viewer.user.modelAssignments.map(a => a.id) }, OR: [{ canView: true }, { canPost: true }] }, select: { channelId: true, channel: { select: { modelId: true } }, assignment: { select: { modelId: true } } } });
-    ordinaryIds = grants.filter(g => g.assignment.modelId === g.channel.modelId).map(g => g.channelId);
-  }
-  const privateIds = active.filter(c => c.isPrivate).map(c => c.id);
-  const aggregate = await tx.chatMessage.aggregate({ where: { AND: [await unreadWhere(tx, viewer), { OR: [
-    { channelId: { in: ordinaryIds }, channel: { area: { model: { isActive: true } } } },
-    { conversationId: { in: privateIds }, conversation: { OR: [{ modelId: null }, { model: { isActive: true } }] } },
-  ] }] }, _count: { id: true }, _min: { createdAt: true } });
+  const { viewer, limited, where } = await notificationUnreadScope(tx, userId);
+  const aggregate = await tx.chatMessage.aggregate({ where, _count: { id: true }, _min: { createdAt: true } });
   const now = await reminderClock(tx);
   const count = aggregate._count.id, oldestAt = aggregate._min.createdAt;
   return { person: viewer.user, count, oldestAt, now, limited, due: count >= 10 || !!oldestAt && oldestAt.getTime() <= now.getTime() - REMINDER_AGE_MS };

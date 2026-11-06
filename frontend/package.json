@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test:chat-compat": "node scripts/test-chat-message-compat.mjs",
+    "test:browser-notifications": "node scripts/test-browser-notifications.mjs",
     "preview": "vite preview",
     "start": "serve -s dist -l $PORT"
   },
