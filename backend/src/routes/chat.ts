@@ -11,6 +11,7 @@ import { listChatUnread, markChatMessagesRead } from "../services/creator-chat.j
 import { announcementCapability, previewAnnouncement, publishAnnouncement, listAnnouncements, announcementDetails } from "../services/chat-announcements.js";
 import { unreadReminderHistory } from "../services/chat-unread-reminders.js";
 import { unreadRemindersEnabled } from "../services/chat-unread-reminder-policy.js";
+import { browserNotificationFeed } from "../services/chat-browser-notifications.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -43,6 +44,15 @@ const run = (action: (req: Request, res: Response) => Promise<unknown>) => async
 };
 router.get("/areas", run(async (req, res) => res.json({ areas: await listChatAreas(user(req)), announcements: await announcementCapability(user(req)), unreadReminders: { enabled: unreadRemindersEnabled() } })));
 router.get("/unread-reminders", run(async (req, res) => res.json(await unreadReminderHistory(user(req)))));
+const browserAlertLimit = createRateLimit({ windowMs: 60_000, max: 120, keyPrefix: 'chat-browser-alerts', getIdentity: req => user(req) });
+router.get('/browser-notifications', browserAlertLimit, run(async (req, res) => {
+  const query = z.object({ after: z.string().datetime({ offset: true }).optional() }).strict().parse(req.query);
+  res.json(await browserNotificationFeed(user(req), query.after));
+}));
+router.post('/browser-notifications/check', run(async (req, res) => {
+  const input = z.object({ after: z.string().datetime({ offset: true }), ids: z.array(z.string().min(1).max(100)).min(1).max(50) }).strict().parse(req.body);
+  res.json(await browserNotificationFeed(user(req), input.after, input.ids));
+}));
 const announcementSchema = z.object({ title: z.string().trim().min(1).max(120).regex(/^[^\r\n]+$/), text: z.string().trim().min(1).max(7800) }).strict();
 router.get("/announcements", run(async (req, res) => res.json({ announcements: await listAnnouncements(user(req)) })));
 router.get("/announcements/:announcementId", run(async (req, res) => res.json({ announcement: await announcementDetails(user(req), param(req, 'announcementId')) })));

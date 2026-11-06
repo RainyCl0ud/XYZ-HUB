@@ -18,6 +18,7 @@ import "./F5QaCleanup.css";
 import "./WebKitFoundation.css";
 
 import App from "./App";
+import BrowserNotificationsProvider from './components/BrowserNotificationsProvider';
 
 import {
   AuthProvider,
@@ -36,7 +37,7 @@ createRoot(
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
-          <App />
+          <BrowserNotificationsProvider><App /></BrowserNotificationsProvider>
         </AuthProvider>
       </ToastProvider>
     </BrowserRouter>
