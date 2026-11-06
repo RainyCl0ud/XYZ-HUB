@@ -89,7 +89,7 @@ try {
   const notificationCentre = new Map(), popups = [];
   let windows = [], currentNotifications = [];
   class Channel { constructor() { this.port1 = { onmessage: null, close() {} }; this.port2 = { postMessage: data => queueMicrotask(() => this.port1.onmessage?.({ data })) }; } }
-  const worker = { location: { origin: 'https://hub.example' }, clients: { claim: async () => {}, matchAll: async () => windows, openWindow: async url => opened.push(url) }, skipWaiting: async () => {}, registration: { showNotification: async (title, options) => {
+  const worker = { location: { origin: 'https://hub.example' }, clients: { claim: async () => {}, matchAll: async () => windows, openWindow: async url => { opened.push(url); return null; } }, skipWaiting: async () => {}, registration: { showNotification: async (title, options) => {
     shown.push({ title, options });
     // Simulate the platform contract: a same-tag replacement is quiet unless
     // renotify is requested. Counting API calls alone misses this regression.
@@ -99,7 +99,24 @@ try {
   const source = await readFile(resolve(root, 'public/chat-browser-alerts-v1.js'), 'utf8');
   vm.runInNewContext(source, { self: worker, MessageChannel: Channel, URL, setTimeout, clearTimeout, Date, Set, Promise });
   assert.equal(handlers.has('fetch'), false); assert.equal(handlers.has('push'), false);
-  const client = (id, answer) => ({ id, url: 'https://hub.example/chat', postMessage: (_m, ports) => ports[0].postMessage(answer), navigate: async url => navigated.push(url), focus: async () => focused.push(id) });
+  const clickOrder = [];
+  const client = (id, answer, options = {}) => {
+    let replaced = false;
+    return { id, url: 'https://hub.example/chat', postMessage: (_m, ports) => {
+      if (options.closed) throw Error('Client closed');
+      if (!options.unresponsive) ports[0].postMessage(answer);
+    }, navigate: async url => {
+      clickOrder.push('navigate:' + id); navigated.push(url); replaced = true;
+      if (options.navigationFails) throw Error('Navigation failed');
+      return options.navigationNull ? null : client(id + '-replacement', answer);
+    }, focus: async () => {
+      clickOrder.push('focus:' + id);
+      // A navigation can replace the WindowClient. An obsolete handle cannot
+      // be relied on to focus the new page, unlike the former permissive mock.
+      if (replaced || options.focusFails) throw Error('Window unavailable');
+      focused.push(id); return client(id, answer, options);
+    } };
+  };
   const senderAnswer = { userId: 'staff', enabled: true, generation: preference.generation, focused: false, visibleMessageIds: [] };
   const sender = client('sender', senderAnswer);
   const offer = async (data = {}, source = sender) => { let work, reply; handlers.get('message')({ source, data: { type: 'xyz-chat-alert-offer', userId: 'staff', preference, messages: [messages[0]], ...data }, ports: [{ postMessage: r => { reply = r; } }], waitUntil: p => { work = p; } }); await work; return reply; };
@@ -115,9 +132,28 @@ try {
   pass('One content-free pop-up per batch; several conversations combine into one inbox alert; explicit test is labelled');
   const click = async data => { let work; handlers.get('notificationclick')({ notification: { data, close() {} }, waitUntil: p => { work = p; } }); await work; };
   await click(shown[0].options.data); assert.deepEqual(navigated, ['/chat?conversation=channel1']); assert.deepEqual(focused, ['sender']);
-  windows = [client('other', { ...senderAnswer, userId: 'owner' })]; await click(shown[0].options.data); assert.deepEqual(opened, ['/chat']);
-  windows = []; await click(shown[0].options.data); assert.deepEqual(opened, ['/chat', '/chat']);
-  pass('Clicks focus the matching account/conversation; switched accounts and closed windows receive only the safe Hub entry');
+  assert.deepEqual(clickOrder.slice(0, 2), ['focus:sender', 'navigate:sender']);
+  windows = [client('other', { ...senderAnswer, userId: 'owner' })]; await click(shown[0].options.data); assert.equal(navigated.at(-1), '/chat'); assert.equal(opened.length, 0);
+  windows = []; await click(shown[0].options.data); assert.deepEqual(opened, ['/chat']);
+  pass('Clicks focus before navigation replaces the tab; switched accounts and closed windows receive only the safe Hub entry');
+  windows = [client('other', { ...senderAnswer, userId: 'owner' }), client('sender', senderAnswer)];
+  await click(shown[0].options.data); assert.equal(focused.at(-1), 'sender'); assert.equal(navigated.at(-1), '/chat?conversation=channel1');
+  windows = [client('unresponsive', senderAnswer, { unresponsive: true })];
+  const pendingClick = click(shown[0].options.data);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(focused.at(-1), 'unresponsive', 'Bring the browser forward without waiting for a background tab to reply.');
+  await pendingClick; assert.equal(navigated.at(-1), '/chat');
+  windows = [client('closed', senderAnswer, { closed: true })]; await click(shown[0].options.data); assert.equal(navigated.at(-1), '/chat');
+  pass('Source-window hint selects the receiving tab; sleeping or closed-page handshakes cannot prevent focusing or expose an old conversation');
+  for (const options of [{ focusFails: true }, { navigationFails: true }, { navigationNull: true }]) {
+    const before = opened.length;
+    windows = [client('unavailable', senderAnswer, options)]; await click(shown[0].options.data);
+    assert.equal(opened.length, before + 1); assert.equal(opened.at(-1), '/chat');
+  }
+  windows = [client('malformed-target', senderAnswer)];
+  await click({ ...shown[0].options.data, conversationId: 'https://attacker.example' }); assert.equal(navigated.at(-1), '/chat');
+  await click(shown[2].options.data); assert.equal(navigated.at(-1), '/chat');
+  pass('Focus failure, rejected/null navigation, test alerts and invalid targets use bounded same-origin Hub fallbacks');
   let closed = 0;
   currentNotifications = [{ tag: 'xyz-chat-alert:staff:channel1', data: { userId: 'staff' }, close() { closed++; } }, { tag: 'unrelated', data: { userId: 'staff' }, close() { throw Error('unrelated notification closed'); } }];
   await offer({ type: 'xyz-chat-alert-clear', userId: 'staff' }); assert.equal(closed, 1);

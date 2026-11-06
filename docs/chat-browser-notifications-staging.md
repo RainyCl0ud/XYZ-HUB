@@ -58,7 +58,7 @@ Chat validates the destination against current access before opening it.
 - 7 database/API integration groups: environment gates, enable baseline/recent
   window, privacy/no read writes, named-role scope, final-read/quarantine/access
   recheck, protected-chat isolation, authentication/strict limits/rollback.
-- 15 client/worker groups: account-specific choice/history, duplicate prevention,
+- 17 client/worker groups: account-specific choice/history, duplicate prevention,
   async account/choice changes, retry vs uncertain delivery, storage failures,
   other-tab reading/account suppression, generic grouped/test copy, safe click
   routes, cleanup/target validation, actual settings component states.
@@ -92,6 +92,20 @@ failure using platform-style same-tag replacement, then verify subsequent new
 messages/tests, duplicate-tab suppression and focused-message silence together.
 When a newer worker is installing after refresh, setup waits for that version
 instead of sending the first alert to the older active worker.
+
+Click handling brings the receiving window forward before waiting for a page
+identity reply or navigating. The notification carries a source-window hint,
+which is not trusted as account identity. After focus, the page must confirm the
+same account before a conversation link is used. Sleeping/unresponsive pages,
+switched accounts and failed/null navigation fall back to the safe Chat entry.
+Regression tests model navigation replacing a WindowClient, immediate focus
+before a sleeping page replies, source-window selection and bounded fallbacks.
+Chrome and Brave have separate browser/profile windows: a Chrome notification
+opens Chrome's Hub, and a Brave notification opens Brave's Hub.
+
+User testing confirmed native delivery (including a short background delay).
+Native click-to-focus acceptance remains pending after this fix; simulated
+platform tests do not prove Windows/browser activation on the user's device.
 
 Still pending: actual staging/device permission+OS delivery acceptance, physical
 mobile support, full closed-browser Web Push and separate real-email approval.
