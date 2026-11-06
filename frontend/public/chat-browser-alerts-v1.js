@@ -10,7 +10,8 @@ async function ask(client, messages) {
     const channel = new MessageChannel();
     const timer = setTimeout(() => { channel.port1.close(); resolve(null); }, 1000);
     channel.port1.onmessage = event => { clearTimeout(timer); channel.port1.close(); resolve({ ...event.data, clientId: client.id }); };
-    client.postMessage({ type: 'xyz-chat-alert-presence', messages }, [channel.port2]);
+    try { client.postMessage({ type: 'xyz-chat-alert-presence', messages }, [channel.port2]); }
+    catch { clearTimeout(timer); channel.port1.close(); resolve(null); }
   });
 }
 async function windows() { return self.clients.matchAll({ type: 'window', includeUncontrolled: true }); }
@@ -41,7 +42,7 @@ async function handle(event) {
       // genuinely new messages (or an explicit test). The page's shared ID
       // ledger still suppresses retries and duplicate offers across tabs.
       tag: prefix + input.userId + ':' + conversationId, renotify: true,
-      data: { kind: 'xyz-chat-alert', userId: input.userId, conversationId },
+      data: { kind: 'xyz-chat-alert', userId: input.userId, conversationId, clientId: event.source.id },
     });
   }
 }
@@ -55,11 +56,23 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil((async () => {
     const data = event.notification.data;
     const open = await windows();
-    const answers = (await Promise.all(open.map(client => ask(client, [])))).filter(Boolean);
-    const same = answers.find(a => a.userId === data.userId);
-    const target = validId(data.conversationId) && !['test', 'inbox'].includes(data.conversationId) && same ? '/chat?conversation=' + encodeURIComponent(data.conversationId) : '/chat';
-    const client = same && open.find(c => c.id === same.clientId);
-    if (client) { await client.navigate(target); await client.focus(); }
-    else await self.clients.openWindow(target);
+    // Focus during the click, before a background-page handshake or navigation.
+    // Navigation can replace a WindowClient, making the old focus handle stale.
+    // The source ID is only a window hint: identity is checked again below.
+    const candidate = open.find(c => c.id === data.clientId) ?? open[0];
+    let client;
+    try { client = candidate && await candidate.focus(); } catch { /* Closed/discarded tab: use the safe entry below. */ }
+    if (!client) {
+      try { client = await self.clients.openWindow('/chat'); } catch { return; }
+    }
+    if (!client) return;
+    const answer = await ask(client, []);
+    const target = answer?.userId === data.userId && validId(data.conversationId) && !['test', 'inbox'].includes(data.conversationId)
+      ? '/chat?conversation=' + encodeURIComponent(data.conversationId) : '/chat';
+    try {
+      if (await client.navigate(target)) return;
+    } catch { /* The tab may have closed again after focus. */ }
+    // Do not reuse the old conversation when identity/navigation is uncertain.
+    try { await self.clients.openWindow('/chat'); } catch { /* Browser/OS may refuse window activation. */ }
   })());
 });
