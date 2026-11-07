@@ -30,4 +30,11 @@ try {
   assert.ok(moderator.includes(">Delete message…</button>") && !moderator.includes(">View history</button>"));
   assert.ok(moderator.includes('class="creator-chat-action-menu"') && moderator.includes('More actions for message by Test author'));
   console.log("PASS: redacted reply previews reveal no deleted source and moderation/history controls follow separate server capabilities.");
+  const attachment = { fileName: "Floor report <test>.txt", byteSize: 8, available: true };
+  const file = render({ ...legacy, text: "", canEdit: false, attachment });
+  assert.ok(file.includes("Floor report &lt;test&gt;.txt"));
+  assert.ok(file.includes("/api/chat/channels/test-channel/messages/old-message/file"));
+  assert.ok(!file.includes(">Edit</button>"));
+  assert.ok(render({ ...legacy, text: "", attachment: { ...attachment, available: false } }).includes("File unavailable"));
+  console.log("PASS: files use an authenticated download link and unavailable files are labeled.");
 } finally { await vite.close(); }

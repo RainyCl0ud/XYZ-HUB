@@ -10,6 +10,7 @@ import { setAlertReadingContext } from '../lib/browser-alerts';
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
+import ChatAttachmentPicker from "./ChatAttachmentPicker";
 import ChatModerationDialog, { type ModerationTarget } from "./ChatModerationDialog";
 import ChatQuarantineDialog, { type QuarantineControl } from "./ChatQuarantineDialog";
 import { useChatReadTracking } from "./useChatReadTracking";
@@ -68,6 +69,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const linkedConversation = searchParams.get('conversation') ?? '';
   const [canAnnounce, setCanAnnounce] = useState(false), [showAnnouncements, setShowAnnouncements] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false), [showReminders, setShowReminders] = useState(false);
+  const [attachmentMaxBytes, setAttachmentMaxBytes] = useState(0);
   const [areas, setAreas] = useState<Area[]>([]);
   const [selected, setSelected] = useState("");
   const [transcript, setTranscript] = useState<Transcript | null>(null);
@@ -148,12 +150,13 @@ function ChatWorkspace({ userId }: { userId: string }) {
 
   const refreshAreas = useCallback(async (signal?: AbortSignal) => {
     const request = ++areasRequest.current;
-    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean } }>("/api/chat/areas", { signal });
+    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean }; attachments?: { maxBytes: number } }>("/api/chat/areas", { signal });
     if (signal?.aborted || request !== areasRequest.current) return;
     availableAreas.current = response.areas;
     setAreas(response.areas);
     setCanAnnounce(!!response.announcements?.canAnnounce);
     setRemindersEnabled(!!response.unreadReminders?.enabled);
+    setAttachmentMaxBytes(response.attachments?.maxBytes ?? 0);
     const current = selectedRef.current;
     const permitted = new Set(response.areas.flatMap((a) => a.channels.map((c) => c.id)));
     for (const id of conversationDrafts.current.keys()) if (!permitted.has(id)) conversationDrafts.current.delete(id);
@@ -307,17 +310,21 @@ function ChatWorkspace({ userId }: { userId: string }) {
         });
       }
       if (selectedRef.current !== channelId) return;
-      messageRevision.current++;
-      followMessages.current = true;
-      setTranscript((old) => old ? { ...old, messages: old.messages.some((m) => m.id === response.message.id)
-        ? old.messages.map((m) => m.id === response.message.id ? response.message : m)
-        : [...old.messages, response.message] } : old);
+      showSentMessage(channelId, response.message);
       setDraft(edit ? beforeEdit.current.text : ""); setReply(edit ? beforeEdit.current.reply : null); setEdit(null); pendingSend.current = null;
       if (!edit) conversationDrafts.current.delete(channelId);
     } catch (e) {
       if (selectedRef.current === channelId) setError(errorText(e));
       if (e instanceof ApiError && e.status === 409) setRefreshTick((v) => v + 1);
     } finally { setSending(false); }
+  }
+  function showSentMessage(channelId: string, message: Message) {
+    if (selectedRef.current !== channelId) return;
+    messageRevision.current++;
+    followMessages.current = true;
+    setTranscript((old) => old ? { ...old, messages: old.messages.some((m) => m.id === message.id)
+      ? old.messages.map((m) => m.id === message.id ? message : m)
+      : [...old.messages, message] } : old);
   }
   async function loadOlder() {
     if (!transcript?.nextBefore || loadingOlder) return;
@@ -438,10 +445,11 @@ function ChatWorkspace({ userId }: { userId: string }) {
             {transcript?.canPost ? <form className="creator-chat-composer" onSubmit={(e) => void submit(e)}>
               {edit && <div className="creator-chat-editing" role="status"><strong>Editing your message</strong><button type="button" onClick={cancelEdit}>Cancel edit</button></div>}
               {editConflict && latestEdit && <div className="creator-chat-edit-conflict" role="alert"><strong>This message changed elsewhere.</strong><p>Your edit is kept below. Review the latest sent text before saving over it.</p><details><summary>View latest sent text</summary><p>{latestEdit.text}</p></details><button type="button" onClick={() => setEdit(latestEdit)}>I reviewed it — keep my edit</button></div>}
-              {reply && <div className="creator-chat-replying" role="status"><div><strong>Replying to {reply.authorName}</strong><p>{reply.text}</p></div><button type="button" onClick={() => { setReply(null); composer.current?.focus(); }}>Cancel reply</button></div>}
+              {reply && <div className="creator-chat-replying" role="status"><div><strong>Replying to {reply.authorName}</strong><p>{reply.attachment?.fileName ?? reply.text}</p></div><button type="button" onClick={() => { setReply(null); composer.current?.focus(); }}>Cancel reply</button></div>}
               <label className="creator-chat-sr" htmlFor="chat-message">Message {channel?.name}</label>
               <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
               <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Ctrl / ⌘ + Enter to send</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000 · Draft kept while Chat stays open` : ""}</span></small><button type="submit" disabled={sending || editConflict || unchangedEdit || !draft.trim()}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button></div>
+              {attachmentMaxBytes > 0 && <div hidden={!!edit || !!reply}><ChatAttachmentPicker key={selected} channelId={selected} maxBytes={attachmentMaxBytes} onSent={message => showSentMessage(selected, message)} /></div>}
             </form> : transcript && <div className="creator-chat-readonly"><ChatIcon name="lock" /><div><strong>{channel?.archived ? "Archived conversation" : "Read-only conversation"}</strong><p>{channel?.archived ? "You can read the history here. New messages are disabled." : "You can read messages here, but your access does not include posting."}</p></div></div>}
           </div>
         </div>

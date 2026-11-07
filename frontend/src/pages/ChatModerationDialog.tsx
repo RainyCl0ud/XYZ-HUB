@@ -61,7 +61,7 @@ export default function ChatModerationDialog({ target, onClose, onDeleted }: {
     <p id="chat-delete-impact">It will disappear for everyone except Owners. Owners keep the full message, edits and deletion record. There is no Undo action.</p>
     {phase === "checking" && <p role="status">Checking the latest message and your access…</p>}
     {updated && phase === "ready" && <p className="creator-chat-notice" role="status">This message was edited. Please review the updated text below.</p>}
-    {message && <blockquote><header><strong>{message.authorName}</strong><time dateTime={message.createdAt}>{new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(message.createdAt))}</time></header><p>{message.text}</p>{message.pinnedAt && <small>This message is pinned. Deleting it will also remove the pin.</small>}</blockquote>}
+    {message && <blockquote><header><strong>{message.authorName}</strong><time dateTime={message.createdAt}>{new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(message.createdAt))}</time></header>{message.text && <p>{message.text}</p>}{message.attachment && <p>File attachment · {message.attachment.fileName}</p>}{message.pinnedAt && <small>This message is pinned. Deleting it will also remove the pin.</small>}</blockquote>}
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
     <form onSubmit={(e) => void submit(e)}>
       <label htmlFor="chat-delete-reason">Reason for deletion</label>
