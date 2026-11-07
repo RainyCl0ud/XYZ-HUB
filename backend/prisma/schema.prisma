@@ -968,6 +968,7 @@ model ChatMessage {
   pinnedBy User? @relation("ChatPinnedBy", fields: [pinnedById], references: [id], onDelete: SetNull)
   reactions ChatReaction[]
   reads ChatMessageRead[]
+  attachment ChatAttachment?
   deletedAt DateTime?
   deletedById String?
   deletedByName String?
@@ -989,6 +990,15 @@ model ChatMessage {
   @@unique([conversationId, authorUserId, clientNonce])
   @@index([channelId, createdAt, id])
   @@index([conversationId, createdAt, id])
+}
+
+model ChatAttachment {
+  id String @id
+  messageId String @unique
+  fileName String
+  byteSize Int
+  sha256 String
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Restrict)
 }
 
 enum ChatStandingKind {

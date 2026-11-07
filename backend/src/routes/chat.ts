@@ -1,4 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
+import { pipeline } from "node:stream/promises";
 import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js";
 import { createRateLimit } from "../middleware/rate-limit.js";
@@ -12,6 +13,9 @@ import { announcementCapability, previewAnnouncement, publishAnnouncement, listA
 import { unreadReminderHistory } from "../services/chat-unread-reminders.js";
 import { unreadRemindersEnabled } from "../services/chat-unread-reminder-policy.js";
 import { browserNotificationFeed } from "../services/chat-browser-notifications.js";
+import { openChatAttachmentDownload } from "../services/creator-chat.js";
+import { chatAttachmentDirectory, MAX_CHAT_ATTACHMENT_BYTES } from "../services/chat-attachment-policy.js";
+import { chatAttachmentMetadata, uploadChatAttachment } from "../services/chat-attachments.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -37,12 +41,17 @@ const user = (req: Request) => (req as AuthenticatedRequest).userId!;
 const run = (action: (req: Request, res: Response) => Promise<unknown>) => async (req: Request, res: Response, next: NextFunction) => {
   try { await action(req, res); }
   catch (error) {
+    if (req.aborted || res.destroyed) return;
     if (error instanceof ChatError) return res.status(error.status).json({ error: "CHAT_ERROR", message: error.message });
     if (error instanceof z.ZodError) return res.status(400).json({ error: "INVALID_CHAT_INPUT", message: "Check the submitted chat details." });
     next(error);
   }
 };
-router.get("/areas", run(async (req, res) => res.json({ areas: await listChatAreas(user(req)), announcements: await announcementCapability(user(req)), unreadReminders: { enabled: unreadRemindersEnabled() } })));
+router.get("/areas", run(async (req, res) => res.json({
+  areas: await listChatAreas(user(req)), announcements: await announcementCapability(user(req)),
+  unreadReminders: { enabled: unreadRemindersEnabled() },
+  ...(chatAttachmentDirectory() ? { attachments: { maxBytes: MAX_CHAT_ATTACHMENT_BYTES } } : {}),
+})));
 router.get("/unread-reminders", run(async (req, res) => res.json(await unreadReminderHistory(user(req)))));
 const browserAlertLimit = createRateLimit({ windowMs: 60_000, max: 120, keyPrefix: 'chat-browser-alerts', getIdentity: req => user(req) });
 router.get('/browser-notifications', browserAlertLimit, run(async (req, res) => {
@@ -87,6 +96,39 @@ router.get("/channels/:channelId/members", run(async (req, res) => res.json({ me
 router.post("/channels/:channelId/messages", run(async (req, res) => {
   const input = sendSchema.parse(req.body);
   res.status(201).json({ message: await sendChatMessage(user(req), param(req, "channelId"), input.text, input.clientNonce, input.replyToId) });
+}));
+router.post("/channels/:channelId/files", run(async (req, res) => {
+  const directory = chatAttachmentDirectory();
+  if (!directory) throw new ChatError(404, "Attachments are unavailable.");
+  if (!req.is("application/octet-stream") || (req.get("Content-Encoding") ?? "identity").toLowerCase() !== "identity") {
+    throw new ChatError(415, "Upload the original file.");
+  }
+  const metadata = chatAttachmentMetadata(
+    req.get("X-XYZ-File-Name") ?? "", req.get("X-XYZ-File-Size") ?? "", req.get("X-XYZ-Chat-Nonce") ?? "",
+  );
+  const length = req.get("Content-Length");
+  if (length !== undefined && Number(length) !== metadata.byteSize) {
+    throw new ChatError(400, "The upload size did not match the selected file.");
+  }
+  res.status(201).json({ message: await uploadChatAttachment(req, directory, user(req), param(req, "channelId"), metadata) });
+}));
+const downloadLimit = createRateLimit({ windowMs: 60_000, max: 60, keyPrefix: "chat-files", getIdentity: user });
+router.get("/channels/:channelId/messages/:messageId/file", downloadLimit, run(async (req, res) => {
+  if (req.method !== "GET") return res.sendStatus(405);
+  const directory = chatAttachmentDirectory();
+  if (!directory || req.get("Sec-Fetch-Site") === "cross-site") throw new ChatError(404, "Attachment not found.");
+  const { handle, fileName, byteSize } = await openChatAttachmentDownload(user(req), param(req, "channelId"), param(req, "messageId"), directory);
+  try {
+    res.attachment(fileName).type("application/octet-stream").set({
+      "Content-Length": String(byteSize),
+      "X-Content-Type-Options": "nosniff",
+      "Cross-Origin-Resource-Policy": "same-site",
+      "Accept-Ranges": "none",
+    });
+    await pipeline(handle.createReadStream(), res);
+  } finally {
+    await handle.close();
+  }
 }));
 router.patch("/channels/:channelId/messages/:messageId", run(async (req, res) => {
   const input = editSchema.parse(req.body);

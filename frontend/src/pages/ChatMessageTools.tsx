@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { apiRequest } from "../lib/api";
+import { API_BASE_URL, apiRequest } from "../lib/api";
 
 export type ChatMessage = {
   id: string; authorName: string; text: string; version: number; createdAt: string; updatedAt: string;
@@ -7,6 +7,7 @@ export type ChatMessage = {
   canModerate?: boolean; canViewHistory?: boolean; replyUnavailable?: boolean;
   systemNotice?: boolean;
   announcement?: boolean;
+  attachment?: { fileName: string; byteSize: number; available: boolean };
   deleted?: { at: string; by: string; reason: string } | null;
   replyTo: { id: string; authorName: string; text: string; version: number; createdAt: string; deleted?: boolean } | null;
   reactions: { emoji: string; count: number; mine: boolean }[];
@@ -62,7 +63,15 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>
     {m.deleted && <div className="creator-chat-deleted-notice"><strong>Deleted · Owner view</strong><p>Deleted by {m.deleted.by} · {chatTime(m.deleted.at)}</p><p>Reason: {m.deleted.reason}</p></div>}
     {m.pinnedAt && <small className="creator-chat-pin-label">Pinned by {m.pinnedByName}</small>}
-    <p>{m.text}</p>
+    {m.text && <p>{m.text}</p>}
+    {m.attachment && <div className="creator-chat-file">
+      <strong>{m.attachment.fileName}</strong>
+      <small>{m.attachment.byteSize.toLocaleString()} bytes</small>
+      {m.attachment.available ? <a
+        href={`${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(m.id)}/file`}
+        target="_blank" rel="noopener" aria-label={`Download ${m.attachment.fileName}`}
+      >Download</a> : <small>File unavailable</small>}
+    </div>}
     {!!reactions.length && <div className="creator-chat-reactions" aria-label="Message reactions">{reactions.map((r) => m.canReply ?
       <button type="button" key={r.emoji} aria-pressed={r.mine} aria-label={`${palette.find(([emoji]) => emoji === r.emoji)?.[1] ?? "Reaction"}: ${r.count}${r.mine ? ", yours; remove reaction" : "; add reaction"}`} disabled={busy}
         onClick={() => void update("reaction", { emoji: r.emoji, active: !r.mine })}><span>{r.emoji}</span><span>{r.count}</span></button> :

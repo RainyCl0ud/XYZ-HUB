@@ -1,8 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { createHash, randomUUID } from "node:crypto";
+import { open, type FileHandle } from "node:fs/promises";
+import { join } from "node:path";
 import { prisma } from "../lib/prisma.js";
 import { CHAT_ROLE_DEFAULTS, CHAT_PERMISSION_DEFINITIONS } from "../permissions/chat-permissions.js";
 import { syncCreatorStandingChat, syncUserStandingChats } from "./standing-chat.js";
+import { chatAttachmentDirectory } from "./chat-attachment-policy.js";
 
 export const isCreatorChatEnabled = () => process.env.BLOCK2_CHAT_ENABLED === "true";
 export class ChatError extends Error {
@@ -150,6 +153,7 @@ function audit(tx: Prisma.TransactionClient, viewer: Viewer, action: string, tar
 }
 export const CHAT_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅"] as const;
 const messageInclude = {
+  attachment: true,
   replyTo: { select: { id: true, authorName: true, text: true, version: true, createdAt: true, deletedAt: true } },
   reactions: { select: { emoji: true, userId: true } },
 } satisfies Prisma.ChatMessageInclude;
@@ -162,9 +166,12 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
   return {
     id: message.id, authorUserId: message.authorUserId, authorName: message.authorName,
     text: message.text, version: message.version, createdAt: message.createdAt, updatedAt: message.updatedAt,
+    ...(message.attachment ? { attachment: {
+      fileName: message.attachment.fileName, byteSize: message.attachment.byteSize, available: !!chatAttachmentDirectory(),
+    } } : {}),
     systemNotice: !!message.systemEventKey || !!message.announcementKey,
     announcement: !!message.announcementKey,
-    replyTo: parent ? { id: parent.id, authorName: parent.authorName, text: parent.text, version: parent.version, createdAt: parent.createdAt, deleted: !!parent.deletedAt } : null,
+    replyTo: parent ? { id: parent.id, authorName: parent.authorName, text: parent.text || "File attachment", version: parent.version, createdAt: parent.createdAt, deleted: !!parent.deletedAt } : null,
     replyUnavailable: !!message.replyTo && !parent,
     deleted: message.deletedAt ? { at: message.deletedAt, by: message.deletedByName, reason: message.deletionReason } : null,
     canModerate: active && !archived && viewer.permissions.has("chat.messages.moderate"),
@@ -176,7 +183,7 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
       const entries = message.reactions.filter((r) => r.emoji === emoji);
       return entries.length ? [{ emoji, count: entries.length, mine: entries.some((r) => r.userId === viewer.user.id) }] : [];
     }),
-    canEdit: active && canPost && message.authorUserId === viewer.user.id && viewer.permissions.has("chat.messages.edit_own"),
+    canEdit: active && !message.attachment && canPost && message.authorUserId === viewer.user.id && viewer.permissions.has("chat.messages.edit_own"),
   };
 }
 
@@ -306,9 +313,12 @@ export async function listChatMessages(userId: string, channelId: string, before
   });
 }
 
-export async function sendChatMessage(userId: string, channelId: string, text: string, clientNonce: string, replyToId?: string) {
+type NewAttachment = { id: string; fileName: string; byteSize: number; sha256: string };
+
+async function postChatMessage(userId: string, channelId: string, text: string, clientNonce: string, replyToId?: string, attachment?: NewAttachment) {
   const normalized = text.trim();
-  if (!normalized || normalized.length > 8000 || !/^[\w-]{8,80}$/.test(clientNonce)) throw new ChatError(400, "Use 1–8,000 characters and a valid message reference.");
+  if ((!normalized && !attachment) || normalized.length > 8000 || !/^[\w-]{8,80}$/.test(clientNonce)) throw new ChatError(400, "Use 1–8,000 characters and a valid message reference.");
+  if (attachment && !chatAttachmentDirectory()) throw new ChatError(404, "Attachments are unavailable.");
   return prisma.$transaction(async (tx) => {
     const { viewer, access, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost) throw new ChatError(403, "This channel is read-only for you.");
@@ -317,13 +327,65 @@ export async function sendChatMessage(userId: string, channelId: string, text: s
       await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${replyToId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR SHARE`;
       if (!await tx.chatMessage.findFirst({ where: { id: replyToId, ...target, deletedAt: null, systemEventKey: null, announcementKey: null }, select: { id: true } })) throw new ChatError(404, "Reply message not found in this conversation.");
     }
-    const created = await tx.chatMessage.createMany({ data: { ...target, authorUserId: userId, authorName: viewer.user.name, text: normalized, clientNonce, replyToId: replyToId ?? null }, skipDuplicates: true });
+    const [created] = await tx.chatMessage.createManyAndReturn({ data: { ...target, authorUserId: userId, authorName: viewer.user.name, text: normalized, clientNonce, replyToId: replyToId ?? null }, skipDuplicates: true, select: { id: true } });
+    if (created && attachment) await tx.chatAttachment.create({ data: { ...attachment, messageId: created.id } });
     const message = await tx.chatMessage.findFirstOrThrow({ where: { ...target, authorUserId: userId, clientNonce }, include: messageInclude });
     if (message.deletedAt) throw new ChatError(409, "This message reference is no longer available. Send a new message instead.");
     if (message.text !== normalized || message.replyToId !== (replyToId ?? null)) throw new ChatError(409, "This message reference was already used. Refresh before sending again.");
-    if (created.count) await audit(tx, viewer, "chat.message.send", message.id, { channelId, channelName: channel?.name ?? `${conversation?.subjectName} · Private`, text: message.text, replyToId: message.replyToId });
-    return messageDto(message, viewer, access.canPost, access.archived);
+    const stored = message.attachment;
+    const sameAttachment = attachment
+      ? stored?.sha256 === attachment.sha256 && stored.fileName === attachment.fileName && stored.byteSize === attachment.byteSize
+      : !stored;
+    if (!sameAttachment) {
+      throw new ChatError(409, "This message reference was already used. Choose the file again.");
+    }
+    if (created) await audit(tx, viewer, "chat.message.send", message.id, { channelId, channelName: channel?.name ?? `${conversation?.subjectName} · Private`, text: message.text, replyToId: message.replyToId,
+      ...(attachment ? { fileName: attachment.fileName, byteSize: attachment.byteSize } : {}),
+    });
+    return { message: messageDto(message, viewer, access.canPost, access.archived), attachmentStored: !!created && !!attachment };
   });
+}
+
+export async function sendChatMessage(userId: string, channelId: string, text: string, clientNonce: string, replyToId?: string) {
+  return (await postChatMessage(userId, channelId, text, clientNonce, replyToId)).message;
+}
+
+export async function assertChatAttachmentPosting(userId: string, channelId: string) {
+  await prisma.$transaction(async (tx) => {
+    const { access } = await openChannel(tx, userId, channelId);
+    if (!access.canPost) throw new ChatError(403, "This channel is read-only for you.");
+  });
+}
+
+export function sendChatAttachmentMessage(userId: string, channelId: string, nonce: string, attachment: NewAttachment) {
+  return postChatMessage(userId, channelId, "", nonce, undefined, attachment);
+}
+
+export async function openChatAttachmentDownload(userId: string, channelId: string, messageId: string, directory: string) {
+  let handle: FileHandle | undefined;
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const { viewer, scope } = await openChannel(tx, userId, channelId);
+      const message = await tx.chatMessage.findFirst({
+        where: { ...scope, id: messageId, ...visibleMessages(viewer) },
+        select: { attachment: true },
+      });
+      if (!message?.attachment) throw new ChatError(404, "Attachment not found.");
+      const { id, fileName, byteSize } = message.attachment;
+      try {
+        handle = await open(join(directory, id), "r");
+        const info = await handle.stat();
+        if (!info.isFile() || info.size !== byteSize) throw new Error("Invalid stored file");
+      } catch {
+        throw new ChatError(503, "This file is temporarily unavailable.");
+      }
+      await audit(tx, viewer, "chat.attachment.download", messageId, { channelId, fileName, byteSize });
+      return { handle, fileName, byteSize };
+    });
+  } catch (error) {
+    await handle?.close().catch(() => {});
+    throw error;
+  }
 }
 
 export async function editChatMessage(userId: string, channelId: string, messageId: string, text: string, version: number) {
@@ -332,9 +394,10 @@ export async function editChatMessage(userId: string, channelId: string, message
   return prisma.$transaction(async (tx) => {
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost || !viewer.permissions.has("chat.messages.edit_own")) throw new ChatError(403, "You cannot edit messages here.");
-    const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null } });
+    const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null }, include: { attachment: { select: { id: true } } } });
     if (!previous) throw new ChatError(404, "Message not found.");
     if (previous.systemEventKey || previous.announcementKey) throw new ChatError(403, "Chat notices cannot be edited.");
+    if (previous.attachment) throw new ChatError(403, "File messages cannot be edited.");
     if (previous.authorUserId !== userId) throw new ChatError(403, "You can only edit your own messages.");
     if (previous.version !== version) throw new ChatError(409, "This message changed. Refresh before editing again.");
     const updated = await tx.chatMessage.updateMany({ where: { id: messageId, version, ...scope, deletedAt: null }, data: { text: normalized, version: { increment: 1 } } });
