@@ -17,7 +17,7 @@ import ChatQuarantineDialog, { type QuarantineControl } from "./ChatQuarantineDi
 import { useChatReadTracking } from "./useChatReadTracking";
 
 const noUnreadIds: string[] = [];
-type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; archived: boolean; isPrivate: boolean; unreadCount?: number };
+type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; canArchive?: boolean; archived: boolean; isPrivate: boolean; unreadCount?: number };
 type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; pausedForYou?: boolean; channels: Channel[]; unreadCount?: number };
 type Transcript = { messages: Message[]; unreadMessageIds?: string[]; quarantine?: QuarantineControl | null; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; hasMore: boolean; nextBefore: string | null };
 type Member = { id: string; name: string; canView?: boolean; canPost: boolean; quarantine?: QuarantineControl | null };
@@ -127,8 +127,9 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const query = channelSearch.trim().toLocaleLowerCase();
   const visibleChannels = browseArea?.channels.filter((c) => c.name.toLocaleLowerCase().includes(query) &&
     (!unreadOnly || (c.unreadCount ?? 0) > 0) && (channelFilter === "all" || (channelFilter === "private" ? c.isPrivate : !c.isPrivate))) ?? [];
-  const ordinaryChannels = visibleChannels.filter((c) => !c.isPrivate);
-  const privateChannels = visibleChannels.filter((c) => c.isPrivate);
+  const ordinaryChannels = visibleChannels.filter((c) => !c.archived && !c.isPrivate);
+  const privateChannels = visibleChannels.filter((c) => !c.archived && c.isPrivate);
+  const archivedChannels = visibleChannels.filter((c) => c.archived);
 
   const chooseChannel = useCallback((id: string, preserveCurrent = true) => {
     const place = availableAreas.current.find((a) => a.channels.some((c) => c.id === id));
@@ -170,7 +171,9 @@ function ChatWorkspace({ userId }: { userId: string }) {
       const savedArea = response.areas.find((a) => a.modelId === saved?.modelId);
       const restored = savedArea?.channels.find((c) => c.id === saved?.channelId);
       const linked = response.areas.flatMap(a => a.channels).find(c => c.id === linkedConversation);
-      chooseChannel(linked?.id ?? restored?.id ?? savedArea?.channels[0]?.id ?? response.areas.flatMap((a) => a.channels)[0]?.id ?? "", false);
+      const allChannels = response.areas.flatMap((a) => a.channels);
+      chooseChannel(linked?.id ?? restored?.id ?? savedArea?.channels.find(c => !c.archived)?.id
+        ?? allChannels.find(c => !c.archived)?.id ?? savedArea?.channels[0]?.id ?? allChannels[0]?.id ?? "", false);
       if (linkedConversation) setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete('conversation'); return next; }, { replace: true });
     }
     setLoading(false);
@@ -412,7 +415,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               <label className="creator-chat-field-label" htmlFor="chat-workspace">Creator / workspace</label>
               <select id="chat-workspace" disabled={sending} value={browseArea?.modelId ?? ""} onChange={(e) => {
                 const next = areas.find((a) => a.modelId === e.target.value);
-                setChannelSearch(""); setChannelFilter("all"); chooseChannel(next?.channels[0]?.id ?? "");
+                setChannelSearch(""); setChannelFilter("all"); chooseChannel(next?.channels.find(c => !c.archived)?.id ?? next?.channels[0]?.id ?? "");
               }}>{areas.map((a) => <option key={a.modelId} value={a.modelId}>{a.name}{a.archived ? " · Archived" : a.unreadCount ? ` · ${a.unreadCount} unread` : ""}</option>)}</select>
               <div className="creator-chat-search"><ChatIcon name="search" /><label className="creator-chat-sr" htmlFor="chat-find-channel">Find a conversation</label><input id="chat-find-channel" type="search" value={channelSearch} onChange={(e) => setChannelSearch(e.target.value)} placeholder="Find a conversation…" /></div>
               <div className="creator-chat-filters" role="group" aria-label="Conversation type">
@@ -424,6 +427,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
             <nav className="creator-chat-channel-list" aria-label={`${browseArea?.name ?? "Your"} conversations`}>
               {!!ordinaryChannels.length && <div className="creator-chat-channel-group"><h2>Channels <span>{ordinaryChannels.length}</span></h2>{ordinaryChannels.map(channelRow)}</div>}
               {!!privateChannels.length && <div className="creator-chat-channel-group"><h2>Private chats <span>{privateChannels.length}</span></h2>{privateChannels.map(channelRow)}</div>}
+              {!!archivedChannels.length && <div className="creator-chat-channel-group"><h2>Archived conversations <span>{archivedChannels.length}</span></h2>{archivedChannels.map(channelRow)}</div>}
               {!visibleChannels.length && <div className="creator-chat-no-results"><p>{unreadOnly ? "No unread conversations match." : "No conversations match."}</p><button type="button" onClick={() => { setChannelSearch(""); setChannelFilter("all"); setUnreadOnly(false); }}>Clear filters</button></div>}
             </nav>
             <div className="creator-chat-browse-footer">{browseArea?.canManage ? <button type="button" onClick={() => { setSettings({ modelId: browseArea.modelId, name: "" }); setShowChannels(false); }}>+ New channel</button> : <p>Only conversations you can access appear here.</p>}</div>
@@ -450,7 +454,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 </Fragment>)}
               </>}
             </div>
-            {transcript?.canPost ? <form className="creator-chat-composer" onSubmit={(e) => void submit(e)}>
+            {transcript?.canPost && !channel?.archived ? <form className="creator-chat-composer" onSubmit={(e) => void submit(e)}>
               {edit && <div className="creator-chat-editing" role="status"><strong>Editing your message</strong><button type="button" onClick={cancelEdit}>Cancel edit</button></div>}
               {editConflict && latestEdit && <div className="creator-chat-edit-conflict" role="alert"><strong>This message changed elsewhere.</strong><p>Your edit is kept below. Review the latest sent text before saving over it.</p><details><summary>View latest sent text</summary><p>{latestEdit.text}</p></details><button type="button" onClick={() => setEdit(latestEdit)}>I reviewed it — keep my edit</button></div>}
               {reply && <div className="creator-chat-replying" role="status"><div><strong>Replying to {reply.authorName}</strong><p>{reply.attachment?.fileName ?? reply.text}</p></div><button type="button" onClick={() => { setReply(null); composer.current?.focus(); }}>Cancel reply</button></div>}
@@ -463,7 +467,17 @@ function ChatWorkspace({ userId }: { userId: string }) {
           </div>
         </div>
       )}
-      {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId} target={settings} onClose={() => setSettings(null)} onSaved={async (id) => { await refreshAreas(); if (id) chooseChannel(id); }} />}
+      {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId}
+        target={{ ...settings, name: channel && channel.id === settings.channelId ? channel.name : settings.name, canArchive: channel?.id === settings.channelId && channel?.canArchive }}
+        onClose={() => setSettings(null)}
+        onSaved={async (id) => { await refreshAreas(); if (id) chooseChannel(id); }}
+        onArchived={() => {
+          setSettings(null); setTranscript(null); setMembers([]); setTools(null); setDeleting(null); setQuarantining(null);
+          setEdit(null); setReply(null); setDraft("");
+          setNotice("Channel archived. Its messages and files were kept.");
+          setRefreshTick(n => n + 1);
+        }}
+      />}
       {tools && <ChatMessageTools key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { chooseChannel(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} />}
       {deleting && <ChatModerationDialog key={deleting.message.id} target={deleting} onClose={() => setDeleting(null)} onDeleted={messageDeleted} />}
       {quarantining && <ChatQuarantineDialog key={`${quarantining.modelId}:${quarantining.userId}`} target={quarantining} onClose={() => { setQuarantining(null); setRefreshTick((n) => n + 1); }} onSaved={(result) => {

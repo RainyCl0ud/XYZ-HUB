@@ -4,14 +4,20 @@ import { apiRequest } from "../lib/api";
 type Grant = { canView: boolean; canPost: boolean };
 type Option = { id: string; name: string; grant: Grant | null };
 type Options = { roles: Option[]; people: Option[] };
-type Props = { target: { modelId: string; channelId?: string; name: string }; onClose: () => void; onSaved: (channelId?: string) => Promise<void> };
-export default function ChatChannelSettings({ target, onClose, onSaved }: Props) {
+type Props = {
+  target: { modelId: string; channelId?: string; name: string; canArchive?: boolean };
+  onClose: () => void;
+  onSaved: (channelId?: string) => Promise<void>;
+  onArchived: () => void;
+};
+export default function ChatChannelSettings({ target, onClose, onSaved, onArchived }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState(target.name);
   const [options, setOptions] = useState<Options | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [confirmArchive, setConfirmArchive] = useState(false);
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
@@ -49,6 +55,18 @@ export default function ChatChannelSettings({ target, onClose, onSaved }: Props)
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to save channel access."); }
     finally { setBusy(false); }
   }
+  async function archive() {
+    if (!target.channelId || !confirmArchive || busy) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await apiRequest(`/api/chat/channels/${target.channelId}/archive`, { method: "PUT", body: JSON.stringify({ name: target.name }) });
+      onArchived();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to archive the channel.");
+    } finally {
+      setBusy(false);
+    }
+  }
   return <dialog ref={dialog} className="creator-chat-settings" aria-labelledby="chat-settings-title" onCancel={onClose}>
     <header><h2 id="chat-settings-title">{target.channelId ? "Channel settings" : "Create a channel"}</h2><button type="button" onClick={onClose}>Close</button></header>
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
@@ -56,6 +74,14 @@ export default function ChatChannelSettings({ target, onClose, onSaved }: Props)
     <form onSubmit={(e) => void saveName(e)}><label htmlFor="chat-channel-name">Channel name</label><div className="creator-chat-settings-name"><input id="chat-channel-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required /><button type="submit" disabled={busy || !name.trim()}>{target.channelId ? "Save name" : "Create channel"}</button></div></form>
     {!target.channelId && <p>Create a channel for this creator, then use its settings to choose who can read and send messages.</p>}
     {target.channelId && <>
+      {target.canArchive && <section className="creator-chat-archive-control" aria-label="Archive channel">
+        {confirmArchive ? <>
+          <h3>Archive #{target.name}?</h3>
+          <p>This freezes the channel and moves it to Archived conversations. Only authorized Owners and Developers can open it there. Messages and files are kept.</p>
+          <button type="button" disabled={busy} onClick={() => setConfirmArchive(false)}>Keep channel active</button>
+          <button type="button" disabled={busy} onClick={() => void archive()}>{busy ? "Saving…" : "Confirm archive"}</button>
+        </> : <button type="button" disabled={busy} onClick={() => setConfirmArchive(true)}>Archive channel…</button>}
+      </section>}
       <p>Choose who can read and send messages in this channel. Access from a person's roles and individual settings adds together. “No extra access” removes only this setting; access from another role may still apply.</p>
       <p>Staff must be assigned to this creator. Their role must also allow channels in Role Settings. These settings cannot change protected private chats.</p>
       {!options ? <p role="status">Loading channel access…</p> : <>

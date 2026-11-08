@@ -12,6 +12,7 @@ import { prisma } from "../src/lib/prisma.js";
 import { loadSession } from "../src/middleware/session-auth.js";
 import chat from "../src/routes/chat.js";
 import { chatAttachmentDirectory, MAX_CHAT_ATTACHMENT_BYTES } from "../src/services/chat-attachment-policy.js";
+import { chatChannelArchiveEnabled } from "../src/services/chat-archive-policy.js";
 import { installCreatorChatDefaults, provisionCreatorChat } from "../src/services/creator-chat.js";
 import { createSession } from "../src/services/session.js";
 import { installStandingChatDefaults, syncUserStandingChats } from "../src/services/standing-chat.js";
@@ -265,6 +266,60 @@ async function main() {
     assert.deepEqual(await playback.arrayBuffer(), await recording.arrayBuffer());
     assert.equal(await prisma.auditEvent.count({ where: { ...playAudit, actorUserId: owner.id } }), 1);
     console.log("PASS: recorded WAV uploads are validated and retry-safe; authorized playback sends the original audio and records a separate audit event.");
+
+    const manager = await person("manager", "MANAGER");
+    const otherManager = await person("other-manager", "MANAGER");
+    const developer = await person("developer", "DEV");
+    for (const user of [manager, otherManager]) {
+      await prisma.userModelAssignment.create({ data: { userId: user.id, modelId: model.id } });
+    }
+    const json = (actor: typeof owner, path: string, method: string, body: object) => fetch(path, {
+      method, headers: { ...actor.cookie, "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const archive = (actor: typeof owner, target: { id: string; name: string }) => json(actor, `${url(target.id)}/archive`, "PUT", { name: target.name });
+    const updates = await prisma.chatChannel.findFirstOrThrow({ where: { modelId: model.id, key: "updates" } });
+    process.env.BLOCK2_CHAT_CHANNEL_ARCHIVE_ENABLED = "false";
+    assert.equal((await archive(owner, channel)).status, 404);
+    process.env.BLOCK2_CHAT_CHANNEL_ARCHIVE_ENABLED = "true";
+    assert.equal(chatChannelArchiveEnabled({ ...process.env, RAILWAY_ENVIRONMENT_NAME: "Production" }), false);
+    assert.equal((await archive(peer, channel)).status, 403);
+    assert.equal((await archive(developer, channel)).status, 403);
+    assert.equal((await archive(owner, updates)).status, 403);
+    assert.equal((await archive(owner, { id: peerChat.id, name: "Private" })).status, 404);
+    assert.equal((await archive(manager, { ...channel, name: "Out of date" })).status, 409);
+    const attempts = await Promise.all([archive(manager, channel), archive(manager, channel)]);
+    assert.deepEqual(attempts.map(response => response.status), [200, 200]);
+    assert.equal(await prisma.auditEvent.count({ where: { action: "chat.channel.archive", targetId: channel.id } }), 1);
+    assert.equal((await archive(otherManager, channel)).status, 404);
+    const transcriptUrl = `${url(channel.id)}/messages`;
+    const hiddenChannel = await fetch(transcriptUrl, { headers: manager.cookie });
+    assert.equal(hiddenChannel.status, 404);
+    assert.equal((await fetch(firstUrl, { headers: peer.cookie })).status, 404);
+    const developerView = await fetch(transcriptUrl, { headers: developer.cookie });
+    assert.equal(developerView.status, 200);
+    const frozen = await developerView.json();
+    assert.equal(frozen.canPost, false);
+    assert.deepEqual(frozen.unreadMessageIds, []);
+    assert.ok(frozen.messages.some((m: { id: string }) => m.id === first));
+    assert.ok(!frozen.messages.some((m: { id: string }) => m.id === pictureId));
+    assert.equal((await fetch(previewUrl, { headers: developer.cookie })).status, 404);
+    assert.equal((await fetch(previewUrl, { headers: owner.cookie })).status, 200);
+    assert.equal(await (await fetch(firstUrl, { headers: owner.cookie })).text(), "file");
+    assert.equal((await fetch(`${url(channel.id)}/deleted`, { headers: developer.cookie })).status, 403);
+    const deletedInArchive = await fetch(`${url(channel.id)}/deleted`, { headers: owner.cookie });
+    assert.ok((await deletedInArchive.json()).messages.some((m: { id: string }) => m.id === pictureId));
+    const search = await fetch(`${base}/search?q=Fictional`, { headers: peer.cookie });
+    assert.ok(!(await search.json()).results.some((m: { channelId: string }) => m.channelId === channel.id));
+    assert.equal((await upload({ ...input, nonce: randomUUID() })).status, 403);
+    assert.equal((await json(owner, transcriptUrl, "POST", { text: "Frozen", clientNonce: randomUUID() })).status, 403);
+    assert.equal((await json(owner, url(channel.id), "PATCH", { name: "Frozen" })).status, 403);
+    assert.equal((await json(owner, `${transcriptUrl}/${first}/reaction`, "PUT", { emoji: "👍", active: true })).status, 403);
+    assert.equal((await json(owner, `${transcriptUrl}/${first}`, "DELETE", { version: 1, reason: "Frozen" })).status, 403);
+    const adjacent = await json(owner, `${url(updates.id)}/messages`, "POST", { text: "Updates remains available", clientNonce: randomUUID() });
+    assert.equal(adjacent.status, 201);
+    process.env.BLOCK2_CHAT_CHANNEL_ARCHIVE_ENABLED = "false";
+    assert.equal((await fetch(transcriptUrl, { headers: manager.cookie })).status, 404);
+    console.log("PASS: archiving is scoped, retry-safe, and read-only; attachments and deleted history follow archive access while Updates stays open.");
 
     process.env.BLOCK2_CHAT_ATTACHMENTS_ENABLED = "false";
     assert.equal((await fetch(firstUrl, { headers: owner.cookie })).status, 404);

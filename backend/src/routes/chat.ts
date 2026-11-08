@@ -5,7 +5,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js"
 import { createRateLimit } from "../middleware/rate-limit.js";
 import { ChatError, chatGrantOptions, editChatMessage, isCreatorChatEnabled, listChatAreas, listChatMembers, listChatMessages, sendChatMessage, setChatGrant } from "../services/creator-chat.js";
 import { getChatMessage, refreshChatMessages, searchChatMessages, listChatPins, setChatPin, setChatReaction } from "../services/creator-chat.js";
-import { createChatChannel, renameChatChannel } from "../services/creator-chat.js";
+import { archiveChatChannel, createChatChannel, renameChatChannel } from "../services/creator-chat.js";
 import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } from "../services/creator-chat.js";
 import { getChatQuarantine, setChatQuarantine } from "../services/creator-chat.js";
 import { listChatUnread, markChatMessagesRead } from "../services/creator-chat.js";
@@ -91,6 +91,10 @@ router.post("/areas/:modelId/channels", run(async (req, res) => {
 router.patch("/channels/:channelId", run(async (req, res) => {
   await renameChatChannel(user(req), param(req, "channelId"), channelNameSchema.parse(req.body).name);
   res.json({ success: true });
+}));
+router.put("/channels/:channelId/archive", run(async (req, res) => {
+  const { name } = channelNameSchema.parse(req.body);
+  res.json(await archiveChatChannel(user(req), param(req, "channelId"), name));
 }));
 router.get("/channels/:channelId/messages", run(async (req, res) => {
   const before = req.query.before;

@@ -114,6 +114,8 @@
 .creator-chat-settings { color: #FFFFFF; background: #141414; border: 1px solid #666666; border-radius: 2px; width: min(680px, calc(100vw - 40px)); max-height: 82dvh; padding: 24px; box-sizing: border-box; overflow-y: auto; }
 .creator-chat-settings::backdrop { background: #000000; }
 .creator-chat-settings header { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 16px; }
+.creator-chat-archive-control { margin: 16px 0; padding: 12px; border: 1px solid var(--border, #454545); }
+.creator-chat-archive-control button { margin: 4px 8px 4px 0; }
 .creator-chat-settings h2 { font-size: 18px; margin: 0; }
 .creator-chat-settings h3 { font-size: 15px; margin-top: 24px; }
 .creator-chat-settings p { color: #CCCCCC; font-size: 13px; line-height: 1.6; }
