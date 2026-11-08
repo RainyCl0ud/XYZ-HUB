@@ -13,9 +13,10 @@ import { announcementCapability, previewAnnouncement, publishAnnouncement, listA
 import { unreadReminderHistory } from "../services/chat-unread-reminders.js";
 import { unreadRemindersEnabled } from "../services/chat-unread-reminder-policy.js";
 import { browserNotificationFeed } from "../services/chat-browser-notifications.js";
-import { openChatAttachmentDownload } from "../services/creator-chat.js";
+import { openChatAttachment } from "../services/creator-chat.js";
 import { chatAttachmentDirectory, MAX_CHAT_ATTACHMENT_BYTES } from "../services/chat-attachment-policy.js";
 import { chatAttachmentMetadata, uploadChatAttachment } from "../services/chat-attachments.js";
+import { renderChatImagePreview } from "../services/chat-image-preview.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -117,7 +118,7 @@ router.get("/channels/:channelId/messages/:messageId/file", downloadLimit, run(a
   if (req.method !== "GET") return res.sendStatus(405);
   const directory = chatAttachmentDirectory();
   if (!directory || req.get("Sec-Fetch-Site") === "cross-site") throw new ChatError(404, "Attachment not found.");
-  const { handle, fileName, byteSize } = await openChatAttachmentDownload(user(req), param(req, "channelId"), param(req, "messageId"), directory);
+  const { handle, fileName, byteSize } = await openChatAttachment(user(req), param(req, "channelId"), param(req, "messageId"), directory, "download");
   try {
     res.attachment(fileName).type("application/octet-stream").set({
       "Content-Length": String(byteSize),
@@ -126,6 +127,24 @@ router.get("/channels/:channelId/messages/:messageId/file", downloadLimit, run(a
       "Accept-Ranges": "none",
     });
     await pipeline(handle.createReadStream(), res);
+  } finally {
+    await handle.close();
+  }
+}));
+const previewLimit = createRateLimit({ windowMs: 60_000, max: 120, keyPrefix: "chat-file-previews", getIdentity: user });
+router.get("/channels/:channelId/messages/:messageId/preview", previewLimit, run(async (req, res) => {
+  if (req.method !== "GET") return res.sendStatus(405);
+  const directory = chatAttachmentDirectory();
+  if (!directory || req.get("Sec-Fetch-Site") === "cross-site") throw new ChatError(404, "Image preview not found.");
+  const { handle } = await openChatAttachment(user(req), param(req, "channelId"), param(req, "messageId"), directory, "preview");
+  try {
+    const thumbnail = await renderChatImagePreview(handle);
+    if (!thumbnail) throw new ChatError(404, "No preview is available for this file.");
+    res.type("image/webp").set({
+      "Content-Length": String(thumbnail.length),
+      "X-Content-Type-Options": "nosniff",
+      "Cross-Origin-Resource-Policy": "same-site",
+    }).end(thumbnail);
   } finally {
     await handle.close();
   }

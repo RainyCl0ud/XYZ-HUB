@@ -37,4 +37,10 @@ try {
   assert.ok(!file.includes(">Edit</button>"));
   assert.ok(render({ ...legacy, text: "", attachment: { ...attachment, available: false } }).includes("File unavailable"));
   console.log("PASS: files use an authenticated download link and unavailable files are labeled.");
+  assert.ok(!file.includes("/preview"));
+  const image = render({ ...legacy, text: "", attachment: { ...attachment, fileName: "Preview.jpg", canPreview: true } });
+  assert.ok(image.includes("/api/chat/channels/test-channel/messages/old-message/preview"));
+  assert.ok(image.includes('loading="lazy"') && image.includes('alt="Preview of Preview.jpg"'));
+  assert.ok(image.includes("/api/chat/channels/test-channel/messages/old-message/file"));
+  console.log("PASS: an eligible image loads its small preview separately from the original download.");
 } finally { await vite.close(); }

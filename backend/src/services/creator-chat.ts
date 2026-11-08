@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { prisma } from "../lib/prisma.js";
 import { CHAT_ROLE_DEFAULTS, CHAT_PERMISSION_DEFINITIONS } from "../permissions/chat-permissions.js";
 import { syncCreatorStandingChat, syncUserStandingChats } from "./standing-chat.js";
-import { chatAttachmentDirectory } from "./chat-attachment-policy.js";
+import { canPreviewChatImage, chatAttachmentDirectory } from "./chat-attachment-policy.js";
 
 export const isCreatorChatEnabled = () => process.env.BLOCK2_CHAT_ENABLED === "true";
 export class ChatError extends Error {
@@ -168,6 +168,7 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
     text: message.text, version: message.version, createdAt: message.createdAt, updatedAt: message.updatedAt,
     ...(message.attachment ? { attachment: {
       fileName: message.attachment.fileName, byteSize: message.attachment.byteSize, available: !!chatAttachmentDirectory(),
+      canPreview: canPreviewChatImage(message.attachment.fileName, message.attachment.byteSize),
     } } : {}),
     systemNotice: !!message.systemEventKey || !!message.announcementKey,
     announcement: !!message.announcementKey,
@@ -361,7 +362,7 @@ export function sendChatAttachmentMessage(userId: string, channelId: string, non
   return postChatMessage(userId, channelId, "", nonce, undefined, attachment);
 }
 
-export async function openChatAttachmentDownload(userId: string, channelId: string, messageId: string, directory: string) {
+export async function openChatAttachment(userId: string, channelId: string, messageId: string, directory: string, purpose: "download" | "preview") {
   let handle: FileHandle | undefined;
   try {
     return await prisma.$transaction(async (tx) => {
@@ -372,6 +373,9 @@ export async function openChatAttachmentDownload(userId: string, channelId: stri
       });
       if (!message?.attachment) throw new ChatError(404, "Attachment not found.");
       const { id, fileName, byteSize } = message.attachment;
+      if (purpose === "preview" && !canPreviewChatImage(fileName, byteSize)) {
+        throw new ChatError(404, "No preview is available for this file.");
+      }
       try {
         handle = await open(join(directory, id), "r");
         const info = await handle.stat();
@@ -379,7 +383,9 @@ export async function openChatAttachmentDownload(userId: string, channelId: stri
       } catch {
         throw new ChatError(503, "This file is temporarily unavailable.");
       }
-      await audit(tx, viewer, "chat.attachment.download", messageId, { channelId, fileName, byteSize });
+      if (purpose === "download") {
+        await audit(tx, viewer, "chat.attachment.download", messageId, { channelId, fileName, byteSize });
+      }
       return { handle, fileName, byteSize };
     });
   } catch (error) {

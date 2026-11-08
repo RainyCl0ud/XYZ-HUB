@@ -7,7 +7,7 @@ export type ChatMessage = {
   canModerate?: boolean; canViewHistory?: boolean; replyUnavailable?: boolean;
   systemNotice?: boolean;
   announcement?: boolean;
-  attachment?: { fileName: string; byteSize: number; available: boolean };
+  attachment?: { fileName: string; byteSize: number; available: boolean; canPreview?: boolean };
   deleted?: { at: string; by: string; reason: string } | null;
   replyTo: { id: string; authorName: string; text: string; version: number; createdAt: string; deleted?: boolean } | null;
   reactions: { emoji: string; count: number; mine: boolean }[];
@@ -20,10 +20,18 @@ const errorText = (e: unknown) => e instanceof Error ? e.message : "Unable to lo
 export type ChatToolTarget = { kind: "search" | "pins" | "deleted"; channelId: string; channelName: string } |
   { kind: "message" | "history"; channelId: string; channelName: string; messageId: string };
 
-export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onChanged, onOpen, onError, onModerate, onHistory }: {
+function ChatImagePreview({ src, fileName, onLoad }: { src: string; fileName: string; onLoad?: () => void }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return <img className="creator-chat-image-preview" src={src} alt={`Preview of ${fileName}`}
+    loading="lazy" decoding="async" referrerPolicy="no-referrer" onLoad={onLoad} onError={() => setFailed(true)} />;
+}
+
+export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onChanged, onOpen, onError, onModerate, onHistory, onPreviewLoad }: {
   message: ChatMessage; channelId: string; onReply: (message: ChatMessage) => void; onEdit?: (message: ChatMessage) => void;
   onChanged: (message: ChatMessage) => void; onOpen: (messageId: string) => void; onError: (e: unknown) => void;
   onModerate?: (message: ChatMessage) => void; onHistory?: (messageId: string) => void;
+  onPreviewLoad?: () => void;
 }) {
   // During a rolling deploy the older API still returns ordinary messages.
   const reactions = m.reactions ?? [];
@@ -55,6 +63,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     } catch (e) { if (!controller.signal.aborted) onError(e); }
     finally { if (!controller.signal.aborted) setBusy(false); }
   }
+  const attachmentPath = `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(m.id)}`;
   return <div className={`creator-chat-message-content ${m.deleted ? "is-deleted" : ""}`}>
     {m.replyUnavailable && <p className="creator-chat-unavailable">Original message unavailable.</p>}
     {m.replyTo && <button type="button" className="creator-chat-quote" onClick={() => onOpen(m.replyTo!.id)} aria-label={`View original message by ${m.replyTo.authorName}`}>
@@ -64,14 +73,19 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     {m.deleted && <div className="creator-chat-deleted-notice"><strong>Deleted · Owner view</strong><p>Deleted by {m.deleted.by} · {chatTime(m.deleted.at)}</p><p>Reason: {m.deleted.reason}</p></div>}
     {m.pinnedAt && <small className="creator-chat-pin-label">Pinned by {m.pinnedByName}</small>}
     {m.text && <p>{m.text}</p>}
-    {m.attachment && <div className="creator-chat-file">
-      <strong>{m.attachment.fileName}</strong>
-      <small>{m.attachment.byteSize.toLocaleString()} bytes</small>
-      {m.attachment.available ? <a
-        href={`${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(m.id)}/file`}
-        target="_blank" rel="noopener" aria-label={`Download ${m.attachment.fileName}`}
-      >Download</a> : <small>File unavailable</small>}
-    </div>}
+    {m.attachment && <>
+      {m.attachment.available && m.attachment.canPreview && <ChatImagePreview
+        key={attachmentPath} src={`${attachmentPath}/preview`} fileName={m.attachment.fileName} onLoad={onPreviewLoad}
+      />}
+      <div className="creator-chat-file">
+        <strong>{m.attachment.fileName}</strong>
+        <small>{m.attachment.byteSize.toLocaleString()} bytes</small>
+        {m.attachment.available ? <a
+          href={`${attachmentPath}/file`}
+          target="_blank" rel="noopener" aria-label={`Download ${m.attachment.fileName}`}
+        >Download</a> : <small>File unavailable</small>}
+      </div>
+    </>}
     {!!reactions.length && <div className="creator-chat-reactions" aria-label="Message reactions">{reactions.map((r) => m.canReply ?
       <button type="button" key={r.emoji} aria-pressed={r.mine} aria-label={`${palette.find(([emoji]) => emoji === r.emoji)?.[1] ?? "Reaction"}: ${r.count}${r.mine ? ", yours; remove reaction" : "; add reaction"}`} disabled={busy}
         onClick={() => void update("reaction", { emoji: r.emoji, active: !r.mine })}><span>{r.emoji}</span><span>{r.count}</span></button> :
