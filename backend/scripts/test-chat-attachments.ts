@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import cookieParser from "cookie-parser";
 import express from "express";
+import sharp from "sharp";
 import { prisma } from "../src/lib/prisma.js";
 import { loadSession } from "../src/middleware/session-auth.js";
 import chat from "../src/routes/chat.js";
@@ -170,9 +171,70 @@ async function main() {
     assert.equal(actual.digest("hex"), expected.digest("hex"));
     console.log("PASS: the full 500 MB file streamed through upload and download with identical bytes.");
 
+    const picture = await sharp({
+      create: { width: 800, height: 400, channels: 3, background: "#538cba" },
+    }).jpeg().withMetadata().toBuffer();
+    const pictureId = await messageId(await upload({
+      ...input, nonce: randomUUID(), name: "preview-test.jpg", bytes: picture.length, body: new Uint8Array(picture),
+    }), "preview-test.jpg");
+    const previewUrl = fileUrl(channel.id, pictureId).replace(/\/file$/, "/preview");
+    assert.equal((await fetch(previewUrl)).status, 401);
+    assert.equal((await fetch(previewUrl, { headers: staff.cookie })).status, 404);
+    assert.equal((await fetch(previewUrl, { headers: { ...peer.cookie, "Sec-Fetch-Site": "cross-site" } })).status, 404);
+    assert.equal((await fetch(previewUrl, { headers: peer.cookie, method: "HEAD" })).status, 405);
+    const thumbnail = await fetch(previewUrl, { headers: peer.cookie });
+    assert.equal(thumbnail.status, 200);
+    assert.equal(thumbnail.headers.get("content-type"), "image/webp");
+    assert.equal(thumbnail.headers.get("cache-control"), "no-store");
+    const previewMetadata = await sharp(Buffer.from(await thumbnail.arrayBuffer())).metadata();
+    assert.equal(previewMetadata.width, 320);
+    assert.equal(previewMetadata.height, 160);
+    assert.equal(previewMetadata.exif, undefined);
+    assert.equal(previewMetadata.icc, undefined);
+    const pictureAudit = { action: "chat.attachment.download", targetId: pictureId };
+    assert.equal(await prisma.auditEvent.count({ where: pictureAudit }), 0);
+    const originalPicture = await fetch(fileUrl(channel.id, pictureId), { headers: peer.cookie });
+    assert.deepEqual(Buffer.from(await originalPicture.arrayBuffer()), picture);
+    assert.equal(await prisma.auditEvent.count({ where: pictureAudit }), 1);
+    console.log("PASS: a real thumbnail uses current access, strips metadata, and keeps the original download audit separate.");
+
+    for (const format of ["png", "webp"] as const) {
+      const fileName = `preview-test.${format}`;
+      const bytes = await sharp({
+        create: { width: 80, height: 60, channels: 4, background: "#538cba80" },
+      }).toFormat(format).toBuffer();
+      const id = await messageId(await upload({
+        ...input, nonce: randomUUID(), name: fileName, bytes: bytes.length, body: new Uint8Array(bytes),
+      }), fileName);
+      const response = await fetch(fileUrl(channel.id, id).replace(/\/file$/, "/preview"), { headers: peer.cookie });
+      assert.equal(response.status, 200);
+      const metadata = await sharp(Buffer.from(await response.arrayBuffer())).metadata();
+      assert.equal(metadata.format, "webp");
+      assert.equal(metadata.hasAlpha, true);
+      assert.equal(metadata.width, 80);
+    }
+    console.log("PASS: transparent PNG and WebP images keep transparency and are never enlarged.");
+
+    const disguised = "<svg xmlns='http://www.w3.org/2000/svg'></svg>";
+    const disguisedId = await messageId(await upload({
+      ...input, nonce: randomUUID(), name: "not-an-image.png", body: disguised, bytes: disguised.length,
+    }), "not-an-image.png");
+    const disguisedPreview = fileUrl(channel.id, disguisedId).replace(/\/file$/, "/preview");
+    assert.equal((await fetch(disguisedPreview, { headers: peer.cookie })).status, 404);
+    assert.equal(await (await fetch(fileUrl(channel.id, disguisedId), { headers: peer.cookie })).text(), disguised);
+    const removed = await fetch(`${url(channel.id)}/messages/${pictureId}`, {
+      method: "DELETE", headers: { ...owner.cookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ version: 1, reason: "Fictional preview moderation test" }),
+    });
+    assert.equal(removed.status, 200);
+    assert.equal((await fetch(previewUrl, { headers: peer.cookie })).status, 404);
+    assert.equal((await fetch(previewUrl, { headers: owner.cookie })).status, 200);
+    console.log("PASS: disguised files fall back to download and deleted thumbnails stay Owner-only.");
+
     process.env.BLOCK2_CHAT_ATTACHMENTS_ENABLED = "false";
     assert.equal((await fetch(firstUrl, { headers: owner.cookie })).status, 404);
     assert.equal((await upload(input)).status, 404);
+    assert.equal((await fetch(previewUrl, { headers: owner.cookie })).status, 404);
     const hidden = await fetch(`${base}/areas`, { headers: owner.cookie });
     assert.equal((await hidden.json()).attachments, undefined);
     console.log("PASS: disabling attachments hides upload capability and stops file requests.");

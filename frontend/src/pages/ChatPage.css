@@ -76,6 +76,10 @@
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; overflow-wrap: anywhere;
 }
 .creator-chat-file { border: 1px solid #555555; padding: 8px 12px; }
+.creator-chat-image-preview {
+  display: block; max-width: min(100%, 320px); max-height: 320px;
+  margin-top: 8px; object-fit: contain; border: 1px solid #555555;
+}
 .creator-chat-file a { color: #FFFFFF; text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; }
 .creator-chat-file-picker p { flex-basis: 100%; margin: 0; }
 .creator-chat-composer small { display: flex; flex-wrap: wrap; gap: 12px; color: #999999; font-size: 13px; }

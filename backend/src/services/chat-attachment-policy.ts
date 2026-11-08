@@ -4,6 +4,10 @@ import { CHAT_STAGING_ENVIRONMENT_ID, CHAT_STAGING_PROJECT_ID } from "./chat-sta
 export const MAX_CHAT_ATTACHMENT_BYTES = 500_000_000;
 const stagingMount = "/data/chat-attachments";
 
+export function canPreviewChatImage(fileName: string, byteSize: number) {
+  return byteSize <= 8_000_000 && /\.(?:jpe?g|png|webp)$/i.test(fileName);
+}
+
 export function chatAttachmentDirectory(env: Readonly<Record<string, string | undefined>> = process.env) {
   if (env.BLOCK2_CHAT_ENABLED !== "true" || env.BLOCK2_CHAT_ATTACHMENTS_ENABLED !== "true") return null;
   if (/^prod(uction)?$/i.test(env.RAILWAY_ENVIRONMENT_NAME ?? "")) return null;
