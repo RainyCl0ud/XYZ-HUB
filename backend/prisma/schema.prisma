@@ -916,6 +916,7 @@ model ChatChannel {
   key String
   name String
   sortOrder Int
+  archivedAt DateTime?
   createdAt DateTime @default(now())
   area ChatArea @relation(fields: [modelId], references: [modelId], onDelete: Restrict)
   roleGrants ChatRoleGrant[]

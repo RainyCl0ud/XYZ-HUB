@@ -6,6 +6,7 @@ import { prisma } from "../lib/prisma.js";
 import { CHAT_ROLE_DEFAULTS, CHAT_PERMISSION_DEFINITIONS } from "../permissions/chat-permissions.js";
 import { syncCreatorStandingChat, syncUserStandingChats } from "./standing-chat.js";
 import { canPreviewChatImage, chatAttachmentDirectory } from "./chat-attachment-policy.js";
+import { chatChannelArchiveEnabled } from "./chat-archive-policy.js";
 
 export const isCreatorChatEnabled = () => process.env.BLOCK2_CHAT_ENABLED === "true";
 export class ChatError extends Error {
@@ -65,11 +66,12 @@ type ViewerUser = Prisma.UserGetPayload<{ include: typeof viewerInclude }>;
 function makeViewer(user: ViewerUser) {
   const permissions = new Set(user.roleMemberships.flatMap(({ role }) => role.rolePermissions.map(({ permission }) => permission.key)));
   const isOwner = user.roleMemberships.some(({ role }) => role.systemKey === "OWNER");
+  const isDeveloper = user.roleMemberships.some(({ role }) => role.systemKey === "DEV");
   // General Staff privacy is an Owner-only system boundary, matching the
   // existing Owner-only access controls. Stale/custom grants cannot widen it.
   permissions.delete("chat.private.general.review");
   if (isOwner) permissions.add("chat.private.general.review");
-  return { user, permissions, isOwner, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
+  return { user, permissions, isOwner, isDeveloper, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
 }
 type Viewer = ReturnType<typeof makeViewer>;
 // Shared current-access decisions for announcement delivery. These helpers
@@ -93,7 +95,7 @@ function channelAccess(viewer: Viewer, channel: Channel) {
   const assignment = viewer.user.modelAssignments.find((a) => a.modelId === channel.modelId);
   const paused = viewer.user.chatQuarantines.some((q) => q.modelId === channel.modelId);
   const inArea = !paused && p.has("chat.access") && p.has("chat.ordinary.access") && (!!assignment || p.has("chat.areas.all"));
-  const archived = !!channel.area.archivedAt;
+  const archived = !!channel.archivedAt || !!channel.area.archivedAt;
   // A Chatter restriction beats named or custom-role grants. A QC/Manager (or
   // equivalent explicitly configured reviewer) wins when that person has both.
   const restricted = channel.key === "trial-feedback" && p.has("chat.trial_feedback.restricted") && !p.has("chat.trial_feedback.review");
@@ -101,14 +103,18 @@ function channelAccess(viewer: Viewer, channel: Channel) {
     ...channel.roleGrants.filter((g) => viewer.roleIds.has(g.roleId)),
     ...channel.personGrants.filter((g) => g.assignmentId === assignment?.id),
   ];
-  const canView = inArea && !restricted && (!archived || p.has("chat.archives.view")) &&
+  const canView = inArea && !restricted && (!archived || p.has("chat.archives.view"))
+    && (!channel.archivedAt || viewer.isOwner || viewer.isDeveloper) &&
     (p.has("chat.channels.all") || grants.some((g) => g.canView || g.canPost));
   const canPost = canView && !archived && p.has("chat.messages.send") &&
     (p.has("chat.channels.post_all") || grants.some((g) => g.canPost));
   return { canView, canPost, canManage: canView && !archived && p.has("chat.channels.manage"), archived };
 }
-async function openChannel(tx: Prisma.TransactionClient, userId: string, channelId: string) {
+async function openChannel(tx: Prisma.TransactionClient, userId: string, channelId: string, writing = false) {
   const viewer = await loadViewer(tx, userId);
+  // An archive waits for in-flight edits and sends. New writers check access
+  // after the archive commits, including uploads that started before it.
+  if (writing) await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtextextended(${"chat-channel:" + channelId}, 0))`;
   const channel = await tx.chatChannel.findUnique({ where: { id: channelId }, include: channelInclude });
   const access = channel && channelAccess(viewer, channel);
   // Hidden and nonexistent channels have an identical response; IDs reveal no directory.
@@ -150,6 +156,33 @@ function audit(tx: Prisma.TransactionClient, viewer: Viewer, action: string, tar
     action, success: true, statusCode: 200, actorUserId: viewer.user.id, actorLabel: viewer.user.name,
     targetType: "chat", targetId, metadata,
   } });
+}
+
+function canArchiveChannel(viewer: Viewer, channel: Channel, canManage: boolean) {
+  return canManage && channel.key !== "updates" && chatChannelArchiveEnabled()
+    && viewer.user.roleMemberships.some(({ role }) => ["OWNER", "OPS_MANAGER", "MANAGER"].includes(role.systemKey ?? ""));
+}
+
+export async function archiveChatChannel(userId: string, channelId: string, expectedName: string) {
+  if (!chatChannelArchiveEnabled()) throw new ChatError(404, "Channel archiving is unavailable.");
+  return prisma.$transaction(async (tx) => {
+    const viewer = await loadViewer(tx, userId);
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"chat-channel:" + channelId}, 0))`;
+    const channel = await tx.chatChannel.findUnique({ where: { id: channelId }, include: channelInclude });
+    if (!channel) throw new ChatError(404, "Channel not found.");
+    const access = channelAccess(viewer, { ...channel, archivedAt: null });
+    if (!access.canView) throw new ChatError(404, "Channel not found.");
+    if (!canArchiveChannel(viewer, channel, access.canManage)) throw new ChatError(403, "You cannot archive this channel.");
+    if (channel.archivedAt && !channelAccess(viewer, channel).canView && !await tx.auditEvent.findFirst({
+      where: { action: "chat.channel.archive", targetType: "chat", targetId: channelId, actorUserId: userId },
+      select: { id: true },
+    })) throw new ChatError(404, "Channel not found.");
+    if (channel.name !== expectedName) throw new ChatError(409, "The channel name changed. Reopen Settings before archiving.");
+    if (channel.archivedAt) return { archived: true };
+    await tx.chatChannel.update({ where: { id: channelId }, data: { archivedAt: new Date() } });
+    await audit(tx, viewer, "chat.channel.archive", channelId, { modelId: channel.modelId, channelName: channel.name });
+    return { archived: true };
+  });
 }
 export const CHAT_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅"] as const;
 const messageInclude = {
@@ -199,7 +232,7 @@ export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: 
     const result = areas.map((area) => {
       const channels = area.channels.flatMap((channel) => {
         const access = channelAccess(viewer, channel);
-        return access.canView ? [{ id: channel.id, name: channel.name, isPrivate: false, ...access }] : [];
+        return access.canView ? [{ id: channel.id, name: channel.name, isPrivate: false, ...access, canArchive: canArchiveChannel(viewer, channel, access.canManage) }] : [];
       });
       const pausedForYou = viewer.user.chatQuarantines.some((q) => q.modelId === area.modelId);
       const inArea = !pausedForYou && viewer.permissions.has("chat.ordinary.access") && (viewer.permissions.has("chat.areas.all") || viewer.user.modelAssignments.some((a) => a.modelId === area.modelId));
@@ -217,7 +250,7 @@ export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: 
       let area = result.find((a) => a.modelId === areaId);
       if (!area) { area = { modelId: areaId, name: conversation.model?.name ?? "Private workspace", archived: !!conversation.model?.chatArea?.archivedAt, pausedForYou: viewer.user.chatQuarantines.some((q) => q.modelId === areaId), canManage: false, channels: [] }; result.push(area); }
       const name = conversation.kind === "CREATOR" ? `${conversation.model?.name ?? conversation.subjectName} · Private` : conversation.subjectUserId === userId ? "Your private chat" : `${conversation.subjectUser?.name ?? conversation.subjectName} · Private`;
-      area.channels.push({ id: conversation.id, name, isPrivate: true, ...access });
+      area.channels.push({ id: conversation.id, name, isPrivate: true, ...access, canArchive: false });
     }
     return result.filter((area) => area.channels.length || area.canManage);
 }
@@ -265,7 +298,7 @@ export async function markChatMessagesRead(userId: string, channelId: string, in
   const ids = input.messageIds;
   if (!!ids === !!input.throughMessageId || (ids && (!ids.length || ids.length > 100 || ids.some((id) => !id || id.length > 100)))) throw new ChatError(400, "Choose visible messages or a conversation read point.");
   return prisma.$transaction(async (tx) => {
-    const { viewer, scope, channel, access } = await openChannel(tx, userId, channelId);
+    const { viewer, scope, channel, access } = await openChannel(tx, userId, channelId, true);
     if (access.archived) throw new ChatError(403, "Archived conversations have no unread messages.");
     if (ids) {
       const unique = [...new Set(ids)];
@@ -322,7 +355,7 @@ async function postChatMessage(userId: string, channelId: string, text: string, 
   if ((!normalized && !attachment) || normalized.length > 8000 || !/^[\w-]{8,80}$/.test(clientNonce)) throw new ChatError(400, "Use 1–8,000 characters and a valid message reference.");
   if (attachment && !chatAttachmentDirectory()) throw new ChatError(404, "Attachments are unavailable.");
   return prisma.$transaction(async (tx) => {
-    const { viewer, access, channel, conversation } = await openChannel(tx, userId, channelId);
+    const { viewer, access, channel, conversation } = await openChannel(tx, userId, channelId, true);
     if (!access.canPost) throw new ChatError(403, "This channel is read-only for you.");
     const target = channel ? { channelId } : { conversationId: channelId };
     if (replyToId) {
@@ -401,7 +434,7 @@ export async function editChatMessage(userId: string, channelId: string, message
   const normalized = text.trim();
   if (!normalized || normalized.length > 8000 || !Number.isInteger(version) || version < 1) throw new ChatError(400, "Use 1–8,000 characters and a valid message version.");
   return prisma.$transaction(async (tx) => {
-    const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
+    const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId, true);
     if (!access.canPost || !viewer.permissions.has("chat.messages.edit_own")) throw new ChatError(403, "You cannot edit messages here.");
     const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null }, include: { attachment: { select: { id: true } } } });
     if (!previous) throw new ChatError(404, "Message not found.");
@@ -441,7 +474,7 @@ export async function listChatMembers(userId: string, channelId: string) {
 export async function setChatGrant(userId: string, channelId: string, input: { roleId?: string; personId?: string; canView: boolean; canPost: boolean }) {
   if (!!input.roleId === !!input.personId) throw new ChatError(400, "Choose one role or person.");
   return prisma.$transaction(async (tx) => {
-    const { viewer, channel, access } = await openChannel(tx, userId, channelId);
+    const { viewer, channel, access } = await openChannel(tx, userId, channelId, true);
     if (!channel || !access.canManage) throw new ChatError(403, "Protected chats have fixed membership; ordinary channels require channel management access.");
     const data = { canView: input.canView || input.canPost, canPost: input.canPost };
     let beforeGrant: { canView: boolean; canPost: boolean } | null = null;
@@ -503,7 +536,7 @@ export async function renameChatChannel(userId: string, channelId: string, name:
   const normalized = name.trim();
   if (!normalized || normalized.length > 80) throw new ChatError(400, "Use a channel name between 1 and 80 characters.");
   return prisma.$transaction(async (tx) => {
-    const { viewer, channel, access } = await openChannel(tx, userId, channelId);
+    const { viewer, channel, access } = await openChannel(tx, userId, channelId, true);
     if (!channel || !access.canManage) throw new ChatError(403, "Protected chats cannot be renamed; ordinary channels require management access.");
     const duplicate = await tx.chatChannel.findFirst({ where: { modelId: channel.modelId, id: { not: channelId }, name: { equals: normalized, mode: "insensitive" } } });
     if (duplicate) throw new ChatError(409, "A channel with this name already exists in this creator area.");
@@ -537,7 +570,7 @@ export async function setChatReaction(userId: string, channelId: string, message
   return prisma.$transaction(async (tx) => {
     // The message lock serializes add/remove and pin decisions; counters and
     // transactional audit describe the state actually committed.
-    await openChannel(tx, userId, channelId);
+    await openChannel(tx, userId, channelId, true);
     await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${messageId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR UPDATE`;
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost) throw new ChatError(403, "This conversation is read-only for you.");
@@ -557,7 +590,7 @@ export async function setChatReaction(userId: string, channelId: string, message
 export async function setChatPin(userId: string, channelId: string, messageId: string, pinned: boolean, expectedVersion: number) {
   if (typeof pinned !== "boolean" || !Number.isInteger(expectedVersion) || expectedVersion < 0) throw new ChatError(400, "Refresh the message before updating its pin.");
   return prisma.$transaction(async (tx) => {
-    await openChannel(tx, userId, channelId);
+    await openChannel(tx, userId, channelId, true);
     await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${messageId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR UPDATE`;
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     if (!access.canPost || !viewer.permissions.has("chat.messages.pin")) throw new ChatError(403, "Your access does not allow managing pins here.");
@@ -638,7 +671,7 @@ export async function deleteChatMessage(userId: string, channelId: string, messa
   const normalized = reason.trim();
   if (!normalized || normalized.length > 1000 || !Number.isInteger(version) || version < 1) throw new ChatError(400, "Give a reason of 1–1,000 characters and refresh the message before deleting it.");
   return prisma.$transaction(async (tx) => {
-    await openChannel(tx, userId, channelId);
+    await openChannel(tx, userId, channelId, true);
     await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${messageId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR UPDATE`;
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     if (access.archived || !viewer.permissions.has("chat.messages.moderate")) throw new ChatError(403, "Your access does not allow deleting messages here.");

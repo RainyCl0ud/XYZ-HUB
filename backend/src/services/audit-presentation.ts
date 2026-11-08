@@ -207,6 +207,7 @@ function actionLabel(
     "chat.interaction_defaults.install": "Chat interaction defaults installed",
     "chat.channel.create": "Chat channel created",
     "chat.channel.rename": "Chat channel renamed",
+    "chat.channel.archive": "Chat channel archived",
     "chat.channel.grant": "Chat channel access updated",
     "chat.private.create": "Private chat created",
     "chat.private.archive": "Private chat archived",
