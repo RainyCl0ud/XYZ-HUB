@@ -196,6 +196,7 @@ function actionLabel(
     > = {
     "chat.message.send": "Chat message sent",
     "chat.attachment.download": "Chat attachment download started",
+    "chat.attachment.play": "Chat voice message playback requested",
     "chat.message.edit": "Chat message edited",
     "chat.message.delete": "Chat message deleted (retained for Owners)",
     "chat.moderation_defaults.install": "Chat moderation defaults installed",
@@ -801,7 +802,7 @@ function buildChanges(
     if (["chat.message.pin", "chat.message.unpin"].includes(event.action)) pushChange(changes, "Message text", null, asString(metadata?.text));
     if (["chat.reaction.add", "chat.reaction.remove"].includes(event.action)) pushChange(changes, "Reaction", null, asString(metadata?.emoji));
     if (event.action === "chat.message.send") pushChange(changes, "Message text", null, asString(metadata?.text));
-    if (["chat.message.send", "chat.attachment.download"].includes(event.action)) {
+    if (["chat.message.send", "chat.attachment.download", "chat.attachment.play"].includes(event.action)) {
       pushChange(changes, "Attachment", null, asString(metadata?.fileName));
     }
     if (event.action === "chat.message.edit") pushChange(changes, "Message text", asString(metadata?.before), asString(metadata?.after));

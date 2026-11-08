@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { apiRequest } from "../lib/api";
 import type { ChatMessage } from "./ChatMessageTools";
+import { sendChatFile } from "./chatFiles";
 
 export default function ChatAttachmentPicker({ channelId, maxBytes, onSent }: {
   channelId: string; maxBytes: number; onSent: (message: ChatMessage) => void;
@@ -31,21 +31,7 @@ export default function ChatAttachmentPicker({ channelId, maxBytes, onSent }: {
     setUploading(true);
     try {
       const { file, nonce } = selection;
-      const response = await apiRequest<{ message: ChatMessage }>(
-        `/api/chat/channels/${encodeURIComponent(channelId)}/files`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/octet-stream",
-            "X-XYZ-File-Name": encodeURIComponent(file.name),
-            "X-XYZ-File-Size": String(file.size),
-            "X-XYZ-Chat-Nonce": nonce,
-          },
-          body: file,
-          signal: controller.signal,
-          timeoutMs: 310_000,
-        },
-      );
+      const response = await sendChatFile(channelId, file, nonce, controller.signal);
       if (!controller.signal.aborted) {
         setSelection(null);
         onSent(response.message);
