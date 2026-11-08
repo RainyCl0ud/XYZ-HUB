@@ -169,6 +169,7 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
     ...(message.attachment ? { attachment: {
       fileName: message.attachment.fileName, byteSize: message.attachment.byteSize, available: !!chatAttachmentDirectory(),
       canPreview: canPreviewChatImage(message.attachment.fileName, message.attachment.byteSize),
+      ...(message.attachment.voiceDurationMs === null ? {} : { voiceDurationMs: message.attachment.voiceDurationMs }),
     } } : {}),
     systemNotice: !!message.systemEventKey || !!message.announcementKey,
     announcement: !!message.announcementKey,
@@ -314,7 +315,7 @@ export async function listChatMessages(userId: string, channelId: string, before
   });
 }
 
-type NewAttachment = { id: string; fileName: string; byteSize: number; sha256: string };
+type NewAttachment = { id: string; fileName: string; byteSize: number; sha256: string; voiceDurationMs: number | null };
 
 async function postChatMessage(userId: string, channelId: string, text: string, clientNonce: string, replyToId?: string, attachment?: NewAttachment) {
   const normalized = text.trim();
@@ -335,7 +336,8 @@ async function postChatMessage(userId: string, channelId: string, text: string, 
     if (message.text !== normalized || message.replyToId !== (replyToId ?? null)) throw new ChatError(409, "This message reference was already used. Refresh before sending again.");
     const stored = message.attachment;
     const sameAttachment = attachment
-      ? stored?.sha256 === attachment.sha256 && stored.fileName === attachment.fileName && stored.byteSize === attachment.byteSize
+      ? stored?.sha256 === attachment.sha256 && stored.fileName === attachment.fileName
+        && stored.byteSize === attachment.byteSize && stored.voiceDurationMs === attachment.voiceDurationMs
       : !stored;
     if (!sameAttachment) {
       throw new ChatError(409, "This message reference was already used. Choose the file again.");
@@ -362,7 +364,7 @@ export function sendChatAttachmentMessage(userId: string, channelId: string, non
   return postChatMessage(userId, channelId, "", nonce, undefined, attachment);
 }
 
-export async function openChatAttachment(userId: string, channelId: string, messageId: string, directory: string, purpose: "download" | "preview") {
+export async function openChatAttachment(userId: string, channelId: string, messageId: string, directory: string, purpose: "download" | "preview" | "voice") {
   let handle: FileHandle | undefined;
   try {
     return await prisma.$transaction(async (tx) => {
@@ -372,10 +374,11 @@ export async function openChatAttachment(userId: string, channelId: string, mess
         select: { attachment: true },
       });
       if (!message?.attachment) throw new ChatError(404, "Attachment not found.");
-      const { id, fileName, byteSize } = message.attachment;
+      const { id, fileName, byteSize, voiceDurationMs } = message.attachment;
       if (purpose === "preview" && !canPreviewChatImage(fileName, byteSize)) {
         throw new ChatError(404, "No preview is available for this file.");
       }
+      if (purpose === "voice" && voiceDurationMs === null) throw new ChatError(404, "Voice message not found.");
       try {
         handle = await open(join(directory, id), "r");
         const info = await handle.stat();
@@ -383,8 +386,8 @@ export async function openChatAttachment(userId: string, channelId: string, mess
       } catch {
         throw new ChatError(503, "This file is temporarily unavailable.");
       }
-      if (purpose === "download") {
-        await audit(tx, viewer, "chat.attachment.download", messageId, { channelId, fileName, byteSize });
+      if (purpose !== "preview") {
+        await audit(tx, viewer, purpose === "voice" ? "chat.attachment.play" : "chat.attachment.download", messageId, { channelId, fileName, byteSize });
       }
       return { handle, fileName, byteSize };
     });

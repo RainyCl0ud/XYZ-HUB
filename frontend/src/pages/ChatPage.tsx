@@ -11,6 +11,7 @@ import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
 import ChatAttachmentPicker from "./ChatAttachmentPicker";
+import ChatVoiceRecorder from "./ChatVoiceRecorder";
 import ChatModerationDialog, { type ModerationTarget } from "./ChatModerationDialog";
 import ChatQuarantineDialog, { type QuarantineControl } from "./ChatQuarantineDialog";
 import { useChatReadTracking } from "./useChatReadTracking";
@@ -70,6 +71,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [canAnnounce, setCanAnnounce] = useState(false), [showAnnouncements, setShowAnnouncements] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false), [showReminders, setShowReminders] = useState(false);
   const [attachmentMaxBytes, setAttachmentMaxBytes] = useState(0);
+  const [voiceMaxSeconds, setVoiceMaxSeconds] = useState(0);
   const [areas, setAreas] = useState<Area[]>([]);
   const [selected, setSelected] = useState("");
   const [transcript, setTranscript] = useState<Transcript | null>(null);
@@ -150,13 +152,14 @@ function ChatWorkspace({ userId }: { userId: string }) {
 
   const refreshAreas = useCallback(async (signal?: AbortSignal) => {
     const request = ++areasRequest.current;
-    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean }; attachments?: { maxBytes: number } }>("/api/chat/areas", { signal });
+    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean }; attachments?: { maxBytes: number; voiceMaxSeconds?: number } }>("/api/chat/areas", { signal });
     if (signal?.aborted || request !== areasRequest.current) return;
     availableAreas.current = response.areas;
     setAreas(response.areas);
     setCanAnnounce(!!response.announcements?.canAnnounce);
     setRemindersEnabled(!!response.unreadReminders?.enabled);
     setAttachmentMaxBytes(response.attachments?.maxBytes ?? 0);
+    setVoiceMaxSeconds(response.attachments?.voiceMaxSeconds ?? 0);
     const current = selectedRef.current;
     const permitted = new Set(response.areas.flatMap((a) => a.channels.map((c) => c.id)));
     for (const id of conversationDrafts.current.keys()) if (!permitted.has(id)) conversationDrafts.current.delete(id);
@@ -455,6 +458,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
               <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Ctrl / ⌘ + Enter to send</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000 · Draft kept while Chat stays open` : ""}</span></small><button type="submit" disabled={sending || editConflict || unchangedEdit || !draft.trim()}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button></div>
               {attachmentMaxBytes > 0 && <div hidden={!!edit || !!reply}><ChatAttachmentPicker key={selected} channelId={selected} maxBytes={attachmentMaxBytes} onSent={message => showSentMessage(selected, message)} /></div>}
+              {voiceMaxSeconds > 0 && !edit && !reply && <ChatVoiceRecorder key={selected} channelId={selected} maxSeconds={voiceMaxSeconds} onSent={message => showSentMessage(selected, message)} />}
             </form> : transcript && <div className="creator-chat-readonly"><ChatIcon name="lock" /><div><strong>{channel?.archived ? "Archived conversation" : "Read-only conversation"}</strong><p>{channel?.archived ? "You can read the history here. New messages are disabled." : "You can read messages here, but your access does not include posting."}</p></div></div>}
           </div>
         </div>

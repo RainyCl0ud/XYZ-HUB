@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
+import { runInNewContext } from "node:vm";
 
 // Render the real component with the exact previous API contract. No server,
 // database, session or external request is involved.
@@ -43,4 +45,27 @@ try {
   assert.ok(image.includes('loading="lazy"') && image.includes('alt="Preview of Preview.jpg"'));
   assert.ok(image.includes("/api/chat/channels/test-channel/messages/old-message/file"));
   console.log("PASS: an eligible image loads its small preview separately from the original download.");
+  const voice = render({ ...legacy, text: "", attachment: { ...attachment, fileName: "Voice message.wav", voiceDurationMs: 2300 } });
+  assert.ok(voice.includes("Play voice message") && voice.includes("3 sec"));
+  assert.ok(voice.includes('preload="none"') && !voice.includes("/voice"));
+  console.log("PASS: rendering a voice message exposes a Play button without requesting audio.");
+  const worklet = await readFile(resolve(root, "public/chat-voice-recorder-v1.js"), "utf8");
+  let Recorder;
+  const messages = [];
+  runInNewContext(worklet, {
+    AudioWorkletProcessor: class { port = { postMessage: message => messages.push(message) }; },
+    registerProcessor: (_, processor) => { Recorder = processor; },
+  });
+  const limited = new Recorder({ processorOptions: { maxFrames: 3 } });
+  assert.equal(limited.process([[Float32Array.of(-1, 0, 1, 1)]]), false);
+  assert.deepEqual(Array.from(messages[0].samples), [-32768, 0, 32767]);
+  assert.equal(messages[1].done, true);
+  limited.port.onmessage();
+  assert.equal(messages.length, 2);
+  messages.length = 0;
+  const stopped = new Recorder({ processorOptions: { maxFrames: 10_000 } });
+  assert.equal(stopped.process([[new Float32Array(4100)]]), true);
+  stopped.port.onmessage();
+  assert.deepEqual(messages.map(message => message.samples?.length ?? message.done), [4096, 4, true]);
+  console.log("PASS: the recorder flushes all samples on Stop and stops exactly at the recording limit.");
 } finally { await vite.close(); }

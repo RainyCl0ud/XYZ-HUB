@@ -15,6 +15,7 @@ import { chatAttachmentDirectory, MAX_CHAT_ATTACHMENT_BYTES } from "../src/servi
 import { installCreatorChatDefaults, provisionCreatorChat } from "../src/services/creator-chat.js";
 import { createSession } from "../src/services/session.js";
 import { installStandingChatDefaults, syncUserStandingChats } from "../src/services/standing-chat.js";
+import { chatVoiceFile } from "../../frontend/src/pages/chatVoiceWav.js";
 
 async function main() {
   const db = new URL(process.env.DATABASE_URL ?? "");
@@ -66,12 +67,13 @@ async function main() {
     const privateChat = await prisma.chatStandingConversation.findFirstOrThrow({ where: { subjectUserId: staff.id, modelId: model.id } });
     const url = (id: string) => `${base}/channels/${id}`;
     const fileUrl = (channelId: string, messageId: string) => `${url(channelId)}/messages/${messageId}/file`;
-    const upload = (input: { id?: string; name?: string; bytes: number; body: BodyInit; nonce?: string; cookie?: typeof owner.cookie }) =>
+    const upload = (input: { id?: string; name?: string; bytes: number; body: BodyInit; nonce?: string; cookie?: typeof owner.cookie; voice?: boolean }) =>
       fetch(`${url(input.id ?? channel.id)}/files`, {
         method: "POST", duplex: "half",
         headers: {
           ...input.cookie, "Content-Type": "application/octet-stream", "X-XYZ-File-Name": encodeURIComponent(input.name ?? "test.txt"),
           "X-XYZ-File-Size": String(input.bytes), "X-XYZ-Chat-Nonce": input.nonce ?? randomUUID(),
+          ...(input.voice ? { "X-XYZ-Voice-Message": "true" } : {}),
         },
         body: input.body,
       } as RequestInit);
@@ -230,6 +232,39 @@ async function main() {
     assert.equal((await fetch(previewUrl, { headers: peer.cookie })).status, 404);
     assert.equal((await fetch(previewUrl, { headers: owner.cookie })).status, 200);
     console.log("PASS: disguised files fall back to download and deleted thumbnails stay Owner-only.");
+
+    const tone = Int16Array.from({ length: 24_000 }, (_, i) => Math.round(Math.sin(i * 2 * Math.PI * 440 / 24_000) * 8000));
+    const recording = chatVoiceFile(24_000, tone.length, [tone]);
+    const peerChat = await prisma.chatStandingConversation.findFirstOrThrow({ where: { subjectUserId: peer.id, modelId: model.id } });
+    const voiceUpload = { id: peerChat.id, cookie: peer.cookie, bytes: recording.size, name: recording.name, body: recording, nonce: randomUUID(), voice: true };
+    process.env.BLOCK2_CHAT_VOICE_ENABLED = "false";
+    assert.equal((await upload(voiceUpload)).status, 404);
+    process.env.BLOCK2_CHAT_VOICE_ENABLED = "true";
+    const areas = await fetch(`${base}/areas`, { headers: owner.cookie });
+    assert.equal((await areas.json()).attachments.voiceMaxSeconds, 120);
+    const before = (await readdir(directory)).sort();
+    assert.equal((await upload({ ...voiceUpload, body: "junk", bytes: 4 })).status, 400);
+    const tooLong = chatVoiceFile(8000, 960_001, []);
+    assert.equal((await upload({ ...voiceUpload, bytes: tooLong.size, body: tooLong })).status, 400);
+    assert.deepEqual((await readdir(directory)).sort(), before);
+    const voiceResponse = await upload(voiceUpload);
+    assert.equal((await voiceResponse.clone().json()).message.attachment.voiceDurationMs, 1000);
+    const voiceId = await messageId(voiceResponse, "Voice message.wav");
+    assert.equal(await messageId(await upload(voiceUpload), "Voice message.wav"), voiceId);
+    assert.equal((await upload({ ...voiceUpload, voice: false })).status, 409);
+    const voiceUrl = fileUrl(peerChat.id, voiceId).replace(/\/file$/, "/voice");
+    const playAudit = { action: "chat.attachment.play", targetId: voiceId };
+    assert.equal((await fetch(voiceUrl, { headers: staff.cookie })).status, 404);
+    assert.equal((await fetch(voiceUrl, { method: "HEAD", headers: owner.cookie })).status, 405);
+    assert.equal((await fetch(firstUrl.replace(/\/file$/, "/voice"), { headers: owner.cookie })).status, 404);
+    assert.equal(await prisma.auditEvent.count({ where: playAudit }), 0);
+    const playback = await fetch(voiceUrl, { headers: owner.cookie });
+    assert.equal(playback.status, 200);
+    assert.equal(playback.headers.get("content-type"), "audio/wav");
+    assert.equal(playback.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await playback.arrayBuffer(), await recording.arrayBuffer());
+    assert.equal(await prisma.auditEvent.count({ where: { ...playAudit, actorUserId: owner.id } }), 1);
+    console.log("PASS: recorded WAV uploads are validated and retry-safe; authorized playback sends the original audio and records a separate audit event.");
 
     process.env.BLOCK2_CHAT_ATTACHMENTS_ENABLED = "false";
     assert.equal((await fetch(firstUrl, { headers: owner.cookie })).status, 404);

@@ -3,12 +3,13 @@ import { open, statfs, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import type { Readable } from "node:stream";
 import { MAX_CHAT_ATTACHMENT_BYTES } from "./chat-attachment-policy.js";
+import { chatVoiceDuration, MAX_CHAT_VOICE_BYTES } from "./chat-voice.js";
 import { assertChatAttachmentPosting, ChatError, sendChatAttachmentMessage } from "./creator-chat.js";
 
 const activeUploads = new Map<string, number>();
 const DISK_RESERVE_BYTES = 128 * 1024 * 1024;
 
-export function chatAttachmentMetadata(encodedName: string, size: string, nonce: string) {
+export function chatAttachmentMetadata(encodedName: string, size: string, nonce: string, voice = false) {
   let fileName: string;
   try {
     fileName = decodeURIComponent(encodedName).trim();
@@ -21,13 +22,14 @@ export function chatAttachmentMetadata(encodedName: string, size: string, nonce:
   const byteSize = Number(size);
   if (!/^\d{1,10}$/.test(size) || byteSize < 1) throw new ChatError(400, "Choose a nonempty file.");
   if (byteSize > MAX_CHAT_ATTACHMENT_BYTES) throw new ChatError(413, "Files must be 500 MB or smaller.");
+  if (voice && byteSize > MAX_CHAT_VOICE_BYTES) throw new ChatError(413, "Voice messages can be up to two minutes.");
   if (!/^[\w-]{8,80}$/.test(nonce)) throw new ChatError(400, "The upload reference is invalid.");
-  return { fileName, byteSize, nonce };
+  return { fileName: voice ? "Voice message.wav" : fileName, byteSize, nonce, voice };
 }
 
 export async function uploadChatAttachment(
   stream: Readable, directory: string, userId: string, channelId: string,
-  { fileName, byteSize, nonce }: ReturnType<typeof chatAttachmentMetadata>,
+  { fileName, byteSize, nonce, voice }: ReturnType<typeof chatAttachmentMetadata>,
 ) {
   await assertChatAttachmentPosting(userId, channelId);
   if (activeUploads.has(userId) || activeUploads.size >= 3) {
@@ -41,11 +43,12 @@ export async function uploadChatAttachment(
   let keepFile = false;
   try {
     const sha256 = createHash("sha256");
+    let voiceDurationMs: number | null = null;
     try {
       const { bavail, bsize } = await statfs(directory);
       const reservedBytes = [...activeUploads.values()].reduce((total, bytes) => total + bytes, 0);
       if (bavail * bsize < reservedBytes + DISK_RESERVE_BYTES) throw new ChatError(507, "Attachment storage is full.");
-      const handle = await open(path, "wx", 0o600);
+      const handle = await open(path, voice ? "wx+" : "wx", 0o600);
       ownsFile = true;
       try {
         let receivedBytes = 0;
@@ -62,6 +65,12 @@ export async function uploadChatAttachment(
           }
         }
         if (receivedBytes !== byteSize) throw new ChatError(400, "The upload ended before the whole file arrived.");
+        if (voice) {
+          const header = Buffer.alloc(44);
+          const { bytesRead } = await handle.read(header, 0, header.length, 0);
+          voiceDurationMs = chatVoiceDuration(header.subarray(0, bytesRead), receivedBytes);
+          if (voiceDurationMs === null) throw new ChatError(400, "This voice recording is invalid. Record a new one and try again.");
+        }
         await handle.sync();
       } finally {
         await handle.close();
@@ -76,7 +85,7 @@ export async function uploadChatAttachment(
     // case so a retry cannot leave an existing message without its file.
     keepFile = true;
     try {
-      const result = await sendChatAttachmentMessage(userId, channelId, nonce, { id, fileName, byteSize, sha256: sha256.digest("hex") });
+      const result = await sendChatAttachmentMessage(userId, channelId, nonce, { id, fileName, byteSize, voiceDurationMs, sha256: sha256.digest("hex") });
       keepFile = result.attachmentStored;
       return result.message;
     } catch (error) {

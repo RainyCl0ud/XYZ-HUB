@@ -82,6 +82,7 @@
 }
 .creator-chat-file a { color: #FFFFFF; text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; }
 .creator-chat-file-picker p { flex-basis: 100%; margin: 0; }
+.creator-chat-voice audio { width: min(300px, 100%); }
 .creator-chat-composer small { display: flex; flex-wrap: wrap; gap: 12px; color: #999999; font-size: 13px; }
 .creator-chat .creator-chat-composer button[type=submit] { color: #000000; background: #FFFFFF; border-color: #FFFFFF; font-weight: 600; min-width: 90px; }
 .creator-chat-composer button[type=submit] svg { width: 15px; height: 15px; }

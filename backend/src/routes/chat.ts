@@ -17,6 +17,7 @@ import { openChatAttachment } from "../services/creator-chat.js";
 import { chatAttachmentDirectory, MAX_CHAT_ATTACHMENT_BYTES } from "../services/chat-attachment-policy.js";
 import { chatAttachmentMetadata, uploadChatAttachment } from "../services/chat-attachments.js";
 import { renderChatImagePreview } from "../services/chat-image-preview.js";
+import { chatVoiceEnabled, MAX_CHAT_VOICE_SECONDS } from "../services/chat-voice.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -51,7 +52,10 @@ const run = (action: (req: Request, res: Response) => Promise<unknown>) => async
 router.get("/areas", run(async (req, res) => res.json({
   areas: await listChatAreas(user(req)), announcements: await announcementCapability(user(req)),
   unreadReminders: { enabled: unreadRemindersEnabled() },
-  ...(chatAttachmentDirectory() ? { attachments: { maxBytes: MAX_CHAT_ATTACHMENT_BYTES } } : {}),
+  ...(chatAttachmentDirectory() ? { attachments: {
+    maxBytes: MAX_CHAT_ATTACHMENT_BYTES,
+    ...(chatVoiceEnabled() ? { voiceMaxSeconds: MAX_CHAT_VOICE_SECONDS } : {}),
+  } } : {}),
 })));
 router.get("/unread-reminders", run(async (req, res) => res.json(await unreadReminderHistory(user(req)))));
 const browserAlertLimit = createRateLimit({ windowMs: 60_000, max: 120, keyPrefix: 'chat-browser-alerts', getIdentity: req => user(req) });
@@ -104,8 +108,13 @@ router.post("/channels/:channelId/files", run(async (req, res) => {
   if (!req.is("application/octet-stream") || (req.get("Content-Encoding") ?? "identity").toLowerCase() !== "identity") {
     throw new ChatError(415, "Upload the original file.");
   }
+  const voiceHeader = req.get("X-XYZ-Voice-Message");
+  if (voiceHeader !== undefined && voiceHeader !== "true") throw new ChatError(400, "Invalid voice message upload.");
+  const voice = voiceHeader === "true";
+  if (voice && !chatVoiceEnabled()) throw new ChatError(404, "Voice recording is unavailable.");
   const metadata = chatAttachmentMetadata(
     req.get("X-XYZ-File-Name") ?? "", req.get("X-XYZ-File-Size") ?? "", req.get("X-XYZ-Chat-Nonce") ?? "",
+    voice,
   );
   const length = req.get("Content-Length");
   if (length !== undefined && Number(length) !== metadata.byteSize) {
@@ -114,13 +123,15 @@ router.post("/channels/:channelId/files", run(async (req, res) => {
   res.status(201).json({ message: await uploadChatAttachment(req, directory, user(req), param(req, "channelId"), metadata) });
 }));
 const downloadLimit = createRateLimit({ windowMs: 60_000, max: 60, keyPrefix: "chat-files", getIdentity: user });
-router.get("/channels/:channelId/messages/:messageId/file", downloadLimit, run(async (req, res) => {
+const streamAttachment = (purpose: "download" | "voice") => run(async (req, res) => {
   if (req.method !== "GET") return res.sendStatus(405);
   const directory = chatAttachmentDirectory();
   if (!directory || req.get("Sec-Fetch-Site") === "cross-site") throw new ChatError(404, "Attachment not found.");
-  const { handle, fileName, byteSize } = await openChatAttachment(user(req), param(req, "channelId"), param(req, "messageId"), directory, "download");
+  const { handle, fileName, byteSize } = await openChatAttachment(user(req), param(req, "channelId"), param(req, "messageId"), directory, purpose);
   try {
-    res.attachment(fileName).type("application/octet-stream").set({
+    if (purpose === "download") res.attachment(fileName).type("application/octet-stream");
+    else res.type("audio/wav");
+    res.set({
       "Content-Length": String(byteSize),
       "X-Content-Type-Options": "nosniff",
       "Cross-Origin-Resource-Policy": "same-site",
@@ -130,7 +141,9 @@ router.get("/channels/:channelId/messages/:messageId/file", downloadLimit, run(a
   } finally {
     await handle.close();
   }
-}));
+});
+router.get("/channels/:channelId/messages/:messageId/file", downloadLimit, streamAttachment("download"));
+router.get("/channels/:channelId/messages/:messageId/voice", downloadLimit, streamAttachment("voice"));
 const previewLimit = createRateLimit({ windowMs: 60_000, max: 120, keyPrefix: "chat-file-previews", getIdentity: user });
 router.get("/channels/:channelId/messages/:messageId/preview", previewLimit, run(async (req, res) => {
   if (req.method !== "GET") return res.sendStatus(405);

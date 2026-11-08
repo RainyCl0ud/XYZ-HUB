@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { API_BASE_URL, apiRequest } from "../lib/api";
+import ChatVoicePlayback from "./ChatVoicePlayback";
 
 export type ChatMessage = {
   id: string; authorName: string; text: string; version: number; createdAt: string; updatedAt: string;
@@ -7,7 +8,7 @@ export type ChatMessage = {
   canModerate?: boolean; canViewHistory?: boolean; replyUnavailable?: boolean;
   systemNotice?: boolean;
   announcement?: boolean;
-  attachment?: { fileName: string; byteSize: number; available: boolean; canPreview?: boolean };
+  attachment?: { fileName: string; byteSize: number; available: boolean; canPreview?: boolean; voiceDurationMs?: number };
   deleted?: { at: string; by: string; reason: string } | null;
   replyTo: { id: string; authorName: string; text: string; version: number; createdAt: string; deleted?: boolean } | null;
   reactions: { emoji: string; count: number; mine: boolean }[];
@@ -64,6 +65,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     finally { if (!controller.signal.aborted) setBusy(false); }
   }
   const attachmentPath = `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(m.id)}`;
+  const voiceDuration = m.attachment?.voiceDurationMs;
   return <div className={`creator-chat-message-content ${m.deleted ? "is-deleted" : ""}`}>
     {m.replyUnavailable && <p className="creator-chat-unavailable">Original message unavailable.</p>}
     {m.replyTo && <button type="button" className="creator-chat-quote" onClick={() => onOpen(m.replyTo!.id)} aria-label={`View original message by ${m.replyTo.authorName}`}>
@@ -78,8 +80,9 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         key={attachmentPath} src={`${attachmentPath}/preview`} fileName={m.attachment.fileName} onLoad={onPreviewLoad}
       />}
       <div className="creator-chat-file">
-        <strong>{m.attachment.fileName}</strong>
-        <small>{m.attachment.byteSize.toLocaleString()} bytes</small>
+        <strong>{voiceDuration ? "Voice message" : m.attachment.fileName}</strong>
+        <small>{voiceDuration ? `${Math.ceil(voiceDuration / 1000)} sec` : `${m.attachment.byteSize.toLocaleString()} bytes`}</small>
+        {m.attachment.available && !!voiceDuration && <ChatVoicePlayback key={attachmentPath} src={`${attachmentPath}/voice`} />}
         {m.attachment.available ? <a
           href={`${attachmentPath}/file`}
           target="_blank" rel="noopener" aria-label={`Download ${m.attachment.fileName}`}

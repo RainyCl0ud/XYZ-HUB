@@ -997,6 +997,7 @@ model ChatAttachment {
   messageId String @unique
   fileName String
   byteSize Int
+  voiceDurationMs Int?
   sha256 String
   message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Restrict)
 }
