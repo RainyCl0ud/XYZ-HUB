@@ -6,7 +6,7 @@ import { prisma } from "../lib/prisma.js";
 import { CHAT_ROLE_DEFAULTS, CHAT_PERMISSION_DEFINITIONS } from "../permissions/chat-permissions.js";
 import { syncCreatorStandingChat, syncUserStandingChats } from "./standing-chat.js";
 import { canPreviewChatImage, chatAttachmentDirectory } from "./chat-attachment-policy.js";
-import { chatChannelArchiveEnabled } from "./chat-archive-policy.js";
+import { chatChannelArchiveEnabled, chatChannelExportEnabled } from "./chat-archive-policy.js";
 
 export const isCreatorChatEnabled = () => process.env.BLOCK2_CHAT_ENABLED === "true";
 export class ChatError extends Error {
@@ -328,7 +328,7 @@ export async function markChatMessagesRead(userId: string, channelId: string, in
 
 export async function listChatMessages(userId: string, channelId: string, before?: string) {
   return prisma.$transaction(async (tx) => {
-    const { viewer, access, scope, conversation } = await openChannel(tx, userId, channelId);
+    const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);
     const cursor = before ? await tx.chatMessage.findFirst({ where: { id: before, ...scope, ...visibleMessages(viewer) }, select: { id: true, createdAt: true } }) : null;
     if (before && !cursor) throw new ChatError(400, "The message cursor is invalid.");
     const rows = await tx.chatMessage.findMany({ where: {
@@ -344,7 +344,9 @@ export async function listChatMessages(userId: string, channelId: string, before
     const control = conversation?.kind === "STAFF" && conversation.modelId && conversation.subjectUser
       ? quarantineControl(viewer, makeViewer(conversation.subjectUser), conversation.modelId) : null;
     const quarantine = control && (!access.archived || (control.active && control.canLift)) ? control : null;
-    return { messages, unreadMessageIds, quarantine, canPost: access.canPost, canViewDeleted: viewer.isOwner, canPin: access.canPost && viewer.permissions.has("chat.messages.pin"), hasMore, nextBefore: hasMore ? messages[0].id : null };
+    return { messages, unreadMessageIds, quarantine, canPost: access.canPost, canViewDeleted: viewer.isOwner, canPin: access.canPost && viewer.permissions.has("chat.messages.pin"), hasMore, nextBefore: hasMore ? messages[0].id : null,
+      ...(channel && access.archived && viewer.isOwner && chatChannelExportEnabled() ? { canExportArchive: true } : {}),
+    };
   });
 }
 
