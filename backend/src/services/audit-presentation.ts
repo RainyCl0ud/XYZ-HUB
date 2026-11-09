@@ -208,6 +208,8 @@ function actionLabel(
     "chat.channel.create": "Chat channel created",
     "chat.channel.rename": "Chat channel renamed",
     "chat.channel.archive": "Chat channel archived",
+    "chat.channel.export.start": "Chat archive export started",
+    "chat.channel.export.download": "Chat archive download completed on server",
     "chat.channel.grant": "Chat channel access updated",
     "chat.private.create": "Private chat created",
     "chat.private.archive": "Private chat archived",
@@ -805,6 +807,9 @@ function buildChanges(
     if (event.action === "chat.message.send") pushChange(changes, "Message text", null, asString(metadata?.text));
     if (["chat.message.send", "chat.attachment.download", "chat.attachment.play"].includes(event.action)) {
       pushChange(changes, "Attachment", null, asString(metadata?.fileName));
+    }
+    if (event.action === "chat.channel.export.start" || event.action === "chat.channel.export.download") {
+      pushChange(changes, "Archive file", null, asString(metadata?.fileName));
     }
     if (event.action === "chat.message.edit") pushChange(changes, "Message text", asString(metadata?.before), asString(metadata?.after));
     if (event.action === "chat.channel.rename") pushChange(changes, "Channel name", asString(metadata?.before), asString(metadata?.after));

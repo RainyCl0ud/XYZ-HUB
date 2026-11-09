@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
+import { createWriteStream } from "node:fs";
 import { mkdtemp, readdir, rmdir, unlink } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { setTimeout } from "node:timers/promises";
 import cookieParser from "cookie-parser";
 import express from "express";
 import sharp from "sharp";
@@ -12,7 +17,7 @@ import { prisma } from "../src/lib/prisma.js";
 import { loadSession } from "../src/middleware/session-auth.js";
 import chat from "../src/routes/chat.js";
 import { chatAttachmentDirectory, MAX_CHAT_ATTACHMENT_BYTES } from "../src/services/chat-attachment-policy.js";
-import { chatChannelArchiveEnabled } from "../src/services/chat-archive-policy.js";
+import { chatChannelArchiveEnabled, chatChannelExportEnabled } from "../src/services/chat-archive-policy.js";
 import { installCreatorChatDefaults, provisionCreatorChat } from "../src/services/creator-chat.js";
 import { createSession } from "../src/services/session.js";
 import { installStandingChatDefaults, syncUserStandingChats } from "../src/services/standing-chat.js";
@@ -265,6 +270,9 @@ async function main() {
     assert.equal(playback.headers.get("cache-control"), "no-store");
     assert.deepEqual(await playback.arrayBuffer(), await recording.arrayBuffer());
     assert.equal(await prisma.auditEvent.count({ where: { ...playAudit, actorUserId: owner.id } }), 1);
+    const channelVoiceId = await messageId(await upload({
+      ...voiceUpload, id: channel.id, nonce: randomUUID(),
+    }), "Voice message.wav");
     console.log("PASS: recorded WAV uploads are validated and retry-safe; authorized playback sends the original audio and records a separate audit event.");
 
     const manager = await person("manager", "MANAGER");
@@ -287,6 +295,11 @@ async function main() {
     assert.equal((await archive(owner, updates)).status, 403);
     assert.equal((await archive(owner, { id: peerChat.id, name: "Private" })).status, 404);
     assert.equal((await archive(manager, { ...channel, name: "Out of date" })).status, 409);
+    await prisma.chatMessage.createMany({ data: Array.from({ length: 206 }, (_, index) => ({
+      channelId: channel.id, authorUserId: owner.id, authorName: "Fictional <author>", clientNonce: randomUUID(),
+      text: `Archive page fixture ${index} <script>alert(1)</script>`, createdAt: new Date("2026-01-01T00:00:00Z"),
+      ...(index === 0 ? { deletedAt: new Date(), deletedByName: "Fictional owner", deletionReason: "Fictional removed text" } : {}),
+    })) });
     const attempts = await Promise.all([archive(manager, channel), archive(manager, channel)]);
     assert.deepEqual(attempts.map(response => response.status), [200, 200]);
     assert.equal(await prisma.auditEvent.count({ where: { action: "chat.channel.archive", targetId: channel.id } }), 1);
@@ -317,6 +330,89 @@ async function main() {
     assert.equal((await json(owner, `${transcriptUrl}/${first}`, "DELETE", { version: 1, reason: "Frozen" })).status, 403);
     const adjacent = await json(owner, `${url(updates.id)}/messages`, "POST", { text: "Updates remains available", clientNonce: randomUUID() });
     assert.equal(adjacent.status, 201);
+    const exportUrl = `${url(channel.id)}/archive/export`;
+    process.env.BLOCK2_CHAT_CHANNEL_EXPORT_ENABLED = "false";
+    assert.equal((await fetch(exportUrl, { headers: owner.cookie })).status, 404);
+    process.env.BLOCK2_CHAT_CHANNEL_EXPORT_ENABLED = "true";
+    assert.equal(chatChannelExportEnabled({ ...process.env, RAILWAY_ENVIRONMENT_NAME: "Production" }), false);
+    assert.equal((await fetch(exportUrl)).status, 401);
+    for (const actor of [developer, manager, peer]) {
+      assert.equal((await fetch(exportUrl, { headers: actor.cookie })).status, 403);
+    }
+    assert.equal((await fetch(`${url(updates.id)}/archive/export`, { headers: owner.cookie })).status, 409);
+    assert.equal((await fetch(`${url(privateChat.id)}/archive/export`, { headers: owner.cookie })).status, 404);
+    assert.equal((await (await fetch(transcriptUrl, { headers: owner.cookie })).json()).canExportArchive, true);
+    assert.equal((await (await fetch(transcriptUrl, { headers: developer.cookie })).json()).canExportArchive, undefined);
+
+    process.env.BLOCK2_CHAT_ATTACHMENTS_ENABLED = "false";
+    assert.equal((await fetch(exportUrl, { headers: owner.cookie })).status, 503);
+    process.env.BLOCK2_CHAT_ATTACHMENTS_ENABLED = "true";
+    const auditWhere = { targetId: channel.id, actorUserId: owner.id };
+    assert.equal(await prisma.auditEvent.count({ where: { ...auditWhere, action: "chat.channel.export.start" } }), 0);
+    const archiveDownload = await fetch(exportUrl, { headers: owner.cookie });
+    assert.equal(archiveDownload.status, 200);
+    assert.equal(archiveDownload.headers.get("content-type"), "application/zip");
+    assert.match(archiveDownload.headers.get("content-disposition") ?? "", /^attachment;.*\.zip"/);
+    assert.equal(archiveDownload.headers.get("cache-control"), "no-store");
+    const zipPath = join(directory, "offline-test.zip");
+    await pipeline(Readable.fromWeb(archiveDownload.body as import("node:stream/web").ReadableStream), createWriteStream(zipPath));
+    const extractor = process.platform === "win32" ? "tar.exe" : "unzip";
+    const extractArgs = (path: string) => process.platform === "win32" ? ["-xOf", zipPath, path] : ["-p", zipPath, path];
+    const html = execFileSync(extractor, extractArgs("transcript.html"), { encoding: "utf8" });
+    assert.equal((html.match(/<article\b/g) ?? []).length, await prisma.chatMessage.count({ where: { channelId: channel.id } }));
+    assert.match(html, /Archive page fixture 0 &lt;script&gt;/);
+    assert.match(html, /Archive page fixture 205 &lt;script&gt;/);
+    assert.doesNotMatch(html, /<script>/i);
+    assert.match(html, /<strong>Deleted<\/strong>/);
+    assert.match(html, /Fictional removed text/);
+    const manifest = JSON.parse(execFileSync(extractor, extractArgs("manifest.json"), { encoding: "utf8" }));
+    assert.equal(manifest.attachments.length, await prisma.chatAttachment.count({ where: { message: { channelId: channel.id } } }));
+    assert.ok(manifest.attachments.some((file: { fileName: string }) => file.fileName === "preview-test.jpg"));
+    assert.ok(manifest.attachments.some((file: { messageId: string }) => file.messageId === channelVoiceId));
+    assert.ok(!manifest.attachments.some((file: { messageId: string }) => file.messageId === voiceId));
+    assert.ok(manifest.attachments.some((file: { byteSize: number }) => file.byteSize === MAX_CHAT_ATTACHMENT_BYTES));
+    for (const { path, byteSize, sha256 } of manifest.attachments) {
+      assert.match(path, /^attachments\/[1-9]\d*-[A-Za-z0-9._-]+$/);
+      assert.ok(html.includes(` href="${path}"`));
+      const member = spawn(extractor, extractArgs(path), { stdio: ["ignore", "pipe", "ignore"] });
+      const closed = once(member, "close");
+      const hash = createHash("sha256");
+      let size = 0;
+      for await (const bytes of member.stdout) { hash.update(bytes); size += bytes.length; }
+      assert.equal((await closed)[0], 0);
+      assert.equal(size, byteSize);
+      assert.equal(hash.digest("hex"), sha256);
+    }
+    const auditAction = (action: string) => prisma.auditEvent.findFirst({ where: { ...auditWhere, action } });
+    let completed = await auditAction("chat.channel.export.download");
+    for (let attempt = 0; !completed && attempt < 20; attempt++) {
+      await setTimeout(50);
+      completed = await auditAction("chat.channel.export.download");
+    }
+    assert.ok(completed);
+    assert.deepEqual(completed.metadata, (await auditAction("chat.channel.export.start"))?.metadata);
+    console.log("PASS: only an Owner can export an archived channel. The offline ZIP includes every message, deleted markers, voice, the deleted original image and the full 500 MB file. Every attachment matched its stored hash.");
+
+    const otherOwner = await person("export-retry-owner", "OWNER");
+    const cancel = new AbortController();
+    const partial = await fetch(exportUrl, { headers: otherOwner.cookie, signal: cancel.signal });
+    assert.equal(partial.status, 200);
+    assert.equal((await partial.body!.getReader().read()).done, false);
+    cancel.abort();
+    const empty = await prisma.chatChannel.findFirstOrThrow({ where: { modelId: model.id, key: "feedback" } });
+    assert.equal((await archive(owner, empty)).status, 200);
+    let afterCancel = await fetch(`${url(empty.id)}/archive/export`, { headers: otherOwner.cookie });
+    for (let attempt = 0; afterCancel.status === 429 && attempt < 2; attempt++) {
+      await setTimeout(100);
+      afterCancel = await fetch(`${url(empty.id)}/archive/export`, { headers: otherOwner.cookie });
+    }
+    assert.equal(afterCancel.status, 200);
+    assert.ok((await afterCancel.arrayBuffer()).byteLength > 0);
+    assert.equal(await prisma.auditEvent.count({
+      where: { targetId: channel.id, actorUserId: otherOwner.id, action: "chat.channel.export.download" },
+    }), 0);
+    console.log("PASS: cancelling a large download does not record completion or block the next export.");
+
     process.env.BLOCK2_CHAT_CHANNEL_ARCHIVE_ENABLED = "false";
     assert.equal((await fetch(transcriptUrl, { headers: manager.cookie })).status, 404);
     console.log("PASS: archiving is scoped, retry-safe, and read-only; attachments and deleted history follow archive access while Updates stays open.");

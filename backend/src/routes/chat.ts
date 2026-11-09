@@ -18,6 +18,7 @@ import { chatAttachmentDirectory, MAX_CHAT_ATTACHMENT_BYTES } from "../services/
 import { chatAttachmentMetadata, uploadChatAttachment } from "../services/chat-attachments.js";
 import { renderChatImagePreview } from "../services/chat-image-preview.js";
 import { chatVoiceEnabled, MAX_CHAT_VOICE_SECONDS } from "../services/chat-voice.js";
+import { downloadChatChannelExport } from "../services/chat-channel-export.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -95,6 +96,26 @@ router.patch("/channels/:channelId", run(async (req, res) => {
 router.put("/channels/:channelId/archive", run(async (req, res) => {
   const { name } = channelNameSchema.parse(req.body);
   res.json(await archiveChatChannel(user(req), param(req, "channelId"), name));
+}));
+const archiveExportLimit = createRateLimit({ windowMs: 60_000, max: 5, keyPrefix: "chat-archive-export", getIdentity: user });
+router.get("/channels/:channelId/archive/export", archiveExportLimit, run(async (req, res) => {
+  if (req.method !== "GET") return res.sendStatus(405);
+  if (req.get("Sec-Fetch-Site") === "cross-site") throw new ChatError(404, "Channel not found.");
+  const transfer = new AbortController();
+  const cancel = () => { if (!res.writableFinished) transfer.abort(); };
+  res.once("close", cancel);
+  try {
+    await downloadChatChannelExport(user(req), param(req, "channelId"), transfer.signal, async (fileName, body) => {
+      res.attachment(fileName).type("application/zip").set({
+        "X-Content-Type-Options": "nosniff",
+        "Cross-Origin-Resource-Policy": "same-site",
+        "Accept-Ranges": "none",
+      });
+      await pipeline(body, res, { signal: transfer.signal });
+    });
+  } finally {
+    res.off("close", cancel);
+  }
 }));
 router.get("/channels/:channelId/messages", run(async (req, res) => {
   const before = req.query.before;

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { ApiError, apiRequest } from "../lib/api";
+import { API_BASE_URL, ApiError, apiRequest } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import ChatAnnouncements from "./ChatAnnouncements";
@@ -19,7 +19,7 @@ import { useChatReadTracking } from "./useChatReadTracking";
 const noUnreadIds: string[] = [];
 type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; canArchive?: boolean; archived: boolean; isPrivate: boolean; unreadCount?: number };
 type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; pausedForYou?: boolean; channels: Channel[]; unreadCount?: number };
-type Transcript = { messages: Message[]; unreadMessageIds?: string[]; quarantine?: QuarantineControl | null; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; hasMore: boolean; nextBefore: string | null };
+type Transcript = { messages: Message[]; unreadMessageIds?: string[]; quarantine?: QuarantineControl | null; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; canExportArchive?: boolean; hasMore: boolean; nextBefore: string | null };
 type Member = { id: string; name: string; canView?: boolean; canPost: boolean; quarantine?: QuarantineControl | null };
 type ChatLocation = { modelId: string; channelId: string };
 const locationKey = (userId: string) => `xyz_chat_location_v1:${userId}`;
@@ -463,7 +463,17 @@ function ChatWorkspace({ userId }: { userId: string }) {
               <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Ctrl / ⌘ + Enter to send</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000 · Draft kept while Chat stays open` : ""}</span></small><button type="submit" disabled={sending || editConflict || unchangedEdit || !draft.trim()}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button></div>
               {attachmentMaxBytes > 0 && <div hidden={!!edit || !!reply}><ChatAttachmentPicker key={selected} channelId={selected} maxBytes={attachmentMaxBytes} onSent={message => showSentMessage(selected, message)} /></div>}
               {voiceMaxSeconds > 0 && !edit && !reply && <ChatVoiceRecorder key={selected} channelId={selected} maxSeconds={voiceMaxSeconds} onSent={message => showSentMessage(selected, message)} />}
-            </form> : transcript && <div className="creator-chat-readonly"><ChatIcon name="lock" /><div><strong>{channel?.archived ? "Archived conversation" : "Read-only conversation"}</strong><p>{channel?.archived ? "You can read the history here. New messages are disabled." : "You can read messages here, but your access does not include posting."}</p></div></div>}
+            </form> : transcript && <div className="creator-chat-readonly">
+              <ChatIcon name="lock" />
+              <div>
+                <strong>{channel?.archived ? "Archived conversation" : "Read-only conversation"}</strong>
+                <p>{channel?.archived ? "You can read the history here. New messages are disabled." : "You can read messages here, but your access does not include posting."}</p>
+                {channel?.archived && transcript.canExportArchive && <p>
+                  <a className="creator-chat-archive-download" href={`${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channel.id)}/archive/export`} target="_blank" rel="noopener noreferrer">Download archive (.zip)</a>
+                  {" "}Includes all messages and original attachments. Keep the file private.
+                </p>}
+              </div>
+            </div>}
           </div>
         </div>
       )}
