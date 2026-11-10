@@ -1,7 +1,7 @@
 import { createECDH } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
-import webPush from "web-push";
+import { sendNotification, WebPushError } from "web-push";
 import { prisma } from "../lib/prisma.js";
 import { browserNotificationsEnabled } from "./chat-browser-notifications.js";
 import { ChatError } from "./creator-chat.js";
@@ -179,10 +179,10 @@ async function deliverPush(id: string, config: NonNullable<ReturnType<typeof pus
   // A batch is claimed before sending so a retry after an uncertain response
   // cannot deliver a duplicate. The recipient always opens an authenticated page.
   try {
-    await webPush.sendNotification({ endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
+    await sendNotification({ endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
       JSON.stringify({ userId, messages, clock }), { vapidDetails: config, TTL: 60, timeout: 5000 });
   } catch (error) {
-    if (error instanceof webPush.WebPushError && [404, 410].includes(error.statusCode)) {
+    if (error instanceof WebPushError && [404, 410].includes(error.statusCode)) {
       await prisma.hubPushSubscription.deleteMany({ where: { id, sessionId: device.sessionId, nextCheckAt } });
     } else {
       console.warn("Hub push provider did not confirm delivery.");
