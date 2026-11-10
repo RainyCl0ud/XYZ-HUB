@@ -15,6 +15,7 @@ import {
   ApiError,
   apiRequest,
 } from "../lib/api";
+import { releaseBackgroundPush } from "../lib/background-push";
 
 type AuthUser = {
   id: string;
@@ -353,6 +354,7 @@ export function AuthProvider({
   const logout =
     useCallback(
       async () => {
+        if (user?.id) void releaseBackgroundPush(user.id).catch(() => {});
         try {
           await apiRequest<{
             status: string;
@@ -367,7 +369,7 @@ export function AuthProvider({
           setAuthError(null);
         }
       },
-      [clearAuth]
+      [clearAuth, user?.id]
     );
 
   const value =

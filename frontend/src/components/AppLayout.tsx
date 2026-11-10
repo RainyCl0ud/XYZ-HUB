@@ -85,6 +85,8 @@ const PAGE_TITLES:
     "Rule Settings",
   "/strikes":
     "Strike Management",
+  "/my-strikes":
+    "My Strikes",
   "/strikes/reasons":
     "Strike Reasons",
   "/strikes/settings":

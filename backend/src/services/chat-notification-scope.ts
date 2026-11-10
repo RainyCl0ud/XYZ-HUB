@@ -17,5 +17,5 @@ export async function notificationUnreadScope(tx: Prisma.TransactionClient, user
     { channelId: { in: ordinaryIds }, channel: { area: { model: { isActive: true } } } },
     { conversationId: { in: privateIds }, conversation: { OR: [{ modelId: null }, { model: { isActive: true } }] } },
   ] }] };
-  return { viewer, limited, where };
+  return { viewer, limited, where, areas };
 }

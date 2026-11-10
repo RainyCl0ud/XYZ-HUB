@@ -9,6 +9,7 @@
     "test:strike-creator-scope": "tsx scripts/test-strike-creator-scope.ts",
     "build": "prisma generate && tsc",
     "migrate:deploy": "prisma migrate deploy",
+    "backup:block2": "tsx scripts/backup-block2.ts",
     "seed": "tsx prisma/seed.ts",
     "staging:reset-test-data": "tsx scripts/reset-staging-test-data.ts",
     "test:staging-reset-data-plan": "npm run test:staging-regressions && tsx scripts/reset-staging-test-data.ts --validate-only",
@@ -91,6 +92,7 @@
     "nodemailer": "^10.0.10",
     "prisma": "^6.12.0",
     "sharp": "0.35.5",
+    "web-push": "^4.0.0",
     "yazl": "3.3.1",
     "zod": "^4.5.4"
   },
@@ -99,6 +101,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^22.20.1",
+    "@types/web-push": "^3.6.4",
     "@types/yazl": "3.3.0",
     "tsx": "^4.23.13",
     "typescript": "~6.0.2"

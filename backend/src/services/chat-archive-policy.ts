@@ -17,3 +17,7 @@ export function chatChannelArchiveEnabled(env: Readonly<Record<string, string | 
 export function chatChannelExportEnabled(env: Readonly<Record<string, string | undefined>> = process.env) {
   return env.BLOCK2_CHAT_CHANNEL_EXPORT_ENABLED === "true" && chatChannelArchiveEnabled(env);
 }
+
+export function chatChannelCleanupEnabled(env: Readonly<Record<string, string | undefined>> = process.env) {
+  return env.BLOCK2_CHAT_CHANNEL_CLEANUP_ENABLED === "true" && chatChannelExportEnabled(env);
+}

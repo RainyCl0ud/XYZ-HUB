@@ -42,6 +42,11 @@ export type AccessContext = {
   canSeeAllModels: boolean;
 };
 
+export function isTrustedStatusOperator(userId: string) {
+  return process.env.BLOCK2_ROLE_SCREENS_ENABLED === "true" &&
+    userId === process.env.BLOCK2_TRUSTED_STATUS_OPERATOR_ID?.trim();
+}
+
 /*
  * Lower numeric rank = higher authority.
  *
@@ -216,6 +221,14 @@ export async function getAccessContext(
     for (const key of OWNER_ONLY_CAPABILITY_KEYS) {
       permissions.add(key);
     }
+  } else if (systemKeys.has("OPS_MANAGER") && isTrustedStatusOperator(userId)) {
+    permissions.add("people.status.manage");
+  }
+  permissions.delete("strikes.self.view");
+  permissions.delete("dashboard.upcoming.view");
+  if (process.env.BLOCK2_ROLE_SCREENS_ENABLED === "true") {
+    if (systemKeys.has("CHATTER")) permissions.add("strikes.self.view");
+    if (permissions.has("dashboard.view")) permissions.add("dashboard.upcoming.view");
   }
 /*
    * Effective permissions now come from Role Settings.
@@ -466,6 +479,15 @@ export function canManageRoleTarget(
     access,
     targetRole.rank
   );
+}
+
+export function canManageDelegatedStatusTarget(
+  access: AccessContext,
+  operatorRank: number,
+  targetRoles: { systemKey: string | null; rank: number | null }[],
+) {
+  const delegatedAccess = { ...access, highestRank: operatorRank };
+  return targetRoles.length > 0 && targetRoles.every(role => canManageRoleTarget(delegatedAccess, role));
 }
 
 

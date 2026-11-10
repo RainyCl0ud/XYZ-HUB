@@ -1024,6 +1024,7 @@ router.post(
           case "USER_NOT_ACTIVE":
           case "USER_NOT_DEACTIVATED":
           case "CANNOT_DEACTIVATE_SELF":
+          case "STATUS_CHANGED":
             res.status(409).json({
               error:
                 error.code,
@@ -1145,6 +1146,8 @@ router.post(
 
           case "USER_NOT_ACTIVE":
           case "USER_NOT_DEACTIVATED":
+          case "CANNOT_DEACTIVATE_SELF":
+          case "STATUS_CHANGED":
             res.status(409).json({
               error:
                 error.code,

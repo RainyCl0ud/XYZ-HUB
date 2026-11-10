@@ -34,6 +34,7 @@ import AuditPage from "./pages/AuditPage";
 import AccountPage from "./pages/AccountPage";
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const ClockPage = lazy(() => import("./pages/ClockPage"));
+const MyStrikesPage = lazy(() => import("./pages/MyStrikesPage"));
 
 
 function App() {
@@ -125,6 +126,14 @@ function App() {
             }
           />
 
+          <Route
+            path="/my-strikes"
+            element={
+              <RequirePermission permission="strikes.self.view">
+                <Suspense fallback={<p role="status">Loading your strikes…</p>}><MyStrikesPage /></Suspense>
+              </RequirePermission>
+            }
+          />
           <Route
             path="/strikes"
             element={

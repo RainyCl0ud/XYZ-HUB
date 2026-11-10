@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { useAuth } from '../auth/AuthContext';
 import { apiRequest, ApiError } from '../lib/api';
 import { BrowserNotificationsContext } from './BrowserNotificationsContext';
+import { browserPushSubscription, loadPushSettings, pushDeviceKey, readPushDevice, releaseBackgroundPush } from '../lib/background-push';
 import { ALERT_PREFERENCE_PREFIX, alertWorker, preferenceKey, readAlertPreference, resetAlertHistory, samePreference, processBrowserAlertBatch, tellAlertWorker, visibleAlertMessages, type AlertFeed } from '../lib/browser-alerts';
 
 const supported = () => typeof window !== 'undefined' && window.isSecureContext && 'Notification' in window && 'serviceWorker' in navigator && 'locks' in navigator && typeof MessageChannel !== 'undefined';
@@ -10,6 +11,10 @@ export default function BrowserNotificationsProvider({ children }: { children: R
   const { user } = useAuth(), id = user?.id ?? '';
   const identity = useRef(id);
   useLayoutEffect(() => { identity.current = id; return () => { identity.current = ''; }; }, [id]);
+  useEffect(() => {
+    const saved = readPushDevice();
+    if (id && saved && saved.userId !== id) void releaseBackgroundPush(saved.userId).catch(() => {});
+  }, [id]);
   const [available, setAvailable] = useState(false), [enabled, setEnabled] = useState(false), [busy, setBusy] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('unsupported');
   const [error, setError] = useState(''), [limitedScope, setLimitedScope] = useState(false);
@@ -26,6 +31,7 @@ export default function BrowserNotificationsProvider({ children }: { children: R
   }, [id, clear]);
   useEffect(() => {
     let stopped = false, running = false, timer: ReturnType<typeof setTimeout>;
+    let showedPushAvailability = false;
     const controller = new AbortController();
     const sync = () => {
       if (stopped) return;
@@ -33,7 +39,9 @@ export default function BrowserNotificationsProvider({ children }: { children: R
       try { setEnabled(!!id && !!readAlertPreference(localStorage, id)); }
       catch { setEnabled(false); setError('Browser storage is unavailable. Notifications stay off.'); }
     };
-    const storage = (event: StorageEvent) => { if (event.key?.startsWith(ALERT_PREFERENCE_PREFIX)) { sync(); clear(id); } };
+    const storage = (event: StorageEvent) => {
+      if (event.key?.startsWith(ALERT_PREFERENCE_PREFIX) || event.key === pushDeviceKey) { sync(); clear(id); void tick(); }
+    };
     const presence = (event: MessageEvent) => {
       if (event.data?.type !== 'xyz-chat-alert-presence' || !event.ports[0]) return;
       let pref = null; try { pref = id ? readAlertPreference(localStorage, id) : null; } catch { /* fail closed */ }
@@ -55,6 +63,20 @@ export default function BrowserNotificationsProvider({ children }: { children: R
         }
         await navigator.locks.request('xyz-chat-browser-alerts-v1', { ifAvailable: true }, async lock => {
           if (!lock || stopped || !samePreference(pref, readAlertPreference(localStorage, id))) return;
+          const device = readPushDevice();
+          if (device?.userId === id && await browserPushSubscription() &&
+              (await loadPushSettings(device.id, controller.signal)).active) {
+            if (!showedPushAvailability) {
+              const status = await apiRequest<AlertFeed>('/api/chat/browser-notifications', { signal: controller.signal });
+              if (!stopped && identity.current === id && status.userId === id) {
+                setAvailable(status.enabled);
+                setLimitedScope(status.limitedScope);
+                showedPushAvailability = true;
+              }
+            }
+            return;
+          }
+          showedPushAvailability = false;
           await processBrowserAlertBatch({ store: localStorage, userId: id, preference: pref,
             request: (path, ids) => apiRequest<AlertFeed>(path, { ...(ids ? { method: 'POST', body: JSON.stringify({ after: pref.since, ids }) } : {}), signal: controller.signal }),
             isCurrent: () => !stopped && identity.current === id && Notification.permission === 'granted',

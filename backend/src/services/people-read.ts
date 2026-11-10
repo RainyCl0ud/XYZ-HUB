@@ -10,6 +10,7 @@ import {
 
 import {
   canAccessModel,
+  canManageDelegatedStatusTarget,
   canManageRoleTarget,
   hasPermission,
   isOwner,
@@ -678,8 +679,12 @@ export async function getPersonDetail(
     );
   }
 
-  return formatPerson(
-    person,
-    access
-  );
+  const profile = formatPerson(person, access);
+  const opsRank = access.roles.find(role => role.systemKey === "OPS_MANAGER")?.rank;
+  if (isOwner(access) || !hasPermission(access, "people.status.manage") || opsRank == null) return profile;
+  return {
+    ...profile,
+    canChangeDelegatedStatus: person.id !== access.userId &&
+      canManageDelegatedStatusTarget(access, opsRank, person.roleMemberships.map(({ role }) => role)),
+  };
 }

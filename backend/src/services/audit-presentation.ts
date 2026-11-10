@@ -36,6 +36,7 @@ export type PresentedAuditEvent = {
   actor: AuditDisplayParty;
   target: AuditDisplayParty;
   summary: string;
+  retainedChannelId?: string;
   changes: AuditDisplayChange[];
   source: {
     ipAddress: string | null;
@@ -210,6 +211,7 @@ function actionLabel(
     "chat.channel.archive": "Chat channel archived",
     "chat.channel.export.start": "Chat archive export started",
     "chat.channel.export.download": "Chat archive download completed on server",
+    "chat.channel.cleanup": "Archived Chat channel cleaned up",
     "chat.channel.grant": "Chat channel access updated",
     "chat.private.create": "Private chat created",
     "chat.private.archive": "Private chat archived",
@@ -808,7 +810,7 @@ function buildChanges(
     if (["chat.message.send", "chat.attachment.download", "chat.attachment.play"].includes(event.action)) {
       pushChange(changes, "Attachment", null, asString(metadata?.fileName));
     }
-    if (event.action === "chat.channel.export.start" || event.action === "chat.channel.export.download") {
+    if (["chat.channel.export.start", "chat.channel.export.download", "chat.channel.cleanup"].includes(event.action)) {
       pushChange(changes, "Archive file", null, asString(metadata?.fileName));
     }
     if (event.action === "chat.message.edit") pushChange(changes, "Message text", asString(metadata?.before), asString(metadata?.after));
@@ -1812,6 +1814,8 @@ export async function presentAuditEvents(
           event.statusCode,
         actor,
         target,
+        ...(event.success && event.action === "chat.channel.cleanup" && event.targetType === "chat" && event.targetId
+          ? { retainedChannelId: event.targetId } : {}),
         summary:
           event.success
             ? buildSummary(

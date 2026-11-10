@@ -17,7 +17,8 @@ import { prisma } from "../src/lib/prisma.js";
 import { loadSession } from "../src/middleware/session-auth.js";
 import chat from "../src/routes/chat.js";
 import { chatAttachmentDirectory, MAX_CHAT_ATTACHMENT_BYTES } from "../src/services/chat-attachment-policy.js";
-import { chatChannelArchiveEnabled, chatChannelExportEnabled } from "../src/services/chat-archive-policy.js";
+import { chatChannelArchiveEnabled, chatChannelCleanupEnabled, chatChannelExportEnabled } from "../src/services/chat-archive-policy.js";
+import { presentAuditEvents } from "../src/services/audit-presentation.js";
 import { installCreatorChatDefaults, provisionCreatorChat } from "../src/services/creator-chat.js";
 import { createSession } from "../src/services/session.js";
 import { installStandingChatDefaults, syncUserStandingChats } from "../src/services/standing-chat.js";
@@ -295,6 +296,11 @@ async function main() {
     assert.equal((await archive(owner, updates)).status, 403);
     assert.equal((await archive(owner, { id: peerChat.id, name: "Private" })).status, 404);
     assert.equal((await archive(manager, { ...channel, name: "Out of date" })).status, 409);
+    const sent = await json(owner, `${url(channel.id)}/messages`, "POST", { text: "Original archive test message", clientNonce: randomUUID() });
+    assert.equal(sent.status, 201);
+    const { message: editable } = await sent.json();
+    const historyMessageUrl = `${url(channel.id)}/messages/${editable.id}`;
+    assert.equal((await json(owner, historyMessageUrl, "PATCH", { text: "Edited archive test message", version: editable.version })).status, 200);
     await prisma.chatMessage.createMany({ data: Array.from({ length: 206 }, (_, index) => ({
       channelId: channel.id, authorUserId: owner.id, authorName: "Fictional <author>", clientNonce: randomUUID(),
       text: `Archive page fixture ${index} <script>alert(1)</script>`, createdAt: new Date("2026-01-01T00:00:00Z"),
@@ -412,6 +418,84 @@ async function main() {
       where: { targetId: channel.id, actorUserId: otherOwner.id, action: "chat.channel.export.download" },
     }), 0);
     console.log("PASS: cancelling a large download does not record completion or block the next export.");
+
+    const cleanupInput = { name: channel.name, downloadId: completed.id, confirmedSaved: true };
+    const cleanup = (actor: typeof owner, id = channel.id, input = cleanupInput) => json(actor, `${url(id)}/cleanup`, "PUT", input);
+    process.env.BLOCK2_CHAT_CHANNEL_CLEANUP_ENABLED = "false";
+    assert.equal((await cleanup(owner)).status, 404);
+    process.env.BLOCK2_CHAT_CHANNEL_CLEANUP_ENABLED = "true";
+    assert.equal(chatChannelCleanupEnabled({ ...process.env, RAILWAY_ENVIRONMENT_NAME: "Production" }), false);
+    assert.equal(chatChannelCleanupEnabled({ ...process.env, BLOCK2_CHAT_CHANNEL_EXPORT_ENABLED: "false" }), false);
+    for (const actor of [developer, manager, peer]) assert.equal((await cleanup(actor)).status, 403);
+    assert.equal((await cleanup(owner, updates.id)).status, 403);
+    assert.equal((await cleanup(owner, privateChat.id)).status, 404);
+    const active = await prisma.chatChannel.findFirstOrThrow({ where: { modelId: model.id, key: "training-guide" } });
+    assert.equal((await cleanup(owner, active.id)).status, 409);
+    assert.equal((await cleanup(owner, channel.id, { ...cleanupInput, confirmedSaved: false })).status, 400);
+    assert.equal((await cleanup(owner, channel.id, { ...cleanupInput, name: "Stale name" })).status, 409);
+    const startOnly = await auditAction("chat.channel.export.start");
+    assert.ok(startOnly);
+    assert.equal((await cleanup(owner, channel.id, { ...cleanupInput, downloadId: startOnly.id })).status, 409);
+    assert.equal((await cleanup(otherOwner)).status, 409);
+    assert.equal((await (await fetch(transcriptUrl, { headers: otherOwner.cookie })).json()).cleanup.download, null);
+    const ready = await (await fetch(transcriptUrl, { headers: owner.cookie })).json();
+    assert.equal(ready.cleanup.download.id, completed.id);
+    assert.match(ready.cleanup.download.fileName, /\.zip$/);
+    assert.equal((await (await fetch(transcriptUrl, { headers: developer.cookie })).json()).cleanup, undefined);
+    console.log("PASS: cleanup requires a saved ZIP confirmation and the same Owner's completed download of that archived channel.");
+
+    const beforeCleanup = await prisma.chatMessage.count({ where: { channelId: channel.id } });
+    const retries = await Promise.all([cleanup(owner), cleanup(owner)]);
+    assert.deepEqual(retries.map(response => response.status), [200, 200]);
+    const cleanupEvents = await prisma.auditEvent.findMany({ where: { ...auditWhere, action: "chat.channel.cleanup" } });
+    assert.equal(cleanupEvents.length, 1);
+    const [cleanupEvent] = cleanupEvents;
+    const { metadata } = cleanupEvent;
+    assert.ok(metadata && typeof metadata === "object" && !Array.isArray(metadata));
+    const [display] = await presentAuditEvents([{
+      ...cleanupEvent,
+      occurredAt: cleanupEvent.occurredAt.toISOString(),
+      metadata,
+    }]);
+    assert.equal(display.retainedChannelId, channel.id);
+    assert.ok(display.changes.some(change => change.label === "Archive file" && change.after === ready.cleanup.download.fileName));
+    assert.equal(await prisma.chatMessage.count({ where: { channelId: channel.id } }), beforeCleanup);
+    assert.equal(await prisma.chatAttachment.count({ where: { message: { channelId: channel.id } } }), manifest.attachments.length);
+    assert.ok((await prisma.chatChannel.findUniqueOrThrow({ where: { id: channel.id } })).cleanedUpAt);
+
+    const listedChannels = async (actor: typeof owner, query = "") => {
+      const response = await fetch(`${base}/areas${query}`, { headers: actor.cookie });
+      assert.equal(response.status, 200);
+      return (await response.json()).areas.flatMap((area: { channels: { id: string; retained: boolean }[] }) => area.channels);
+    };
+    const retainedQuery = `?retained=${channel.id}`;
+    assert.ok(!(await listedChannels(owner)).some((row: { id: string }) => row.id === channel.id));
+    assert.ok((await listedChannels(owner, retainedQuery)).some((row: { id: string; retained: boolean }) => row.id === channel.id && row.retained));
+    for (const actor of [developer, manager, peer]) {
+      assert.ok(!(await listedChannels(actor, retainedQuery)).some((row: { id: string }) => row.id === channel.id));
+      assert.equal((await fetch(transcriptUrl, { headers: actor.cookie })).status, 404);
+      assert.equal((await fetch(firstUrl, { headers: actor.cookie })).status, 404);
+    }
+    const retained = await (await fetch(transcriptUrl, { headers: owner.cookie })).json();
+    assert.equal(retained.canPost, false);
+    assert.equal(retained.cleanup, undefined);
+    assert.equal(await (await fetch(firstUrl, { headers: owner.cookie })).text(), "file");
+    assert.equal((await fetch(previewUrl, { headers: owner.cookie })).status, 200);
+    const retainedDeleted = await fetch(`${url(channel.id)}/deleted`, { headers: owner.cookie });
+    assert.ok((await retainedDeleted.json()).messages.some((message: { id: string }) => message.id === pictureId));
+    assert.equal((await fetch(`${historyMessageUrl}/history`, { headers: developer.cookie })).status, 404);
+    const history = await (await fetch(`${historyMessageUrl}/history`, { headers: owner.cookie })).json();
+    assert.ok(history.events.some((event: { action: string; beforeText: string; afterText: string }) =>
+      event.action === "chat.message.edit" && event.beforeText === "Original archive test message" && event.afterText === "Edited archive test message"));
+    const ordinarySearch = await fetch(`${base}/search?q=Archive%20page%20fixture`, { headers: owner.cookie });
+    assert.ok(!(await ordinarySearch.json()).results.some((match: { channelId: string }) => match.channelId === channel.id));
+    const scopedSearch = `${base}/search?q=Archive%20page%20fixture&channelId=${channel.id}`;
+    assert.equal((await fetch(scopedSearch, { headers: developer.cookie })).status, 404);
+    assert.ok((await (await fetch(scopedSearch, { headers: owner.cookie })).json()).results.some((match: { channelId: string }) => match.channelId === channel.id));
+    const replacement = await json(owner, `${base}/areas/${model.id}/channels`, "POST", { name: channel.name });
+    assert.equal(replacement.status, 201);
+    assert.notEqual((await replacement.json()).channel.id, channel.id);
+    console.log("PASS: cleanup records one audit event, hides normal listings and search, and preserves Owner-only history and files. Reusing the name starts a separate channel.");
 
     process.env.BLOCK2_CHAT_CHANNEL_ARCHIVE_ENABLED = "false";
     assert.equal((await fetch(transcriptUrl, { headers: manager.cookie })).status, 404);

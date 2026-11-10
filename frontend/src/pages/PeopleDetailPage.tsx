@@ -78,6 +78,7 @@ type Person = {
   createdAt: string;
   emailVerifiedAt: string | null;
   deactivatedAt: string | null;
+  canChangeDelegatedStatus?: boolean;
   teamGroup: PersonTeamGroup | null;
   roles: PersonRole[];
   models: PersonModel[];
@@ -753,6 +754,8 @@ function PeopleDetailPage() {
       person.id ===
         user?.id
     );
+  const canChangeAccountStatus = !!options?.capabilities.canDeactivate &&
+    (options.capabilities.isOwner || person?.canChangeDelegatedStatus === true);
 
   const profileTeamColor =
     useMemo(
@@ -1091,9 +1094,7 @@ function PeopleDetailPage() {
     const allowed =
       action === "deactivate" ||
       action === "reactivate"
-        ? Boolean(
-            options?.capabilities.canDeactivate
-          )
+        ? canChangeAccountStatus
         : action === "delete"
           ? Boolean(
               options?.capabilities.canDelete
@@ -1729,7 +1730,7 @@ function PeopleDetailPage() {
 
                   {person.status ===
                     "DEACTIVATED" &&
-                    options.capabilities.canDeactivate && (
+                    canChangeAccountStatus && (
                     <div className="people-account-action-card restore">
                       <div>
                         <strong>
@@ -1761,7 +1762,7 @@ function PeopleDetailPage() {
               </div>
 
 
-              {(options.capabilities.canDeactivate ||
+              {(canChangeAccountStatus ||
                 options.capabilities.canDelete) &&
                 person.id !==
                   user?.id && (
@@ -1781,9 +1782,7 @@ function PeopleDetailPage() {
 
                   {person.status ===
                     "ACTIVE" &&
-                    options
-                      .capabilities
-                      .canDeactivate && (
+                    canChangeAccountStatus && (
                     <div className="people-danger-action">
                       <div>
                         <strong>
@@ -1805,7 +1804,7 @@ function PeopleDetailPage() {
                         }
                         disabled={
                           saving ||
-                          !canManagePerson
+                          (options.capabilities.isOwner && !canManagePerson)
                         }
                       >
                         Deactivate account

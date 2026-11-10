@@ -581,6 +581,35 @@ export function deriveStrikeStatus(
   return "ACTIVE";
 }
 
+export async function listOwnStrikes(userId: string, requestedPage: number) {
+  const pageSize = 10;
+  const where = { userId };
+  return prisma.$transaction(async tx => {
+    const total = await tx.strike.count({ where });
+    const pageCount = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(requestedPage, pageCount);
+    const rows = await tx.strike.findMany({
+      where,
+      select: {
+        id: true, reasonNameSnapshot: true, standingLabelSnapshot: true,
+        details: true, issuedAt: true, expiresAt: true, voidedAt: true,
+      },
+      orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+    const now = new Date();
+    return {
+      records: rows.map(({ reasonNameSnapshot, standingLabelSnapshot, voidedAt, ...row }) => ({
+        ...row, reason: reasonNameSnapshot, standing: standingLabelSnapshot,
+        status: deriveStrikeStatus({ expiresAt: row.expiresAt, voidedAt }, now),
+      })),
+      page,
+      pageCount,
+    };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+}
+
 function serializeStrike(
   strike:
     StrikeRecord,

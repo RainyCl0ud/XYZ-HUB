@@ -6,7 +6,7 @@ import { prisma } from "../lib/prisma.js";
 import { CHAT_ROLE_DEFAULTS, CHAT_PERMISSION_DEFINITIONS } from "../permissions/chat-permissions.js";
 import { syncCreatorStandingChat, syncUserStandingChats } from "./standing-chat.js";
 import { canPreviewChatImage, chatAttachmentDirectory } from "./chat-attachment-policy.js";
-import { chatChannelArchiveEnabled, chatChannelExportEnabled } from "./chat-archive-policy.js";
+import { chatChannelArchiveEnabled, chatChannelCleanupEnabled, chatChannelExportEnabled } from "./chat-archive-policy.js";
 
 export const isCreatorChatEnabled = () => process.env.BLOCK2_CHAT_ENABLED === "true";
 export class ChatError extends Error {
@@ -95,7 +95,7 @@ function channelAccess(viewer: Viewer, channel: Channel) {
   const assignment = viewer.user.modelAssignments.find((a) => a.modelId === channel.modelId);
   const paused = viewer.user.chatQuarantines.some((q) => q.modelId === channel.modelId);
   const inArea = !paused && p.has("chat.access") && p.has("chat.ordinary.access") && (!!assignment || p.has("chat.areas.all"));
-  const archived = !!channel.archivedAt || !!channel.area.archivedAt;
+  const archived = !!channel.cleanedUpAt || !!channel.archivedAt || !!channel.area.archivedAt;
   // A Chatter restriction beats named or custom-role grants. A QC/Manager (or
   // equivalent explicitly configured reviewer) wins when that person has both.
   const restricted = channel.key === "trial-feedback" && p.has("chat.trial_feedback.restricted") && !p.has("chat.trial_feedback.review");
@@ -104,7 +104,8 @@ function channelAccess(viewer: Viewer, channel: Channel) {
     ...channel.personGrants.filter((g) => g.assignmentId === assignment?.id),
   ];
   const canView = inArea && !restricted && (!archived || p.has("chat.archives.view"))
-    && (!channel.archivedAt || viewer.isOwner || viewer.isDeveloper) &&
+    && (!channel.archivedAt || viewer.isOwner || viewer.isDeveloper)
+    && (!channel.cleanedUpAt || viewer.isOwner) &&
     (p.has("chat.channels.all") || grants.some((g) => g.canView || g.canPost));
   const canPost = canView && !archived && p.has("chat.messages.send") &&
     (p.has("chat.channels.post_all") || grants.some((g) => g.canPost));
@@ -163,13 +164,33 @@ function canArchiveChannel(viewer: Viewer, channel: Channel, canManage: boolean)
     && viewer.user.roleMemberships.some(({ role }) => ["OWNER", "OPS_MANAGER", "MANAGER"].includes(role.systemKey ?? ""));
 }
 
+async function completedChannelDownload(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  channelId: string,
+  archivedAt: Date,
+  downloadId?: string,
+) {
+  const event = await tx.auditEvent.findFirst({
+    where: {
+      id: downloadId, action: "chat.channel.export.download", targetType: "chat", targetId: channelId,
+      actorUserId: userId, success: true, statusCode: 200, occurredAt: { gte: archivedAt },
+    },
+    orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+    select: { id: true, metadata: true },
+  });
+  const metadata = event?.metadata;
+  const fileName = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata.fileName : null;
+  return event && typeof fileName === "string" && fileName.endsWith(".zip") ? { id: event.id, fileName } : null;
+}
+
 export async function archiveChatChannel(userId: string, channelId: string, expectedName: string) {
   if (!chatChannelArchiveEnabled()) throw new ChatError(404, "Channel archiving is unavailable.");
   return prisma.$transaction(async (tx) => {
     const viewer = await loadViewer(tx, userId);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"chat-channel:" + channelId}, 0))`;
     const channel = await tx.chatChannel.findUnique({ where: { id: channelId }, include: channelInclude });
-    if (!channel) throw new ChatError(404, "Channel not found.");
+    if (!channel || channel.cleanedUpAt) throw new ChatError(404, "Channel not found.");
     const access = channelAccess(viewer, { ...channel, archivedAt: null });
     if (!access.canView) throw new ChatError(404, "Channel not found.");
     if (!canArchiveChannel(viewer, channel, access.canManage)) throw new ChatError(403, "You cannot archive this channel.");
@@ -182,6 +203,28 @@ export async function archiveChatChannel(userId: string, channelId: string, expe
     await tx.chatChannel.update({ where: { id: channelId }, data: { archivedAt: new Date() } });
     await audit(tx, viewer, "chat.channel.archive", channelId, { modelId: channel.modelId, channelName: channel.name });
     return { archived: true };
+  });
+}
+
+export async function cleanUpChatChannel(userId: string, channelId: string, expectedName: string, downloadId: string) {
+  if (!chatChannelCleanupEnabled()) throw new ChatError(404, "Channel cleanup is unavailable.");
+  return prisma.$transaction(async (tx) => {
+    const viewer = await loadViewer(tx, userId);
+    if (!viewer.isOwner) throw new ChatError(403, "Only Owners can clean up archived channels.");
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"chat-channel:" + channelId}, 0))`;
+    const channel = await tx.chatChannel.findUnique({ where: { id: channelId }, include: channelInclude });
+    if (!channel || !channelAccess(viewer, channel).canView) throw new ChatError(404, "Channel not found.");
+    if (channel.key === "updates") throw new ChatError(403, "Updates is protected for staff announcements.");
+    if (!channel.archivedAt) throw new ChatError(409, "Archive the channel before cleaning it up.");
+    if (channel.name !== expectedName) throw new ChatError(409, "The channel name changed. Reopen the confirmation.");
+    const download = await completedChannelDownload(tx, userId, channelId, channel.archivedAt, downloadId);
+    if (!download) throw new ChatError(409, "Download and save this channel’s ZIP before cleaning it up.");
+    if (channel.cleanedUpAt) return { cleanedUp: true };
+    await tx.chatChannel.update({ where: { id: channelId }, data: { cleanedUpAt: new Date() } });
+    await audit(tx, viewer, "chat.channel.cleanup", channelId, {
+      modelId: channel.modelId, channelName: channel.name, downloadId: download.id, fileName: download.fileName,
+    });
+    return { cleanedUp: true };
   });
 }
 export const CHAT_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅"] as const;
@@ -222,17 +265,20 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
   };
 }
 
-export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: Viewer) {
+export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: Viewer, retainedChannelId?: string) {
     const userId = viewer.user.id;
     const areas = await tx.chatArea.findMany({
       where: viewer.permissions.has("chat.areas.all") ? {} : { modelId: { in: viewer.user.modelAssignments.map((a) => a.modelId) } },
-      include: { model: { select: { name: true } }, channels: { include: channelInclude, orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } },
+      include: { model: { select: { name: true } }, channels: {
+        where: retainedChannelId && viewer.isOwner ? { OR: [{ cleanedUpAt: null }, { id: retainedChannelId }] } : { cleanedUpAt: null },
+        include: channelInclude, orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      } },
       orderBy: { model: { name: "asc" } },
     });
     const result = areas.map((area) => {
       const channels = area.channels.flatMap((channel) => {
         const access = channelAccess(viewer, channel);
-        return access.canView ? [{ id: channel.id, name: channel.name, isPrivate: false, ...access, canArchive: canArchiveChannel(viewer, channel, access.canManage) }] : [];
+        return access.canView ? [{ id: channel.id, name: channel.name, isPrivate: false, retained: !!channel.cleanedUpAt, ...access, canArchive: canArchiveChannel(viewer, channel, access.canManage) }] : [];
       });
       const pausedForYou = viewer.user.chatQuarantines.some((q) => q.modelId === area.modelId);
       const inArea = !pausedForYou && viewer.permissions.has("chat.ordinary.access") && (viewer.permissions.has("chat.areas.all") || viewer.user.modelAssignments.some((a) => a.modelId === area.modelId));
@@ -250,14 +296,14 @@ export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: 
       let area = result.find((a) => a.modelId === areaId);
       if (!area) { area = { modelId: areaId, name: conversation.model?.name ?? "Private workspace", archived: !!conversation.model?.chatArea?.archivedAt, pausedForYou: viewer.user.chatQuarantines.some((q) => q.modelId === areaId), canManage: false, channels: [] }; result.push(area); }
       const name = conversation.kind === "CREATOR" ? `${conversation.model?.name ?? conversation.subjectName} · Private` : conversation.subjectUserId === userId ? "Your private chat" : `${conversation.subjectUser?.name ?? conversation.subjectName} · Private`;
-      area.channels.push({ id: conversation.id, name, isPrivate: true, ...access, canArchive: false });
+      area.channels.push({ id: conversation.id, name, isPrivate: true, retained: false, ...access, canArchive: false });
     }
     return result.filter((area) => area.channels.length || area.canManage);
 }
-export async function listChatAreas(userId: string) {
+export async function listChatAreas(userId: string, retainedChannelId?: string) {
   return prisma.$transaction(async (tx) => {
     const viewer = await loadViewer(tx, userId);
-    const areas = await accessibleChatAreas(tx, viewer);
+    const areas = await accessibleChatAreas(tx, viewer, retainedChannelId);
     const counts = await unreadCounts(tx, viewer, areas);
     return areas.map((area) => ({ ...area, unreadCount: area.channels.reduce((sum, c) => sum + (counts.get(c.id)?.count ?? 0), 0),
       channels: area.channels.map((c) => ({ ...c, unreadCount: counts.get(c.id)?.count ?? 0 })) }));
@@ -344,8 +390,12 @@ export async function listChatMessages(userId: string, channelId: string, before
     const control = conversation?.kind === "STAFF" && conversation.modelId && conversation.subjectUser
       ? quarantineControl(viewer, makeViewer(conversation.subjectUser), conversation.modelId) : null;
     const quarantine = control && (!access.archived || (control.active && control.canLift)) ? control : null;
+    const cleanup = viewer.isOwner && channel?.archivedAt && !channel.cleanedUpAt && channel.key !== "updates" && chatChannelCleanupEnabled()
+      ? { download: await completedChannelDownload(tx, userId, channel.id, channel.archivedAt) }
+      : undefined;
     return { messages, unreadMessageIds, quarantine, canPost: access.canPost, canViewDeleted: viewer.isOwner, canPin: access.canPost && viewer.permissions.has("chat.messages.pin"), hasMore, nextBefore: hasMore ? messages[0].id : null,
       ...(channel && access.archived && viewer.isOwner && chatChannelExportEnabled() ? { canExportArchive: true } : {}),
+      ...(cleanup ? { cleanup } : {}),
     };
   });
 }
@@ -525,7 +575,7 @@ export async function createChatChannel(userId: string, modelId: string, name: s
     const area = await tx.chatArea.findUnique({ where: { modelId } });
     if (!area) throw new ChatError(404, "Creator chat area not found.");
     if (area.archivedAt) throw new ChatError(403, "Archived creator areas are read-only.");
-    const duplicate = await tx.chatChannel.findFirst({ where: { modelId, name: { equals: normalized, mode: "insensitive" } } });
+    const duplicate = await tx.chatChannel.findFirst({ where: { modelId, cleanedUpAt: null, name: { equals: normalized, mode: "insensitive" } } });
     if (duplicate) throw new ChatError(409, "A channel with this name already exists in this creator area.");
     const last = await tx.chatChannel.aggregate({ where: { modelId }, _max: { sortOrder: true } });
     const created = await tx.chatChannel.create({ data: { modelId, key: `custom-${randomUUID()}`, name: normalized, sortOrder: (last._max.sortOrder ?? -1) + 1 } });
@@ -540,7 +590,7 @@ export async function renameChatChannel(userId: string, channelId: string, name:
   return prisma.$transaction(async (tx) => {
     const { viewer, channel, access } = await openChannel(tx, userId, channelId, true);
     if (!channel || !access.canManage) throw new ChatError(403, "Protected chats cannot be renamed; ordinary channels require management access.");
-    const duplicate = await tx.chatChannel.findFirst({ where: { modelId: channel.modelId, id: { not: channelId }, name: { equals: normalized, mode: "insensitive" } } });
+    const duplicate = await tx.chatChannel.findFirst({ where: { modelId: channel.modelId, id: { not: channelId }, cleanedUpAt: null, name: { equals: normalized, mode: "insensitive" } } });
     if (duplicate) throw new ChatError(409, "A channel with this name already exists in this creator area.");
     await tx.chatChannel.update({ where: { id: channelId }, data: { name: normalized } });
     await audit(tx, viewer, "chat.channel.rename", channelId, { channelName: normalized, before: channel.name, after: normalized });
@@ -632,7 +682,7 @@ export async function searchChatMessages(userId: string, query: string, channelI
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SET LOCAL statement_timeout = '5000ms'`;
     const viewer = await loadViewer(tx, userId);
-    const areas = await accessibleChatAreas(tx, viewer);
+    const areas = await accessibleChatAreas(tx, viewer, channelId);
     const allowed = areas.flatMap((area) => area.channels.map((channel) => ({ ...channel, areaName: area.name })));
     const selected = channelId ? allowed.filter((c) => c.id === channelId) : allowed;
     if (channelId && !selected.length) throw new ChatError(404, "Channel not found.");

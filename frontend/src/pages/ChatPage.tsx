@@ -9,6 +9,7 @@ import { useBrowserNotifications } from '../components/BrowserNotificationsConte
 import { setAlertReadingContext } from '../lib/browser-alerts';
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
+import ChatChannelCleanupDialog, { type CleanupTarget } from "./ChatChannelCleanupDialog";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
 import ChatAttachmentPicker from "./ChatAttachmentPicker";
 import ChatVoiceRecorder from "./ChatVoiceRecorder";
@@ -17,9 +18,9 @@ import ChatQuarantineDialog, { type QuarantineControl } from "./ChatQuarantineDi
 import { useChatReadTracking } from "./useChatReadTracking";
 
 const noUnreadIds: string[] = [];
-type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; canArchive?: boolean; archived: boolean; isPrivate: boolean; unreadCount?: number };
+type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; canArchive?: boolean; archived: boolean; retained?: boolean; isPrivate: boolean; unreadCount?: number };
 type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; pausedForYou?: boolean; channels: Channel[]; unreadCount?: number };
-type Transcript = { messages: Message[]; unreadMessageIds?: string[]; quarantine?: QuarantineControl | null; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; canExportArchive?: boolean; hasMore: boolean; nextBefore: string | null };
+type Transcript = { messages: Message[]; unreadMessageIds?: string[]; quarantine?: QuarantineControl | null; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; canExportArchive?: boolean; cleanup?: { download: CleanupTarget["download"] | null }; hasMore: boolean; nextBefore: string | null };
 type Member = { id: string; name: string; canView?: boolean; canPost: boolean; quarantine?: QuarantineControl | null };
 type ChatLocation = { modelId: string; channelId: string };
 const locationKey = (userId: string) => `xyz_chat_location_v1:${userId}`;
@@ -68,6 +69,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [showBrowserNotifications, setShowBrowserNotifications] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const linkedConversation = searchParams.get('conversation') ?? '';
+  const retainedConversation = searchParams.get("retained") ?? "";
   const [canAnnounce, setCanAnnounce] = useState(false), [showAnnouncements, setShowAnnouncements] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false), [showReminders, setShowReminders] = useState(false);
   const [attachmentMaxBytes, setAttachmentMaxBytes] = useState(0);
@@ -81,6 +83,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [reply, setReply] = useState<Message | null>(null);
   const [tools, setTools] = useState<ChatToolTarget | null>(null);
   const [deleting, setDeleting] = useState<ModerationTarget | null>(null);
+  const [cleanupTarget, setCleanupTarget] = useState<CleanupTarget | null>(null);
   const [quarantining, setQuarantining] = useState<QuarantineControl | null>(null);
   const [notice, setNotice] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
@@ -120,19 +123,20 @@ function ChatWorkspace({ userId }: { userId: string }) {
   useEffect(() => { if (replyId) composer.current?.focus(); }, [replyId]);
   const area = areas.find((a) => a.channels.some((c) => c.id === selected));
   const channel = area?.channels.find((c) => c.id === selected);
+  const cleanupDownload = transcript?.cleanup?.download;
   const latestEdit = edit && transcript?.messages.find((m) => m.id === edit.id);
   const editConflict = !!(edit && latestEdit && latestEdit.version !== edit.version);
   const unchangedEdit = !!edit && draft.trim() === edit.text;
   const browseArea = area ?? areas[0];
   const query = channelSearch.trim().toLocaleLowerCase();
-  const visibleChannels = browseArea?.channels.filter((c) => c.name.toLocaleLowerCase().includes(query) &&
+  const visibleChannels = browseArea?.channels.filter((c) => !c.retained && c.name.toLocaleLowerCase().includes(query) &&
     (!unreadOnly || (c.unreadCount ?? 0) > 0) && (channelFilter === "all" || (channelFilter === "private" ? c.isPrivate : !c.isPrivate))) ?? [];
   const ordinaryChannels = visibleChannels.filter((c) => !c.archived && !c.isPrivate);
   const privateChannels = visibleChannels.filter((c) => !c.archived && c.isPrivate);
   const archivedChannels = visibleChannels.filter((c) => c.archived);
 
   const chooseChannel = useCallback((id: string, preserveCurrent = true) => {
-    const place = availableAreas.current.find((a) => a.channels.some((c) => c.id === id));
+    const place = availableAreas.current.find((a) => a.channels.some((c) => c.id === id && !c.retained));
     if (place) rememberLocation(userId, { modelId: place.modelId, channelId: id });
     else if (!id) rememberLocation(userId, null);
     if (id === selectedRef.current) return;
@@ -143,6 +147,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     selectedRef.current = id;
     setSelected(id); setTranscript(null); setMembers([]); setDraft(saved?.text ?? ""); setEdit(null); setError("");
     setSettings(null);
+    setCleanupTarget(null);
     setQuarantining(null);
     setReply(saved?.reply ?? null); setTools(null); setDeleting(null); setNotice(saved?.text ? "Your unsent draft was kept for this conversation." : "");
     setShowMembers(false);
@@ -151,9 +156,21 @@ function ChatWorkspace({ userId }: { userId: string }) {
     earlierScroll.current = null;
   }, [userId]);
 
+  function openConversation(id: string) {
+    if (retainedConversation && retainedConversation !== id) {
+      setSearchParams(previous => {
+        const next = new URLSearchParams(previous);
+        next.delete("retained");
+        return next;
+      }, { replace: true });
+    }
+    chooseChannel(id);
+  }
+
   const refreshAreas = useCallback(async (signal?: AbortSignal) => {
     const request = ++areasRequest.current;
-    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean }; attachments?: { maxBytes: number; voiceMaxSeconds?: number } }>("/api/chat/areas", { signal });
+    const params = retainedConversation ? `?retained=${encodeURIComponent(retainedConversation)}` : "";
+    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean }; attachments?: { maxBytes: number; voiceMaxSeconds?: number } }>(`/api/chat/areas${params}`, { signal });
     if (signal?.aborted || request !== areasRequest.current) return;
     availableAreas.current = response.areas;
     setAreas(response.areas);
@@ -162,22 +179,33 @@ function ChatWorkspace({ userId }: { userId: string }) {
     setAttachmentMaxBytes(response.attachments?.maxBytes ?? 0);
     setVoiceMaxSeconds(response.attachments?.voiceMaxSeconds ?? 0);
     const current = selectedRef.current;
-    const permitted = new Set(response.areas.flatMap((a) => a.channels.map((c) => c.id)));
+    const allChannels = response.areas.flatMap((a) => a.channels);
+    const permitted = new Set(allChannels.map((c) => c.id));
     for (const id of conversationDrafts.current.keys()) if (!permitted.has(id)) conversationDrafts.current.delete(id);
-    if (linkedConversation || !response.areas.some((a) => a.channels.some((c) => c.id === current))) {
+    const retained = allChannels.find(c => c.id === retainedConversation && c.retained);
+    if (retained) chooseChannel(retained.id, false);
+    else if (linkedConversation || !permitted.has(current)) {
       // Saved IDs are only navigation hints. Restore from the current server
       // list, never fetch a remembered private chat before checking access.
       const saved = savedLocation(userId);
-      const savedArea = response.areas.find((a) => a.modelId === saved?.modelId);
-      const restored = savedArea?.channels.find((c) => c.id === saved?.channelId);
-      const linked = response.areas.flatMap(a => a.channels).find(c => c.id === linkedConversation);
-      const allChannels = response.areas.flatMap((a) => a.channels);
-      chooseChannel(linked?.id ?? restored?.id ?? savedArea?.channels.find(c => !c.archived)?.id
-        ?? allChannels.find(c => !c.archived)?.id ?? savedArea?.channels[0]?.id ?? allChannels[0]?.id ?? "", false);
-      if (linkedConversation) setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete('conversation'); return next; }, { replace: true });
+      const savedChannels = response.areas.find(a => a.modelId === saved?.modelId)?.channels.filter(c => !c.retained) ?? [];
+      const normal = allChannels.filter(c => !c.retained);
+      const restored = savedChannels.find(c => c.id === saved?.channelId);
+      const linked = normal.find(c => c.id === linkedConversation);
+      chooseChannel(linked?.id ?? restored?.id ?? savedChannels.find(c => !c.archived)?.id
+        ?? normal.find(c => !c.archived)?.id ?? savedChannels[0]?.id ?? normal[0]?.id ?? "", false);
+    }
+    if (linkedConversation || (retainedConversation && !retained)) {
+      setSearchParams(previous => {
+        const next = new URLSearchParams(previous);
+        next.delete("conversation");
+        if (!retained) next.delete("retained");
+        return next;
+      }, { replace: true });
+      if (retainedConversation && !retained) setNotice("Retained channel history is unavailable.");
     }
     setLoading(false);
-  }, [chooseChannel, userId, linkedConversation, setSearchParams]);
+  }, [chooseChannel, userId, linkedConversation, retainedConversation, setSearchParams]);
 
   const readsSaved = useCallback((ids: string[]) => {
     setReadError("");
@@ -186,7 +214,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     void refreshAreas().catch(() => {});
   }, [refreshAreas]);
   const readFailed = useCallback(() => setReadError("Read status wasn’t saved. It will retry when messages refresh."), []);
-  const notificationsPaused = !!(loading || error || tools || deleting || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || showBrowserNotifications || markingRead);
+  const notificationsPaused = !!(loading || error || tools || deleting || cleanupTarget || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || showBrowserNotifications || markingRead);
   useEffect(() => {
     setAlertReadingContext({ userId, conversationId: selected, paused: notificationsPaused });
     return () => setAlertReadingContext({ userId: '', conversationId: '', paused: true });
@@ -274,7 +302,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
         if (stopped || selectedRef.current !== selected) return;
         if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
           conversationDrafts.current.delete(selected);
-          setTranscript(null); setMembers([]); setAreas([]); setEdit(null); setDraft(""); setReply(null); setTools(null); setDeleting(null); setQuarantining(null); setSettings(null);
+          setTranscript(null); setMembers([]); setAreas([]); setEdit(null); setDraft(""); setReply(null); setTools(null); setDeleting(null); setCleanupTarget(null); setQuarantining(null); setSettings(null);
           void refreshAreas(controller.signal).catch(() => {});
         }
         setError(errorText(e));
@@ -358,7 +386,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     setReply((old) => old?.id === message.id ? message : old);
   }
   function startReply(channelId: string, message: Message) {
-    if (selectedRef.current !== channelId) chooseChannel(channelId);
+    if (selectedRef.current !== channelId) openConversation(channelId);
     else if (edit) setDraft(beforeEdit.current.text);
     setEdit(null); setReply(message); setTools(null); setShowChannels(false); composer.current?.focus();
   }
@@ -392,7 +420,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   }
   function channelRow(c: Channel) {
     return <button type="button" key={c.id} disabled={sending} className="creator-chat-channel-row" aria-current={c.id === selected ? "page" : undefined}
-      onClick={() => { chooseChannel(c.id); setShowChannels(false); }}>
+      onClick={() => { openConversation(c.id); setShowChannels(false); }}>
       <ChatIcon name={c.isPrivate ? "lock" : "channel"} />
       <span className="creator-chat-channel-name">{c.name}</span>
       {!!c.unreadCount && <span className="creator-chat-unread-count" aria-label={`${c.unreadCount} unread messages`}>{c.unreadCount > 99 ? "99+" : c.unreadCount}</span>}
@@ -415,7 +443,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               <label className="creator-chat-field-label" htmlFor="chat-workspace">Creator / workspace</label>
               <select id="chat-workspace" disabled={sending} value={browseArea?.modelId ?? ""} onChange={(e) => {
                 const next = areas.find((a) => a.modelId === e.target.value);
-                setChannelSearch(""); setChannelFilter("all"); chooseChannel(next?.channels.find(c => !c.archived)?.id ?? next?.channels[0]?.id ?? "");
+                setChannelSearch(""); setChannelFilter("all"); openConversation(next?.channels.find(c => !c.archived)?.id ?? next?.channels.find(c => !c.retained)?.id ?? "");
               }}>{areas.map((a) => <option key={a.modelId} value={a.modelId}>{a.name}{a.archived ? " · Archived" : a.unreadCount ? ` · ${a.unreadCount} unread` : ""}</option>)}</select>
               <div className="creator-chat-search"><ChatIcon name="search" /><label className="creator-chat-sr" htmlFor="chat-find-channel">Find a conversation</label><input id="chat-find-channel" type="search" value={channelSearch} onChange={(e) => setChannelSearch(e.target.value)} placeholder="Find a conversation…" /></div>
               <div className="creator-chat-filters" role="group" aria-label="Conversation type">
@@ -436,7 +464,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
             <header className="creator-chat-channel-header">
               <button type="button" className="creator-chat-mobile creator-chat-browse-button" onClick={() => setShowChannels(true)} aria-label="Browse conversations"><ChatIcon name="menu" /><span>Browse</span></button>
               <div className={`creator-chat-title-icon ${channel?.isPrivate ? "is-private" : ""}`}><ChatIcon name={channel?.isPrivate ? "lock" : "channel"} /></div>
-              <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
+              <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.retained ? " · Retained history" : channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
               <div className="creator-chat-header-actions">{channel?.canManage && area && <button type="button" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}<button type="button" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button></div>
             </header>
             <div className="creator-chat-conversation-tools" role="group" aria-label="Message tools"><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "search", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}><ChatIcon name="search" />Search messages</button><button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => setTools({ kind: "pins", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>Pinned messages</button>{transcript?.canViewDeleted && <button type="button" onClick={() => setTools({ kind: "deleted", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>Deleted messages</button>}</div>
@@ -466,12 +494,15 @@ function ChatWorkspace({ userId }: { userId: string }) {
             </form> : transcript && <div className="creator-chat-readonly">
               <ChatIcon name="lock" />
               <div>
-                <strong>{channel?.archived ? "Archived conversation" : "Read-only conversation"}</strong>
-                <p>{channel?.archived ? "You can read the history here. New messages are disabled." : "You can read messages here, but your access does not include posting."}</p>
+                <strong>{channel?.retained ? "Retained history" : channel?.archived ? "Archived conversation" : "Read-only conversation"}</strong>
+                <p>{channel?.retained ? "This channel was removed from Chat. Owners can review its history here." : channel?.archived ? "You can read the history here. New messages are disabled." : "You can read messages here, but your access does not include posting."}</p>
                 {channel?.archived && transcript.canExportArchive && <p>
                   <a className="creator-chat-archive-download" href={`${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channel.id)}/archive/export`} target="_blank" rel="noopener noreferrer">Download archive (.zip)</a>
                   {" "}Includes all messages and original attachments. Keep the file private.
                 </p>}
+                {channel && transcript.cleanup && (cleanupDownload
+                  ? <button type="button" onClick={() => setCleanupTarget({ channelId: channel.id, name: channel.name, download: cleanupDownload })}>Clean up channel…</button>
+                  : <p>Download and save the ZIP before cleaning up this channel.</p>)}
               </div>
             </div>}
           </div>
@@ -480,7 +511,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId}
         target={{ ...settings, name: channel && channel.id === settings.channelId ? channel.name : settings.name, canArchive: channel?.id === settings.channelId && channel?.canArchive }}
         onClose={() => setSettings(null)}
-        onSaved={async (id) => { await refreshAreas(); if (id) chooseChannel(id); }}
+        onSaved={async (id) => { await refreshAreas(); if (id) openConversation(id); }}
         onArchived={() => {
           setSettings(null); setTranscript(null); setMembers([]); setTools(null); setDeleting(null); setQuarantining(null);
           setEdit(null); setReply(null); setDraft("");
@@ -488,7 +519,12 @@ function ChatWorkspace({ userId }: { userId: string }) {
           setRefreshTick(n => n + 1);
         }}
       />}
-      {tools && <ChatMessageTools key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { chooseChannel(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} />}
+      {tools && <ChatMessageTools key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} />}
+      {cleanupTarget && <ChatChannelCleanupDialog target={cleanupTarget} onClose={() => setCleanupTarget(null)} onCleaned={async () => {
+        setCleanupTarget(null);
+        await refreshAreas().catch(() => { setRefreshTick(n => n + 1); });
+        setNotice("Channel removed from Chat. Owners can open its retained history from the Audit Log.");
+      }} />}
       {deleting && <ChatModerationDialog key={deleting.message.id} target={deleting} onClose={() => setDeleting(null)} onDeleted={messageDeleted} />}
       {quarantining && <ChatQuarantineDialog key={`${quarantining.modelId}:${quarantining.userId}`} target={quarantining} onClose={() => { setQuarantining(null); setRefreshTick((n) => n + 1); }} onSaved={(result) => {
         setQuarantining(null); setNotice(`${result.personName}: ${result.active ? "chats paused" : "chat pause lifted"} for ${result.creatorName}. ${result.active ? "Their private management chat stays open." : "Access now follows current assignments and permissions."}`);

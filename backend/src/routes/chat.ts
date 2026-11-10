@@ -5,7 +5,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js"
 import { createRateLimit } from "../middleware/rate-limit.js";
 import { ChatError, chatGrantOptions, editChatMessage, isCreatorChatEnabled, listChatAreas, listChatMembers, listChatMessages, sendChatMessage, setChatGrant } from "../services/creator-chat.js";
 import { getChatMessage, refreshChatMessages, searchChatMessages, listChatPins, setChatPin, setChatReaction } from "../services/creator-chat.js";
-import { archiveChatChannel, createChatChannel, renameChatChannel } from "../services/creator-chat.js";
+import { archiveChatChannel, cleanUpChatChannel, createChatChannel, renameChatChannel } from "../services/creator-chat.js";
 import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } from "../services/creator-chat.js";
 import { getChatQuarantine, setChatQuarantine } from "../services/creator-chat.js";
 import { listChatUnread, markChatMessagesRead } from "../services/creator-chat.js";
@@ -19,6 +19,7 @@ import { chatAttachmentMetadata, uploadChatAttachment } from "../services/chat-a
 import { renderChatImagePreview } from "../services/chat-image-preview.js";
 import { chatVoiceEnabled, MAX_CHAT_VOICE_SECONDS } from "../services/chat-voice.js";
 import { downloadChatChannelExport } from "../services/chat-channel-export.js";
+import { backgroundPushSettings, pushSubscriptionSchema, subscribeBackgroundPush, unsubscribeBackgroundPush } from "../services/hub-background-push.js";
 
 const router = Router();
 router.use((_req, res, next) => isCreatorChatEnabled() ? next() : res.sendStatus(404));
@@ -51,7 +52,8 @@ const run = (action: (req: Request, res: Response) => Promise<unknown>) => async
   }
 };
 router.get("/areas", run(async (req, res) => res.json({
-  areas: await listChatAreas(user(req)), announcements: await announcementCapability(user(req)),
+  areas: await listChatAreas(user(req), z.string().min(1).max(100).optional().parse(req.query.retained)),
+  announcements: await announcementCapability(user(req)),
   unreadReminders: { enabled: unreadRemindersEnabled() },
   ...(chatAttachmentDirectory() ? { attachments: {
     maxBytes: MAX_CHAT_ATTACHMENT_BYTES,
@@ -67,6 +69,23 @@ router.get('/browser-notifications', browserAlertLimit, run(async (req, res) => 
 router.post('/browser-notifications/check', run(async (req, res) => {
   const input = z.object({ after: z.string().datetime({ offset: true }), ids: z.array(z.string().min(1).max(100)).min(1).max(50) }).strict().parse(req.body);
   res.json(await browserNotificationFeed(user(req), input.after, input.ids));
+}));
+const pushDeviceId = z.string().regex(/^[a-z0-9]{20,40}$/);
+const sessionId = (req: Request) => {
+  const id = (req as AuthenticatedRequest).sessionId;
+  if (!id) throw new ChatError(401, "Please sign in again.");
+  return id;
+};
+router.get("/background-push", run(async (req, res) => {
+  const device = pushDeviceId.optional().parse(req.query.device);
+  res.json(await backgroundPushSettings(sessionId(req), device));
+}));
+router.put("/background-push", run(async (req, res) => {
+  res.json(await subscribeBackgroundPush(sessionId(req), pushSubscriptionSchema.parse(req.body)));
+}));
+router.delete("/background-push/:deviceId", run(async (req, res) => {
+  await unsubscribeBackgroundPush(sessionId(req), pushDeviceId.parse(param(req, "deviceId")));
+  res.json({ success: true });
 }));
 const announcementSchema = z.object({ title: z.string().trim().min(1).max(120).regex(/^[^\r\n]+$/), text: z.string().trim().min(1).max(7800) }).strict();
 router.get("/announcements", run(async (req, res) => res.json({ announcements: await listAnnouncements(user(req)) })));
@@ -96,6 +115,11 @@ router.patch("/channels/:channelId", run(async (req, res) => {
 router.put("/channels/:channelId/archive", run(async (req, res) => {
   const { name } = channelNameSchema.parse(req.body);
   res.json(await archiveChatChannel(user(req), param(req, "channelId"), name));
+}));
+const cleanupSchema = channelNameSchema.extend({ downloadId: z.string().min(1).max(100), confirmedSaved: z.literal(true) });
+router.put("/channels/:channelId/cleanup", run(async (req, res) => {
+  const { name, downloadId } = cleanupSchema.parse(req.body);
+  res.json(await cleanUpChatChannel(user(req), param(req, "channelId"), name, downloadId));
 }));
 const archiveExportLimit = createRateLimit({ windowMs: 60_000, max: 5, keyPrefix: "chat-archive-export", getIdentity: user });
 router.get("/channels/:channelId/archive/export", archiveExportLimit, run(async (req, res) => {

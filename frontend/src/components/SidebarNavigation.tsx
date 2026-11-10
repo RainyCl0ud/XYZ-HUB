@@ -529,6 +529,9 @@ export default function SidebarNavigation({
   if (import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && hasPortalPermission(access, "clock.self.view")) {
     agency.push({ id: "clock", label: "Clock & Hours", to: "/clock" });
   }
+  if (hasPortalPermission(access, "strikes.self.view")) {
+    agency.push({ id: "strikes", label: "My Strikes", to: "/my-strikes" });
+  }
 
   if (
     capabilities

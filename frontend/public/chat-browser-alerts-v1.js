@@ -1,6 +1,7 @@
-/* Open-tab alerts only. No push subscription, fetch handler, offline cache,
- * transcript storage or external provider. All copy and navigation are fixed. */
+/* Open-tab and background alerts. No fetch handler, offline cache or
+ * transcript storage. Notification links stay within the Hub. */
 const prefix = 'xyz-chat-alert:';
+const pushPrefix = 'xyz-hub-push:';
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(value);
 const validPreference = value => value && typeof value.since === 'string' && Number.isFinite(Date.parse(value.since)) && typeof value.generation === 'string' && value.generation.length > 7 && value.generation.length <= 100;
 self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
@@ -20,7 +21,7 @@ async function handle(event) {
   if (!event.source || !('url' in event.source) || new URL(event.source.url).origin !== self.location.origin) return;
   if (input?.type === 'xyz-chat-alert-clear') {
     const current = await self.registration.getNotifications();
-    current.filter(n => n.tag.startsWith(prefix) && (!input.userId || n.data?.userId === input.userId)).forEach(n => n.close());
+    current.filter(n => n.tag.startsWith(pushPrefix) || (n.tag.startsWith(prefix) && (!input.userId || n.data?.userId === input.userId))).forEach(n => n.close());
     return;
   }
   if (input?.type !== 'xyz-chat-alert-offer' || !validId(input.userId) || !validPreference(input.preference) || !Array.isArray(input.messages) || input.messages.length > 50 || input.messages.some(m => !validId(m.id) || !validId(m.conversationId))) throw Error('Invalid alert.');
@@ -50,7 +51,56 @@ self.addEventListener('message', event => {
   const work = handle(event).then(() => event.ports?.[0]?.postMessage({ ok: true }), () => event.ports?.[0]?.postMessage({ ok: false }));
   event.waitUntil(work);
 });
+self.addEventListener('push', event => {
+  let input;
+  try { input = event.data?.json(); } catch { return; }
+  if (!validId(input?.userId) || typeof input.clock !== 'boolean' || !Array.isArray(input.messages) || input.messages.length > 5 ||
+      input.messages.some(m => !validId(m?.id) || !validId(m.conversationId) || typeof m.area !== 'string' || m.area.length > 64 ||
+        typeof m.channel !== 'string' || m.channel.length > 64 || !Number.isSafeInteger(m.count) || m.count < 1)) return;
+  event.waitUntil((async () => {
+    const open = await windows();
+    const answers = (await Promise.all(open.map(client => ask(client, input.messages)))).filter(Boolean);
+    if (answers.some(a => a.focused && a.userId !== input.userId)) return;
+    const visible = new Set(answers.filter(a => a.userId === input.userId).flatMap(a => a.visibleMessageIds ?? []));
+    for (const message of input.messages) {
+      if (visible.has(message.id)) continue;
+      await self.registration.showNotification('XYZ Hub · ' + message.area, {
+        body: message.channel + ' · ' + message.count + ' unread',
+        tag: pushPrefix + input.userId + ':' + message.conversationId, renotify: true,
+        data: { kind: 'xyz-hub-push', userId: input.userId, conversationId: message.conversationId },
+      });
+    }
+    if (input.clock) {
+      await self.registration.showNotification('XYZ Hub · Paid break reminder', {
+        body: 'Your paid break is past its planned length. Open Clock & Hours to check it.',
+        tag: pushPrefix + input.userId + ':clock', renotify: true,
+        data: { kind: 'xyz-hub-push', userId: input.userId, clock: true },
+      });
+    }
+  })());
+});
 self.addEventListener('notificationclick', event => {
+  if (event.notification.data?.kind === 'xyz-hub-push') {
+    const data = event.notification.data;
+    event.notification.close();
+    event.waitUntil((async () => {
+      const open = await windows();
+      const entry = data.clock ? '/clock' : '/chat';
+      const target = !data.clock && validId(data.conversationId)
+        ? entry + '?conversation=' + encodeURIComponent(data.conversationId) : entry;
+      const existing = open.find(client => new URL(client.url).pathname === entry) ?? open[0];
+      try {
+        const client = existing && await existing.focus();
+        if (client) {
+          const active = await ask(client, []);
+          if (await client.navigate(active?.userId === data.userId ? target : entry)) return;
+        }
+      } catch { /* The tab closed. */ }
+      // The conversation route rechecks access for the current sign-in.
+      await self.clients.openWindow(existing ? entry : target);
+    })());
+    return;
+  }
   if (event.notification.data?.kind !== 'xyz-chat-alert') return;
   event.notification.close();
   event.waitUntil((async () => {

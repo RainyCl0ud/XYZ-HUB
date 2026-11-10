@@ -17,6 +17,7 @@ import {
   getStrikeBySourceIncident,
   issueStrike,
   listEligibleStrikeTargets,
+  listOwnStrikes,
   listStrikes,
   previewStrike,
   StrikeManagementError,
@@ -25,6 +26,21 @@ import {
 
 const router =
   Router();
+
+const ownStrikeQuery = z.object({ page: z.string().regex(/^[1-9]\d{0,8}$/).optional() }).strict();
+router.get("/mine", requirePermission("strikes.self.view"), async (req: AuthenticatedRequest, res, next) => {
+  const query = ownStrikeQuery.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ message: "Choose a valid page of your strike history." });
+    return;
+  }
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    res.json(await listOwnStrikes(req.access!.userId, Number(query.data.page ?? 1)));
+  } catch (error) {
+    next(error);
+  }
+});
 
 const httpUrlSchema =
   z

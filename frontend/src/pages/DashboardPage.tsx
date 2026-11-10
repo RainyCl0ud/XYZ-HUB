@@ -15,6 +15,7 @@ import {
 
 import {
   getPortalCapabilities,
+  hasPortalPermission,
 } from "../auth/portalAccess";
 
 import {
@@ -879,6 +880,16 @@ function DashboardPage() {
                     : `${access?.assignedModelIds.length ?? 0} assigned`}
                 </strong>
               </div>
+            </div>
+          </section>
+        )}
+        {hasPortalPermission(access, "dashboard.upcoming.view") && (
+          <section className="content-card agency-dashboard-panel agency-access-panel">
+            <div className="card-header"><h3>Coming later</h3></div>
+            <div className="agency-access-summary">
+              <div><span>Schedule</span><strong>Coming later</strong></div>
+              <div><span>Revenue</span><strong>Coming later</strong></div>
+              <div><span>Commission sheets</span><strong>Coming later</strong></div>
             </div>
           </section>
         )}

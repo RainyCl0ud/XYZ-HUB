@@ -350,10 +350,27 @@ model Session {
   revokedAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hubPushSubscriptions HubPushSubscription[]
 
   @@index([userId])
   @@index([expiresAt])
   @@index([revokedAt])
+}
+
+model HubPushSubscription {
+  id          String   @id @default(cuid())
+  endpoint    String   @unique
+  p256dh      String
+  auth        String
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  cursorAt    DateTime
+  cursorMessageId String?
+  clockCursorAt DateTime
+  nextCheckAt DateTime
+
+  @@index([sessionId])
+  @@index([nextCheckAt, id])
 }
 
 /**
@@ -782,6 +799,7 @@ model AuditEvent {
   userAgent String?
 
   metadata Json?
+  protectedAt DateTime?
 
   @@index([occurredAt])
   @@index([action])
@@ -917,6 +935,7 @@ model ChatChannel {
   name String
   sortOrder Int
   archivedAt DateTime?
+  cleanedUpAt DateTime?
   createdAt DateTime @default(now())
   area ChatArea @relation(fields: [modelId], references: [modelId], onDelete: Restrict)
   roleGrants ChatRoleGrant[]

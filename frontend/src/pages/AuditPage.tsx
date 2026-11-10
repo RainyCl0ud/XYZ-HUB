@@ -17,6 +17,7 @@ import {
 } from "../components/ToastProvider";
 
 import "./AuditPage.css";
+import { Link } from "react-router-dom";
 
 const CENTRAL_TIME_ZONE =
   "America/Chicago";
@@ -47,6 +48,7 @@ type AuditEvent = {
   actor: AuditParty;
   target: AuditParty;
   summary: string;
+  retainedChannelId?: string;
   changes: AuditChange[];
   source: {
     ipAddress: string | null;
@@ -887,6 +889,11 @@ function AuditPage() {
                 </div>
               </div>
 
+              {selectedEvent.retainedChannelId && (
+                <p>
+                  <Link to={`/chat?retained=${encodeURIComponent(selectedEvent.retainedChannelId)}`}>View retained channel history</Link>
+                </p>
+              )}
               <section className="audit-detail-section">
                 <div className="audit-detail-section-heading">
                   <h4>

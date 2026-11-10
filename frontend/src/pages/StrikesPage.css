@@ -3,6 +3,26 @@
   gap: 20px;
 }
 
+.personal-strike {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.personal-strike header,
+.personal-strike-pages {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.personal-strike h2 { margin: 0; }
+.personal-strike dl { display: flex; flex-wrap: wrap; gap: 12px 32px; }
+.personal-strike dt { color: var(--text-secondary); }
+.personal-strike dd { margin: 4px 0 0; }
+.personal-strike p { white-space: pre-wrap; }
+
 .strikes-page-header {
   align-items: flex-start;
   gap: 20px;

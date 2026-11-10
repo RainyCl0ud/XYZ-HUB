@@ -1,4 +1,5 @@
 import {
+  Prisma,
   UserStatus,
 } from "@prisma/client";
 
@@ -8,9 +9,11 @@ import {
 
 import {
   canAccessModel,
+  canManageDelegatedStatusTarget,
   canManageRoleTarget,
   hasPermission,
   isOwner,
+  isTrustedStatusOperator,
   type AccessContext,
 } from "./access-control.js";
 
@@ -32,6 +35,7 @@ export type PeopleStatusErrorCode =
   | "USER_NOT_ACTIVE"
   | "USER_NOT_DEACTIVATED"
   | "CANNOT_DEACTIVATE_SELF"
+  | "STATUS_CHANGED"
   | "ROLE_NOT_MANAGEABLE"
   | "MODEL_NOT_MANAGEABLE"
   | "TEAM_GROUP_NOT_MANAGEABLE";
@@ -50,9 +54,10 @@ export class PeopleStatusError extends Error {
 }
 
 async function getTargetUser(
-  userId: string
+  userId: string,
+  db: Pick<Prisma.TransactionClient, "user"> = prisma,
 ) {
-  return prisma.user.findUnique({
+  return db.user.findUnique({
     where: {
       id: userId,
     },
@@ -71,6 +76,7 @@ async function getTargetUser(
               name: true,
               systemKey: true,
               rank: true,
+              archivedAt: true,
             },
           },
         },
@@ -90,6 +96,56 @@ async function getTargetUser(
   });
 }
 
+async function changeDelegatedStatus(userId: string, access: AccessContext, nextStatus: "ACTIVE" | "DEACTIVATED") {
+  if (userId === access.userId) {
+    throw new PeopleStatusError("CANNOT_DEACTIVATE_SELF", "You cannot change your own account status.");
+  }
+  const deactivating = nextStatus === UserStatus.DEACTIVATED;
+  try {
+    const updated = await prisma.$transaction(async tx => {
+      const operator = await tx.userRole.findFirst({
+        where: { userId: access.userId, user: { status: UserStatus.ACTIVE }, role: { systemKey: "OPS_MANAGER", archivedAt: null } },
+        select: { role: { select: { rank: true } } },
+      });
+      if (!isTrustedStatusOperator(access.userId) || operator?.role.rank == null) {
+        throw new PeopleStatusError("PEOPLE_STATUS_MANAGE_REQUIRED", "You do not have permission to change account status.");
+      }
+      const target = await getTargetUser(userId, tx);
+      if (!target || target.roleMemberships.some(({ role }) => role.systemKey === "OWNER")) {
+        throw new PeopleStatusError("USER_NOT_FOUND", "The user does not exist.");
+      }
+      if (!target.roleMemberships.some(({ role }) => !role.archivedAt) ||
+        !canManageDelegatedStatusTarget(access, operator.role.rank, target.roleMemberships.map(({ role }) => role))) {
+        throw new PeopleStatusError("ROLE_NOT_MANAGEABLE", "This account requires an Owner to change its status.");
+      }
+      const currentStatus = deactivating ? UserStatus.ACTIVE : UserStatus.DEACTIVATED;
+      if (target.status !== currentStatus) {
+        throw new PeopleStatusError(
+          deactivating ? "USER_NOT_ACTIVE" : "USER_NOT_DEACTIVATED",
+          deactivating ? "Only active users can be deactivated." : "Only deactivated users can be reactivated.",
+        );
+      }
+      const now = new Date();
+      const result = await tx.user.update({
+        where: { id: userId, status: currentStatus },
+        data: { status: nextStatus, deactivatedAt: deactivating ? now : null },
+        select: { id: true, name: true, email: true, status: true, deactivatedAt: true },
+      });
+      if (deactivating) {
+        await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
+      }
+      return result;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (deactivating) publishLiveUpdate({ type: "session.invalidated", userId, reason: "ACCOUNT_DEACTIVATED" });
+    return updated;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2025", "P2034"].includes(error.code)) {
+      throw new PeopleStatusError("STATUS_CHANGED", "This account changed. Refresh the profile and try again.");
+    }
+    throw error;
+  }
+}
+
 export async function deactivatePerson(
   userId: string,
   access: AccessContext
@@ -105,6 +161,7 @@ export async function deactivatePerson(
       "You do not have permission to deactivate employees."
     );
   }
+  if (!isOwner(access)) return changeDelegatedStatus(userId, access, UserStatus.DEACTIVATED);
 
   if (
     userId ===
@@ -246,6 +303,7 @@ export async function reactivatePerson(
       "You do not have permission to reactivate employees."
     );
   }
+  if (!isOwner(access)) return changeDelegatedStatus(userId, access, UserStatus.ACTIVE);
 
   const user =
     await getTargetUser(
