@@ -130,30 +130,80 @@ export default function ClockPage() {
     {notice && <div className="clock-notice" role="status">{notice}</div>}
     {!data ? <p role="status">{loadError ? "Your attendance could not be loaded." : "Loading your attendance…"}</p> : <>
       {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>! Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. Use Time corrections below if a recorded time needs changing.</p></div>}
-      <div className="clock-overview">
-        <section className="clock-current" aria-labelledby="current-shift-title">
-          <header><h2 id="current-shift-title">Current shift</h2><span className="clock-status">{shift ? activeBreak ? "On paid break" : "Clocked in" : "Clocked out"}</span></header>
-          <p className="clock-label">{shift ? "WORKED TIME · PAID BREAKS INCLUDED" : "READY WHEN YOU ARE"}</p>
-          <div className="clock-timer" role="timer" aria-label="Current shift duration" aria-live="off">{duration(shiftSeconds)}</div>
-          {shift ? <><p className="clock-shift-meta">Started {formatClockTime(shift.startedAt)}</p><p>Your shift follows you across creators. All three breaks are paid and included in worked time.</p>
-            <button type="button" className="clock-primary" disabled={busy || !online || !data.canTrack} onClick={() => setConfirmOut(true)}>Clock out</button></> : <>
-            {data.exempt ? <p>Your current role is exempt from clocking in. Any existing personal records remain below.</p> : !data.canTrack ? <p>Your current access allows viewing your hours only.</p> : <>
-              <button type="button" className="clock-primary" disabled={busy || !online} onClick={() => void write("in", "/api/clock/in", {}, true)}>{busy ? "Saving…" : "Clock in"}</button>
-            </>}
-          </>}
-          <p className="clock-recording-note">{online ? "Times are recorded by the server, to the second." : "Connection needs refreshing. Actions are paused until your attendance is up to date."}</p>
-        </section>
-        <aside className="clock-totals" aria-label="Personal hours"><div><p className="clock-label">TODAY</p><strong>{duration(today)}</strong><p>Shifts that started today, Central time.</p></div><div><p className="clock-label">THIS WEEK</p><strong>{duration(week)}</strong><p>Week beginning {data.totals.weekKey}. Monday to Sunday, Central time.</p></div><p className="clock-hours-note">Hours only. This screen does not calculate pay.</p></aside>
-      </div>
-      {shift && <section className="clock-breaks" aria-labelledby="breaks-title"><header><div><h2 id="breaks-title">Your paid breaks</h2><p>Two 15-minute short breaks and one 30-minute meal break per shift.</p></div></header>
-        {activeBreak && <div className="clock-active-break"><div><strong>{activeBreak.label}</strong><p>{breakSeconds >= activeBreak.allowanceSeconds ? `You’re ${duration(breakSeconds - activeBreak.allowanceSeconds)} past the planned break length. Your time remains paid.` : `Planned break time left: ${duration(activeBreak.allowanceSeconds - breakSeconds)}. Your break remains paid.`}</p></div><span role="timer" aria-label="Current break duration" aria-live="off">{duration(Math.min(breakSeconds, activeBreak.limitSeconds))}</span><button type="button" disabled={busy || !online || !data.canTrack} onClick={() => void write("end-break", `/api/clock/shifts/${shift.id}/breaks/${activeBreak.id}/end`, {})}>End break</button></div>}
-        <div className="clock-break-grid">{BREAK_OPTIONS.map((option) => {
-          const recorded = shift.breaks.find((b) => b.kind === option.kind);
-          return <div className="clock-break-card" key={option.kind}><h3>{option.label}</h3><p>{option.minutes} minutes · Paid</p><span className="clock-status">{recorded ? recorded.endedAt ? "Completed" : "In progress" : "Available"}</span>{recorded ? <p>{duration(recorded.endedAt ? recorded.elapsedSeconds : Math.min(breakSeconds, recorded.limitSeconds))}{recorded.endReason === "LIMIT" ? " · Ended at the limit" : ""}</p> : <button type="button" disabled={busy || !online || !!activeBreak || !data.canTrack} onClick={() => void write(`break-${option.kind}-${shift.id}`, `/api/clock/shifts/${shift.id}/breaks`, { kind: option.kind }, true)}>Start {option.label.toLowerCase()}</button>}</div>;
-        })}</div><p className="clock-break-help">A Hub reminder appears at 20 minutes for a short break or 35 minutes for a meal. At 30 or 60 minutes, the break ends automatically and management is flagged. All break time stays paid.</p>
+      <section className="clock-summary-section" aria-labelledby="current-shift-title">
+        <header className="clock-section-heading">
+          <h2 id="current-shift-title">Current shift</h2>
+          <p>Worked time includes paid breaks. Times use US Central.</p>
+        </header>
+        <div className="clock-table-scroll" role="region" aria-label="Current shift details" tabIndex={0}>
+          <table className="clock-data-table clock-shift-table">
+            <thead><tr><th scope="col">Status</th><th scope="col">Clocked in</th><th scope="col">Worked time</th><th scope="col">Action</th></tr></thead>
+            <tbody><tr>
+              <td><span className="clock-status">{shift ? activeBreak ? "On paid break" : "Clocked in" : "Clocked out"}</span></td>
+              <td>{shift ? formatClockTime(shift.startedAt) : "Not clocked in"}</td>
+              <td><strong className="clock-live-duration" role="timer" aria-label="Current shift duration" aria-live="off">{duration(shiftSeconds)}</strong></td>
+              <td>{shift ? (
+                <button type="button" className="clock-primary" disabled={busy || !online || !data.canTrack} onClick={() => setConfirmOut(true)}>Clock out</button>
+              ) : data.exempt ? (
+                <span className="clock-muted">Exempt from clocking in</span>
+              ) : !data.canTrack ? (
+                <span className="clock-muted">View-only access</span>
+              ) : (
+                <button type="button" className="clock-primary" disabled={busy || !online} onClick={() => void write("in", "/api/clock/in", {}, true)}>{busy ? "Saving…" : "Clock in"}</button>
+              )}</td>
+            </tr></tbody>
+          </table>
+        </div>
+        <p className="clock-recording-note">{online ? shift ? "Your shift follows you across creators. The server records times to the second." : "The server records times to the second." : "Connection needs refreshing. Actions are paused until your attendance is up to date."}</p>
+      </section>
+      <section className="clock-hours-section" aria-labelledby="hours-summary-title">
+        <header className="clock-section-heading"><h2 id="hours-summary-title">Hours summary</h2><p>Shifts belong to the day and week they started in US Central.</p></header>
+        <div className="clock-table-scroll" role="region" aria-label="Personal hours summary" tabIndex={0}>
+          <table className="clock-data-table clock-hours-table">
+            <thead><tr><th scope="col">Period</th><th scope="col" className="clock-number">Worked time</th><th scope="col">Counting rule</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Today</th><td className="clock-number clock-hours-value">{duration(today)}</td><td>Shifts started today (US Central).</td></tr>
+              <tr><th scope="row">This week</th><td className="clock-number clock-hours-value">{duration(week)}</td><td>Week of {data.totals.weekKey}, Monday–Sunday (US Central).</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="clock-hours-note">Hours only. This screen does not calculate pay.</p>
+      </section>
+      {shift && <section className="clock-breaks" aria-labelledby="breaks-title">
+        <header className="clock-section-heading"><h2 id="breaks-title">Your paid breaks</h2><p>Two 15-minute short breaks and one 30-minute meal break per shift.</p></header>
+        {activeBreak && <p className="clock-active-break-note">
+          <strong>{activeBreak.label} in progress.</strong>{" "}
+          {breakSeconds >= activeBreak.allowanceSeconds
+            ? "Past planned length by " + duration(breakSeconds - activeBreak.allowanceSeconds) + ". Your break remains paid."
+            : "Planned time left: " + duration(activeBreak.allowanceSeconds - breakSeconds) + ". Your break remains paid."}
+        </p>}
+        <div className="clock-table-scroll" role="region" aria-label="Paid break status and actions" tabIndex={0}>
+          <table className="clock-data-table clock-breaks-table">
+            <thead><tr><th scope="col">Break</th><th scope="col">Paid allowance</th><th scope="col">Status</th><th scope="col" className="clock-number">Elapsed</th><th scope="col">Action</th></tr></thead>
+            <tbody>{BREAK_OPTIONS.map((option) => {
+              const recorded = shift.breaks.find((b) => b.kind === option.kind);
+              const isActive = !!recorded && !recorded.endedAt;
+              const seconds = recorded ? isActive ? Math.min(breakSeconds, recorded.limitSeconds) : recorded.elapsedSeconds : 0;
+              return <tr key={option.kind}>
+                <th scope="row">{option.label}</th>
+                <td>{option.minutes} min · Paid</td>
+                <td><span className="clock-status">{recorded ? isActive ? "In progress" : "Completed" : "Available"}</span>{recorded?.endReason === "LIMIT" && <span className="clock-row-note">Ended automatically at the limit</span>}</td>
+                <td className="clock-number">{recorded ? (
+                  isActive ? <span role="timer" aria-label="Current break duration" aria-live="off">{duration(seconds)}</span> : duration(seconds)
+                ) : "—"}</td>
+                <td>{!recorded ? (
+                  <button type="button" disabled={busy || !online || !!activeBreak || !data.canTrack} onClick={() => void write("break-" + option.kind + "-" + shift.id, "/api/clock/shifts/" + shift.id + "/breaks", { kind: option.kind }, true)}>Start {option.label.toLowerCase()}</button>
+                ) : isActive ? (
+                  <button type="button" disabled={busy || !online || !data.canTrack} onClick={() => void write("end-break", "/api/clock/shifts/" + shift.id + "/breaks/" + recorded.id + "/end", {})}>End break</button>
+                ) : <span className="clock-muted">Finished</span>}</td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>
+        <p className="clock-break-help">A Hub reminder appears at 20 minutes for a short break or 35 minutes for a meal. At 30 or 60 minutes, the break ends automatically and management is flagged. All break time stays paid.</p>
       </section>}
       <section className="clock-history" aria-labelledby="history-title"><header><h2 id="history-title">Your completed shifts</h2><p>Times are shown in US Central. Overnight shifts belong to the day and week they started.</p></header>
-        {!data.history.length ? <div className="clock-empty"><h3>No completed shifts yet</h3><p>After you clock out, your shift and paid breaks will appear here.</p></div> : <div className="clock-table-scroll" role="region" aria-label="Completed shifts table" tabIndex={0}><table><thead><tr><th scope="col">CLOCKED IN</th><th scope="col">CLOCKED OUT</th><th scope="col" className="clock-number">WORKED TIME</th><th scope="col" className="clock-number">PAID BREAKS</th><th scope="col">BREAK DETAILS</th></tr></thead><tbody>{data.history.map((s) => <tr key={s.id}><td>{formatClockTime(s.startedAt)}{!!s.correctionCount && <span className="clock-corrected-label">Approved correction applied</span>}</td><td>{formatClockTime(s.endedAt!)}</td><td className="clock-number">{duration(s.workedSeconds)}</td><td className="clock-number">{duration(s.paidBreakSeconds)}</td><td><details className="clock-break-details"><summary>{s.breaks.length ? `View ${s.breaks.length} paid ${s.breaks.length === 1 ? "break" : "breaks"}` : "No breaks"}</summary>{!!s.breaks.length && <ul>{s.breaks.map((b) => <li key={b.id}><strong>{b.label}</strong><span>{duration(b.elapsedSeconds)} · {b.endReason === "LIMIT" ? "Ended automatically at the limit" : b.endReason === "CLOCK_OUT" ? "Ended with clock-out" : b.endReason === "CORRECTION" ? "Corrected with approval" : "Returned from break"}</span></li>)}</ul>}</details></td></tr>)}</tbody></table></div>}
+        {!data.history.length ? <div className="clock-empty"><h3>No completed shifts yet</h3><p>After you clock out, your shift and paid breaks will appear here.</p></div> : <div className="clock-table-scroll" role="region" aria-label="Completed shifts table" tabIndex={0}><table className="clock-data-table"><thead><tr><th scope="col">CLOCKED IN</th><th scope="col">CLOCKED OUT</th><th scope="col" className="clock-number">WORKED TIME</th><th scope="col" className="clock-number">PAID BREAKS</th><th scope="col">BREAK DETAILS</th></tr></thead><tbody>{data.history.map((s) => <tr key={s.id}><td>{formatClockTime(s.startedAt)}{!!s.correctionCount && <span className="clock-corrected-label">Approved correction applied</span>}</td><td>{formatClockTime(s.endedAt!)}</td><td className="clock-number">{duration(s.workedSeconds)}</td><td className="clock-number">{duration(s.paidBreakSeconds)}</td><td><details className="clock-break-details"><summary>{s.breaks.length ? `View ${s.breaks.length} paid ${s.breaks.length === 1 ? "break" : "breaks"}` : "No breaks"}</summary>{!!s.breaks.length && <ul>{s.breaks.map((b) => <li key={b.id}><strong>{b.label}</strong><span>{duration(b.elapsedSeconds)} · {b.endReason === "LIMIT" ? "Ended automatically at the limit" : b.endReason === "CLOCK_OUT" ? "Ended with clock-out" : b.endReason === "CORRECTION" ? "Corrected with approval" : "Returned from break"}</span></li>)}</ul>}</details></td></tr>)}</tbody></table></div>}
         {data.hasMore && <button type="button" disabled={loadingOlder || busy} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load earlier shifts"}</button>}
       </section>
       <ClockCorrections canRequest={data.canRequestCorrections} canReview={data.canReviewCorrections} canAddMissing={data.canTrack} shifts={[...(data.currentShift ? [data.currentShift] : []), ...data.history]} disabled={busy || !online} onChanged={() => { void refresh().catch((e: unknown) => setLoadError(describeError(e))); }} />
