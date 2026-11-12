@@ -380,13 +380,9 @@ function PeoplePage() {
     const left = Math.max(8, Math.min(teamContextMenu.x, window.innerWidth - bounds.width - 8));
     const top = Math.max(8, Math.min(teamContextMenu.y, window.innerHeight - bounds.height - 8));
 
-    if (left !== teamContextMenu.x || top !== teamContextMenu.y) {
-      setTeamContextMenu((current) => current?.teamId === teamContextMenu.teamId
-        ? { ...current, x: left, y: top }
-        : current);
-      return;
-    }
-
+    // Position before painting; this avoids a render loop and keeps the menu in view.
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
     menu.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
   }, [teamContextMenu]);
 
