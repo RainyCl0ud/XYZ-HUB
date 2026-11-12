@@ -485,18 +485,18 @@ export default function SidebarNavigation({
     && hasPortalPermission(access, "clock.self.view")
     && ["clock.corrections.assigned", "clock.corrections.ops", "clock.corrections.all"]
       .some(permission => hasPortalPermission(access, permission));
-  const [pendingCorrectionReviews, setPendingCorrectionReviews] = useState(0);
+  const [reviewCounter, setReviewCounter] = useState<{ userId: string | null; count: number }>({ userId: null, count: 0 });
 
   const refreshReviewCount = useCallback(async (signal?: AbortSignal) => {
-    if (!canReviewCorrections) { setPendingCorrectionReviews(0); return; }
+    if (!canReviewCorrections || !userId) { setReviewCounter({ userId, count: 0 }); return; }
     try {
       const response = await apiRequest<{ reviewPendingCount: number }>(
         "/api/clock/corrections?scope=review&filter=pending", { signal }
       );
-      if (!signal?.aborted) setPendingCorrectionReviews(Math.max(0, response.reviewPendingCount || 0));
+      if (!signal?.aborted) setReviewCounter({ userId, count: Math.max(0, response.reviewPendingCount || 0) });
     } catch {
       // A revoked permission or unavailable endpoint must never show stale action counts.
-      if (!signal?.aborted) setPendingCorrectionReviews(0);
+      if (!signal?.aborted) setReviewCounter({ userId, count: 0 });
     }
   }, [canReviewCorrections, userId]);
 
@@ -580,7 +580,7 @@ export default function SidebarNavigation({
     agency.push({ id: "chat", label: "Chat", to: "/chat" });
   }
   if (import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && hasPortalPermission(access, "clock.self.view")) {
-    agency.push({ id: "clock", label: "Clock & Hours", to: "/clock", actionCount: canReviewCorrections ? pendingCorrectionReviews : 0 });
+    agency.push({ id: "clock", label: "Clock & Hours", to: "/clock", actionCount: canReviewCorrections && reviewCounter.userId === userId ? reviewCounter.count : 0 });
   }
   if (hasPortalPermission(access, "strikes.self.view")) {
     agency.push({ id: "strikes", label: "My Strikes", to: "/my-strikes" });
