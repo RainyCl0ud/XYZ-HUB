@@ -15,12 +15,24 @@
 .correction-card { border: 1px solid #666666; border-radius: 2px; padding: 24px; background: #141414; margin-bottom: 16px; overflow-wrap: anywhere; }
 .correction-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
 .correction-card > header p { font-size: 13px; color: #999999; margin: 8px 0 0; }
-.correction-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0; }
-.correction-comparison > div { border-left: 2px solid #666666; padding-left: 12px; }
-.correction-comparison p { margin: 4px 0; font-size: 13px; font-variant-numeric: tabular-nums; }
-.correction-comparison details { grid-column: 1 / -1; font-size: 13px; }
-.correction-comparison summary { cursor: pointer; padding: 8px 0; text-decoration: underline; text-underline-offset: 4px; }
-.correction-comparison details > div { border-bottom: 1px solid #333333; padding: 12px 0; }
+.correction-comparison { min-width: 0; margin: 16px 0; }
+.correction-comparison > .clock-label { margin: 0 0 12px; }
+.correction-new-shift, .correction-no-changes { margin: 8px 0; font-size: 13px; color: #CCCCCC; }
+.correction-change-list { display: grid; gap: 8px; margin: 0; padding: 0; }
+.correction-change-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) repeat(2, minmax(0, 1.5fr));
+  gap: 12px;
+  padding: 12px;
+  border-left: 2px solid #666666;
+  background: #101010;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.correction-change-row dt { font-weight: 700; }
+.correction-change-row dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.correction-change-row dd span { display: block; margin-bottom: 4px; color: #999999; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.correction-change-row dd strong { font-weight: 600; }
 .correction-quoted-reason, .correction-review-note span { white-space: pre-wrap; overflow-wrap: anywhere; }
 .clock-page .correction-quoted-reason { margin: 16px 0; }
 .correction-review-note { font-size: 13px; border-top: 1px solid #333333; padding-top: 16px; }
@@ -43,4 +55,4 @@
 .correction-dialog textarea { min-height: 112px; resize: vertical; }
 .correction-dialog-actions { justify-content: flex-end; margin-top: 24px; }
 .correction-dialog :disabled { color: #5C5C5C; }
-@media (max-width: 720px) { .correction-start, .correction-card { padding: 16px; } .correction-start > div { flex-basis: 100%; } .correction-time-grid, .correction-comparison { grid-template-columns: minmax(0, 1fr); } .correction-comparison details { grid-column: 1; } .correction-controls > label { flex: 1; } .correction-tabs { flex-basis: 100%; } .correction-dialog { padding: 16px; } .correction-dialog fieldset { padding: 12px; } .correction-card-actions button, .correction-dialog-actions button { flex: 1; } }
+@media (max-width: 720px) { .correction-start, .correction-card { padding: 16px; } .correction-start > div { flex-basis: 100%; } .correction-time-grid { grid-template-columns: minmax(0, 1fr); } .correction-change-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .correction-change-row dt { grid-column: 1 / -1; } .correction-controls > label { flex: 1; } .correction-tabs { flex-basis: 100%; } .correction-dialog { padding: 16px; } .correction-dialog fieldset { padding: 12px; } .correction-card-actions button, .correction-dialog-actions button { flex: 1; } }
