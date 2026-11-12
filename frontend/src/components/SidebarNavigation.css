@@ -260,3 +260,28 @@
   outline: 2px solid var(--text);
   outline-offset: 2px;
 }
+
+/* The action badge is a separate link, not an anchor nested inside the module link. */
+.hub-nav-notifiable { position: relative; min-width: 0; }
+.hub-nav-notifiable > .hub-nav-link { padding-right: 57px; }
+.hub-nav-action-count {
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 27px;
+  height: 24px;
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.hub-nav-action-count:hover { background: var(--surface-hover); border-color: var(--text); }
+.hub-nav-action-count:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
