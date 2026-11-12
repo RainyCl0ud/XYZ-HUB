@@ -1283,7 +1283,12 @@ function PeoplePage() {
     const children = childrenByParent.get(team.id) ?? [];
     const orderingSiblings = reorderParentId === team.parentId && !team.isRoot;
     const hasChildren = children.length > 0;
-    const collapsed = collapsedTeamIds.includes(team.id);
+    // In reorder mode, show only the ancestor path and the sibling rows being
+    // arranged. Hide grandchildren without changing the saved collapse state.
+    const showReorderChildren = !reorderParentId
+      || team.id === reorderParentId
+      || collectDescendants(childrenByParent, team.id).has(reorderParentId);
+    const collapsed = reorderParentId ? !showReorderChildren : collapsedTeamIds.includes(team.id);
     const selected = team.id === selectedTeamId;
     const accent = effectiveTeamColor(team);
     const itemStyle: CSSProperties = {
@@ -1329,9 +1334,11 @@ function PeoplePage() {
                 className={`people-org-caret${collapsed ? " collapsed" : ""}`}
                 aria-label={`${collapsed ? "Expand" : "Collapse"} ${team.name}`}
                 aria-expanded={!collapsed}
+                disabled={Boolean(reorderParentId)}
+                title={reorderParentId ? "Team branches are locked during reorder mode" : undefined}
                 onClick={(event) => {
                   event.stopPropagation();
-                  toggleTeamCollapsed(team.id);
+                  if (!reorderParentId) toggleTeamCollapsed(team.id);
                 }}
               >
                 &#9662;
@@ -1432,7 +1439,7 @@ function PeoplePage() {
           </div>
 
           {reorderParentId && <div className="people-reorder-toolbar" role="region" aria-label="Reorder teams">
-            <span>Reorder mode: drag teams into position, then save.</span>
+            <span>Reorder mode: drag sibling teams into position. Subteams are collapsed for clarity; the original tree view returns when you finish.</span>
             <button className="secondary-button" type="button" disabled={saving} onClick={cancelTeamReorder}>Cancel</button>
             <button className="primary-button" type="button" disabled={saving} onClick={() => void saveTeamReorder()}>{saving ? "Saving…" : "Save order"}</button>
           </div>}

@@ -4,7 +4,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js"
 import { createRateLimit } from "../middleware/rate-limit.js";
 import { ClockError, clockIn, clockOut, endBreak, getOwnClock, isClockEnabled, startBreak } from "../services/clock.js";
 import { listClockAlerts, markClockAlertRead } from "../services/clock-alerts.js";
-import { cancelClockCorrection, correctionDecisionSchema, correctionRequestSchema, listClockCorrections, requestClockCorrection, reviewClockCorrection } from "../services/clock-corrections.js";
+import { cancelClockCorrection, correctionDecisionSchema, correctionRequestSchema, getClockCorrection, listClockCorrections, requestClockCorrection, reviewClockCorrection } from "../services/clock-corrections.js";
 const router = Router();
 router.use((_req, res, next) => isClockEnabled() ? next() : res.sendStatus(404));
 router.use(requireAuth);
@@ -27,6 +27,10 @@ const run = (fn: (req: Request, res: Response, userId: string) => Promise<unknow
 router.get("/corrections", run(async (req, res, userId) => {
   const query = z.object({ scope: z.enum(["mine", "review"]).optional(), filter: z.enum(["pending", "all"]).optional(), before: z.string().min(1).max(100).optional() }).strict().parse(req.query);
   res.json(await listClockCorrections(userId, query.scope, query.filter, query.before));
+}));
+router.get("/corrections/:correctionId", run(async (req, res, userId) => {
+  const correctionId = z.string().min(1).max(100).parse(id(req, "correctionId"));
+  res.json(await getClockCorrection(userId, correctionId));
 }));
 router.post("/corrections", run(async (req, res, userId) => {
   res.status(201).json(await requestClockCorrection(userId, correctionRequestSchema.parse(req.body)));

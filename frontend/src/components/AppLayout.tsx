@@ -266,13 +266,19 @@ function AppLayout() {
     location.pathname.startsWith(
       "/people/"
     );
+  const isClockRequestDetailPage =
+    location.pathname.startsWith("/clock/requests/");
+
+
 
   const pageTitle =
     isChatterDetailPage
       ? "Chatter QA"
       : isPeopleDetailPage
         ? "Employee Profile"
-        : PAGE_TITLES[
+        : isClockRequestDetailPage
+          ? "Correction Details"
+          : PAGE_TITLES[
             location.pathname
           ] ??
           "XYZ Management";

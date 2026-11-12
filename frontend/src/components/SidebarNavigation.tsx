@@ -2,6 +2,9 @@ import {
   Link,
   useLocation,
 } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "../auth/AuthContext";
+import { apiRequest } from "../lib/api";
 
 import {
   getPortalCapabilities,
@@ -39,6 +42,9 @@ type NavigationItem = {
 
   activePaths?:
     string[];
+
+  actionCount?:
+    number;
 };
 
 
@@ -197,14 +203,11 @@ function NavigationLink({
       pathname
     ) ||
     (
-      item.to ===
-        "/people" &&
-      pathname.startsWith(
-        "/people/"
-      )
+      (item.to === "/people" || item.to === "/clock") &&
+      pathname.startsWith(item.to + "/")
     );
 
-  return (
+  const link = (
     <Link
       to={
         item.to
@@ -236,6 +239,16 @@ function NavigationLink({
       </span>
     </Link>
   );
+
+  if (item.id !== "clock" || !item.actionCount) return link;
+  return <div className="hub-nav-notifiable">
+    {link}
+    <Link to="/clock?tab=review" className="hub-nav-action-count"
+      title={`${item.actionCount} correction ${item.actionCount === 1 ? "request" : "requests"} need your review`}
+      aria-label={`Open ${item.actionCount} pending correction ${item.actionCount === 1 ? "request" : "requests"}`}>
+      {item.actionCount > 99 ? "99+" : item.actionCount}
+    </Link>
+  </div>;
 }
 
 
@@ -466,6 +479,46 @@ export default function SidebarNavigation({
     getPortalCapabilities(
       access
     );
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const canReviewCorrections = import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true"
+    && hasPortalPermission(access, "clock.self.view")
+    && ["clock.corrections.assigned", "clock.corrections.ops", "clock.corrections.all"]
+      .some(permission => hasPortalPermission(access, permission));
+  const [reviewCounter, setReviewCounter] = useState<{ userId: string | null; count: number }>({ userId: null, count: 0 });
+
+  const refreshReviewCount = useCallback(async (signal?: AbortSignal) => {
+    if (!canReviewCorrections || !userId) { setReviewCounter({ userId, count: 0 }); return; }
+    try {
+      const response = await apiRequest<{ reviewPendingCount: number }>(
+        "/api/clock/corrections?scope=review&filter=pending", { signal }
+      );
+      if (!signal?.aborted) setReviewCounter({ userId, count: Math.max(0, response.reviewPendingCount || 0) });
+    } catch {
+      // A revoked permission or unavailable endpoint must never show stale action counts.
+      if (!signal?.aborted) setReviewCounter({ userId, count: 0 });
+    }
+  }, [canReviewCorrections, userId]);
+
+  useEffect(() => {
+    if (!canReviewCorrections) return;
+    const controller = new AbortController();
+    const update = () => {
+      if (document.visibilityState === "visible") void refreshReviewCount(controller.signal);
+    };
+    const initial = window.setTimeout(update, 0);
+    const interval = window.setInterval(update, 15_000);
+    document.addEventListener("visibilitychange", update);
+    window.addEventListener("xyz-clock-corrections-changed", update);
+    return () => {
+      controller.abort();
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", update);
+      window.removeEventListener("xyz-clock-corrections-changed", update);
+    };
+  }, [canReviewCorrections, refreshReviewCount]);
+
 
   const agency:
     NavigationItem[] =
@@ -527,7 +580,7 @@ export default function SidebarNavigation({
     agency.push({ id: "chat", label: "Chat", to: "/chat" });
   }
   if (import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && hasPortalPermission(access, "clock.self.view")) {
-    agency.push({ id: "clock", label: "Clock & Hours", to: "/clock" });
+    agency.push({ id: "clock", label: "Clock & Hours", to: "/clock", actionCount: canReviewCorrections && reviewCounter.userId === userId ? reviewCounter.count : 0 });
   }
   if (hasPortalPermission(access, "strikes.self.view")) {
     agency.push({ id: "strikes", label: "My Strikes", to: "/my-strikes" });

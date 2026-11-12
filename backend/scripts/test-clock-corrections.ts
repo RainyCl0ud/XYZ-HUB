@@ -6,7 +6,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { prisma } from "../src/lib/prisma.js";
 import { clockIn, clockOut, getOwnClock, installClockDefaults } from "../src/services/clock.js";
-import { cancelClockCorrection, installClockCorrectionDefaults, listClockCorrections, requestClockCorrection, reviewClockCorrection } from "../src/services/clock-corrections.js";
+import { cancelClockCorrection, getClockCorrection, installClockCorrectionDefaults, listClockCorrections, requestClockCorrection, reviewClockCorrection } from "../src/services/clock-corrections.js";
 import { ClockError } from "../src/services/clock-policy.js";
 import { centralDayKey, centralWeekKey } from "../src/services/clock-time.js";
 import { createSession } from "../src/services/session.js";
@@ -75,6 +75,14 @@ async function main() {
     await expect(() => reviewClockCorrection(otherManager.id, requests[0].id, "APPROVED", "Not assigned"), 404);
     await expect(() => reviewClockCorrection(staff.id, requests[0].id, "APPROVED", "My own"), 403);
     check("Ordinary assigned requests go to current assigned Managers or Owner, not unrelated Managers, Ops or Developer");
+    assert.equal((await getClockCorrection(staff.id, requests[0].id)).scope, "mine");
+    assert.equal((await getClockCorrection(manager.id, requests[0].id)).scope, "review");
+    assert.equal((await getClockCorrection(owner.id, requests[0].id)).request.id, requests[0].id);
+    await expect(() => getClockCorrection(otherManager.id, requests[0].id), 404);
+    await expect(() => getClockCorrection(dev.id, requests[0].id), 404);
+    await expect(() => getClockCorrection(trial.id, requests[0].id), 404);
+    await expect(() => getClockCorrection(staff.id, "nonexistent-correction"), 404);
+    check("Direct request details are visible only to their owner and currently authorized reviewers");
     const decisions = await Promise.allSettled([reviewClockCorrection(manager.id, requests[0].id, "APPROVED", "Checked attendance."), reviewClockCorrection(owner.id, requests[0].id, "APPROVED", "Checked by Owner.")]);
     assert.equal(decisions.filter((d) => d.status === "fulfilled").length, 1);
     assert.equal(decisions.filter((d) => d.status === "rejected").length, 1);
@@ -169,6 +177,13 @@ async function main() {
     const ownCookie = await cookie(staff.id), otherCookie = await cookie(otherManager.id);
     assert.equal((await fetch(`${base}/corrections`)).status, 401);
     const response = await fetch(`${base}/corrections`, { headers: { Cookie: ownCookie } }); assert.equal(response.status, 200); assert.equal(response.headers.get("cache-control"), "no-store");
+    const detail = await fetch(`${base}/corrections/${requests[0].id}`, { headers: { Cookie: ownCookie } });
+    assert.equal(detail.status, 200);
+    assert.equal(detail.headers.get("cache-control"), "no-store");
+    assert.equal((await detail.json()).scope, "mine");
+    const deniedDetail = await fetch(`${base}/corrections/${requests[0].id}`, { headers: { Cookie: otherCookie } });
+    assert.equal(deniedDetail.status, 404);
+    assert.equal((await fetch(`${base}/corrections/${requests[0].id}`)).status, 401);
     assert.equal((await fetch(`${base}/corrections`, { method: "POST", headers: { Cookie: ownCookie, "Content-Type": "application/json" }, body: JSON.stringify({ ...missing, requestId: randomUUID(), userId: otherManager.id }) })).status, 400);
     assert.equal((await fetch(`${base}/corrections/${missingRequest.id}/review`, { method: "POST", headers: { Cookie: otherCookie, "Content-Type": "application/json" }, body: JSON.stringify({ decision: "APPROVED", note: "   " }) })).status, 400);
     assert.ok((await listClockCorrections(staff.id)).requests.every((r) => r.personName.startsWith(prefix)));
@@ -222,6 +237,8 @@ async function main() {
     assert.ok(!(await ids(reviewingManager.id)).includes(roleRequest.id)); assert.ok((await ids(ops.id)).includes(roleRequest.id));
     await expect(() => reviewClockCorrection(reviewingManager.id, roleRequest.id, "APPROVED", "Role changed"), 404);
     await cancelClockCorrection(movingRoles.id, roleRequest.id);
+    await expect(() => getClockCorrection(reviewingManager.id, roleRequest.id), 404);
+    assert.equal((await getClockCorrection(ops.id, roleRequest.id)).scope, "review");
     check("Promoting a request's subject to Manager immediately changes its approval route without leaking the old review queue");
     const pager = await make("pager", ["CHATTER"]);
     for (let index = 0; index < 22; index++) {

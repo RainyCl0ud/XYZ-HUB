@@ -136,6 +136,29 @@ export async function listClockCorrections(userId: string, scope: "mine" | "revi
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 15_000 });
 }
+/** Direct request lookup for the details page. Re-check live reviewer permissions on each read. */
+export async function getClockCorrection(userId: string, correctionId: string) {
+  return prisma.$transaction(async (tx) => {
+    const viewer = await loadViewer(tx, userId);
+    const item = await tx.clockCorrection.findUnique({
+      where: { id: correctionId },
+      include: correctionInclude,
+    });
+    if (!item) throw new ClockError(404, "Correction request not found.");
+
+    const scope = item.userId === viewer.id ? "mine" : "review";
+    if (scope === "review") {
+      // Do not reveal another employee's request or its existence to unauthorized users.
+      if (!correctionCapabilities(viewer).canReviewCorrections) {
+        throw new ClockError(404, "Correction request not found.");
+      }
+      assertCanReview(viewer, item);
+    }
+
+    return { request: dto(item), scope, canReviewCorrections: scope === "review" };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 15_000 });
+}
+
 export async function requestClockCorrection(userId: string, input: RequestInput) {
   return prisma.$transaction(async (tx) => {
     await lockPeople(tx, [userId]);

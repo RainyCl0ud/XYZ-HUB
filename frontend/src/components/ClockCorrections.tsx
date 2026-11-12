@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { apiRequest } from "../lib/api";
+import { Link } from "react-router-dom";
 import { centralInputValue, centralTimeCandidates, formatCorrectionTime } from "../lib/clock-correction-time";
 import "./ClockCorrections.css";
 
@@ -8,7 +9,8 @@ const labels: Record<Kind, string> = { SHORT_ONE: "Short break 1", SHORT_TWO: "S
 type Times = { startedAt: string; endedAt: string | null };
 type Snapshot = Times & { breaks: (Times & { kind: Kind })[] };
 export type CorrectionShift = Snapshot & { id: string; recordVersion: string };
-type Item = { id: string; personName: string; kind: "SHIFT_TIMES" | "MISSING_SHIFT"; status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED"; reason: string; before: Snapshot | null; proposed: Snapshot; submittedAt: string; reviewerName: string | null; reviewNote: string | null; reviewedAt: string | null; stale: boolean; subjectAvailable: boolean; route: string };
+export type ClockCorrectionItem = { id: string; personName: string; kind: "SHIFT_TIMES" | "MISSING_SHIFT"; status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED"; reason: string; before: Snapshot | null; proposed: Snapshot; submittedAt: string; reviewerName: string | null; reviewNote: string | null; reviewedAt: string | null; stale: boolean; subjectAvailable: boolean; route: string };
+type Item = ClockCorrectionItem;
 type Inbox = { serverNow: string; requests: Item[]; hasMore: boolean; nextBefore: string | null; ownPendingCount: number; reviewPendingCount: number; canRequestCorrections: boolean; canReviewCorrections: boolean };
 type TimeValue = { wall: string; instant: string };
 const initialTime = (instant: string | null): TimeValue => ({ wall: instant ? centralInputValue(instant) : "", instant: instant ?? "" });
@@ -138,7 +140,7 @@ function RequestForm({ shift, onClose, onSaved }: { shift: CorrectionShift | nul
     <div className="correction-dialog-actions"><button type="button" disabled={busy} onClick={onClose}>Keep recorded times</button><button type="submit" className="clock-primary" disabled={busy || !reason.trim()}>{busy ? "Submitting…" : "Submit for approval"}</button></div>
   </form></dialog>;
 }
-function DecisionForm({ item, decision, onClose, onSave }: { item: Item; decision: "APPROVED" | "REJECTED" | "CANCELLED"; onClose: () => void; onSave: (note: string) => Promise<void> }) {
+export function DecisionForm({ item, decision, onClose, onSave }: { item: Item; decision: "APPROVED" | "REJECTED" | "CANCELLED"; onClose: () => void; onSave: (note: string) => Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [note, setNote] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const writing = useRef(false);
   useEffect(() => { dialog.current?.showModal(); }, []);
@@ -146,40 +148,119 @@ function DecisionForm({ item, decision, onClose, onSave }: { item: Item; decisio
   async function submit(e: FormEvent) { e.preventDefault(); if (writing.current) return; writing.current = true; setBusy(true); setError(""); try { await onSave(note.trim()); } catch (e) { setError(errorText(e)); } finally { writing.current = false; setBusy(false); } }
   return <dialog ref={dialog} className="clock-dialog correction-dialog" aria-labelledby="correction-decision-title" onCancel={(e) => { if (busy) e.preventDefault(); else onClose(); }}><form onSubmit={(e) => void submit(e)}><h2 id="correction-decision-title">{action} — {item.personName}</h2><p>{decision === "APPROVED" ? "Approval applies the requested times and recalculates the person's day and week totals. The original record stays in the correction history." : "Recorded hours will stay unchanged."}</p><Comparison before={item.before} proposed={item.proposed} /><p className="correction-quoted-reason">Requester's reason: {item.reason}</p>{error && <div className="clock-error" role="alert">! {error}</div>}{decision !== "CANCELLED" && <label className="correction-reason">{decision === "APPROVED" ? "Approval note" : "Reason for rejection"}<textarea required maxLength={2000} disabled={busy} value={note} onChange={(e) => setNote(e.target.value)} /></label>}<div className="correction-dialog-actions"><button type="button" disabled={busy} onClick={onClose}>Go back</button><button type="submit" className="clock-primary" disabled={busy || (decision !== "CANCELLED" && !note.trim())}>{busy ? "Saving…" : action}</button></div></form></dialog>;
 }
-export default function ClockCorrections({ canRequest, canReview, canAddMissing, shifts, disabled, onChanged }: { canRequest: boolean; canReview: boolean; canAddMissing: boolean; shifts: CorrectionShift[]; disabled: boolean; onChanged: () => void }) {
-  const [data, setData] = useState<Inbox | null>(null); const [error, setError] = useState(""); const [notice, setNotice] = useState("");
-  const [scope, setScope] = useState<"mine" | "review">("mine"); const [filter, setFilter] = useState<"all" | "pending">("all");
-  const [cursor, setCursor] = useState<string | undefined>(); const [trail, setTrail] = useState<string[]>([]);
-  const [selectedShift, setSelectedShift] = useState(""); const [form, setForm] = useState<{ shift: CorrectionShift | null } | null>(null);
-  const [decision, setDecision] = useState<{ item: Item; decision: "APPROVED" | "REJECTED" | "CANCELLED" } | null>(null);
+export default function ClockCorrections({ mode, canRequest, canReview, canAddMissing, shifts, disabled, onChanged }: {
+  mode: "mine" | "review"; canRequest: boolean; canReview: boolean; canAddMissing: boolean;
+  shifts: CorrectionShift[]; disabled: boolean; onChanged: () => void;
+}) {
+  const [data, setData] = useState<Inbox | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [filter, setFilter] = useState<"all" | "pending">(mode === "review" ? "pending" : "all");
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [trail, setTrail] = useState<string[]>([]);
+  const [selectedShift, setSelectedShift] = useState("");
+  const [form, setForm] = useState<{ shift: CorrectionShift | null } | null>(null);
   const sequence = useRef(0);
+
   const read = useCallback(async (signal?: AbortSignal) => {
     const generation = ++sequence.current;
-    try { const next = await apiRequest<Inbox>(`/api/clock/corrections?scope=${scope}&filter=${filter}${cursor ? `&before=${encodeURIComponent(cursor)}` : ""}`, { signal }); if (generation === sequence.current && !signal?.aborted) { setData(next); setError(""); } }
-    catch (e) { if (generation === sequence.current && !signal?.aborted) { setData(null); setError(errorText(e)); } }
-  }, [scope, filter, cursor]);
-  useEffect(() => { const controller = new AbortController(); const timer = setTimeout(() => void read(controller.signal), 0); const poll = setInterval(() => { if (document.visibilityState === "visible") void read(controller.signal); }, 10000); return () => { controller.abort(); clearTimeout(timer); clearInterval(poll); }; }, [read]);
-  function select(next: "mine" | "review") { sequence.current++; setScope(next); setFilter(next === "review" ? "pending" : "all"); setCursor(undefined); setTrail([]); setData(null); setError(""); }
+    try {
+      const next = await apiRequest<Inbox>(
+        `/api/clock/corrections?scope=${mode}&filter=${filter}${cursor ? `&before=${encodeURIComponent(cursor)}` : ""}`,
+        { signal }
+      );
+      if (generation === sequence.current && !signal?.aborted) { setData(next); setError(""); }
+    } catch (cause) {
+      if (generation === sequence.current && !signal?.aborted) { setData(null); setError(errorText(cause)); }
+    }
+  }, [mode, filter, cursor]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const initial = setTimeout(() => void read(controller.signal), 0);
+    const poll = setInterval(() => {
+      if (document.visibilityState === "visible") void read(controller.signal);
+    }, 10000);
+    return () => { controller.abort(); clearTimeout(initial); clearInterval(poll); };
+  }, [read]);
+
   const connected = !!data && !error && !disabled;
-  const decisionItem = decision ? data?.requests.find((item) => item.id === decision.item.id && item.status === "PENDING") : undefined;
-  const actualShift = shifts.find((s) => s.id === selectedShift) ?? shifts[0];
-  function saved(message: string) { sequence.current++; setForm(null); setDecision(null); setNotice(message); onChanged(); void read(); }
-  return <section className="clock-corrections" aria-labelledby="clock-corrections-title"><header><div><h2 id="clock-corrections-title">Time corrections</h2><p>Request a change, follow its status and keep the original record. Nobody approves their own hours.</p></div></header>
+  const actualShift = shifts.find(shift => shift.id === selectedShift) ?? shifts[0];
+  function saved() {
+    sequence.current++;
+    setForm(null);
+    setNotice("Correction submitted. Recorded hours stay unchanged until approval.");
+    onChanged();
+    window.dispatchEvent(new Event("xyz-clock-corrections-changed"));
+    void read();
+  }
+
+  return <section className="clock-corrections" aria-labelledby="clock-corrections-title">
+    <header className="clock-section-heading"><div>
+      <h2 id="clock-corrections-title">{mode === "mine" ? "My requests" : "Review requests"}</h2>
+      <p>{mode === "mine" ? "Submit a correction and follow its status." : "Requests you are currently authorized to review."}</p>
+    </div></header>
     {notice && <div className="clock-notice" role="status">{notice}</div>}
-    {canRequest && <div className="correction-start"><div><label htmlFor="correction-recorded-shift">Recorded shift</label><select id="correction-recorded-shift" value={actualShift?.id ?? ""} disabled={!connected || !shifts.length} onChange={(e) => setSelectedShift(e.target.value)}>{!shifts.length && <option value="">No recorded shifts yet</option>}{shifts.map((s) => <option key={s.id} value={s.id}>{formatCorrectionTime(s.startedAt)}{s.endedAt ? "" : " · Still open"}</option>)}</select><p>Load earlier shifts above if the shift you need is not listed.</p></div><button type="button" disabled={!connected || !actualShift} onClick={() => setForm({ shift: actualShift })}>Correct recorded shift</button>{canAddMissing && <button type="button" disabled={!connected} onClick={() => setForm({ shift: null })}>Request missed shift</button>}</div>}
-    <div className="correction-controls"><div className="correction-tabs" role="group" aria-label="Correction lists"><button type="button" aria-pressed={scope === "mine"} onClick={() => select("mine")}>My requests{data ? ` (${data.ownPendingCount} pending)` : ""}</button>{canReview && <button type="button" aria-pressed={scope === "review"} onClick={() => select("review")}>Review requests{data ? ` (${data.reviewPendingCount} pending)` : ""}</button>}</div><label>Show<select value={filter} onChange={(e) => { sequence.current++; setFilter(e.target.value as "all" | "pending"); setCursor(undefined); setTrail([]); setData(null); }}><option value="all">All statuses</option><option value="pending">Awaiting review</option></select></label><button type="button" onClick={() => void read()}>Refresh list</button></div>
-    {scope === "review" && <p className="correction-hint">This queue shows only requests you can currently review. Access follows current roles and creator assignments. Your own requests stay under My requests.</p>}
+    {mode === "mine" && canRequest && <div className="correction-start">
+      <div><label htmlFor="correction-recorded-shift">Recorded shift</label>
+        <select id="correction-recorded-shift" value={actualShift?.id ?? ""} disabled={!connected || !shifts.length}
+          onChange={event => setSelectedShift(event.target.value)}>
+          {!shifts.length && <option value="">No recorded shifts yet</option>}
+          {shifts.map(shift => <option key={shift.id} value={shift.id}>{formatCorrectionTime(shift.startedAt)}{shift.endedAt ? "" : " · Still open"}</option>)}
+        </select><p>Load earlier shifts from Shift history if needed.</p>
+      </div>
+      <button type="button" disabled={!connected || !actualShift} onClick={() => setForm({ shift: actualShift })}>Request correction</button>
+      {canAddMissing && <button type="button" disabled={!connected} onClick={() => setForm({ shift: null })}>Request missed shift</button>}
+    </div>}
+    {mode === "review" && !canReview && <p className="correction-hint">You are not permitted to review corrections.</p>}
+    <div className="correction-controls">
+      <label htmlFor="correction-status-filter">Status
+        <select id="correction-status-filter" value={filter} onChange={event => {
+          sequence.current++; setFilter(event.target.value as "all" | "pending");
+          setCursor(undefined); setTrail([]); setData(null);
+        }}>
+          <option value="all">All statuses</option>
+          <option value="pending">Awaiting review</option>
+        </select>
+      </label>
+      <button type="button" onClick={() => void read()}>Refresh</button>
+    </div>
     {error && <div className="clock-error" role="alert">! {error}</div>}
-    {!data && !error && <p role="status">Loading correction requests…</p>}
-    {data && !data.requests.length && <div className="clock-empty"><h3>{scope === "review" ? "No requests to review" : "No correction requests"}</h3><p>{scope === "review" ? "Eligible requests will appear here when staff submit them." : "Your requests and approval history will appear here."}</p></div>}
-    {data?.requests.map((item) => <article className="correction-card" key={item.id}><header><div><h3>{scope === "mine" ? item.kind === "MISSING_SHIFT" ? "Missed shift" : "Time correction" : item.personName}</h3><p>Submitted {formatCorrectionTime(item.submittedAt)} · {item.route}</p></div><span className="clock-status">{statusLabels[item.status]}</span></header><Comparison before={item.before} proposed={item.proposed} /><p className="correction-quoted-reason"><strong>Reason:</strong> {item.reason}</p>
-      {item.stale && <div className="correction-hint">! The recorded shift changed after this request. {scope === "mine" ? "Cancel this request, refresh your hours and submit a new correction." : "Ask the person to cancel and resubmit. Approval is paused to protect the newer record."}</div>}
-      {!item.subjectAvailable && <p className="correction-hint">This account was deleted. History is retained; approval is unavailable.</p>}
-      {item.reviewedAt && <p className="correction-review-note"><strong>{item.status === "CANCELLED" ? "Cancelled" : "Reviewed"} by {item.reviewerName}</strong> · {formatCorrectionTime(item.reviewedAt)}<span>{item.reviewNote}</span></p>}
-      {item.status === "PENDING" && <div className="correction-card-actions">{scope === "mine" ? <button type="button" disabled={!connected} onClick={() => setDecision({ item, decision: "CANCELLED" })}>Cancel request</button> : <><button type="button" disabled={!connected} onClick={() => setDecision({ item, decision: "REJECTED" })}>Reject request</button><button type="button" className="clock-primary" disabled={!connected || item.stale || !item.subjectAvailable} onClick={() => setDecision({ item, decision: "APPROVED" })}>Review and approve</button></>}</div>}
-    </article>)}
-    <div className="correction-pagination">{!!trail.length && <button type="button" onClick={() => { sequence.current++; const previous = trail[trail.length - 1]; setTrail((old) => old.slice(0, -1)); setCursor(previous || undefined); setData(null); }}>Newer requests</button>}{data?.hasMore && <button type="button" disabled={!connected} onClick={() => { sequence.current++; setTrail((old) => [...old, cursor ?? ""]); setCursor(data.nextBefore ?? undefined); setData(null); }}>Earlier requests</button>}</div>
-    {form && canRequest && <RequestForm shift={form.shift} onClose={() => setForm(null)} onSaved={() => saved("Correction submitted. Recorded hours stay unchanged until approval.")} />}
-    {decision && decisionItem && (decision.decision === "CANCELLED" || canReview) && <DecisionForm item={decisionItem} decision={decision.decision} onClose={() => setDecision(null)} onSave={async (note) => { await apiRequest(`/api/clock/corrections/${decision.item.id}/${decision.decision === "CANCELLED" ? "cancel" : "review"}`, { method: "POST", body: JSON.stringify(decision.decision === "CANCELLED" ? {} : { decision: decision.decision, note }) }); saved(decision.decision === "APPROVED" ? "Correction approved. The recorded hours have been updated." : decision.decision === "REJECTED" ? "Request rejected. Recorded hours were not changed." : "Request cancelled. Recorded hours were not changed."); }} />}
+    {!data && !error && <p role="status">Loading requests…</p>}
+    {data && !data.requests.length && <div className="clock-empty">
+      <h3>{mode === "review" ? "No requests to review" : "No correction requests"}</h3>
+      <p>{mode === "review" ? "Eligible requests will appear here." : "Your corrections and approval history will appear here."}</p>
+    </div>}
+    {data && data.requests.length > 0 && <div className="clock-table-scroll" role="region"
+      aria-label={mode === "mine" ? "My correction requests" : "Correction review queue"} tabIndex={0}>
+      <table className="clock-data-table correction-requests-table">
+        <thead><tr>
+          {mode === "review" && <th scope="col">Employee</th>}
+          <th scope="col">Type</th><th scope="col">Submitted</th><th scope="col">Status</th><th scope="col">Details</th>
+        </tr></thead>
+        <tbody>{data.requests.map(item => <tr key={item.id}>
+          {mode === "review" && <th scope="row">{item.personName}</th>}
+          <td>{item.kind === "MISSING_SHIFT" ? "Missed shift" : "Time correction"}</td>
+          <td>{formatCorrectionTime(item.submittedAt)}</td>
+          <td><span className="clock-status">{statusLabels[item.status]}</span>{item.stale && <span className="clock-row-note">Needs resubmission</span>}</td>
+          <td><Link className="correction-detail-link" to={`/clock/requests/${encodeURIComponent(item.id)}?scope=${mode}`}>View details</Link></td>
+        </tr>)}</tbody>
+      </table>
+    </div>}
+    <div className="correction-pagination">
+      {trail.length > 0 && <button type="button" onClick={() => {
+        sequence.current++;
+        const previous = trail[trail.length - 1];
+        setTrail(old => old.slice(0, -1));
+        setCursor(previous || undefined);
+        setData(null);
+      }}>Newer requests</button>}
+      {data?.hasMore && <button type="button" disabled={!connected} onClick={() => {
+        sequence.current++; setTrail(old => [...old, cursor ?? ""]);
+        setCursor(data.nextBefore ?? undefined);
+        setData(null);
+      }}>Earlier requests</button>}
+    </div>
+    {mode === "mine" && form && canRequest && <RequestForm shift={form.shift} onClose={() => setForm(null)} onSaved={saved} />}
   </section>;
 }
