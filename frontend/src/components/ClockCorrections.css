@@ -56,3 +56,21 @@
 .correction-dialog-actions { justify-content: flex-end; margin-top: 24px; }
 .correction-dialog :disabled { color: #5C5C5C; }
 @media (max-width: 720px) { .correction-start, .correction-card { padding: 16px; } .correction-start > div { flex-basis: 100%; } .correction-time-grid { grid-template-columns: minmax(0, 1fr); } .correction-change-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .correction-change-row dt { grid-column: 1 / -1; } .correction-controls > label { flex: 1; } .correction-tabs { flex-basis: 100%; } .correction-dialog { padding: 16px; } .correction-dialog fieldset { padding: 12px; } .correction-card-actions button, .correction-dialog-actions button { flex: 1; } }
+
+/* Short paginated request tables replace vertically stacked request cards. */
+.correction-requests-table { min-width: 620px; }
+.correction-requests-table th, .correction-requests-table td { white-space: normal; }
+.correction-requests-table th:last-child, .correction-requests-table td:last-child { white-space: nowrap; }
+.correction-detail-link {
+  display: inline-block;
+  padding: 7px 11px;
+  border: 1px solid #666666;
+  border-radius: 2px;
+  color: #FFFFFF;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+.correction-detail-link:hover { background: #202020; border-color: #FFFFFF; }
+.correction-detail-link:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.clock-page .clock-corrections { margin-top: 0; }
