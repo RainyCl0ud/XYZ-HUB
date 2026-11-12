@@ -40,7 +40,7 @@ function sameCorrectionInstant(recorded: string | null, proposed: string | null)
   return Number.isFinite(oldTime) && Number.isFinite(newTime) && oldTime === newTime;
 }
 
-function getRequestedChanges(before: Snapshot | null, proposed: Snapshot): CorrectionChange[] {
+export function getRequestedChanges(before: Snapshot | null, proposed: Snapshot): CorrectionChange[] {
   const changes: CorrectionChange[] = [];
   const appendIfChanged = (
     key: string,
@@ -79,7 +79,7 @@ function getRequestedChanges(before: Snapshot | null, proposed: Snapshot): Corre
   return changes;
 }
 
-function Comparison({ before, proposed }: { before: Snapshot | null; proposed: Snapshot }) {
+export function Comparison({ before, proposed }: { before: Snapshot | null; proposed: Snapshot }) {
   const changes = getRequestedChanges(before, proposed);
 
   return (
