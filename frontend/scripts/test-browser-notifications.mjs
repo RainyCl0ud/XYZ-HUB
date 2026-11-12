@@ -98,7 +98,8 @@ try {
   }, getNotifications: async () => currentNotifications }, addEventListener: (name, fn) => handlers.set(name, fn) };
   const source = await readFile(resolve(root, 'public/chat-browser-alerts-v1.js'), 'utf8');
   vm.runInNewContext(source, { self: worker, MessageChannel: Channel, URL, setTimeout, clearTimeout, Date, Set, Promise });
-  assert.equal(handlers.has('fetch'), false); assert.equal(handlers.has('push'), false);
+  assert.equal(handlers.has('fetch'), false, 'The service worker must not intercept app/network fetches.');
+  assert.equal(handlers.has('push'), true, 'Background push and paid-break reminders must remain supported.');
   const clickOrder = [];
   const client = (id, answer, options = {}) => {
     let replaced = false;
@@ -183,11 +184,59 @@ try {
   assert.equal(notificationCentre.size, 1);
   pass('The test notification button alerts on repeated clicks even when its previous notification remains in the centre');
 
+  // Background push was added after the original open-tab-only test. Verify
+  // delivery and routing without exposing an old account's conversation.
+  const push = async (payload, malformedJson = false) => {
+    let work;
+    handlers.get('push')({
+      data: { json: () => { if (malformedJson) throw Error('invalid JSON'); return payload; } },
+      waitUntil: promise => { work = promise; },
+    });
+    if (work) await work;
+  };
+  const pushMessage = { id: 'background-message', conversationId: 'channel1', area: 'Creator area', channel: 'General', count: 2 };
+  const validPush = { userId: 'staff', clock: false, messages: [pushMessage] };
+  const priorPushNotifications = shown.length;
+  windows = [sender];
+  await push(validPush, true);
+  await push({ ...validPush, messages: [{ ...pushMessage, conversationId: 'https://external.example' }] });
+  await push({ ...validPush, messages: [{ ...pushMessage, count: 0 }] });
+  assert.equal(shown.length, priorPushNotifications, 'Invalid or unparseable push payloads must not display notifications.');
+  windows = [client('other-account', { ...senderAnswer, userId: 'owner', focused: true })];
+  await push(validPush);
+  assert.equal(shown.length, priorPushNotifications, 'A foreground different account must suppress former-account push alerts.');
+  windows = [sender, client('foreground-reader', { ...senderAnswer, focused: true, visibleMessageIds: [pushMessage.id] })];
+  await push(validPush);
+  assert.equal(shown.length, priorPushNotifications, 'Messages visible in a focused tab must not generate push alerts.');
+  windows = [sender];
+  await push({ ...validPush, clock: true });
+  assert.equal(shown.length, priorPushNotifications + 2, 'A new channel alert and paid-break reminder should both be delivered.');
+  const chatPush = shown[priorPushNotifications], clockPush = shown[priorPushNotifications + 1];
+  assert.equal(chatPush.options.data.kind, 'xyz-hub-push');
+  assert.equal(chatPush.options.data.conversationId, 'channel1');
+  assert.equal(chatPush.options.tag, 'xyz-hub-push:staff:channel1');
+  assert.equal(chatPush.options.renotify, true);
+  assert.ok(chatPush.options.body.includes('2 unread'));
+  assert.ok(!JSON.stringify(chatPush).includes(pushMessage.id), 'Notification content must not contain message IDs or contents.');
+  assert.equal(clockPush.options.data.clock, true);
+  assert.equal(clockPush.options.tag, 'xyz-hub-push:staff:clock');
+  await click(chatPush.options.data);
+  assert.equal(navigated.at(-1), '/chat?conversation=channel1');
+  await click(clockPush.options.data);
+  assert.equal(navigated.at(-1), '/clock');
+  windows = [client('other-account', { ...senderAnswer, userId: 'owner' })];
+  await click(chatPush.options.data);
+  assert.equal(navigated.at(-1), '/chat', 'A switched account may only reach the safe Chat entry.');
+  pass('Background push validates payloads, suppresses wrong-account/visible alerts and safely routes chat and Clock reminders');
+
   const { BrowserNotificationsContext } = await vite.ssrLoadModule('/src/components/BrowserNotificationsContext.ts');
+  const { AuthProvider } = await vite.ssrLoadModule('/src/auth/AuthContext.tsx');
   const { default: Dialog } = await vite.ssrLoadModule('/src/pages/ChatBrowserNotifications.tsx');
-  const render = extra => renderToStaticMarkup(createElement(BrowserNotificationsContext.Provider, { value: { available: true, supported: true, enabled: false, permission: 'default', busy: false, error: '', limitedScope: false, enable: async () => {}, disable() {}, test: async () => {}, ...extra } }, createElement(Dialog, { onClose() {} })));
+  // BackgroundPushSettings now uses useAuth; render within the same provider as the real app.
+  const render = extra => renderToStaticMarkup(createElement(AuthProvider, null,
+    createElement(BrowserNotificationsContext.Provider, { value: { available: true, supported: true, enabled: false, permission: 'default', busy: false, error: '', limitedScope: false, enable: async () => {}, disable() {}, test: async () => {}, ...extra } }, createElement(Dialog, { onClose() {} }))));
   const off = render({}), denied = render({ permission: 'denied' }), unsupported = render({ supported: false }), enabled = render({ enabled: true, permission: 'granted', limitedScope: true });
-  for (const text of ['Enable notifications', 'closed-browser notifications are not included yet', 'no message text or names', 'without replaying old unread messages']) assert.ok(off.includes(text));
+  for (const text of ['Enable notifications', 'Open-tab alerts may be delayed when your browser pauses the Hub tab.', 'no message text or names', 'without replaying old unread messages']) assert.ok(off.includes(text));
   assert.ok(denied.includes('Blocked in your browser settings') && denied.includes('disabled=""'));
   assert.ok(unsupported.includes('Not supported in this browser') && unsupported.includes('disabled=""'));
   for (const text of ['Turn off', 'Show test notification', 'added by name']) assert.ok(enabled.includes(text));

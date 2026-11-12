@@ -76,7 +76,7 @@ export function visibleAlertMessages(userId: string, messages: BrowserAlert[]) {
   if (!pane) return [];
   const bounds = pane.getBoundingClientRect();
   const candidates = new Set(messages.filter(m => m.conversationId === readingContext.conversationId).map(m => m.id));
-  return [...pane.querySelectorAll<HTMLElement>('[data-chat-message-id]')].filter(node => {
+  return Array.from(pane.querySelectorAll<HTMLElement>('[data-chat-message-id]')).filter(node => {
     if (!candidates.has(node.dataset.chatMessageId!)) return false;
     const box = node.getBoundingClientRect();
     const left = Math.max(box.left, bounds.left, 0), right = Math.min(box.right, bounds.right, innerWidth);
