@@ -25,10 +25,82 @@ function TimeField({ label, value, onChange, disabled }: { label: string; value:
     {candidates.length > 1 && <><label htmlFor={`${id}-occurrence`}>This time occurs twice. Choose which one.</label><select id={`${id}-occurrence`} required disabled={disabled} value={value.instant} onChange={(e) => onChange({ ...value, instant: e.target.value })}><option value="">Choose CDT or CST</option>{candidates.map((instant) => <option key={instant} value={instant}>{formatCorrectionTime(instant)}</option>)}</select></>}
   </div>;
 }
-function Comparison({ before, proposed }: { before: Snapshot | null; proposed: Snapshot }) {
-  return <div className="correction-comparison"><div><p className="clock-label">RECORDED</p>{before ? <><p>In: {formatCorrectionTime(before.startedAt)}</p><p>Out: {formatCorrectionTime(before.endedAt)}</p></> : <p>No recorded shift</p>}</div><div><p className="clock-label">REQUESTED</p><p>In: {formatCorrectionTime(proposed.startedAt)}</p><p>Out: {formatCorrectionTime(proposed.endedAt)}</p></div>
-    {!!proposed.breaks.length && <details><summary>Compare paid breaks ({proposed.breaks.length})</summary>{proposed.breaks.map((pause) => { const old = before?.breaks.find((b) => b.kind === pause.kind); return <div key={pause.kind}><strong>{labels[pause.kind]}</strong><p>Recorded: {old ? `${formatCorrectionTime(old.startedAt)} – ${formatCorrectionTime(old.endedAt)}` : "Not recorded"}</p><p>Requested: {formatCorrectionTime(pause.startedAt)} – {formatCorrectionTime(pause.endedAt)}</p></div>; })}</details>}
-  </div>;
+type CorrectionChange = {
+  key: string;
+  label: string;
+  recorded: string;
+  requested: string;
+};
+
+function sameCorrectionInstant(recorded: string | null, proposed: string | null): boolean {
+  if (recorded === proposed) return true;
+  if (!recorded || !proposed) return false;
+  const oldTime = Date.parse(recorded);
+  const newTime = Date.parse(proposed);
+  return Number.isFinite(oldTime) && Number.isFinite(newTime) && oldTime === newTime;
+}
+
+export function getRequestedChanges(before: Snapshot | null, proposed: Snapshot): CorrectionChange[] {
+  const changes: CorrectionChange[] = [];
+  const appendIfChanged = (
+    key: string,
+    label: string,
+    recorded: string | null,
+    requested: string | null,
+  ) => {
+    if (before && sameCorrectionInstant(recorded, requested)) return;
+    changes.push({
+      key,
+      label,
+      recorded: recorded ? formatCorrectionTime(recorded) : "Not recorded",
+      requested: requested ? formatCorrectionTime(requested) : "Not provided",
+    });
+  };
+
+  appendIfChanged("shift-start", "Clock in", before?.startedAt ?? null, proposed.startedAt);
+  appendIfChanged("shift-end", "Clock out", before?.endedAt ?? null, proposed.endedAt);
+
+  for (const pause of proposed.breaks) {
+    const recordedPause = before?.breaks.find((item) => item.kind === pause.kind);
+    appendIfChanged(
+      `${pause.kind}-start`,
+      `${labels[pause.kind]} — start`,
+      recordedPause?.startedAt ?? null,
+      pause.startedAt,
+    );
+    appendIfChanged(
+      `${pause.kind}-end`,
+      `${labels[pause.kind]} — end`,
+      recordedPause?.endedAt ?? null,
+      pause.endedAt,
+    );
+  }
+
+  return changes;
+}
+
+export function Comparison({ before, proposed }: { before: Snapshot | null; proposed: Snapshot }) {
+  const changes = getRequestedChanges(before, proposed);
+
+  return (
+    <section className="correction-comparison" aria-label="Requested time changes">
+      <p className="clock-label">REQUESTED CHANGES</p>
+      {!before && <p className="correction-new-shift">New shift — no existing recorded shift.</p>}
+      {changes.length === 0 ? (
+        <p className="correction-no-changes">No time changes requested.</p>
+      ) : (
+        <dl className="correction-change-list">
+          {changes.map((change) => (
+            <div className="correction-change-row" key={change.key}>
+              <dt>{change.label}</dt>
+              <dd><span>Recorded</span><strong>{change.recorded}</strong></dd>
+              <dd><span>Requested</span><strong>{change.requested}</strong></dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
 }
 function RequestForm({ shift, onClose, onSaved }: { shift: CorrectionShift | null; onClose: () => void; onSaved: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
