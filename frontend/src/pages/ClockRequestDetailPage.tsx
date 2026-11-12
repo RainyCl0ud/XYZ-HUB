@@ -56,12 +56,19 @@ export default function ClockRequestDetailPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setData(null);
-    setDecision(null);
-    setNotice("");
-    void load(controller.signal);
-    return () => controller.abort();
+    // Queue the route transition reset outside the synchronous effect body;
+    // this also prevents stale requests from flashing during navigation.
+    const initial = window.setTimeout(() => {
+      setLoading(true);
+      setData(null);
+      setDecision(null);
+      setNotice("");
+      void load(controller.signal);
+    }, 0);
+    return () => {
+      controller.abort();
+      window.clearTimeout(initial);
+    };
   }, [load]);
 
   const item = data?.request;
