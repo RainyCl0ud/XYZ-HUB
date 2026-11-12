@@ -480,16 +480,6 @@ function AccountPage() {
             </strong>
           </div>
 
-          <div>
-            <span>
-              Access scope
-            </span>
-            <strong>
-              {access?.effectiveDataScope
-                ?.replaceAll("_", " ") ??
-                "Not available"}
-            </strong>
-          </div>
         </div>
       </section>
 
