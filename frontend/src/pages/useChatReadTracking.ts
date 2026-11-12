@@ -13,7 +13,7 @@ export function useChatReadTracking(pane: RefObject<HTMLDivElement | null>, chan
     const controller = new AbortController();
     let stopped = false, busy = false;
     let batchTimer: ReturnType<typeof setTimeout> | undefined;
-    const nodes = [...root.querySelectorAll<HTMLElement>("[data-chat-message-id]")].filter((el) => wanted.has(el.dataset.chatMessageId!));
+    const nodes = Array.from(root.querySelectorAll<HTMLElement>("[data-chat-message-id]")).filter((el) => wanted.has(el.dataset.chatMessageId!));
     const isVisible = (el: HTMLElement) => {
       if (document.visibilityState !== "visible" || !document.hasFocus()) return false;
       const box = el.getBoundingClientRect(), bounds = root.getBoundingClientRect();
