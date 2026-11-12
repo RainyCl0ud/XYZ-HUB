@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, apiRequest } from "../lib/api";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
 import ClockCorrections from "../components/ClockCorrections";
@@ -21,6 +22,8 @@ const formatClockTime = (value: string) => new Intl.DateTimeFormat("en-US", { ti
 const describeError = (error: unknown) => error instanceof Error ? error.message : "Unable to update your attendance. Please try again.";
 
 export default function ClockPage() {
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
   const [data, setData] = useState<ClockState | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [loadError, setLoadError] = useState("");
@@ -122,13 +125,23 @@ export default function ClockPage() {
   const today = (data?.totals.todaySeconds ?? 0) + (shift?.startDay === data?.totals.dayKey ? elapsed : 0);
   const week = (data?.totals.weekSeconds ?? 0) + (shift?.startWeek === data?.totals.weekKey ? elapsed : 0);
   const online = !loadError && !!data && elapsed < 30;
+  const tab = requestedTab === "requests" || requestedTab === "history"
+    || (requestedTab === "review" && data?.canReviewCorrections)
+      ? requestedTab : "overview";
 
   return <section className="clock-page" aria-labelledby="clock-title">
     <header className="clock-page-heading"><div><p className="clock-eyebrow">YOUR ATTENDANCE</p><h1 id="clock-title">Clock &amp; Hours</h1><p>Your shifts and paid breaks, recorded in one place.</p></div><span className="clock-zone">US Central · CDT / CST automatically</span></header>
     {loadError && <div className="clock-error" role="alert">! {loadError} <button type="button" onClick={() => void refresh().catch((e: unknown) => setLoadError(describeError(e)))}>Retry connection</button></div>}
     {actionError && <div className="clock-error" role="alert">! {actionError}</div>}
     {notice && <div className="clock-notice" role="status">{notice}</div>}
+    {data && <nav className="clock-tabs" aria-label="Clock and Hours sections">
+      <Link to="/clock" aria-current={tab === "overview" ? "page" : undefined}>Overview</Link>
+      <Link to="/clock?tab=requests" aria-current={tab === "requests" ? "page" : undefined}>My requests</Link>
+      {data.canReviewCorrections && <Link to="/clock?tab=review" aria-current={tab === "review" ? "page" : undefined}>Review requests</Link>}
+      <Link to="/clock?tab=history" aria-current={tab === "history" ? "page" : undefined}>Shift history</Link>
+    </nav>}
     {!data ? <p role="status">{loadError ? "Your attendance could not be loaded." : "Loading your attendance…"}</p> : <>
+      {tab === "overview" && <div className="clock-workspace">
       {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>! Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. Use Time corrections below if a recorded time needs changing.</p></div>}
       <section className="clock-summary-section" aria-labelledby="current-shift-title">
         <header className="clock-section-heading">
@@ -202,11 +215,21 @@ export default function ClockPage() {
         </div>
         <p className="clock-break-help">A Hub reminder appears at 20 minutes for a short break or 35 minutes for a meal. At 30 or 60 minutes, the break ends automatically and management is flagged. All break time stays paid.</p>
       </section>}
-      <section className="clock-history" aria-labelledby="history-title"><header><h2 id="history-title">Your completed shifts</h2><p>Times are shown in US Central. Overnight shifts belong to the day and week they started.</p></header>
+      </div>}
+      {tab === "history" && <section className="clock-history" aria-labelledby="history-title"><header><h2 id="history-title">Your completed shifts</h2><p>Times are shown in US Central. Overnight shifts belong to the day and week they started.</p></header>
         {!data.history.length ? <div className="clock-empty"><h3>No completed shifts yet</h3><p>After you clock out, your shift and paid breaks will appear here.</p></div> : <div className="clock-table-scroll" role="region" aria-label="Completed shifts table" tabIndex={0}><table className="clock-data-table"><thead><tr><th scope="col">CLOCKED IN</th><th scope="col">CLOCKED OUT</th><th scope="col" className="clock-number">WORKED TIME</th><th scope="col" className="clock-number">PAID BREAKS</th><th scope="col">BREAK DETAILS</th></tr></thead><tbody>{data.history.map((s) => <tr key={s.id}><td>{formatClockTime(s.startedAt)}{!!s.correctionCount && <span className="clock-corrected-label">Approved correction applied</span>}</td><td>{formatClockTime(s.endedAt!)}</td><td className="clock-number">{duration(s.workedSeconds)}</td><td className="clock-number">{duration(s.paidBreakSeconds)}</td><td><details className="clock-break-details"><summary>{s.breaks.length ? `View ${s.breaks.length} paid ${s.breaks.length === 1 ? "break" : "breaks"}` : "No breaks"}</summary>{!!s.breaks.length && <ul>{s.breaks.map((b) => <li key={b.id}><strong>{b.label}</strong><span>{duration(b.elapsedSeconds)} · {b.endReason === "LIMIT" ? "Ended automatically at the limit" : b.endReason === "CLOCK_OUT" ? "Ended with clock-out" : b.endReason === "CORRECTION" ? "Corrected with approval" : "Returned from break"}</span></li>)}</ul>}</details></td></tr>)}</tbody></table></div>}
         {data.hasMore && <button type="button" disabled={loadingOlder || busy} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load earlier shifts"}</button>}
-      </section>
-      <ClockCorrections canRequest={data.canRequestCorrections} canReview={data.canReviewCorrections} canAddMissing={data.canTrack} shifts={[...(data.currentShift ? [data.currentShift] : []), ...data.history]} disabled={busy || !online} onChanged={() => { void refresh().catch((e: unknown) => setLoadError(describeError(e))); }} />
+      </section>}
+      {(tab === "requests" || tab === "review") && <ClockCorrections
+        key={tab}
+        mode={tab === "review" ? "review" : "mine"}
+        canRequest={data.canRequestCorrections}
+        canReview={data.canReviewCorrections}
+        canAddMissing={data.canTrack}
+        shifts={[...(data.currentShift ? [data.currentShift] : []), ...data.history]}
+        disabled={busy || !online}
+        onChanged={() => { void refresh().catch((e: unknown) => setLoadError(describeError(e))); }}
+      />}
     </>}
     <dialog ref={dialog} className="clock-dialog" aria-labelledby="clock-out-title" onCancel={() => setConfirmOut(false)}><h2 id="clock-out-title">End your shift?</h2><p>Your worked time is {duration(shiftSeconds)}, including paid breaks.</p>{activeBreak && <p>Your current break will end when you clock out.</p>}<div><button type="button" disabled={busy} onClick={() => setConfirmOut(false)}>Keep working</button><button type="button" className="clock-primary" disabled={busy || !shift || !online} onClick={() => shift && void write("out", `/api/clock/shifts/${shift.id}/out`, {})}>{busy ? "Saving…" : "Confirm clock out"}</button></div></dialog>
   </section>;
