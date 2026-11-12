@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { formatCorrectionTime } from "../lib/clock-correction-time";
 import { Comparison, DecisionForm, type ClockCorrectionItem } from "../components/ClockCorrections";
+import "./ClockPage.css";
 import "./ClockRequestDetailPage.css";
 
 type Response = {
