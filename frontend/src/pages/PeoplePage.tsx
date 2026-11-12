@@ -2,6 +2,7 @@ import { useNavigationFilter } from "../lib/useNavigationFilter";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -271,6 +272,8 @@ function PeoplePage() {
   const [batchRoleId, setBatchRoleId] = useState("");
 
   const [teamContextMenu, setTeamContextMenu] = useState<TeamContextMenu>(null);
+  const teamContextMenuRef = useRef<HTMLDivElement | null>(null);
+  const teamContextTriggerRef = useRef<HTMLElement | null>(null);
   const [reorderParentId, setReorderParentId] = useState<string | null>(null);
   const [draftOrder, setDraftOrder] = useState<string[]>([]);
   const [draggingTeamId, setDraggingTeamId] = useState<string | null>(null);
@@ -341,21 +344,51 @@ function PeoplePage() {
   }, [loadOptions, loadPeople]);
 
   useEffect(() => {
-    const closeContextMenu = () => setTeamContextMenu(null);
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setTeamContextMenu(null);
-    };
+    if (!teamContextMenu) return;
 
-    document.addEventListener("click", closeContextMenu);
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (event.target instanceof Node && teamContextMenuRef.current?.contains(event.target)) return;
+      setTeamContextMenu(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setTeamContextMenu(null);
+      teamContextTriggerRef.current?.focus();
+    };
+    const closeOnViewportChange = () => setTeamContextMenu(null);
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
     document.addEventListener("keydown", closeOnEscape);
-    window.addEventListener("blur", closeContextMenu);
+    window.addEventListener("blur", closeOnViewportChange);
+    window.addEventListener("resize", closeOnViewportChange);
+    window.addEventListener("scroll", closeOnViewportChange, true);
 
     return () => {
-      document.removeEventListener("click", closeContextMenu);
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
       document.removeEventListener("keydown", closeOnEscape);
-      window.removeEventListener("blur", closeContextMenu);
+      window.removeEventListener("blur", closeOnViewportChange);
+      window.removeEventListener("resize", closeOnViewportChange);
+      window.removeEventListener("scroll", closeOnViewportChange, true);
     };
-  }, []);
+  }, [teamContextMenu]);
+
+  useLayoutEffect(() => {
+    const menu = teamContextMenuRef.current;
+    if (!teamContextMenu || !menu) return;
+    const bounds = menu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(teamContextMenu.x, window.innerWidth - bounds.width - 8));
+    const top = Math.max(8, Math.min(teamContextMenu.y, window.innerHeight - bounds.height - 8));
+
+    if (left !== teamContextMenu.x || top !== teamContextMenu.y) {
+      setTeamContextMenu((current) => current?.teamId === teamContextMenu.teamId
+        ? { ...current, x: left, y: top }
+        : current);
+      return;
+    }
+
+    menu.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  }, [teamContextMenu]);
 
   const teams = options?.organization.groups ?? EMPTY_TEAMS;
 
@@ -746,6 +779,17 @@ function PeoplePage() {
     setSelectedPersonIds([]);
   }
 
+  function openTeamContextMenu(team: TeamGroup, x: number, y: number, trigger: HTMLElement) {
+    if (team.isRoot || !options?.capabilities.canManageOrganization || reorderParentId) {
+      setTeamContextMenu(null);
+      return;
+    }
+
+    teamContextTriggerRef.current = trigger;
+    selectTeam(team.id);
+    setTeamContextMenu({ teamId: team.id, x, y });
+  }
+
   function teamOptionLabel(team: TeamGroup) {
     if (team.isRoot) return team.name;
 
@@ -762,10 +806,19 @@ function PeoplePage() {
     return names.join(" / ");
   }
 
-  function handleTeamKeyDown(event: ReactKeyboardEvent<HTMLDivElement>, teamId: string) {
+  function handleTeamKeyDown(event: ReactKeyboardEvent<HTMLDivElement>, team: TeamGroup) {
+    if (event.target !== event.currentTarget) return;
+
+    if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
+      event.preventDefault();
+      const bounds = event.currentTarget.getBoundingClientRect();
+      openTeamContextMenu(team, bounds.left + 12, bounds.bottom + 4, event.currentTarget);
+      return;
+    }
+
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      selectTeam(teamId);
+      selectTeam(team.id);
     }
   }
 
@@ -1259,15 +1312,18 @@ function PeoplePage() {
           tabIndex={0}
           aria-current={selected ? "true" : undefined}
           onClick={() => selectTeam(team.id)}
-          onKeyDown={(event) => handleTeamKeyDown(event, team.id)}
+          onKeyDown={(event) => handleTeamKeyDown(event, team)}
           onContextMenu={(event) => {
-            if (team.isRoot) return;
-            event.preventDefault();
-            selectTeam(team.id);
-
-            if (options?.capabilities.canManageOrganization) {
-              setTeamContextMenu({ teamId: team.id, x: event.clientX, y: event.clientY });
+            if (team.isRoot) {
+              event.preventDefault();
+              event.stopPropagation();
+              setTeamContextMenu(null);
+              return;
             }
+            if (!options?.capabilities.canManageOrganization || reorderParentId) return;
+            event.preventDefault();
+            event.stopPropagation();
+            openTeamContextMenu(team, event.clientX, event.clientY, event.currentTarget);
           }}
         >
           <span className="people-org-branch">
@@ -1293,6 +1349,26 @@ function PeoplePage() {
           </span>
 
           {orderingSiblings && <span className="people-org-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span>}
+          {options?.capabilities.canManageOrganization && !team.isRoot && !reorderParentId && (
+            <button
+              type="button"
+              className="people-org-actions"
+              aria-label={`Actions for ${team.name}`}
+              aria-haspopup="menu"
+              aria-expanded={teamContextMenu?.teamId === team.id}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (teamContextMenu?.teamId === team.id) {
+                  setTeamContextMenu(null);
+                  return;
+                }
+                const bounds = event.currentTarget.getBoundingClientRect();
+                openTeamContextMenu(team, bounds.right - 190, bounds.bottom + 4, event.currentTarget);
+              }}
+            >
+              &#8943;
+            </button>
+          )}
           <span className="people-org-count">{teamPeopleCounts.get(team.id) ?? 0}</span>
         </div>
 
@@ -1371,7 +1447,7 @@ function PeoplePage() {
           </div>
 
           {options?.capabilities.canManageOrganization && (
-            <div className="people-org-help">Right-click a non-root team for reorder, subteam, rename, color, or delete actions.</div>
+            <div className="people-org-help">Right-click a team or subteam, or use its actions button, to reorder, add, rename, change color, or delete. The agency root has no team actions.</div>
           )}
         </aside>
 
@@ -1530,17 +1606,37 @@ function PeoplePage() {
         </div>
       </section>
 
-      {teamContextMenu && contextTeam && !contextTeam.isRoot && (
+      {teamContextMenu && contextTeam && !contextTeam.isRoot && options?.capabilities.canManageOrganization && !reorderParentId && (
         <div
+          ref={teamContextMenuRef}
           className="people-context-menu"
+          role="menu"
+          aria-label={`Actions for ${contextTeam.name}`}
           style={{ left: teamContextMenu.x, top: teamContextMenu.y }}
           onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+            const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              if (!items.length) return;
+              const nextIndex = currentIndex === -1
+                ? (event.key === "ArrowDown" ? 0 : items.length - 1)
+                : (currentIndex + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+              items[nextIndex]?.focus();
+            } else if (event.key === "Home" || event.key === "End") {
+              event.preventDefault();
+              items[event.key === "Home" ? 0 : items.length - 1]?.focus();
+            } else if (event.key === "Tab") {
+              setTeamContextMenu(null);
+            }
+          }}
         >
-          <button type="button" onClick={() => beginTeamReorder(contextTeam)}>Reorder</button>
-          <button type="button" onClick={() => openTeamAction("create", contextTeam)}>Add subteam</button>
-          <button type="button" onClick={() => openTeamAction("rename", contextTeam)}>Rename team</button>
-          <button type="button" onClick={() => openTeamColor(contextTeam)}>Team color</button>
-          <button type="button" className="danger" onClick={() => openTeamAction("delete", contextTeam)}>Delete team</button>
+          <button type="button" role="menuitem" onClick={() => beginTeamReorder(contextTeam)}>Reorder</button>
+          <button type="button" role="menuitem" onClick={() => openTeamAction("create", contextTeam)}>Add subteam</button>
+          <button type="button" role="menuitem" onClick={() => openTeamAction("rename", contextTeam)}>Rename team</button>
+          <button type="button" role="menuitem" onClick={() => openTeamColor(contextTeam)}>Team color</button>
+          <button type="button" role="menuitem" className="danger" onClick={() => openTeamAction("delete", contextTeam)}>Delete team</button>
         </div>
       )}
 
