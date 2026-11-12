@@ -177,13 +177,13 @@ async function main() {
     const ownCookie = await cookie(staff.id), otherCookie = await cookie(otherManager.id);
     assert.equal((await fetch(`${base}/corrections`)).status, 401);
     const response = await fetch(`${base}/corrections`, { headers: { Cookie: ownCookie } }); assert.equal(response.status, 200); assert.equal(response.headers.get("cache-control"), "no-store");
-    const detail = await fetch(`${base}/corrections/${missingRequest.id}`, { headers: { Cookie: ownCookie } });
+    const detail = await fetch(`${base}/corrections/${requests[0].id}`, { headers: { Cookie: ownCookie } });
     assert.equal(detail.status, 200);
     assert.equal(detail.headers.get("cache-control"), "no-store");
     assert.equal((await detail.json()).scope, "mine");
-    const deniedDetail = await fetch(`${base}/corrections/${missingRequest.id}`, { headers: { Cookie: otherCookie } });
+    const deniedDetail = await fetch(`${base}/corrections/${requests[0].id}`, { headers: { Cookie: otherCookie } });
     assert.equal(deniedDetail.status, 404);
-    assert.equal((await fetch(`${base}/corrections/${missingRequest.id}`)).status, 401);
+    assert.equal((await fetch(`${base}/corrections/${requests[0].id}`)).status, 401);
     assert.equal((await fetch(`${base}/corrections`, { method: "POST", headers: { Cookie: ownCookie, "Content-Type": "application/json" }, body: JSON.stringify({ ...missing, requestId: randomUUID(), userId: otherManager.id }) })).status, 400);
     assert.equal((await fetch(`${base}/corrections/${missingRequest.id}/review`, { method: "POST", headers: { Cookie: otherCookie, "Content-Type": "application/json" }, body: JSON.stringify({ decision: "APPROVED", note: "   " }) })).status, 400);
     assert.ok((await listClockCorrections(staff.id)).requests.every((r) => r.personName.startsWith(prefix)));
