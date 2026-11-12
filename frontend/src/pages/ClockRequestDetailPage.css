@@ -1,0 +1,23 @@
+.clock-request-page { padding-top: 32px; }
+.clock-request-page .clock-page-heading { align-items: center; }
+.clock-request-detail-card { min-width: 0; padding: 24px; border: 1px solid #555555; background: #141414; border-radius: 2px; }
+.clock-request-detail-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+.clock-request-detail-header h2 { margin: 4px 0 8px; }
+.clock-request-detail-header p { margin: 0; font-size: 13px; }
+.clock-request-metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-bottom: 20px; border-bottom: 1px solid #444444; }
+.clock-request-metadata span { display: block; color: #999999; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.clock-request-metadata strong { display: block; margin-top: 6px; font-size: 13px; }
+.clock-request-reason, .clock-request-review, .clock-request-full-record { padding-top: 20px; margin-top: 20px; border-top: 1px solid #444444; }
+.clock-request-reason h3, .clock-request-review h3 { font-size: 15px; margin-bottom: 10px; }
+.clock-request-reason p, .clock-request-review p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+.clock-request-full-record summary { padding: 8px 0; cursor: pointer; font-weight: 700; font-size: 13px; }
+.clock-request-full-record .clock-table-scroll { margin-top: 12px; }
+.clock-request-full-record .clock-data-table { min-width: 640px; }
+.clock-request-page .clock-page-heading button { flex-shrink: 0; }
+.clock-request-page .correction-card-actions { justify-content: flex-end; }
+@media (max-width: 720px) {
+  .clock-request-detail-card { padding: 16px; }
+  .clock-request-detail-header { flex-direction: column; }
+  .clock-request-metadata { grid-template-columns: minmax(0, 1fr); }
+  .clock-request-page .clock-page-heading button { margin-top: 16px; }
+}
