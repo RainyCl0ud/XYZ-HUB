@@ -79,7 +79,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       {m.attachment.available && m.attachment.canPreview && <ChatImagePreview
         key={attachmentPath} src={`${attachmentPath}/preview`} fileName={m.attachment.fileName} onLoad={onPreviewLoad}
       />}
-      <div className="creator-chat-file">
+      <div className={`creator-chat-file ${voiceDuration ? "is-voice" : ""}`}>
         <strong>{voiceDuration ? "Voice message" : m.attachment.fileName}</strong>
         <small>{voiceDuration ? `${Math.ceil(voiceDuration / 1000)} sec` : `${m.attachment.byteSize.toLocaleString()} bytes`}</small>
         {m.attachment.available && !!voiceDuration && <ChatVoicePlayback key={attachmentPath} src={`${attachmentPath}/voice`} durationMs={voiceDuration} />}
