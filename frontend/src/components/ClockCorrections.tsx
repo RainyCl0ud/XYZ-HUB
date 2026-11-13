@@ -109,7 +109,7 @@ export function Comparison({ before, proposed }: { before: Snapshot | null; prop
     </section>
   );
 }
-function RequestForm({ shift, onClose, onSaved }: { shift: CorrectionShift | null; onClose: () => void; onSaved: () => void }) {
+export function RequestForm({ shift, onClose, onSaved }: { shift: CorrectionShift | null; onClose: () => void; onSaved: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [start, setStart] = useState(() => initialTime(shift?.startedAt ?? null));
   const [end, setEnd] = useState(() => initialTime(shift?.endedAt ?? null));
