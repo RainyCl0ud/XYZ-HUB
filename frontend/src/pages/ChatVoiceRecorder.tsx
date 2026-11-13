@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import ChatVoicePlayback from "./ChatVoicePlayback";
 import { sendChatFile } from "./chatFiles";
 import type { ChatMessage } from "./ChatMessageTools";
 import { chatVoiceFile } from "./chatVoiceWav";
@@ -19,9 +20,10 @@ function releaseCapture(capture: Capture) {
   void capture.context.close().catch(() => {});
 }
 
-export default function ChatVoiceRecorder({ channelId, maxSeconds, onSent }: {
+export type ChatVoiceRecorderHandle = { start: () => void };
+const ChatVoiceRecorder = forwardRef<ChatVoiceRecorderHandle, {
   channelId: string; maxSeconds: number; onSent: (message: ChatMessage) => void;
-}) {
+}>(function ChatVoiceRecorder({ channelId, maxSeconds, onSent }, ref) {
   const capture = useRef<Capture | null>(null);
   const upload = useRef<AbortController | null>(null);
   const [phase, setPhase] = useState<"idle" | "permission" | "recording" | "stopping">("idle");
@@ -147,31 +149,54 @@ export default function ChatVoiceRecorder({ channelId, maxSeconds, onSent }: {
     }
   }
 
-  return <div className="creator-chat-file-picker creator-chat-voice">
-    {phase === "idle" && !draft && <>
-      <button type="button" className="creator-chat-media-icon" onClick={() => void start()} aria-label="Record voice message" title={`Record voice message (up to ${maxSeconds / 60} minutes)`}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="12" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V22m-4 0h8" /></svg>
+  // Keep this component mounted while idle so the + menu can request
+  // microphone permission directly inside the originating click gesture.
+  useImperativeHandle(ref, () => ({
+    start: () => { if (phase === "idle" && !draft && !sending) void start(); },
+  }));
+
+  if (phase === "idle" && !draft && !error) return <div className="creator-chat-voice-hidden" aria-hidden="true" />;
+
+  const trash = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 4h4M6 7l1 13h10l1-13M10 11v5M14 11v5" /></svg>;
+  const finish = () => {
+    const active = capture.current;
+    if (!active?.recorder) return;
+    window.clearTimeout(active.timeout);
+    active.timeout = window.setTimeout(() => cancel("Could not finish the recording. Try again."), 3000);
+    active.recorder.port.postMessage("stop");
+    setPhase("stopping");
+  };
+
+  return <div className="creator-chat-voice-draft" aria-label="Voice recording controls">
+    {phase === "permission" && <span className="creator-chat-voice-hint" role="status">Waiting for microphone permission…</span>}
+    {phase === "recording" && <div className="creator-chat-voice-capture" role="status">
+      <span className="creator-chat-recording-dot" aria-hidden="true" />
+      <strong>Recording</strong>
+      <span className="creator-chat-voice-counter">{seconds}s / {maxSeconds}s</span>
+      <button className="creator-chat-voice-small-action" type="button" onClick={finish}
+        aria-label="Stop recording" title="Stop recording">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
       </button>
-    </>}
-    {phase === "permission" && <span role="status">Waiting for microphone access…</span>}
-    {phase === "recording" && <>
-      <span>Recording · {seconds}s / {maxSeconds}s</span>
-      <button type="button" onClick={() => {
-        const active = capture.current;
-        if (!active?.recorder) return;
-        window.clearTimeout(active.timeout);
-        active.timeout = window.setTimeout(() => cancel("Could not finish the recording. Try again."), 3000);
-        active.recorder.port.postMessage("stop");
-        setPhase("stopping");
-      }}>Stop recording</button>
-    </>}
-    {phase === "stopping" && <span role="status">Finishing recording…</span>}
-    {phase !== "idle" && <button type="button" onClick={() => cancel()}>Discard</button>}
-    {draft && <>
-      <audio controls src={draft.url} preload="metadata" aria-label="Preview your voice message" />
-      <button type="button" onClick={() => void send()} disabled={sending}>{sending ? "Sending…" : "Send voice message"}</button>
-      <button type="button" onClick={() => { setDraft(null); setError(""); }} disabled={sending}>Discard recording</button>
-    </>}
-    {error && <p role="alert">{error}</p>}
+    </div>}
+    {phase === "stopping" && <span role="status" className="creator-chat-voice-hint">Preparing voice message…</span>}
+    {phase !== "idle" && <button type="button" className="creator-chat-voice-small-action creator-chat-voice-discard"
+      onClick={() => cancel()} aria-label="Discard recording" title="Discard recording">{trash}</button>}
+    {draft && <div className="creator-chat-voice-review">
+      <ChatVoicePlayback src={draft.url} durationMs={seconds * 1000} preview />
+      <div className="creator-chat-voice-review-actions">
+        <button type="button" className="creator-chat-voice-small-action creator-chat-voice-discard"
+          onClick={() => { setDraft(null); setError(""); }} disabled={sending}
+          aria-label="Discard recording" title="Discard recording">{trash}</button>
+        <button type="button" className="creator-chat-voice-small-action creator-chat-voice-send"
+          onClick={() => void send()} disabled={sending} aria-label="Send voice message" title="Send voice message">
+          {sending ? <span role="status">…</span> :
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13" /></svg>}
+        </button>
+      </div>
+    </div>}
+    {error && <div className="creator-chat-voice-error-line"><span role="alert">{error}</span>
+      <button type="button" className="creator-chat-voice-small-action" title="Dismiss recording error" aria-label="Dismiss recording error" onClick={() => setError("")}>×</button>
+    </div>}
   </div>;
-}
+});
+export default ChatVoiceRecorder;
