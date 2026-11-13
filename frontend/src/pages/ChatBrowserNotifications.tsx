@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useBrowserNotifications } from '../components/BrowserNotificationsContext';
 import BackgroundPushSettings from '../components/BackgroundPushSettings';
+import './ChatPage.css';
 
 export default function ChatBrowserNotifications({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), controls = useBrowserNotifications();
