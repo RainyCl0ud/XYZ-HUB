@@ -213,7 +213,7 @@ export default function ClockPage() {
             })}</tbody>
           </table>
         </div>
-        <p className="clock-break-help">A Hub reminder appears at 20 minutes for a short break or 35 minutes for a meal. At 30 or 60 minutes, the break ends automatically and management is flagged. All break time stays paid.</p>
+        <p className="clock-break-help">Breaks end automatically when their limit is reached. All break time remains paid.</p>
       </section>}
       </div>}
       {tab === "history" && <section className="clock-history" aria-labelledby="history-title"><header><h2 id="history-title">Your completed shifts</h2><p>Times are shown in US Central. Overnight shifts belong to the day and week they started.</p></header>
