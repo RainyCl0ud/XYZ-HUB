@@ -316,6 +316,7 @@
   .creator-chat-dialog-actions button { flex: 1; }
 }
 .creator-chat-heading-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.creator-chat-heading-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
 .creator-chat-heading-tools button { padding: 10px 14px; color: #FFFFFF; background: #131313; border: 1px solid #666666; border-radius: 2px; font: inherit; cursor: pointer; }
 .creator-chat-announcements { width: min(760px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
 .creator-chat-announcements form { display: flex; flex-direction: column; gap: 12px; }
@@ -333,4 +334,94 @@
   .creator-chat-heading-tools button { min-height: 44px; }
   .creator-chat-announcements { padding: 16px; }
   .creator-chat-announcements input:not([type="checkbox"]), .creator-chat-announcements textarea { font-size: 16px; }
+}
+
+/* Mobile Chat: preserve the conversation viewport and disclose secondary
+   controls only when asked. Desktop keeps its original full toolbars. */
+@media (max-width: 720px) {
+  .creator-chat-heading {
+    align-items: center;
+    position: relative;
+    gap: 8px;
+  }
+  .creator-chat-heading-intro { flex: 1; min-width: 0; }
+  .creator-chat-heading h1 { font-size: 32px; line-height: 1.2; margin: 0; }
+  .creator-chat-heading-intro > p:last-child { display: none; }
+  .creator-chat-heading-tools {
+    position: relative;
+    align-items: flex-end;
+    flex-shrink: 0;
+    z-index: 5;
+  }
+  .creator-chat .creator-chat-options-toggle {
+    min-height: 44px;
+    padding: 8px 12px;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  .creator-chat-heading-actions {
+    display: none;
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 4px);
+    right: 0;
+    width: min(280px, calc(100vw - 40px));
+    align-items: stretch;
+    padding: 12px;
+    gap: 8px;
+    border: 1px solid #666666;
+    border-radius: 2px;
+    background: #141414;
+  }
+  .creator-chat-heading-actions.is-open { display: flex; }
+  .creator-chat-heading-actions button {
+    justify-content: flex-start;
+    min-height: 44px;
+    width: 100%;
+    text-align: left;
+  }
+  .creator-chat-channel-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  .creator-chat-browse-button { grid-column: 1; }
+  .creator-chat-channel-title { grid-column: 2; min-width: 0; }
+  .creator-chat-channel-header p { font-size: 11px; line-height: 1.35; }
+  .creator-chat-channel-header h2 { font-size: 15px; line-height: 1.3; }
+  .creator-chat-header-actions {
+    grid-column: 3;
+    display: flex;
+    align-items: center;
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    gap: 4px;
+  }
+  .creator-chat-header-actions button {
+    flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px;
+    gap: 2px;
+  }
+  .creator-chat-header-actions button > span:not(.creator-chat-member-count) {
+    display: none;
+  }
+  .creator-chat-member-count { font-size: 11px; min-width: 12px; }
+  .creator-chat-conversation-tools { display: none; }
+  .creator-chat-conversation-tools.is-open {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .creator-chat-conversation-tools.is-open button {
+    min-height: 44px;
+    justify-content: flex-start;
+  }
+  .creator-chat-members { top: 68px; max-height: calc(100% - 80px); }
 }
