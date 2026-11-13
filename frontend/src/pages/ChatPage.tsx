@@ -486,7 +486,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               {!!archivedChannels.length && <div className="creator-chat-channel-group"><h2>{channelFilter === "channels" ? "Archived channels" : "Archived private chats"} <span>{archivedChannels.length}</span></h2>{archivedChannels.map(channelRow)}</div>}
               {!visibleChannels.length && <div className="creator-chat-no-results"><p>{unreadOnly ? "No unread conversations match." : channelSearch ? "No matching conversations." : channelFilter === "channels" ? "No channels in this workspace." : "No private chats in this workspace."}</p>{(channelSearch || unreadOnly) && <button type="button" onClick={() => { setChannelSearch(""); setUnreadOnly(false); }}>Clear search</button>}</div>}
             </nav>
-            <div className="creator-chat-browse-footer">{browseArea?.canManage ? <button type="button" onClick={() => { setSettings({ modelId: browseArea.modelId, name: "" }); setShowChannels(false); }}>+ New channel</button> : <p>Only conversations you can access appear here.</p>}</div>
+            <div className="creator-chat-browse-footer">{browseArea?.canManage && channelFilter === "channels" ? <button type="button" onClick={() => { setSettings({ modelId: browseArea.modelId, name: "" }); setShowChannels(false); }}>+ New channel</button> : <p>{channelFilter === "private" ? "Private chats are assigned automatically." : "Only channels you can access appear here."}</p>}</div>
           </aside>
           <div className="creator-chat-conversation" role="region" aria-label="Conversation">
             <header className="creator-chat-channel-header">
@@ -496,7 +496,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               <div className="creator-chat-header-actions">
                  {channel?.canManage && area && <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}
                  <button type="button" aria-label="Conversation members" title="Conversation members" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button>
-                 <button type="button" className="creator-chat-mobile creator-chat-message-tools-toggle" aria-controls="chat-message-tools" aria-expanded={showConversationTools} onClick={() => setShowConversationTools(open => !open)} title="Message tools" aria-label="Message tools"><ChatIcon name="search" /><span>Tools</span></button>
+                 <button type="button" className="creator-chat-message-tools-toggle" aria-controls="chat-message-tools" aria-expanded={showConversationTools} onClick={() => setShowConversationTools(open => !open)} title="Message tools" aria-label="Message tools"><ChatIcon name="search" /><span>Tools</span></button>
                </div>
             </header>
             <div id="chat-message-tools" className={`creator-chat-conversation-tools ${showConversationTools ? "is-open" : ""}`} role="group" aria-label="Message tools">
