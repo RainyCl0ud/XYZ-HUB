@@ -33,7 +33,7 @@ import RoleBuilderPage from "./pages/RoleSettingsPage";
 import AuditPage from "./pages/AuditPage";
 import AccountPage from "./pages/AccountPage";
 const ChatPage = lazy(() => import("./pages/ChatPage"));
-const ClockPage = lazy(() => import("./pages/ClockPage"));
+const ClockWorkspaceRoute = lazy(() => import("./pages/ClockWorkspaceRoute"));
 const ClockRequestDetailPage = lazy(() => import("./pages/ClockRequestDetailPage"));
 const MyStrikesPage = lazy(() => import("./pages/MyStrikesPage"));
 
@@ -49,7 +49,7 @@ function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
-          {import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && <Route path="/clock" element={<RequirePermission permission="clock.self.view"><Suspense fallback={<p role="status">Loading your hours…</p>}><ClockPage /></Suspense></RequirePermission>} />}
+          {import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && <Route path="/clock" element={<RequirePermission permission="clock.self.view"><Suspense fallback={<p role="status">Loading your hours…</p>}><ClockWorkspaceRoute /></Suspense></RequirePermission>} />}
           {import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && <Route
             path="/clock/requests/:requestId"
             element={<RequirePermission permission="clock.self.view">
