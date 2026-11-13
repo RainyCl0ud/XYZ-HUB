@@ -20,10 +20,13 @@ export default function ChatVoicePlayback({ src, durationMs = 0, preview = false
   const [rate, setRate] = useState(1);
   const [error, setError] = useState("");
 
-  useEffect(() => () => {
-    request.current?.abort();
-    player.current?.pause();
-    if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
+  useEffect(() => {
+    const audio = player.current;
+    return () => {
+      request.current?.abort();
+      audio?.pause();
+      if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
+    };
   }, []);
 
   async function toggle() {
