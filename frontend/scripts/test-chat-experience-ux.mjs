@@ -117,6 +117,9 @@ assert.ok(player.includes('aria-label="Seek voice message"'));
 assert.ok(player.includes('title="Playback speed"'));
 assert.ok(player.includes("credentials: \"include\""));
 assert.ok(player.includes('preload={preview ? "metadata" : "none"}'));
+assert.ok(player.includes("const [audioLoaded, setAudioLoaded] = useState(false)"));
+assert.ok(player.includes("disabled={!total || (!preview && !audioLoaded)}"));
+assert.ok(!player.includes("disabled={!total || (!preview && !objectUrl.current)}"));
 pass("Three-dot menus retain file downloads and authorized moderation; waveform playback remains authenticated and lazy-loaded.");
 
 console.log(count + " Block 2 Chat UX source regression groups passed.");
