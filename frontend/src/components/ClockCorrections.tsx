@@ -176,9 +176,10 @@ function RequestForm({ shift, onClose, onSaved }: { shift: CorrectionShift | nul
 export function DecisionForm({ item, decision, onClose, onSave }: { item: Item; decision: "APPROVED" | "REJECTED" | "CANCELLED"; onClose: () => void; onSave: (note: string) => Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [note, setNote] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const writing = useRef(false);
+  const toast = useToast();
   useEffect(() => { dialog.current?.showModal(); }, []);
   const action = decision === "APPROVED" ? "Approve correction" : decision === "REJECTED" ? "Reject request" : "Cancel request";
-  async function submit(e: FormEvent) { e.preventDefault(); if (writing.current) return; writing.current = true; setBusy(true); setError(""); try { await onSave(note.trim()); } catch (e) { setError(errorText(e)); } finally { writing.current = false; setBusy(false); } }
+  async function submit(e: FormEvent) { e.preventDefault(); if (writing.current) return; writing.current = true; setBusy(true); setError(""); try { await onSave(note.trim()); } catch (e) { const message = errorText(e); setError(message); toast.error(message, "Request not updated"); } finally { writing.current = false; setBusy(false); } }
   return <dialog ref={dialog} className="clock-dialog correction-dialog" aria-labelledby="correction-decision-title" onCancel={(e) => { if (busy) e.preventDefault(); else onClose(); }}><form onSubmit={(e) => void submit(e)}><h2 id="correction-decision-title">{action} — {item.personName}</h2><p>{decision === "APPROVED" ? "Approval applies the requested times and recalculates the person's day and week totals. The original record stays in the correction history." : "Recorded hours will stay unchanged."}</p><Comparison before={item.before} proposed={item.proposed} /><p className="correction-quoted-reason">Requester's reason: {item.reason}</p>{error && <div className="clock-error" role="alert">! {error}</div>}{decision !== "CANCELLED" && <label className="correction-reason">{decision === "APPROVED" ? "Approval note" : "Reason for rejection"}<textarea required maxLength={2000} disabled={busy} value={note} onChange={(e) => setNote(e.target.value)} /></label>}<div className="correction-dialog-actions"><button type="button" disabled={busy} onClick={onClose}>Go back</button><button type="submit" className="clock-primary" disabled={busy || (decision !== "CANCELLED" && !note.trim())}>{busy ? "Saving…" : action}</button></div></form></dialog>;
 }
 export default function ClockCorrections({ mode, canRequest, canReview, canAddMissing, shifts, disabled, onChanged }: {
@@ -187,7 +188,8 @@ export default function ClockCorrections({ mode, canRequest, canReview, canAddMi
 }) {
   const [data, setData] = useState<Inbox | null>(null);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const toast = useToast();
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending">(mode === "review" ? "pending" : "all");
   const [cursor, setCursor] = useState<string | undefined>();
   const [trail, setTrail] = useState<string[]>([]);
@@ -195,8 +197,9 @@ export default function ClockCorrections({ mode, canRequest, canReview, canAddMi
   const [form, setForm] = useState<{ shift: CorrectionShift | null } | null>(null);
   const sequence = useRef(0);
 
-  const read = useCallback(async (signal?: AbortSignal) => {
+  const read = useCallback(async (signal?: AbortSignal, foreground = false) => {
     const generation = ++sequence.current;
+    if (foreground) setRefreshing(true);
     try {
       const next = await apiRequest<Inbox>(
         `/api/clock/corrections?scope=${mode}&filter=${filter}${cursor ? `&before=${encodeURIComponent(cursor)}` : ""}`,
@@ -204,9 +207,16 @@ export default function ClockCorrections({ mode, canRequest, canReview, canAddMi
       );
       if (generation === sequence.current && !signal?.aborted) { setData(next); setError(""); }
     } catch (cause) {
-      if (generation === sequence.current && !signal?.aborted) { setData(null); setError(errorText(cause)); }
+      if (generation === sequence.current && !signal?.aborted) {
+        const message = errorText(cause);
+        setData(null);
+        setError(message);
+        if (foreground) toast.error(message, "Could not refresh requests");
+      }
+    } finally {
+      if (generation === sequence.current && !signal?.aborted) setRefreshing(false);
     }
-  }, [mode, filter, cursor]);
+  }, [mode, filter, cursor, toast]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -222,7 +232,7 @@ export default function ClockCorrections({ mode, canRequest, canReview, canAddMi
   function saved() {
     sequence.current++;
     setForm(null);
-    setNotice("Correction submitted. Recorded hours stay unchanged until approval.");
+    toast.success("Correction submitted for approval. Recorded hours remain unchanged.");
     onChanged();
     window.dispatchEvent(new Event("xyz-clock-corrections-changed"));
     void read();
@@ -233,7 +243,6 @@ export default function ClockCorrections({ mode, canRequest, canReview, canAddMi
       <h2 id="clock-corrections-title">{mode === "mine" ? "My requests" : "Review requests"}</h2>
       <p>{mode === "mine" ? "Submit a correction and follow its status." : "Requests you are currently authorized to review."}</p>
     </div></header>
-    {notice && <div className="clock-notice" role="status">{notice}</div>}
     {mode === "mine" && canRequest && <div className="correction-start">
       <div><label htmlFor="correction-recorded-shift">Recorded shift</label>
         <select id="correction-recorded-shift" value={actualShift?.id ?? ""} disabled={!connected || !shifts.length}
@@ -256,16 +265,20 @@ export default function ClockCorrections({ mode, canRequest, canReview, canAddMi
           <option value="pending">Awaiting review</option>
         </select>
       </label>
-      <button type="button" onClick={() => void read()}>Refresh</button>
+      <button type="button" disabled={refreshing} onClick={() => void read(undefined, true)}>{refreshing ? "Refreshing…" : "Refresh"}</button>
     </div>
     {error && <div className="clock-error" role="alert">! {error}</div>}
-    {!data && !error && <p role="status">Loading requests…</p>}
+    {!data && !error && <div className="clock-load-panel" role="status" aria-live="polite">
+      <span className="clock-load-spinner" aria-hidden="true" />
+      Loading requests…
+    </div>}
     {data && !data.requests.length && <div className="clock-empty">
       <h3>{mode === "review" ? "No requests to review" : "No correction requests"}</h3>
       <p>{mode === "review" ? "Eligible requests will appear here." : "Your corrections and approval history will appear here."}</p>
     </div>}
-    {data && data.requests.length > 0 && <div className="clock-table-scroll" role="region"
-      aria-label={mode === "mine" ? "My correction requests" : "Correction review queue"} tabIndex={0}>
+    {data && data.requests.length > 0 && <div className="correction-table-state" aria-busy={refreshing}>
+      <div className="clock-table-scroll" role="region"
+        aria-label={mode === "mine" ? "My correction requests" : "Correction review queue"} tabIndex={0}>
       <table className="clock-data-table correction-requests-table">
         <thead><tr>
           {mode === "review" && <th scope="col">Employee</th>}
@@ -279,8 +292,14 @@ export default function ClockCorrections({ mode, canRequest, canReview, canAddMi
           <td><Link className="correction-detail-link" to={`/clock/requests/${encodeURIComponent(item.id)}?scope=${mode}`}>View details</Link></td>
         </tr>)}</tbody>
       </table>
+      </div>
+      {refreshing && <div className="correction-table-loading" role="status" aria-live="polite">
+        <span className="clock-load-spinner" aria-hidden="true" />
+        Refreshing requests…
+      </div>}
     </div>}
     <div className="correction-pagination">
+      <span className="correction-page-label" aria-label={`Page ${trail.length + 1}`}>Page {trail.length + 1}</span>
       {trail.length > 0 && <button type="button" onClick={() => {
         sequence.current++;
         const previous = trail[trail.length - 1];
