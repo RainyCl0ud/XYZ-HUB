@@ -337,7 +337,7 @@
 }
 
 /* Mobile Chat: preserve the conversation viewport and disclose secondary
-   controls only when asked. Desktop keeps its original full toolbars. */
+   controls only when asked. Secondary tools stay available on demand at every screen size. */
 @media (max-width: 720px) {
   .creator-chat-heading {
     align-items: center;
@@ -494,4 +494,10 @@
   .creator-chat-reminder-summary > div { padding: 12px; }
   .creator-chat-reminder-summary strong { font-size: 18px; }
   .creator-chat-reminder-summary .creator-chat-reminder-time { font-size: 13px; }
+}
+
+/* Search, pins and moderation tools appear only when the user requests them. */
+.creator-chat-conversation-tools { display: none; }
+@media (min-width: 721px) {
+  .creator-chat-conversation-tools.is-open { display: flex; flex-wrap: wrap; }
 }
