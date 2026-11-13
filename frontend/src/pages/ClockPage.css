@@ -137,3 +137,33 @@
   .clock-workspace { padding: 12px; gap: 16px; }
   .clock-tabs > a { flex: 1 1 120px; font-size: 12px; padding: 7px 9px; }
 }
+
+/* Shared in-page loading treatment for Clock & Hours request views. */
+.clock-load-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 176px;
+  padding: 24px;
+  border: 1px solid #444444;
+  background: #101010;
+  color: #EEEEEE;
+  font-size: 13px;
+  font-weight: 600;
+}
+.clock-load-spinner {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border: 2px solid #444444;
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: clock-spin 900ms linear infinite;
+}
+@keyframes clock-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clock-load-spinner { animation: none; border-color: #AAAAAA; border-top-color: #FFFFFF; }
+}
