@@ -478,7 +478,9 @@ export default function SidebarNavigation({
       access
     );
   const reviewCount = useClockReviewCount();
-
+  const canReviewCorrections = hasPortalPermission(access, "clock.self.view")
+    && ["clock.corrections.assigned", "clock.corrections.ops", "clock.corrections.all"]
+      .some(permission => hasPortalPermission(access, permission));
 
   const agency:
     NavigationItem[] =
@@ -540,7 +542,7 @@ export default function SidebarNavigation({
     agency.push({ id: "chat", label: "Chat", to: "/chat" });
   }
   if (import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && hasPortalPermission(access, "clock.self.view")) {
-    agency.push({ id: "clock", label: "Clock & Hours", to: "/clock", actionCount: reviewCount });
+    agency.push({ id: "clock", label: "Clock & Hours", to: "/clock", actionCount: canReviewCorrections ? reviewCount : 0 });
   }
   if (hasPortalPermission(access, "strikes.self.view")) {
     agency.push({ id: "strikes", label: "My Strikes", to: "/my-strikes" });
