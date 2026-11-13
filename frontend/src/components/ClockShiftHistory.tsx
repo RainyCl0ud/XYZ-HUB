@@ -53,7 +53,7 @@ type Props = {
 
 const duration = (seconds: number) => {
   const value = Math.max(0, Math.floor(seconds));
-  return `${String(Math.floor(value / 3600)).padStart(2, "0")}:${String(value % 3600 / 60 | 0).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+  return `${String(Math.floor(value / 3600)).padStart(2, "0")}:${String(Math.floor((value % 3600) / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 };
 
 const formatClockTime = (value: string) => new Intl.DateTimeFormat("en-US", {
@@ -126,7 +126,7 @@ export default function ClockShiftHistory({
     ? firstPage
     : loadedPage?.cursor === cursor && loadedPage.historyVersion === firstPage.historyVersion
       ? loadedPage : null;
-  const pending = Boolean(cursor && !page);
+  const pending = Boolean(cursor && !page && !error);
   const isLoading = loading || pending;
   const pageNumber = historyPageNumber(position);
 
