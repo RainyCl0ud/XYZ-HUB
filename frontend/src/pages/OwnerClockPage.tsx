@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { apiRequest, ApiError } from "../lib/api";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
@@ -58,19 +58,25 @@ export default function OwnerClockPage() {
   const [cursor, setCursor] = useState<string | undefined>();
   const [cursorTrail, setCursorTrail] = useState<string[]>([]);
   const toast = useToast();
+  const activeRequest = useRef<AbortController | null>(null);
 
-  const load = useCallback(async (signal: AbortSignal, showFeedback = false) => {
+  const load = useCallback(async (showFeedback = false) => {
+    // Every new request invalidates the previous response, including calls
+    // from polling when the Owner is navigating between pages.
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     if (showFeedback) setRefreshing(true);
     try {
       const result = await apiRequest<OwnerOverview>(
         `/api/clock/owner/overview${cursor ? `?before=${encodeURIComponent(cursor)}` : ""}`,
-        { signal },
+        { signal: controller.signal },
       );
-      if (signal.aborted) return;
+      if (controller.signal.aborted) return;
       setData(result);
       setError("");
     } catch (cause) {
-      if (signal.aborted) return;
+      if (controller.signal.aborted) return;
       if (cause instanceof ApiError && cause.status === 400 && cursor) {
         // A staff member clocking out can invalidate a previous pagination cursor.
         setCursor(undefined);
@@ -82,27 +88,23 @@ export default function OwnerClockPage() {
       setError(message);
       if (showFeedback) toast.error(message, "Attendance overview unavailable");
     } finally {
-      if (!signal.aborted) setRefreshing(false);
+      if (!controller.signal.aborted && activeRequest.current === controller) setRefreshing(false);
     }
   }, [cursor, toast]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const first = window.setTimeout(() => void load(controller.signal, true), 0);
+    const first = window.setTimeout(() => void load(true), 0);
     const poll = window.setInterval(() => {
-      if (document.visibilityState === "visible") void load(controller.signal);
+      if (document.visibilityState === "visible") void load();
     }, 15_000);
     return () => {
-      controller.abort();
+      activeRequest.current?.abort();
       window.clearTimeout(first);
       window.clearInterval(poll);
     };
   }, [load]);
 
-  const refresh = () => {
-    const controller = new AbortController();
-    void load(controller.signal, true);
-  };
+  const refresh = () => { void load(true); };
 
   return <section className="clock-page owner-attendance" aria-labelledby="clock-title">
     <header className="clock-page-heading">
