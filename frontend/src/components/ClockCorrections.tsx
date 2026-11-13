@@ -173,14 +173,14 @@ function RequestForm({ shift, onClose, onSaved }: { shift: CorrectionShift | nul
     <div className="correction-dialog-actions"><button type="button" disabled={busy} onClick={onClose}>Keep recorded times</button><button type="submit" className="clock-primary" disabled={busy || !reason.trim()}>{busy ? "Submitting…" : "Submit for approval"}</button></div>
   </form></dialog>;
 }
-export function DecisionForm({ item, decision, onClose, onSave }: { item: Item; decision: "APPROVED" | "REJECTED" | "CANCELLED"; onClose: () => void; onSave: (note: string) => Promise<void> }) {
+export function DecisionForm({ item, decision, onClose, onSave, own = false }: { item: Item; decision: "APPROVED" | "REJECTED" | "CANCELLED"; onClose: () => void; onSave: (note: string) => Promise<void>; own?: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [note, setNote] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const writing = useRef(false);
   const toast = useToast();
   useEffect(() => { dialog.current?.showModal(); }, []);
   const action = decision === "APPROVED" ? "Approve correction" : decision === "REJECTED" ? "Reject request" : "Cancel request";
   async function submit(e: FormEvent) { e.preventDefault(); if (writing.current) return; writing.current = true; setBusy(true); setError(""); try { await onSave(note.trim()); } catch (e) { const message = errorText(e); setError(message); toast.error(message, "Request not updated"); } finally { writing.current = false; setBusy(false); } }
-  return <dialog ref={dialog} className="clock-dialog correction-dialog" aria-labelledby="correction-decision-title" onCancel={(e) => { if (busy) e.preventDefault(); else onClose(); }}><form onSubmit={(e) => void submit(e)}><h2 id="correction-decision-title">{action} — {item.personName}</h2><p>{decision === "APPROVED" ? "Approval applies the requested times and recalculates the person's day and week totals. The original record stays in the correction history." : "Recorded hours will stay unchanged."}</p><Comparison before={item.before} proposed={item.proposed} /><p className="correction-quoted-reason">Requester's reason: {item.reason}</p>{error && <div className="clock-error" role="alert">! {error}</div>}{decision !== "CANCELLED" && <label className="correction-reason">{decision === "APPROVED" ? "Approval note" : "Reason for rejection"}<textarea required maxLength={2000} disabled={busy} value={note} onChange={(e) => setNote(e.target.value)} /></label>}<div className="correction-dialog-actions"><button type="button" disabled={busy} onClick={onClose}>Go back</button><button type="submit" className="clock-primary" disabled={busy || (decision !== "CANCELLED" && !note.trim())}>{busy ? "Saving…" : action}</button></div></form></dialog>;
+  return <dialog ref={dialog} className="clock-dialog correction-dialog" aria-labelledby="correction-decision-title" onCancel={(e) => { if (busy) e.preventDefault(); else onClose(); }}><form onSubmit={(e) => void submit(e)}><h2 id="correction-decision-title">{action}{own ? "" : ` — ${item.personName}`}</h2><p>{decision === "APPROVED" ? "Approval applies the requested times and recalculates the person's day and week totals. The original record stays in the correction history." : "Recorded hours will stay unchanged."}</p><Comparison before={item.before} proposed={item.proposed} /><p className="correction-quoted-reason">{own ? "Your reason" : "Employee’s reason"}: {item.reason}</p>{error && <div className="clock-error" role="alert">! {error}</div>}{decision !== "CANCELLED" && <label className="correction-reason">{decision === "APPROVED" ? "Approval note" : "Reason for rejection"}<textarea required maxLength={2000} disabled={busy} value={note} onChange={(e) => setNote(e.target.value)} /></label>}<div className="correction-dialog-actions"><button type="button" disabled={busy} onClick={onClose}>Go back</button><button type="submit" className="clock-primary" disabled={busy || (decision !== "CANCELLED" && !note.trim())}>{busy ? "Saving…" : action}</button></div></form></dialog>;
 }
 export default function ClockCorrections({ mode, canRequest, canReview, canAddMissing, shifts, disabled, onChanged }: {
   mode: "mine" | "review"; canRequest: boolean; canReview: boolean; canAddMissing: boolean;
@@ -272,10 +272,11 @@ export default function ClockCorrections({ mode, canRequest, canReview, canAddMi
       <span className="clock-load-spinner" aria-hidden="true" />
       Loading requests…
     </div>}
-    {data && !data.requests.length && <div className="clock-empty">
+    {data && !data.requests.length && !refreshing && <div className="clock-empty">
       <h3>{mode === "review" ? "No requests to review" : "No correction requests"}</h3>
       <p>{mode === "review" ? "Eligible requests will appear here." : "Your corrections and approval history will appear here."}</p>
     </div>}
+    {refreshing && data && data.requests.length === 0 && <div className="clock-load-panel" role="status" aria-live="polite"><span className="clock-load-spinner" aria-hidden="true" />Refreshing requests…</div>}
     {data && data.requests.length > 0 && <div className="correction-table-state" aria-busy={refreshing}>
       <div className="clock-table-scroll" role="region"
         aria-label={mode === "mine" ? "My correction requests" : "Correction review queue"} tabIndex={0}>
