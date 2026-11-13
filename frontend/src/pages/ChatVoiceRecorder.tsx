@@ -53,7 +53,7 @@ export default function ChatVoiceRecorder({ channelId, maxSeconds, onSent }: {
     setError("");
     setSeconds(0);
     if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext || !window.AudioWorkletNode) {
-      setError("Voice recording is unavailable in this browser. Use Attach file to send a recording.");
+      setError("Voice recording is unavailable in this browser. Use the paperclip button to send a recording.");
       return;
     }
 
