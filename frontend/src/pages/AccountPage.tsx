@@ -24,9 +24,9 @@ import {
 
 import UserAvatar from "../components/UserAvatar";
 import { useBrowserNotifications } from "../components/BrowserNotificationsContext";
-const ChatBrowserNotifications = lazy(() => import("./ChatBrowserNotifications"));
-
 import "./AccountPage.css";
+
+const ChatBrowserNotifications = lazy(() => import("./ChatBrowserNotifications"));
 
 const CENTRAL_TIME_ZONE =
   "America/Chicago";
