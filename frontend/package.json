@@ -10,6 +10,7 @@
     "test:chat-compat": "node scripts/test-chat-message-compat.mjs",
     "test:browser-notifications": "node scripts/test-browser-notifications.mjs",
     "test:clock-correction-comparison": "node scripts/test-clock-correction-comparison.mjs",
+    "test:clock-correction-ux": "node scripts/test-clock-correction-ux.mjs",
     "preview": "vite preview",
     "start": "serve -s dist -l $PORT"
   },
