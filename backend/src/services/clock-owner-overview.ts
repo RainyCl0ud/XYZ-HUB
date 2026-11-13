@@ -31,23 +31,22 @@ export async function getOwnerClockOverview(userId: string, before?: string) {
     }
 
     const now = await clockDatabaseNow(tx);
-    const openStaffShift: Prisma.ClockShiftWhereInput = {
-      endedAt: null,
-      user: {
-        is: {
-          status: "ACTIVE",
-          // Exempt system roles never belong in the working-staff overview,
-          // even if an old shift record remains open.
-          roleMemberships: {
-            none: {
-              role: {
-                archivedAt: null,
-                systemKey: { in: ["OWNER", "DEV", "MODEL"] },
-              },
-            },
+    const workingStaff: Prisma.UserWhereInput = {
+      status: "ACTIVE",
+      // Exempt system roles never belong in the working-staff totals,
+      // even if an old shift record remains open.
+      roleMemberships: {
+        none: {
+          role: {
+            archivedAt: null,
+            systemKey: { in: ["OWNER", "DEV", "MODEL"] },
           },
         },
       },
+    };
+    const openStaffShift: Prisma.ClockShiftWhereInput = {
+      endedAt: null,
+      user: { is: workingStaff },
     };
 
     let cursor: { id: string; startedAt: Date } | null = null;
@@ -99,7 +98,7 @@ export async function getOwnerClockOverview(userId: string, before?: string) {
           shift: { is: openStaffShift },
         },
       }),
-      tx.clockShift.count({ where: { startDay: centralDayKey(now) } }),
+      tx.clockShift.count({ where: { startDay: centralDayKey(now), user: { is: workingStaff } } }),
       tx.clockCorrection.count({
         where: {
           status: "PENDING",
