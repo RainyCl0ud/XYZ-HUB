@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiError, apiRequest } from "../lib/api";
+import { useAuth } from "../auth/AuthContext";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
 import ClockCorrections from "../components/ClockCorrections";
 import ClockShiftHistory, { type ClockHistoryShift as Shift } from "../components/ClockShiftHistory";
@@ -23,6 +24,8 @@ const formatClockTime = (value: string) => new Intl.DateTimeFormat("en-US", { ti
 const describeError = (error: unknown) => error instanceof Error ? error.message : "Unable to update your attendance. Please try again.";
 
 export default function ClockPage() {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [searchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
   const [data, setData] = useState<ClockState | null>(null);
@@ -30,7 +33,7 @@ export default function ClockPage() {
   const [loadError, setLoadError] = useState("");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const [historyCache, setHistoryCache] = useState<{ version: string; entries: Shift[] } | null>(null);
+  const [historyCache, setHistoryCache] = useState<{ userId: string; version: string; entries: Shift[] } | null>(null);
   const [confirmOut, setConfirmOut] = useState(false);
   const baseline = useRef({ server: 0, received: 0 });
   const operation = useRef(0);
@@ -52,12 +55,16 @@ export default function ClockPage() {
   }, []);
 
   const cacheOlderHistory = useCallback((entries: Shift[], version: string) => {
+    if (!userId) return;
     setHistoryCache(previous => {
-      const older = previous?.version === version ? previous.entries : [];
-      const byId = new Map([...older, ...entries].map(shift => [shift.id, shift]));
-      return { version, entries: [...byId.values()] };
+      const older = previous?.userId === userId && previous.version === version
+        ? previous.entries : [];
+      const byId = new Map<string, Shift>(
+        [...older, ...entries].map((shift): [string, Shift] => [shift.id, shift]),
+      );
+      return { userId, version, entries: [...byId.values()] };
     });
-  }, []);
+  }, [userId]);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
     const generation = operation.current;
@@ -223,7 +230,7 @@ export default function ClockPage() {
         shifts={[...new Map([
           ...(data.currentShift ? [data.currentShift] : []),
           ...data.history,
-          ...(historyCache?.version === data.historyVersion ? historyCache.entries : []),
+          ...(historyCache?.userId === userId && historyCache.version === data.historyVersion ? historyCache.entries : []),
         ].map((shift): [string, Shift] => [shift.id, shift])).values()]}
         disabled={busy || !online}
         onChanged={() => { void refresh().catch((e: unknown) => setLoadError(describeError(e))); }}
