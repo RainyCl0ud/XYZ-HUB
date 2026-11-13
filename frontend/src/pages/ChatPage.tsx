@@ -93,6 +93,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showConversationTools, setShowConversationTools] = useState(false);
   const [showComposerMenu, setShowComposerMenu] = useState(false);
+  const [composerFileActive, setComposerFileActive] = useState(false);
+  const [composerVoiceActive, setComposerVoiceActive] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
   const [showChannelSearch, setShowChannelSearch] = useState(false);
   const [channelFilter, setChannelFilter] = useState<"channels" | "private">("channels");
@@ -170,6 +172,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
     setShowChatOptions(false);
     setShowConversationTools(false);
     setShowComposerMenu(false);
+    setComposerFileActive(false);
+    setComposerVoiceActive(false);
     pendingSend.current = null;
     followMessages.current = true;
     earlierScroll.current = null;
@@ -542,7 +546,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 <div className="creator-chat-composer-plus" ref={composerMenuRef}>
                   <button type="button" className="creator-chat-composer-plus-toggle" aria-label="Add attachment or voice message" title="Add to message"
                     aria-controls="chat-composer-menu" aria-expanded={showComposerMenu}
-                    disabled={sending || !!edit || !!reply || (!attachmentMaxBytes && !voiceMaxSeconds)}
+                    disabled={sending || composerFileActive || composerVoiceActive || !!edit || !!reply || (!attachmentMaxBytes && !voiceMaxSeconds)}
                     onClick={() => setShowComposerMenu(open => !open)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                   </button>
@@ -565,9 +569,9 @@ function ChatWorkspace({ userId }: { userId: string }) {
               </div>
               <div className="creator-chat-composer-drafts">
                 {attachmentMaxBytes > 0 && !edit && !reply && <ChatAttachmentPicker ref={attachmentPicker} key={selected} channelId={selected}
-                  maxBytes={attachmentMaxBytes} onSent={message => showSentMessage(selected, message)} />}
+                  maxBytes={attachmentMaxBytes} onActiveChange={setComposerFileActive} onSent={message => showSentMessage(selected, message)} />}
                 {voiceMaxSeconds > 0 && !edit && !reply && <ChatVoiceRecorder ref={voiceRecorder} key={selected} channelId={selected}
-                  maxSeconds={voiceMaxSeconds} onSent={message => showSentMessage(selected, message)} />}
+                  maxSeconds={voiceMaxSeconds} onActiveChange={setComposerVoiceActive} onSent={message => showSentMessage(selected, message)} />}
               </div>
               <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Enter to send · Shift + Enter for a new line</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000 · Draft kept while Chat stays open` : ""}</span></small></div>
             </form> : transcript && <div className="creator-chat-readonly">
