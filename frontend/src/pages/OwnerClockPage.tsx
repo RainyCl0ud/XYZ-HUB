@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import ClockTabs from "../components/ClockTabs";
 import { apiRequest, ApiError } from "../lib/api";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
 import ClockCorrections from "../components/ClockCorrections";
@@ -115,10 +116,7 @@ export default function OwnerClockPage() {
       </div>
       <span className="clock-zone">US Central · CDT / CST automatically</span>
     </header>
-    <nav className="clock-tabs" aria-label="Owner attendance sections">
-      <Link to="/clock" aria-current={tab === "overview" ? "page" : undefined}>Attendance overview</Link>
-      <Link to="/clock?tab=review" aria-current={tab === "review" ? "page" : undefined}>Review requests</Link>
-    </nav>
+    <ClockTabs mode="owner" activeTab={tab} canReview={true} />
 
     {tab === "review" ? <ClockCorrections
       mode="review"
