@@ -19,7 +19,8 @@ let count = 0;
 function pass(label) { console.log(`PASS ${++count}: ${label}`); }
 
 try {
-  const { Comparison, getRequestedChanges } = await vite.ssrLoadModule('/src/components/ClockCorrections.tsx');
+  const { Comparison } = await vite.ssrLoadModule('/src/components/ClockCorrections.tsx');
+  const { getRequestedChanges } = await vite.ssrLoadModule('/src/lib/clock-correction-comparison.ts');
   const shift = () => ({
     startedAt: '2026-11-10T14:00:00.000Z',
     endedAt: '2026-11-10T22:00:00.000Z',

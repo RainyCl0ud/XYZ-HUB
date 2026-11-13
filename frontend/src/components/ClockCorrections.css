@@ -74,3 +74,32 @@
 .correction-detail-link:hover { background: #202020; border-color: #FFFFFF; }
 .correction-detail-link:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
 .clock-page .clock-corrections { margin-top: 0; }
+
+.correction-timezone-note {
+  margin: 12px 0 20px !important;
+  padding: 12px 14px;
+  border-left: 3px solid #FFFFFF;
+  background: #1C1C1C;
+  font-size: 13px !important;
+  line-height: 1.6;
+}
+.correction-timezone-note strong { display: block; }
+.correction-timezone-note time { display: block; color: #DDDDDD; font-variant-numeric: tabular-nums; }
+.correction-time input[aria-invalid="true"] { border-color: #FFFFFF; outline: 1px solid #FFFFFF; }
+.correction-table-state { position: relative; min-width: 0; }
+.correction-table-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 120px;
+  background: rgba(9, 9, 9, .88);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 700;
+}
+.correction-pagination { align-items: center; }
+.correction-page-label { margin-right: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: #CCCCCC; }

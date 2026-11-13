@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, apiRequest } from "../lib/api";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
 import ClockCorrections from "../components/ClockCorrections";
+import { useToast } from "../components/ToastProvider";
 import "./ClockPage.css";
 
 type BreakKind = "SHORT_ONE" | "SHORT_TWO" | "MEAL";
@@ -27,8 +28,7 @@ export default function ClockPage() {
   const [data, setData] = useState<ClockState | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [loadError, setLoadError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [notice, setNotice] = useState("");
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
@@ -88,16 +88,16 @@ export default function ClockPage() {
   async function write(action: string, path: string, body: Record<string, unknown>, nonce = false) {
     if (writing.current) return;
     writing.current = true; operation.current++;
-    setBusy(true); setActionError(""); setNotice("");
+    setBusy(true);
     if (nonce && pending.current?.action !== action) pending.current = { action, requestId: crypto.randomUUID() };
     try {
       const result = await apiRequest<ClockState>(path, { method: "POST", body: JSON.stringify({ ...body, ...(nonce ? { requestId: pending.current!.requestId } : {}) }) });
       if (!mounted.current) return;
       accept(result); pending.current = null; setConfirmOut(false);
-      setNotice(action === "in" ? "You’re clocked in. Your shift is being recorded." : action === "out" ? "You’re clocked out. Your hours and paid breaks have been saved." : action === "end-break" ? "Break ended. You’re back on your shift." : "Your paid break has started.");
+      toast.success(action === "in" ? "You’re clocked in. Your shift is being recorded." : action === "out" ? "You’re clocked out. Your hours and paid breaks have been saved." : action === "end-break" ? "Break ended. You’re back on your shift." : "Your paid break has started.");
     } catch (error) {
       if (mounted.current) {
-        setActionError(describeError(error)); setConfirmOut(false);
+        toast.error(describeError(error), "Attendance action failed"); setConfirmOut(false);
         if (error instanceof ApiError && [401, 403, 404].includes(error.status)) setData(null);
       }
     } finally {
@@ -112,10 +112,10 @@ export default function ClockPage() {
     try {
       const result = await apiRequest<ClockState>(`/api/clock/me?before=${encodeURIComponent(data.nextBefore)}`);
       if (mounted.current && generation === operation.current && !writing.current) {
-        if (data.historyVersion !== result.historyVersion) { await refresh(); setNotice("Approved corrections changed your history. The latest shifts have been refreshed."); }
+        if (data.historyVersion !== result.historyVersion) { await refresh(); toast.info("Approved corrections changed your history. Your latest shifts have been refreshed."); }
         else accept(result, true);
       }
-    } catch (e) { if (mounted.current) setLoadError(describeError(e)); }
+    } catch (e) { if (mounted.current) toast.error(describeError(e), "Could not load shift history"); }
     finally { if (mounted.current) setLoadingOlder(false); }
   }
   const shift = data?.currentShift;
@@ -132,8 +132,6 @@ export default function ClockPage() {
   return <section className="clock-page" aria-labelledby="clock-title">
     <header className="clock-page-heading"><div><p className="clock-eyebrow">YOUR ATTENDANCE</p><h1 id="clock-title">Clock &amp; Hours</h1><p>Your shifts and paid breaks, recorded in one place.</p></div><span className="clock-zone">US Central · CDT / CST automatically</span></header>
     {loadError && <div className="clock-error" role="alert">! {loadError} <button type="button" onClick={() => void refresh().catch((e: unknown) => setLoadError(describeError(e)))}>Retry connection</button></div>}
-    {actionError && <div className="clock-error" role="alert">! {actionError}</div>}
-    {notice && <div className="clock-notice" role="status">{notice}</div>}
     {data && <nav className="clock-tabs" aria-label="Clock and Hours sections">
       <Link to="/clock" aria-current={tab === "overview" ? "page" : undefined}>Overview</Link>
       <Link to="/clock?tab=requests" aria-current={tab === "requests" ? "page" : undefined}>My requests</Link>
@@ -213,7 +211,7 @@ export default function ClockPage() {
             })}</tbody>
           </table>
         </div>
-        <p className="clock-break-help">A Hub reminder appears at 20 minutes for a short break or 35 minutes for a meal. At 30 or 60 minutes, the break ends automatically and management is flagged. All break time stays paid.</p>
+        <p className="clock-break-help">Breaks end automatically when their limit is reached. All break time remains paid.</p>
       </section>}
       </div>}
       {tab === "history" && <section className="clock-history" aria-labelledby="history-title"><header><h2 id="history-title">Your completed shifts</h2><p>Times are shown in US Central. Overnight shifts belong to the day and week they started.</p></header>

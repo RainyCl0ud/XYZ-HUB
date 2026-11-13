@@ -10,7 +10,7 @@
 .clock-request-reason, .clock-request-review, .clock-request-full-record { padding-top: 20px; margin-top: 20px; border-top: 1px solid #444444; }
 .clock-request-reason h3, .clock-request-review h3 { font-size: 15px; margin-bottom: 10px; }
 .clock-request-reason p, .clock-request-review p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
-.clock-request-full-record summary { padding: 8px 0; cursor: pointer; font-weight: 700; font-size: 13px; }
+.clock-request-full-record h3 { margin: 0 0 12px; font-weight: 800; font-size: 15px; }
 .clock-request-full-record .clock-table-scroll { margin-top: 12px; }
 .clock-request-full-record .clock-data-table { min-width: 640px; }
 .clock-request-page .clock-page-heading button { flex-shrink: 0; }
