@@ -19,6 +19,7 @@ import "./WebKitFoundation.css";
 
 import App from "./App";
 import BrowserNotificationsProvider from './components/BrowserNotificationsProvider';
+import ClockReviewCountProvider from "./components/ClockReviewCountProvider";
 
 import {
   AuthProvider,
@@ -37,7 +38,9 @@ createRoot(
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
-          <BrowserNotificationsProvider><App /></BrowserNotificationsProvider>
+          <ClockReviewCountProvider>
+            <BrowserNotificationsProvider><App /></BrowserNotificationsProvider>
+          </ClockReviewCountProvider>
         </AuthProvider>
       </ToastProvider>
     </BrowserRouter>
