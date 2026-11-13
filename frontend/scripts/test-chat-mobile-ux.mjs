@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const page = await readFile(resolve(root, "src/pages/ChatPage.tsx"), "utf8");
-const css = await readFile(resolve(root, "src/pages/ChatPage.css"), "utf8");
+const css = (await readFile(resolve(root, "src/pages/ChatPage.css"), "utf8")).replace(/\r\n?/g, "\n");
 let passed = 0;
 const pass = (description) => console.log(`PASS ${++passed}: ${description}`);
 
