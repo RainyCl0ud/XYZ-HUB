@@ -28,6 +28,11 @@ export default function BrowserNotificationsProvider({ children }: { children: R
     try { localStorage.removeItem(preferenceKey(id)); resetAlertHistory(localStorage, id); setError(''); }
     catch { setError('Browser storage is unavailable. Block notifications in your browser settings to stop them.'); }
     setEnabled(false); clear(id); changed();
+    // One-click Off must also stop this browser's previously opted-in
+    // background push subscription, not only foreground pop-ups.
+    void releaseBackgroundPush(id).catch(() => {
+      setError("Open-tab notifications are off, but background push could not be disabled. Check advanced settings.");
+    });
   }, [id, clear]);
   useEffect(() => {
     let stopped = false, running = false, timer: ReturnType<typeof setTimeout>;
