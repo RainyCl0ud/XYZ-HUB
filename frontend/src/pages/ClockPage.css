@@ -54,6 +54,27 @@
 .clock-history td:first-child { min-width: 205px; }
 .clock-history td:nth-child(2) { min-width: 200px; }
 .clock-history td:last-child { min-width: 175px; }
+.clock-history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #CCCCCC;
+}
+.clock-history-pagination-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 460px) {
+  .clock-history-pagination { flex-direction: column; align-items: stretch; }
+  .clock-history-pagination-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .clock-dialog { width: min(480px, calc(100vw - 32px)); max-height: 85dvh; overflow-y: auto; padding: 24px; color: #FFFFFF; background: #141414; border: 1px solid #FFFFFF; border-radius: 2px; }
 .clock-dialog::backdrop { background: #000000; }
 .clock-dialog h2 { font-size: 18px; font-weight: 800; margin: 0 0 16px; }
