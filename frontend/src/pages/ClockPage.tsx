@@ -3,14 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import { ApiError, apiRequest } from "../lib/api";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
 import ClockCorrections from "../components/ClockCorrections";
+import ClockShiftHistory, { type ClockHistoryShift as Shift } from "../components/ClockShiftHistory";
 import ClockTabs from "../components/ClockTabs";
 import { useToast } from "../components/ToastProvider";
 import "./ClockPage.css";
 
 type BreakKind = "SHORT_ONE" | "SHORT_TWO" | "MEAL";
-type PaidBreak = { id: string; kind: BreakKind; label: string; startedAt: string; endedAt: string | null; endReason: string | null; elapsedSeconds: number; allowanceSeconds: number; limitSeconds: number };
-type Shift = { id: string; recordVersion: string; correctionCount: number; personName: string; startedAt: string; endedAt: string | null; startDay: string; startWeek: string; workedSeconds: number; paidBreakSeconds: number; breaks: PaidBreak[] };
-type ClockState = { serverNow: string; historyVersion: string; timeZone: string; canTrack: boolean; canRequestCorrections: boolean; canReviewCorrections: boolean; exempt: boolean; currentShift: Shift | null; history: Shift[]; hasMore: boolean; nextBefore: string | null; totals: { dayKey: string; weekKey: string; todaySeconds: number; weekSeconds: number } };
+remove redundant local wire shapestype ClockState = { serverNow: string; historyVersion: string; timeZone: string; canTrack: boolean; canRequestCorrections: boolean; canReviewCorrections: boolean; exempt: boolean; currentShift: Shift | null; history: Shift[]; hasMore: boolean; nextBefore: string | null; totals: { dayKey: string; weekKey: string; todaySeconds: number; weekSeconds: number } };
 const BREAK_OPTIONS: { kind: BreakKind; label: string; minutes: number }[] = [
   { kind: "SHORT_ONE", label: "Short break 1", minutes: 15 },
   { kind: "SHORT_TWO", label: "Short break 2", minutes: 15 },
@@ -31,7 +30,7 @@ export default function ClockPage() {
   const [loadError, setLoadError] = useState("");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [historyCache, setHistoryCache] = useState<{ version: string; entries: Shift[] } | null>(null);
   const [confirmOut, setConfirmOut] = useState(false);
   const baseline = useRef({ server: 0, received: 0 });
   const operation = useRef(0);
@@ -41,26 +40,25 @@ export default function ClockPage() {
   const pending = useRef<{ action: string; requestId: string } | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
 
-  const accept = useCallback((next: ClockState, older = false) => {
-    const stale = Date.parse(next.serverNow) < baseline.current.server;
-    if (!stale) {
-      baseline.current = { server: Date.parse(next.serverNow), received: performance.now() };
-      setElapsed(0);
-    }
-    setData((previous) => {
-      if (!previous) return next;
-      if (stale) return previous;
-      const changedHistory = previous.historyVersion !== next.historyVersion;
-      const merged = new Map((changedHistory ? next.history : older ? [...previous.history, ...next.history] : [...next.history, ...previous.history]).map((s) => [s.id, s]));
-      // Fresh server rows replace old snapshots, while older loaded history stays.
-      if (!older) for (const shift of next.history) merged.set(shift.id, shift);
-      const history = [...merged.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt) || b.id.localeCompare(a.id));
-      const keepCursor = !older && !changedHistory && previous.history.some((s) => !next.history.some((n) => n.id === s.id));
-      return { ...(stale ? previous : next), history,
-        ...(older ? { hasMore: next.hasMore, nextBefore: next.nextBefore } : keepCursor ? { hasMore: previous.hasMore, nextBefore: previous.nextBefore } : {}) };
-    });
+  const accept = useCallback((next: ClockState) => {
+    // All normal clock responses contain the latest bounded history page.
+    // Never append older rows to it: selected history pages are rendered
+    // separately, while the corrections picker retains older cached shifts.
+    if (Date.parse(next.serverNow) < baseline.current.server) return;
+    baseline.current = { server: Date.parse(next.serverNow), received: performance.now() };
+    setElapsed(0);
+    setData(next);
     setLoadError("");
   }, []);
+
+  const cacheOlderHistory = useCallback((entries: Shift[], version: string) => {
+    setHistoryCache(previous => {
+      const older = previous?.version === version ? previous.entries : [];
+      const byId = new Map([...older, ...entries].map(shift => [shift.id, shift]));
+      return { version, entries: [...byId.values()] };
+    });
+  }, []);
+
   const refresh = useCallback(async (signal?: AbortSignal) => {
     const generation = operation.current;
     const sequence = ++refreshSequence.current;
@@ -106,19 +104,13 @@ export default function ClockPage() {
       if (mounted.current) { setBusy(false); void refresh().catch(() => {}); }
     }
   }
-  async function loadOlder() {
-    if (!data?.nextBefore || loadingOlder) return;
-    const generation = operation.current;
-    setLoadingOlder(true);
+  const syncHistoryAfterChange = useCallback(async () => {
     try {
-      const result = await apiRequest<ClockState>(`/api/clock/me?before=${encodeURIComponent(data.nextBefore)}`);
-      if (mounted.current && generation === operation.current && !writing.current) {
-        if (data.historyVersion !== result.historyVersion) { await refresh(); toast.info("Approved corrections changed your history. Your latest shifts have been refreshed."); }
-        else accept(result, true);
-      }
-    } catch (e) { if (mounted.current) toast.error(describeError(e), "Could not load shift history"); }
-    finally { if (mounted.current) setLoadingOlder(false); }
-  }
+      await refresh();
+    } catch (error) {
+      toast.error(describeError(error), "Unable to refresh shift history");
+    }
+  }, [refresh, toast]);
   const shift = data?.currentShift;
   const activeBreak = shift?.breaks.find((b) => !b.endedAt);
   const shiftSeconds = shift ? shift.workedSeconds + elapsed : 0;
@@ -210,17 +202,29 @@ export default function ClockPage() {
         <p className="clock-break-help">Breaks end automatically when their limit is reached. All break time remains paid.</p>
       </section>}
       </div>}
-      {tab === "history" && <section className="clock-history" aria-labelledby="history-title"><header><h2 id="history-title">Your completed shifts</h2><p>Times are shown in US Central. Overnight shifts belong to the day and week they started.</p></header>
-        {!data.history.length ? <div className="clock-empty"><h3>No completed shifts yet</h3><p>After you clock out, your shift and paid breaks will appear here.</p></div> : <div className="clock-table-scroll" role="region" aria-label="Completed shifts table" tabIndex={0}><table className="clock-data-table"><thead><tr><th scope="col">CLOCKED IN</th><th scope="col">CLOCKED OUT</th><th scope="col" className="clock-number">WORKED TIME</th><th scope="col" className="clock-number">PAID BREAKS</th><th scope="col">BREAK DETAILS</th></tr></thead><tbody>{data.history.map((s) => <tr key={s.id}><td>{formatClockTime(s.startedAt)}{!!s.correctionCount && <span className="clock-corrected-label">Approved correction applied</span>}</td><td>{formatClockTime(s.endedAt!)}</td><td className="clock-number">{duration(s.workedSeconds)}</td><td className="clock-number">{duration(s.paidBreakSeconds)}</td><td><details className="clock-break-details"><summary>{s.breaks.length ? `View ${s.breaks.length} paid ${s.breaks.length === 1 ? "break" : "breaks"}` : "No breaks"}</summary>{!!s.breaks.length && <ul>{s.breaks.map((b) => <li key={b.id}><strong>{b.label}</strong><span>{duration(b.elapsedSeconds)} · {b.endReason === "LIMIT" ? "Ended automatically at the limit" : b.endReason === "CLOCK_OUT" ? "Ended with clock-out" : b.endReason === "CORRECTION" ? "Corrected with approval" : "Returned from break"}</span></li>)}</ul>}</details></td></tr>)}</tbody></table></div>}
-        {data.hasMore && <button type="button" disabled={loadingOlder || busy} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load earlier shifts"}</button>}
-      </section>}
+      {tab === "history" && <ClockShiftHistory
+        key={data.historyVersion}
+        firstPage={{
+          history: data.history,
+          historyVersion: data.historyVersion,
+          hasMore: data.hasMore,
+          nextBefore: data.nextBefore,
+        }}
+        disabled={busy}
+        onOlderPageLoaded={cacheOlderHistory}
+        onHistoryChanged={syncHistoryAfterChange}
+      />}
       {(tab === "requests" || tab === "review") && <ClockCorrections
         key={tab}
         mode={tab === "review" ? "review" : "mine"}
         canRequest={data.canRequestCorrections}
         canReview={data.canReviewCorrections}
         canAddMissing={data.canTrack}
-        shifts={[...(data.currentShift ? [data.currentShift] : []), ...data.history]}
+        shifts={[...new Map([
+          ...(data.currentShift ? [data.currentShift] : []),
+          ...data.history,
+          ...(historyCache?.version === data.historyVersion ? historyCache.entries : []),
+        ].map(shift => [shift.id, shift])).values()]}
         disabled={busy || !online}
         onChanged={() => { void refresh().catch((e: unknown) => setLoadError(describeError(e))); }}
       />}
