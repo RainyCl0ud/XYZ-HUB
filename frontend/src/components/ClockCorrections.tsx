@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { apiRequest } from "../lib/api";
 import { Link } from "react-router-dom";
+import { useToast } from "./ToastProvider";
 import { centralInputValue, centralTimeCandidates, formatCorrectionTime } from "../lib/clock-correction-time";
 import "./ClockCorrections.css";
 
@@ -17,13 +18,17 @@ const initialTime = (instant: string | null): TimeValue => ({ wall: instant ? ce
 const errorText = (e: unknown) => e instanceof Error ? e.message : "Unable to update corrections. Please try again.";
 const statusLabels = { PENDING: "Awaiting review", APPROVED: "Approved", REJECTED: "Rejected", CANCELLED: "Cancelled" };
 
-function TimeField({ label, value, onChange, disabled }: { label: string; value: TimeValue; onChange: (value: TimeValue) => void; disabled: boolean }) {
+function TimeField({ label, value, onChange, disabled, nowMs }: { label: string; value: TimeValue; onChange: (value: TimeValue) => void; disabled: boolean; nowMs: number }) {
   const id = useId();
   const candidates = centralTimeCandidates(value.wall);
+  const isFuture = Boolean(value.instant) && Date.parse(value.instant) > nowMs;
+  const isInvalid = candidates.length === 0 && Boolean(value.wall);
+  const helperId = (isFuture || isInvalid) ? `${id}-help` : undefined;
   return <div className="correction-time"><label htmlFor={id}>{label} <span>US Central</span></label>
-    <input id={id} type="datetime-local" step="1" required disabled={disabled} value={value.wall} aria-describedby={candidates.length === 0 && value.wall ? `${id}-help` : undefined}
+    <input id={id} type="datetime-local" step="1" required disabled={disabled} value={value.wall} aria-invalid={isFuture || isInvalid} aria-describedby={helperId}
       onChange={(e) => { const wall = e.target.value; const options = centralTimeCandidates(wall); onChange({ wall, instant: options.length === 1 ? options[0] : "" }); }} />
-    {value.wall && candidates.length === 0 && <p id={`${id}-help`} className="correction-field-error">! This is not a valid Central time. During spring daylight saving, some times do not exist.</p>}
+    {isInvalid && <p id={helperId} className="correction-field-error">This is not a valid Central time. Some times do not exist during the spring daylight-saving transition.</p>}
+    {isFuture && <p id={helperId} className="correction-field-error">{label} is later than the current US Central time. Choose a time that has already occurred.</p>}
     {candidates.length > 1 && <><label htmlFor={`${id}-occurrence`}>This time occurs twice. Choose which one.</label><select id={`${id}-occurrence`} required disabled={disabled} value={value.instant} onChange={(e) => onChange({ ...value, instant: e.target.value })}><option value="">Choose CDT or CST</option>{candidates.map((instant) => <option key={instant} value={instant}>{formatCorrectionTime(instant)}</option>)}</select></>}
   </div>;
 }
@@ -110,6 +115,12 @@ function RequestForm({ shift, onClose, onSaved }: { shift: CorrectionShift | nul
   const [end, setEnd] = useState(() => initialTime(shift?.endedAt ?? null));
   const [breaks, setBreaks] = useState(() => (shift?.breaks ?? []).map((b) => ({ kind: b.kind, start: initialTime(b.startedAt), end: initialTime(b.endedAt), recorded: true })));
   const [reason, setReason] = useState("");
+  const toast = useToast();
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const writing = useRef(false);
@@ -118,22 +129,44 @@ function RequestForm({ shift, onClose, onSaved }: { shift: CorrectionShift | nul
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (writing.current) return;
-    if (![start, end, ...breaks.flatMap((b) => [b.start, b.end])].every((v) => v.instant && centralTimeCandidates(v.wall).includes(v.instant))) { setError("Choose a valid Central time for every field, including the CDT/CST occurrence where requested."); return; }
+    if (![start, end, ...breaks.flatMap((b) => [b.start, b.end])].every((v) => v.instant && centralTimeCandidates(v.wall).includes(v.instant))) {
+      setError("Choose a valid US Central time for every field, including the CDT/CST occurrence when prompted.");
+      return;
+    }
+    const now = Date.now();
+    const future = [
+      { label: "Clocked in", value: start },
+      { label: "Clocked out", value: end },
+      ...breaks.flatMap((pause) => [
+        { label: `${labels[pause.kind]} start`, value: pause.start },
+        { label: `${labels[pause.kind]} end`, value: pause.end },
+      ]),
+    ].find((field) => Date.parse(field.value.instant) > now);
+    if (future) {
+      setNowMs(now);
+      setError(`${future.label} is in the future in US Central time. Check the date, time and timezone before submitting.`);
+      return;
+    }
     const payload = { ...(shift ? { shiftId: shift.id, expectedVersion: shift.recordVersion } : {}), reason: reason.trim(), proposed: { startedAt: start.instant, endedAt: end.instant, breaks: breaks.map((b) => ({ kind: b.kind, startedAt: b.start.instant, endedAt: b.end.instant })) } };
     const key = JSON.stringify(payload);
     if (pending.current?.key !== key) pending.current = { key, requestId: crypto.randomUUID() };
     writing.current = true; setBusy(true); setError("");
     try { await apiRequest("/api/clock/corrections", { method: "POST", body: JSON.stringify({ ...payload, requestId: pending.current!.requestId }) }); onSaved(); }
-    catch (e) { setError(errorText(e)); }
+    catch (e) { const message = errorText(e); setError(message); toast.error(message, "Correction not submitted"); }
     finally { writing.current = false; setBusy(false); }
   }
   return <dialog ref={dialog} className="clock-dialog correction-dialog" aria-labelledby="correction-request-title" onCancel={(e) => { if (busy) e.preventDefault(); else onClose(); }}><form onSubmit={(e) => void submit(e)}>
-    <h2 id="correction-request-title">{shift ? "Request a time correction" : "Request a missed shift"}</h2><p>Enter the actual times and explain what happened. Your recorded hours stay unchanged until someone else approves.</p>
+    <h2 id="correction-request-title">{shift ? "Request a time correction" : "Request a missed shift"}</h2>
+    <p>Enter the actual times and explain what happened. Recorded hours only change after approval.</p>
+    <p className="correction-timezone-note">
+      <strong>Times use US Central (CDT/CST), not your device's timezone.</strong>
+      <time dateTime={new Date(nowMs).toISOString()}> Current US Central time: {formatCorrectionTime(new Date(nowMs).toISOString())}</time>
+    </p>
     {shift && !shift.endedAt && <p className="correction-hint">This shift is still open. Enter when you actually finished. You can still clock out normally, but doing so changes the record and this request will need to be resubmitted.</p>}
     {error && <div className="clock-error" role="alert">! {error}</div>}
-    <div className="correction-time-grid"><TimeField label="Clocked in" value={start} onChange={setStart} disabled={busy} /><TimeField label="Clocked out" value={end} onChange={setEnd} disabled={busy} /></div>
+    <div className="correction-time-grid"><TimeField label="Clocked in" value={start} onChange={setStart} disabled={busy} nowMs={nowMs} /><TimeField label="Clocked out" value={end} onChange={setEnd} disabled={busy} nowMs={nowMs} /></div>
     <fieldset disabled={busy}><legend>Paid breaks</legend><p>All breaks stay included in worked hours. Keep recorded breaks; correct an accidental break to zero duration rather than erasing its history.</p>
-      {breaks.map((pause, index) => <div className="correction-break" key={pause.kind}><div className="correction-break-heading"><strong>{labels[pause.kind]}</strong>{!pause.recorded && <button type="button" onClick={() => setBreaks((old) => old.filter((b) => b.kind !== pause.kind))}>Remove added break</button>}</div><div className="correction-time-grid"><TimeField label={`${labels[pause.kind]} started`} value={pause.start} disabled={busy} onChange={(start) => setBreaks((old) => old.map((b, i) => i === index ? { ...b, start } : b))} /><TimeField label={`${labels[pause.kind]} ended`} value={pause.end} disabled={busy} onChange={(end) => setBreaks((old) => old.map((b, i) => i === index ? { ...b, end } : b))} /></div></div>)}
+      {breaks.map((pause, index) => <div className="correction-break" key={pause.kind}><div className="correction-break-heading"><strong>{labels[pause.kind]}</strong>{!pause.recorded && <button type="button" onClick={() => setBreaks((old) => old.filter((b) => b.kind !== pause.kind))}>Remove added break</button>}</div><div className="correction-time-grid"><TimeField label={`${labels[pause.kind]} started`} value={pause.start} disabled={busy} nowMs={nowMs} onChange={(start) => setBreaks((old) => old.map((b, i) => i === index ? { ...b, start } : b))} /><TimeField label={`${labels[pause.kind]} ended`} value={pause.end} disabled={busy} nowMs={nowMs} onChange={(end) => setBreaks((old) => old.map((b, i) => i === index ? { ...b, end } : b))} /></div></div>)}
       <div className="correction-add-breaks">{(Object.keys(labels) as Kind[]).filter((kind) => !breaks.some((b) => b.kind === kind)).map((kind) => <button key={kind} type="button" onClick={() => setBreaks((old) => [...old, { kind, start: initialTime(null), end: initialTime(null), recorded: false }])}>Add missed {labels[kind].toLowerCase()}</button>)}</div>
     </fieldset>
     <label className="correction-reason">Reason for the correction<textarea required maxLength={2000} disabled={busy} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Explain the missed or incorrect time." /></label>
