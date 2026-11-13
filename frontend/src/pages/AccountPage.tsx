@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useEffect,
   useRef,
   useState,
@@ -22,7 +24,7 @@ import {
 
 import UserAvatar from "../components/UserAvatar";
 import { useBrowserNotifications } from "../components/BrowserNotificationsContext";
-import ChatBrowserNotifications from "./ChatBrowserNotifications";
+const ChatBrowserNotifications = lazy(() => import("./ChatBrowserNotifications"));
 
 import "./AccountPage.css";
 
@@ -503,7 +505,7 @@ function AccountPage() {
         </div>
         <button type="button" className="secondary-button" onClick={() => setNotificationSettingsOpen(true)}>Manage browser notifications</button>
       </section>}
-      {canManageChatNotifications && notificationSettingsOpen && <ChatBrowserNotifications onClose={() => setNotificationSettingsOpen(false)} />}
+      {canManageChatNotifications && notificationSettingsOpen && <Suspense fallback={<p role="status">Loading notification settings…</p>}><ChatBrowserNotifications onClose={() => setNotificationSettingsOpen(false)} /></Suspense>}
 
       {avatarEditorOpen && (
         <div
