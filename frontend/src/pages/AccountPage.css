@@ -392,3 +392,22 @@
     width: 100%;
   }
 }
+
+/* Per-browser notifications belong to profile preferences, not the Chat toolbar. */
+.account-notification-card {
+  margin-top: 20px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.account-notification-card > div { flex: 1; min-width: 0; }
+.account-notification-card h3 { margin: 6px 0 8px; font-size: 19px; color: var(--text); }
+.account-notification-card p { max-width: 650px; color: var(--text-secondary); line-height: 1.55; margin: 0 0 8px; font-size: 13px; }
+.account-notification-card .account-notification-status { display: inline-flex; padding: 7px 10px; border: 1px solid var(--border-strong); color: var(--text); font-weight: 700; font-size: 12px; margin: 8px 0 0; }
+.account-notification-card button { min-height: 44px; white-space: nowrap; }
+@media (max-width: 720px) {
+  .account-notification-card { padding: 18px; flex-direction: column; align-items: stretch; gap: 16px; }
+  .account-notification-card button { width: 100%; }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useBrowserNotifications } from '../components/BrowserNotificationsContext';
 import BackgroundPushSettings from '../components/BackgroundPushSettings';
+import './ChatPage.css';
 
 export default function ChatBrowserNotifications({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), controls = useBrowserNotifications();
@@ -14,11 +15,12 @@ export default function ChatBrowserNotifications({ onClose }: { onClose: () => v
     {controls.limitedScope && <p>Your role receives notifications for standing private chats and channels where you were added by name. Other channels still show unread badges.</p>}
     <p role="status"><strong>{!controls.supported ? 'Not supported in this browser.' : controls.permission === 'denied' ? 'Blocked in your browser settings.' : controls.enabled && controls.permission === 'granted' ? 'On for your account in this browser.' : 'Off for your account in this browser.'}</strong></p>
     {!controls.supported && <p>Try a supported desktop browser. You can still use unread badges and email reminders.</p>}
+    {!controls.available && <p>Open-tab notifications are not available for your current account or the service is still checking availability. You can return to this setting later.</p>}
     {controls.error && <p className="creator-chat-error" role="alert">{controls.error}</p>}
     <p>This choice applies to your account in this browser. Enabling starts with new messages, without replaying old unread messages.</p>
     <div className="creator-chat-dialog-actions">
       {controls.enabled && <button type="button" disabled={controls.busy} onClick={controls.disable}>Turn off</button>}
-      {controls.enabled && controls.permission === 'granted' ? <button type="button" disabled={controls.busy} onClick={() => void controls.test()}>{controls.busy ? 'Checking…' : 'Show test notification'}</button> : <button type="button" disabled={controls.busy || !controls.supported || controls.permission === 'denied'} onClick={() => void controls.enable()}>{controls.busy ? 'Enabling…' : 'Enable notifications'}</button>}
+      {controls.enabled && controls.permission === 'granted' ? <button type="button" disabled={controls.busy} onClick={() => void controls.test()}>{controls.busy ? 'Checking…' : 'Show test notification'}</button> : <button type="button" disabled={controls.busy || !controls.available || !controls.supported || controls.permission === 'denied'} onClick={() => void controls.enable()}>{controls.busy ? 'Enabling…' : 'Enable notifications'}</button>}
     </div>
     <BackgroundPushSettings />
   </dialog>;

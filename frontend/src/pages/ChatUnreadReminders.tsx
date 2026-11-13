@@ -21,23 +21,36 @@ export default function ChatUnreadReminders({ onClose }: { onClose: () => void }
     finally { if (!request.signal.aborted) setBusy(false); }
   }, []);
   useEffect(() => { dialog.current?.showModal(); const initial = setTimeout(() => void refresh(), 0); return () => { clearTimeout(initial); controller.current?.abort(); }; }, [refresh]);
-  return <dialog ref={dialog} className="creator-chat-settings creator-chat-announcements" aria-labelledby="chat-reminder-title" onCancel={onClose}>
-    <header><h2 id="chat-reminder-title">Your email reminders</h2><button type="button" onClick={onClose}>Close</button></header>
-    <p>A reminder is due at 10 unread messages or after a message has been unread for 30 minutes. You receive at most one reminder per hour across all your chats.</p>
-    <p>Emails contain only the unread count and a link to the Hub.</p>
+  const deliverySummary = data?.emailMode === 'capture'
+    ? 'Preview mode — no emails are sent'
+    : data?.emailMode === 'gmail' ? 'Email delivery enabled for approved Staging test recipients' : 'Email reminders are currently off';
+
+  return <dialog ref={dialog} className="creator-chat-settings creator-chat-reminder-dialog" aria-labelledby="chat-reminder-title" onCancel={onClose}>
+    <header><h2 id="chat-reminder-title">Email reminder activity</h2><button type="button" onClick={onClose}>Close</button></header>
+    <p className="creator-chat-reminder-intro">A quick view of automatic reminders for unread chat messages. Refreshing this page never sends an email.</p>
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
+    {busy && !data && <p role="status">Loading your reminder activity…</p>}
     {data && <>
-      <p role="status">{data.emailMode === 'capture' ? 'Test mode: previews are saved here. No reminder emails are sent.' : data.emailMode === 'gmail' ? 'Staging email testing is limited to approved test recipients.' : 'Email reminders are currently off.'}</p>
-      <p><strong>{data.eligibleUnread} unread {data.eligibleUnread === 1 ? 'message counts' : 'messages count'} toward your email reminders.</strong></p>
-      {data.limitedScope && <p>Your role receives reminders for standing private chats and channels where you were added by name. Other channels still show unread badges.</p>}
-      {data.nextReminderAfter && <p>Next reminder can be considered after {time(data.nextReminderAfter)}, if unread messages still qualify.</p>}
-      <h3>Recent reminders</h3>
-      {!data.deliveries.length ? <p>No reminders recorded yet. New reminders are checked automatically; refreshing this list does not send an email.</p> : <ul className="creator-chat-announcement-deliveries">{data.deliveries.map(d => <li key={d.id}>
-        <strong>{statusLabel[d.status] ?? d.status}</strong><span>{time(d.createdAt)} · {d.unreadCount} unread</span>
+      <div className="creator-chat-reminder-status" role="status"><strong>{deliverySummary}</strong></div>
+      <div className="creator-chat-reminder-summary">
+        <div><small>Messages eligible</small><strong>{data.eligibleUnread}</strong></div>
+        <div><small>Next possible reminder</small><strong className="creator-chat-reminder-time">{data.nextReminderAfter ? time(data.nextReminderAfter) : 'Not scheduled'}</strong></div>
+      </div>
+      <details className="creator-chat-reminder-policy">
+        <summary>How email reminders work</summary>
+        <p>A reminder becomes eligible at 10 unread messages or when one has been unread for 30 minutes. Only one email reminder is allowed per person per hour.</p>
+        <p>Reminders include an unread count and a link to the Hub, never message text, fan names or attachments.</p>
+        {data.limitedScope && <p>For your role, email alerts cover standing private chats and channels you were added to individually. Other channels still show unread badges.</p>}
+        <p>Email delivery is managed by XYZ. This page shows status and history, not a personal email on/off switch.</p>
+      </details>
+      <h3>Recent reminder activity</h3>
+      {!data.deliveries.length ? <p className="creator-chat-reminder-empty">No reminder activity recorded yet.</p> : <ul className="creator-chat-reminder-activity">{data.deliveries.map(d => <li key={d.id}>
+        <strong>{statusLabel[d.status] ?? d.status}</strong>
+        <span>{time(d.createdAt)} · {d.unreadCount} unread {d.unreadCount === 1 ? 'message' : 'messages'}</span>
         {d.lastError && <p>{d.lastError}</p>}
-        {d.previewEmail && <details><summary>Individual email preview</summary><p>To: {d.previewEmail.to} · No CC or BCC</p><strong>{d.previewEmail.subject}</strong><pre>{d.previewEmail.text}</pre></details>}
+        {d.previewEmail && <details><summary>View email preview</summary><p>Recipient: {d.previewEmail.to}</p><strong>{d.previewEmail.subject}</strong><pre>{d.previewEmail.text}</pre></details>}
       </li>)}</ul>}
     </>}
-    <div className="creator-chat-dialog-actions"><button type="button" disabled={busy} onClick={() => void refresh()}>{busy ? 'Loading…' : 'Refresh status'}</button></div>
+    <div className="creator-chat-dialog-actions"><button type="button" disabled={busy} onClick={() => void refresh()}>{busy ? 'Refreshing…' : 'Refresh activity'}</button></div>
   </dialog>;
 }

@@ -337,7 +337,7 @@
 }
 
 /* Mobile Chat: preserve the conversation viewport and disclose secondary
-   controls only when asked. Desktop keeps its original full toolbars. */
+   controls only when asked. Secondary tools stay available on demand at every screen size. */
 @media (max-width: 720px) {
   .creator-chat-heading {
     align-items: center;
@@ -424,4 +424,80 @@
     justify-content: flex-start;
   }
   .creator-chat-members { top: 68px; max-height: calc(100% - 80px); }
+}
+
+/* Focused Chat browsing and messaging-style composer */
+.creator-chat-shell { grid-template-columns: 268px minmax(0, 1fr); }
+.creator-chat-channel-heading { margin-bottom: 16px; }
+.creator-chat-browse-switcher { display: grid; grid-template-columns: minmax(0, 1fr) 42px; align-items: stretch; gap: 8px; margin-top: 14px; }
+.creator-chat-browse-switcher .creator-chat-filters { margin: 0; min-width: 0; gap: 0; border: 1px solid #444; border-radius: 2px; overflow: hidden; }
+.creator-chat-browse-switcher .creator-chat-filters button { border: 0; border-right: 1px solid #444; min-height: 42px; padding: 8px 6px; font-size: 13px; }
+.creator-chat-browse-switcher .creator-chat-filters button:last-child { border-right: 0; }
+.creator-chat-browse-switcher .creator-chat-filters button[aria-pressed="true"] { background: #FFF; color: #111; border-color: transparent; font-weight: 700; }
+.creator-chat-browse-switcher .creator-chat-filters button[aria-pressed="false"] { color: #BEBEBE; }
+.creator-chat .creator-chat-search-toggle { width: 42px; min-width: 42px; padding: 8px; border-color: #444; }
+.creator-chat-search-toggle[aria-expanded="true"] { border-color: #FFF; background: #292929; }
+.creator-chat-search-panel { display: grid; gap: 8px; padding-top: 12px; }
+.creator-chat-search-panel .creator-chat-search { margin-top: 0; }
+.creator-chat-search-panel .creator-chat-unread-filter { margin-top: 0; min-height: 40px; }
+.creator-chat-channel-list { padding-top: 12px; }
+.creator-chat-composer { padding-top: 14px; }
+.creator-chat-composer-actions { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.creator-chat-composer-media { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.creator-chat-composer-media > div[hidden] { display: none; }
+.creator-chat-composer-media .creator-chat-file-picker { margin-top: 0; min-width: 0; }
+.creator-chat-composer-media .creator-chat-file-picker > span { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.creator-chat .creator-chat-media-icon { width: 42px; height: 42px; min-width: 42px; min-height: 42px; padding: 0; display: inline-grid; place-items: center; border-color: #555; background: #1D1D1D; }
+.creator-chat .creator-chat-media-icon:hover { background: #303030; border-color: #FFF; }
+.creator-chat .creator-chat-media-icon svg { width: 19px; height: 19px; }
+.creator-chat .creator-chat-composer-actions .creator-chat-send { min-height: 42px; margin-left: auto; padding: 10px 14px; }
+.creator-chat-composer-footer { margin-top: 8px; min-height: 16px; }
+.creator-chat-composer-footer small { justify-content: space-between; gap: 6px 12px; }
+.creator-chat-composer-footer .creator-chat-shortcut { color: #AFAFAF; }
+.creator-chat .creator-chat-composer button[type="submit"]:disabled { color: #5C5C5C; background: transparent; border-color: #333; }
+@media (min-width: 1600px) {
+  .creator-chat-shell { grid-template-columns: 294px minmax(0, 1fr); }
+}
+@media (min-width: 721px) and (max-width: 1150px) {
+  .creator-chat-shell { grid-template-columns: 238px minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .creator-chat-shell { display: block; }
+  .creator-chat-browse-switcher { grid-template-columns: minmax(0, 1fr) 44px; }
+  .creator-chat .creator-chat-search-toggle { width: 44px; min-width: 44px; min-height: 44px; }
+  .creator-chat-browse-switcher .creator-chat-filters button { min-height: 44px; }
+  .creator-chat .creator-chat-media-icon { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  .creator-chat .creator-chat-composer-actions .creator-chat-send { min-height: 44px; }
+  .creator-chat-composer-footer .creator-chat-shortcut { display: inline; }
+}
+
+/* Unread email reminder activity — concise and permission-aware */
+.creator-chat-reminder-dialog { width: min(590px, calc(100% - 32px)); }
+.creator-chat-reminder-dialog .creator-chat-reminder-intro { color: #C5C5C5; font-size: 14px; line-height: 1.55; margin-top: 0; }
+.creator-chat-reminder-status { padding: 12px 14px; border-left: 3px solid #FFF; background: #202020; }
+.creator-chat-reminder-status strong { color: #FFF; }
+.creator-chat-reminder-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 18px 0; }
+.creator-chat-reminder-summary > div { min-width: 0; padding: 16px; background: #1B1B1B; border: 1px solid #454545; }
+.creator-chat-reminder-summary small { display: block; margin-bottom: 10px; color: #BEBEBE; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.creator-chat-reminder-summary strong { font-size: 23px; line-height: 1.25; overflow-wrap: anywhere; }
+.creator-chat-reminder-summary .creator-chat-reminder-time { font-size: 16px; }
+.creator-chat-reminder-policy { border-top: 1px solid #444; border-bottom: 1px solid #444; padding: 12px 0; }
+.creator-chat-reminder-policy > summary { cursor: pointer; font-size: 14px; font-weight: 700; min-height: 32px; }
+.creator-chat-reminder-policy p { margin: 8px 0; }
+.creator-chat-reminder-activity { padding: 0; list-style: none; margin: 8px 0 20px; }
+.creator-chat-reminder-activity li { padding: 12px 0; border-bottom: 1px solid #333; overflow-wrap: anywhere; }
+.creator-chat-reminder-activity li strong { display: block; font-size: 13px; }
+.creator-chat-reminder-activity li > span { display: block; font-size: 12px; color: #BBB; margin-top: 6px; }
+.creator-chat-reminder-activity pre { white-space: pre-wrap; font: inherit; overflow-wrap: anywhere; }
+.creator-chat-reminder-empty { padding: 16px; border: 1px dashed #555; color: #BEBEBE; }
+@media (max-width: 720px) {
+  .creator-chat-reminder-summary > div { padding: 12px; }
+  .creator-chat-reminder-summary strong { font-size: 18px; }
+  .creator-chat-reminder-summary .creator-chat-reminder-time { font-size: 13px; }
+}
+
+/* Search, pins and moderation tools appear only when the user requests them. */
+.creator-chat-conversation-tools { display: none; }
+@media (min-width: 721px) {
+  .creator-chat-conversation-tools.is-open { display: flex; flex-wrap: wrap; }
 }
