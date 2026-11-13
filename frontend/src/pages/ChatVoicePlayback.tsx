@@ -77,7 +77,16 @@ export default function ChatVoicePlayback({ src, durationMs = 0, preview = false
       onLoadedMetadata={event => { if (Number.isFinite(event.currentTarget.duration)) setDuration(event.currentTarget.duration); }}
       onTimeUpdate={event => setPosition(event.currentTarget.currentTime)}
       onPlaying={() => setPlaying(true)} onPause={() => setPlaying(false)}
-      onEnded={event => { event.currentTarget.currentTime = 0; setPosition(0); setPlaying(false); }} />
+      onEnded={event => {
+        const audio = event.currentTarget;
+        // A completed protected recording is discarded from browser memory.
+        // Replay must recheck server access instead of using a stale cached URL.
+        if (!preview && objectUrl.current) {
+          audio.removeAttribute("src"); audio.load();
+          URL.revokeObjectURL(objectUrl.current); objectUrl.current = "";
+        } else audio.currentTime = 0;
+        setPosition(0); setPlaying(false);
+      }} />
     <button className="creator-chat-voice-play" type="button" disabled={loading}
       onClick={() => void toggle()} aria-label={loading ? "Loading voice message" : playing ? "Pause voice message" : "Play voice message"}
       title={loading ? "Loading…" : playing ? "Pause" : "Play"}>
