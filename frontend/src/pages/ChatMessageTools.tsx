@@ -82,30 +82,41 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       <div className="creator-chat-file">
         <strong>{voiceDuration ? "Voice message" : m.attachment.fileName}</strong>
         <small>{voiceDuration ? `${Math.ceil(voiceDuration / 1000)} sec` : `${m.attachment.byteSize.toLocaleString()} bytes`}</small>
-        {m.attachment.available && !!voiceDuration && <ChatVoicePlayback key={attachmentPath} src={`${attachmentPath}/voice`} />}
-        {m.attachment.available ? <a
-          href={`${attachmentPath}/file`}
-          target="_blank" rel="noopener" aria-label={`Download ${m.attachment.fileName}`}
-        >Download</a> : <small>File unavailable</small>}
+        {m.attachment.available && !!voiceDuration && <ChatVoicePlayback key={attachmentPath} src={`${attachmentPath}/voice`} durationMs={voiceDuration} />}
+        {!m.attachment.available && <small>File unavailable</small>}
       </div>
     </>}
     {!!reactions.length && <div className="creator-chat-reactions" aria-label="Message reactions">{reactions.map((r) => m.canReply ?
       <button type="button" key={r.emoji} aria-pressed={r.mine} aria-label={`${palette.find(([emoji]) => emoji === r.emoji)?.[1] ?? "Reaction"}: ${r.count}${r.mine ? ", yours; remove reaction" : "; add reaction"}`} disabled={busy}
         onClick={() => void update("reaction", { emoji: r.emoji, active: !r.mine })}><span>{r.emoji}</span><span>{r.count}</span></button> :
       <span className="creator-chat-reaction-count" key={r.emoji} aria-label={`${r.emoji}: ${r.count}`}>{r.emoji} {r.count}</span>)}</div>}
-    {(m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <div className="creator-chat-message-actions">
-      {m.canReply && <button type="button" disabled={busy} onClick={() => onReply(m)}>Reply</button>}
-      {m.canReply && <details ref={reactionMenu} name="chat-message-actions" className="creator-chat-reaction-menu" onToggle={(e) => { if (e.currentTarget.open) e.currentTarget.scrollIntoView({ block: "nearest" }); }}><summary>React</summary><div role="group" aria-label="Choose a reaction">{palette.map(([emoji, label]) => <button type="button" key={emoji} disabled={busy} aria-label={label} aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)} onClick={() => {
-        if (reactionMenu.current) reactionMenu.current.open = false;
-        void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
-      }}>{emoji}</button>)}</div></details>}
-      {m.deleted && m.canViewHistory && onHistory ? <button type="button" onClick={() => onHistory(m.id)}>View history</button> :
-        (m.canPin || (m.canEdit && onEdit) || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <details ref={actionMenu} name="chat-message-actions" className="creator-chat-action-menu" onToggle={(e) => { if (e.currentTarget.open) e.currentTarget.scrollIntoView({ block: "nearest" }); }}><summary aria-label={`More actions for message by ${m.authorName}`}>More</summary><div role="group" aria-label="Message actions">
+    {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <div className="creator-chat-message-actions">
+      <details ref={actionMenu} name="chat-message-actions" className="creator-chat-action-menu"
+        onToggle={(e) => { if (e.currentTarget.open) e.currentTarget.scrollIntoView({ block: "nearest" }); }}>
+        <summary aria-label={`More actions for message by ${m.authorName}`} title="More message options">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+        </summary>
+        <div role="group" aria-label="Message actions">
+          {m.canReply && <button type="button" disabled={busy} onClick={() => act(() => onReply(m))}>Reply</button>}
+          {m.canReply && <details ref={reactionMenu} className="creator-chat-reaction-menu">
+            <summary>React</summary>
+            <div role="group" aria-label="Choose a reaction">{palette.map(([emoji, label]) =>
+              <button type="button" key={emoji} disabled={busy} aria-label={label}
+                aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
+                onClick={() => { if (reactionMenu.current) reactionMenu.current.open = false;
+                  if (actionMenu.current) actionMenu.current.open = false;
+                  void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
+                }}>{emoji}</button>)}
+            </div>
+          </details>}
+          {m.attachment?.available && <a href={`${attachmentPath}/file`} target="_blank" rel="noopener"
+            aria-label={`Download ${m.attachment.fileName}`} onClick={() => { if (actionMenu.current) actionMenu.current.open = false; }}>Download file</a>}
           {m.canEdit && onEdit && <button type="button" disabled={busy} onClick={() => act(() => onEdit(m))}>Edit</button>}
           {m.canPin && <button type="button" disabled={busy} onClick={() => act(() => void update("pin", { pinned: !m.pinnedAt, version: m.pinVersion }))}>{m.pinnedAt ? "Unpin message" : "Pin message"}</button>}
           {m.canViewHistory && onHistory && <button type="button" disabled={busy} onClick={() => act(() => onHistory(m.id))}>View history</button>}
           {m.canModerate && onModerate && <button type="button" className="creator-chat-delete-action" disabled={busy} onClick={() => act(() => onModerate(m))}>Delete message…</button>}
-        </div></details>}
+        </div>
+      </details>
       {busy && <span role="status">Saving…</span>}
     </div>}
   </div>;
