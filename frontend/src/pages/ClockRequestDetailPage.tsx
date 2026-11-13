@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiRequest } from "../lib/api";
+import { useToast } from "../components/ToastProvider";
 import { formatCorrectionTime } from "../lib/clock-correction-time";
 import { Comparison, DecisionForm, type ClockCorrectionItem } from "../components/ClockCorrections";
 import "./ClockPage.css";
@@ -27,11 +28,12 @@ function formatMaybe(value: string | null | undefined) {
 export default function ClockRequestDetailPage() {
   const { requestId } = useParams<{ requestId: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
   const [data, setData] = useState<Response | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [decision, setDecision] = useState<Decision | null>(null);
-  const [notice, setNotice] = useState("");
+
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (!requestId) {
@@ -62,7 +64,7 @@ export default function ClockRequestDetailPage() {
       setLoading(true);
       setData(null);
       setDecision(null);
-      setNotice("");
+  
       void load(controller.signal);
     }, 0);
     return () => {
@@ -81,11 +83,11 @@ export default function ClockRequestDetailPage() {
       body: JSON.stringify(decision === "CANCELLED" ? {} : { decision, note }),
     });
     setDecision(null);
-    setNotice(decision === "APPROVED"
-      ? "Correction approved; the recorded hours have been updated."
+    toast.success(decision === "APPROVED"
+      ? "Correction approved. Recorded hours have been updated."
       : decision === "REJECTED"
-        ? "Request rejected; recorded hours were not changed."
-        : "Request cancelled; recorded hours were not changed.");
+        ? "Request rejected. Recorded hours remain unchanged."
+        : "Request cancelled. Recorded hours remain unchanged.");
     window.dispatchEvent(new Event("xyz-clock-corrections-changed"));
     await load();
   }
@@ -99,28 +101,39 @@ export default function ClockRequestDetailPage() {
       </div>
       <button type="button" onClick={() => navigate(returnPath)}>Back to {data?.scope === "review" ? "Review requests" : "My requests"}</button>
     </header>
-    {loading && <p role="status">Loading correction request…</p>}
+    {loading && <div className="clock-load-panel" role="status" aria-live="polite"><span className="clock-load-spinner" aria-hidden="true" />Loading correction request…</div>}
     {error && <div className="clock-error" role="alert">{error} <Link to="/clock?tab=requests">Back to Clock &amp; Hours</Link></div>}
-    {notice && <div className="clock-notice" role="status">{notice}</div>}
     {item && data && <article className="clock-request-detail-card">
       <header className="clock-request-detail-header">
-        <div><p className="clock-label">REQUEST</p><h2>{item.personName}</h2>
-          <p>{item.kind === "MISSING_SHIFT" ? "Missed shift" : "Time correction"} · Submitted {formatCorrectionTime(item.submittedAt)}</p></div>
+        <div>
+          <p className="clock-label">{data.scope === "mine" ? "YOUR REQUEST" : "REQUEST TO REVIEW"}</p>
+          {data.scope === "review" && <h2>{item.personName}</h2>}
+          <p>{item.kind === "MISSING_SHIFT" ? "Missed shift" : "Time correction"} · Submitted {formatCorrectionTime(item.submittedAt)}</p>
+        </div>
         <span className="clock-status">{statuses[item.status]}</span>
       </header>
 
       <div className="clock-request-metadata">
-        <div><span>Review route</span><strong>{item.route}</strong></div>
+        <div>
+          <span>{data.scope === "review" ? "Your review responsibility" : "Who reviews this?"}</span>
+          <strong>{data.scope === "review"
+            ? "You can review this request under your current access permissions."
+            : item.route === "Owner review"
+              ? "An Owner will review your request."
+              : item.route === "Ops or Owner review"
+                ? "An Ops Manager or Owner will review your request."
+                : "Your assigned Manager or an Owner will review your request."}</strong>
+        </div>
         <div><span>Request status</span><strong>{statuses[item.status]}</strong></div>
       </div>
 
       <Comparison before={item.before} proposed={item.proposed} />
       <section className="clock-request-reason" aria-labelledby="request-reason-title">
-        <h3 id="request-reason-title">Requester's reason</h3>
+        <h3 id="request-reason-title">{data.scope === "mine" ? "Your reason" : "Employee’s reason"}</h3>
         <p>{item.reason}</p>
       </section>
-      <details className="clock-request-full-record">
-        <summary>View full recorded and requested times</summary>
+      <section className="clock-request-full-record" aria-labelledby="full-correction-record-title">
+        <h3 id="full-correction-record-title">Full recorded and requested times</h3>
         <div className="clock-table-scroll" role="region" aria-label="Full correction snapshot" tabIndex={0}>
           <table className="clock-data-table">
             <thead><tr><th scope="col">Field</th><th scope="col">Recorded</th><th scope="col">Requested</th></tr></thead>
@@ -140,7 +153,7 @@ export default function ClockRequestDetailPage() {
             </tbody>
           </table>
         </div>
-      </details>
+      </section>
 
       {item.stale && <div className="correction-hint" role="status">
         This request is outdated because the recorded shift changed. Cancel and submit a new correction; approval is unavailable.
