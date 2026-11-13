@@ -492,18 +492,27 @@ function AccountPage() {
       </section>
 
       {canManageChatNotifications && <section className="content-card account-notification-card" aria-labelledby="account-notification-title">
-        <div>
-          <span className="account-profile-label">Personal preferences</span>
-          <h3 id="account-notification-title">Browser notifications</h3>
-          <p>Choose whether this browser alerts you to new Hub chat messages. You can also set up background notifications on supported devices.</p>
-          <p className="account-notification-status" role="status">
-            {notificationControls?.permission === "denied" ? "Blocked by browser" :
-              !notificationControls?.supported ? "Not supported on this browser" :
-              notificationControls.enabled && notificationControls.permission === "granted" ? "Enabled in this browser" :
-              "Off in this browser"}
-          </p>
+        <h3 id="account-notification-title">Notification</h3>
+        <div className="account-notification-controls">
+          <button type="button" role="switch" className="account-notification-toggle"
+            aria-label="Notification" aria-checked={!!notificationControls?.enabled && notificationControls.permission === "granted"}
+            title={notificationControls?.enabled && notificationControls.permission === "granted" ? "Turn notifications off" : "Turn notifications on"}
+            disabled={!notificationControls?.available || !notificationControls.supported || notificationControls.permission === "denied" || notificationControls.busy}
+            onClick={() => {
+              if (!notificationControls) return;
+              if (notificationControls.enabled && notificationControls.permission === "granted") notificationControls.disable();
+              else void notificationControls.enable();
+            }}>
+            <span className="account-notification-knob" aria-hidden="true" />
+          </button>
+          <button type="button" className="account-notification-more" aria-label="Advanced notification settings"
+            title="Advanced notification settings" onClick={() => setNotificationSettingsOpen(true)}>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+          </button>
         </div>
-        <button type="button" className="secondary-button" onClick={() => setNotificationSettingsOpen(true)}>Manage browser notifications</button>
+        {(notificationControls?.permission === "denied" || notificationControls?.error) && <p className="account-notification-error" role="status">
+          {notificationControls.error || "Notifications are blocked in this browser's site settings."}
+        </p>}
       </section>}
       {canManageChatNotifications && notificationSettingsOpen && <Suspense fallback={<p role="status">Loading notification settings…</p>}><ChatBrowserNotifications onClose={() => setNotificationSettingsOpen(false)} /></Suspense>}
 
