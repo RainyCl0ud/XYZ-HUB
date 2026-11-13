@@ -224,7 +224,7 @@ export default function ClockPage() {
           ...(data.currentShift ? [data.currentShift] : []),
           ...data.history,
           ...(historyCache?.version === data.historyVersion ? historyCache.entries : []),
-        ].map(shift => [shift.id, shift])).values()]}
+        ].map((shift): [string, Shift] => [shift.id, shift])).values()]}
         disabled={busy || !online}
         onChanged={() => { void refresh().catch((e: unknown) => setLoadError(describeError(e))); }}
       />}
