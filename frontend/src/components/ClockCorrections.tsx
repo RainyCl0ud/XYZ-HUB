@@ -3,12 +3,9 @@ import { apiRequest } from "../lib/api";
 import { Link } from "react-router-dom";
 import { useToast } from "./ToastProvider";
 import { centralInputValue, centralTimeCandidates, formatCorrectionTime } from "../lib/clock-correction-time";
+import { correctionBreakLabels as labels, getRequestedChanges, type CorrectionBreakKind as Kind, type CorrectionSnapshot as Snapshot } from "../lib/clock-correction-comparison";
 import "./ClockCorrections.css";
 
-type Kind = "SHORT_ONE" | "SHORT_TWO" | "MEAL";
-const labels: Record<Kind, string> = { SHORT_ONE: "Short break 1", SHORT_TWO: "Short break 2", MEAL: "Meal break" };
-type Times = { startedAt: string; endedAt: string | null };
-type Snapshot = Times & { breaks: (Times & { kind: Kind })[] };
 export type CorrectionShift = Snapshot & { id: string; recordVersion: string };
 export type ClockCorrectionItem = { id: string; personName: string; kind: "SHIFT_TIMES" | "MISSING_SHIFT"; status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED"; reason: string; before: Snapshot | null; proposed: Snapshot; submittedAt: string; reviewerName: string | null; reviewNote: string | null; reviewedAt: string | null; stale: boolean; subjectAvailable: boolean; route: string };
 type Item = ClockCorrectionItem;
@@ -32,60 +29,6 @@ function TimeField({ label, value, onChange, disabled, nowMs }: { label: string;
     {candidates.length > 1 && <><label htmlFor={`${id}-occurrence`}>This time occurs twice. Choose which one.</label><select id={`${id}-occurrence`} required disabled={disabled} value={value.instant} onChange={(e) => onChange({ ...value, instant: e.target.value })}><option value="">Choose CDT or CST</option>{candidates.map((instant) => <option key={instant} value={instant}>{formatCorrectionTime(instant)}</option>)}</select></>}
   </div>;
 }
-type CorrectionChange = {
-  key: string;
-  label: string;
-  recorded: string;
-  requested: string;
-};
-
-function sameCorrectionInstant(recorded: string | null, proposed: string | null): boolean {
-  if (recorded === proposed) return true;
-  if (!recorded || !proposed) return false;
-  const oldTime = Date.parse(recorded);
-  const newTime = Date.parse(proposed);
-  return Number.isFinite(oldTime) && Number.isFinite(newTime) && oldTime === newTime;
-}
-
-export function getRequestedChanges(before: Snapshot | null, proposed: Snapshot): CorrectionChange[] {
-  const changes: CorrectionChange[] = [];
-  const appendIfChanged = (
-    key: string,
-    label: string,
-    recorded: string | null,
-    requested: string | null,
-  ) => {
-    if (before && sameCorrectionInstant(recorded, requested)) return;
-    changes.push({
-      key,
-      label,
-      recorded: recorded ? formatCorrectionTime(recorded) : "Not recorded",
-      requested: requested ? formatCorrectionTime(requested) : "Not provided",
-    });
-  };
-
-  appendIfChanged("shift-start", "Clock in", before?.startedAt ?? null, proposed.startedAt);
-  appendIfChanged("shift-end", "Clock out", before?.endedAt ?? null, proposed.endedAt);
-
-  for (const pause of proposed.breaks) {
-    const recordedPause = before?.breaks.find((item) => item.kind === pause.kind);
-    appendIfChanged(
-      `${pause.kind}-start`,
-      `${labels[pause.kind]} — start`,
-      recordedPause?.startedAt ?? null,
-      pause.startedAt,
-    );
-    appendIfChanged(
-      `${pause.kind}-end`,
-      `${labels[pause.kind]} — end`,
-      recordedPause?.endedAt ?? null,
-      pause.endedAt,
-    );
-  }
-
-  return changes;
-}
-
 export function Comparison({ before, proposed }: { before: Snapshot | null; proposed: Snapshot }) {
   const changes = getRequestedChanges(before, proposed);
 
