@@ -9,8 +9,8 @@ import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import ChatChannelCleanupDialog, { type CleanupTarget } from "./ChatChannelCleanupDialog";
 import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
-import ChatAttachmentPicker from "./ChatAttachmentPicker";
-import ChatVoiceRecorder from "./ChatVoiceRecorder";
+import ChatAttachmentPicker, { type ChatAttachmentPickerHandle } from "./ChatAttachmentPicker";
+import ChatVoiceRecorder, { type ChatVoiceRecorderHandle } from "./ChatVoiceRecorder";
 import ChatModerationDialog, { type ModerationTarget } from "./ChatModerationDialog";
 import ChatQuarantineDialog, { type QuarantineControl } from "./ChatQuarantineDialog";
 import { useChatReadTracking } from "./useChatReadTracking";
@@ -92,6 +92,9 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [showMembers, setShowMembers] = useState(false);
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showConversationTools, setShowConversationTools] = useState(false);
+  const [showComposerMenu, setShowComposerMenu] = useState(false);
+  const [composerFileActive, setComposerFileActive] = useState(false);
+  const [composerVoiceActive, setComposerVoiceActive] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
   const [showChannelSearch, setShowChannelSearch] = useState(false);
   const [channelFilter, setChannelFilter] = useState<"channels" | "private">("channels");
@@ -118,6 +121,19 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const followMessages = useRef(true);
   const earlierScroll = useRef<{ top: number; height: number } | null>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const composerMenuRef = useRef<HTMLDivElement>(null);
+  const attachmentPicker = useRef<ChatAttachmentPickerHandle>(null);
+  const voiceRecorder = useRef<ChatVoiceRecorderHandle>(null);
+  useEffect(() => {
+    if (!showComposerMenu) return;
+    const close = (event: Event) => {
+      if (event instanceof KeyboardEvent) {
+        if (event.key === "Escape") { setShowComposerMenu(false); composerMenuRef.current?.querySelector("button")?.focus(); }
+      } else if (!composerMenuRef.current?.contains(event.target as Node)) setShowComposerMenu(false);
+    };
+    document.addEventListener("pointerdown", close); document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", close); };
+  }, [showComposerMenu]);
   const channelSearchInput = useRef<HTMLInputElement>(null);
   useEffect(() => { if (showChannelSearch) channelSearchInput.current?.focus(); }, [showChannelSearch]);
   const replyId = reply?.id;
@@ -155,6 +171,9 @@ function ChatWorkspace({ userId }: { userId: string }) {
     setShowMembers(false);
     setShowChatOptions(false);
     setShowConversationTools(false);
+    setShowComposerMenu(false);
+    setComposerFileActive(false);
+    setComposerVoiceActive(false);
     pendingSend.current = null;
     followMessages.current = true;
     earlierScroll.current = null;
@@ -523,17 +542,36 @@ function ChatWorkspace({ userId }: { userId: string }) {
               {editConflict && latestEdit && <div className="creator-chat-edit-conflict" role="alert"><strong>This message changed elsewhere.</strong><p>Your edit is kept below. Review the latest sent text before saving over it.</p><details><summary>View latest sent text</summary><p>{latestEdit.text}</p></details><button type="button" onClick={() => setEdit(latestEdit)}>I reviewed it — keep my edit</button></div>}
               {reply && <div className="creator-chat-replying" role="status"><div><strong>Replying to {reply.authorName}</strong><p>{reply.attachment?.fileName ?? reply.text}</p></div><button type="button" onClick={() => { setReply(null); composer.current?.focus(); }}>Cancel reply</button></div>}
               <label className="creator-chat-sr" htmlFor="chat-message">Message {channel?.name}</label>
-              <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => {
-                if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229 || e.repeat) return;
-                e.preventDefault();
-                if (!sending && draft.trim() && !editConflict && !unchangedEdit) e.currentTarget.form?.requestSubmit();
-              }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
-              <div className="creator-chat-composer-actions">
-                <div className="creator-chat-composer-media">
-                  {attachmentMaxBytes > 0 && <div hidden={!!edit || !!reply}><ChatAttachmentPicker key={selected} channelId={selected} maxBytes={attachmentMaxBytes} onSent={message => showSentMessage(selected, message)} /></div>}
-                  {voiceMaxSeconds > 0 && !edit && !reply && <ChatVoiceRecorder key={selected} channelId={selected} maxSeconds={voiceMaxSeconds} onSent={message => showSentMessage(selected, message)} />}
+              <div className="creator-chat-composer-bar">
+                <div className="creator-chat-composer-plus" ref={composerMenuRef}>
+                  <button type="button" className="creator-chat-composer-plus-toggle" aria-label="Add attachment or voice message" title="Add to message"
+                    aria-controls="chat-composer-menu" aria-expanded={showComposerMenu}
+                    disabled={sending || composerFileActive || composerVoiceActive || !!edit || !!reply || (!attachmentMaxBytes && !voiceMaxSeconds)}
+                    onClick={() => setShowComposerMenu(open => !open)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                  </button>
+                  {showComposerMenu && <div id="chat-composer-menu" className="creator-chat-composer-menu" role="group" aria-label="Add to conversation">
+                    {attachmentMaxBytes > 0 && <button type="button" onClick={() => { setShowComposerMenu(false); attachmentPicker.current?.open(); }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="m20 11-8.4 8.4a5 5 0 0 1-7-7L14 3a3 3 0 0 1 4.2 4.2l-9.4 9.4a1 1 0 0 1-1.4-1.4l8-8" /></svg>Upload a file
+                    </button>}
+                    {voiceMaxSeconds > 0 && <button type="button" onClick={() => { setShowComposerMenu(false); voiceRecorder.current?.start(); }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="12" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V22m-4 0h8" /></svg>Record voice message
+                    </button>}
+                  </div>}
                 </div>
-                <button type="submit" className="creator-chat-send" disabled={sending || editConflict || unchangedEdit || !draft.trim()} aria-label={edit ? "Save message changes" : "Send message"} title={edit ? "Save message changes" : "Send message"}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button>
+                <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => {
+                  if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229 || e.repeat) return;
+                  e.preventDefault();
+                  if (!sending && draft.trim() && !editConflict && !unchangedEdit) e.currentTarget.form?.requestSubmit();
+                }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
+                <button type="submit" className="creator-chat-send" disabled={sending || editConflict || unchangedEdit || !draft.trim()}
+                  aria-label={edit ? "Save message changes" : "Send message"} title={edit ? "Save message changes" : "Send message"}><ChatIcon name="send" /></button>
+              </div>
+              <div className="creator-chat-composer-drafts">
+                {attachmentMaxBytes > 0 && !edit && !reply && <ChatAttachmentPicker ref={attachmentPicker} key={selected} channelId={selected}
+                  maxBytes={attachmentMaxBytes} onActiveChange={setComposerFileActive} onSent={message => showSentMessage(selected, message)} />}
+                {voiceMaxSeconds > 0 && !edit && !reply && <ChatVoiceRecorder ref={voiceRecorder} key={selected} channelId={selected}
+                  maxSeconds={voiceMaxSeconds} onActiveChange={setComposerVoiceActive} onSent={message => showSentMessage(selected, message)} />}
               </div>
               <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Enter to send · Shift + Enter for a new line</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000 · Draft kept while Chat stays open` : ""}</span></small></div>
             </form> : transcript && <div className="creator-chat-readonly">
