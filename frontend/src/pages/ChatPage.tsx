@@ -119,7 +119,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const earlierScroll = useRef<{ top: number; height: number } | null>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const channelSearchInput = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (showChannelSearch && showChannels) channelSearchInput.current?.focus(); }, [showChannelSearch, showChannels]);
+  useEffect(() => { if (showChannelSearch) channelSearchInput.current?.focus(); }, [showChannelSearch]);
   const replyId = reply?.id;
   useEffect(() => { if (replyId) composer.current?.focus(); }, [replyId]);
   const area = areas.find((a) => a.channels.some((c) => c.id === selected));
@@ -468,8 +468,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
               }}>{areas.map((a) => <option key={a.modelId} value={a.modelId}>{a.name}{a.archived ? " · Archived" : a.unreadCount ? ` · ${a.unreadCount} unread` : ""}</option>)}</select>
               <div className="creator-chat-browse-switcher">
                 <div className="creator-chat-filters" role="group" aria-label="Conversation type">
-                  <button type="button" aria-pressed={channelFilter === "channels"} onClick={() => setChannelFilter("channels")}>Channels</button>
-                  <button type="button" aria-pressed={channelFilter === "private"} onClick={() => setChannelFilter("private")}>Private</button>
+                  <button type="button" aria-pressed={channelFilter === "channels"} onClick={() => { setChannelSearch(""); setUnreadOnly(false); setChannelFilter("channels"); }}>Channels</button>
+                  <button type="button" aria-pressed={channelFilter === "private"} onClick={() => { setChannelSearch(""); setUnreadOnly(false); setChannelFilter("private"); }}>Private</button>
                 </div>
                 <button type="button" className="creator-chat-search-toggle" aria-controls="chat-conversation-search" aria-expanded={showChannelSearch} aria-label={showChannelSearch ? "Close conversation search" : "Search conversations"} title="Search conversations" onClick={() => {
                   if (showChannelSearch) { setChannelSearch(""); setUnreadOnly(false); }
@@ -479,7 +479,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               {showChannelSearch && <div id="chat-conversation-search" className="creator-chat-search-panel">
                 <div className="creator-chat-search"><ChatIcon name="search" /><label className="creator-chat-sr" htmlFor="chat-find-channel">Find a conversation</label><input ref={channelSearchInput} id="chat-find-channel" type="search" value={channelSearch} onChange={(e) => setChannelSearch(e.target.value)} placeholder={channelFilter === "channels" ? "Search channels…" : "Search private chats…"} /></div>
                 <button type="button" className="creator-chat-unread-filter" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(!unreadOnly)}>Unread only{browseArea?.unreadCount ? ` · ${browseArea.unreadCount}` : ""}</button>
-              </div>}}
+              </div>}
             </div>
             <nav className="creator-chat-channel-list" aria-label={`${browseArea?.name ?? "Your"} conversations`}>
               {!!activeChannels.length && <div className="creator-chat-channel-group"><h2>{channelFilter === "channels" ? "Channels" : "Private chats"} <span>{activeChannels.length}</span></h2>{activeChannels.map(channelRow)}</div>}
