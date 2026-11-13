@@ -2,9 +2,7 @@ import {
   Link,
   useLocation,
 } from "react-router-dom";
-import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "../auth/AuthContext";
-import { apiRequest } from "../lib/api";
+import { useClockReviewCount } from "./ClockReviewCountContext";
 
 import {
   getPortalCapabilities,
@@ -479,46 +477,10 @@ export default function SidebarNavigation({
     getPortalCapabilities(
       access
     );
-  const { user } = useAuth();
-  const userId = user?.id ?? null;
-  const canReviewCorrections = import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true"
-    && hasPortalPermission(access, "clock.self.view")
+  const reviewCount = useClockReviewCount();
+  const canReviewCorrections = hasPortalPermission(access, "clock.self.view")
     && ["clock.corrections.assigned", "clock.corrections.ops", "clock.corrections.all"]
       .some(permission => hasPortalPermission(access, permission));
-  const [reviewCounter, setReviewCounter] = useState<{ userId: string | null; count: number }>({ userId: null, count: 0 });
-
-  const refreshReviewCount = useCallback(async (signal?: AbortSignal) => {
-    if (!canReviewCorrections || !userId) { setReviewCounter({ userId, count: 0 }); return; }
-    try {
-      const response = await apiRequest<{ reviewPendingCount: number }>(
-        "/api/clock/corrections?scope=review&filter=pending", { signal }
-      );
-      if (!signal?.aborted) setReviewCounter({ userId, count: Math.max(0, response.reviewPendingCount || 0) });
-    } catch {
-      // A revoked permission or unavailable endpoint must never show stale action counts.
-      if (!signal?.aborted) setReviewCounter({ userId, count: 0 });
-    }
-  }, [canReviewCorrections, userId]);
-
-  useEffect(() => {
-    if (!canReviewCorrections) return;
-    const controller = new AbortController();
-    const update = () => {
-      if (document.visibilityState === "visible") void refreshReviewCount(controller.signal);
-    };
-    const initial = window.setTimeout(update, 0);
-    const interval = window.setInterval(update, 15_000);
-    document.addEventListener("visibilitychange", update);
-    window.addEventListener("xyz-clock-corrections-changed", update);
-    return () => {
-      controller.abort();
-      window.clearTimeout(initial);
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", update);
-      window.removeEventListener("xyz-clock-corrections-changed", update);
-    };
-  }, [canReviewCorrections, refreshReviewCount]);
-
 
   const agency:
     NavigationItem[] =
@@ -580,7 +542,7 @@ export default function SidebarNavigation({
     agency.push({ id: "chat", label: "Chat", to: "/chat" });
   }
   if (import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && hasPortalPermission(access, "clock.self.view")) {
-    agency.push({ id: "clock", label: "Clock & Hours", to: "/clock", actionCount: canReviewCorrections && reviewCounter.userId === userId ? reviewCounter.count : 0 });
+    agency.push({ id: "clock", label: "Clock & Hours", to: "/clock", actionCount: canReviewCorrections ? reviewCount : 0 });
   }
   if (hasPortalPermission(access, "strikes.self.view")) {
     agency.push({ id: "strikes", label: "My Strikes", to: "/my-strikes" });

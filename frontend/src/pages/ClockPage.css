@@ -107,6 +107,29 @@
 .clock-tabs > a:hover { background: #1B1B1B; color: #FFFFFF; }
 .clock-tabs > a[aria-current="page"] { background: #FFFFFF; border-color: #FFFFFF; color: #000000; }
 .clock-tabs > a:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.clock-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 23px;
+  min-height: 23px;
+  padding: 2px 6px;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #101010;
+  background: #FFFFFF;
+  border: 1px solid #FFFFFF;
+  border-radius: 12px;
+}
+.clock-tabs > a[aria-current="page"] .clock-tab-count {
+  color: #FFFFFF;
+  background: #101010;
+  border-color: #101010;
+}
+
 .clock-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, .85fr);

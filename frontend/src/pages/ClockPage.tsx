@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { ApiError, apiRequest } from "../lib/api";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
 import ClockCorrections from "../components/ClockCorrections";
+import ClockTabs from "../components/ClockTabs";
 import { useToast } from "../components/ToastProvider";
 import "./ClockPage.css";
 
@@ -132,12 +133,7 @@ export default function ClockPage() {
   return <section className="clock-page" aria-labelledby="clock-title">
     <header className="clock-page-heading"><div><p className="clock-eyebrow">YOUR ATTENDANCE</p><h1 id="clock-title">Clock &amp; Hours</h1><p>Your shifts and paid breaks, recorded in one place.</p></div><span className="clock-zone">US Central · CDT / CST automatically</span></header>
     {loadError && <div className="clock-error" role="alert">! {loadError} <button type="button" onClick={() => void refresh().catch((e: unknown) => setLoadError(describeError(e)))}>Retry connection</button></div>}
-    {data && <nav className="clock-tabs" aria-label="Clock and Hours sections">
-      <Link to="/clock" aria-current={tab === "overview" ? "page" : undefined}>Overview</Link>
-      <Link to="/clock?tab=requests" aria-current={tab === "requests" ? "page" : undefined}>My requests</Link>
-      {data.canReviewCorrections && <Link to="/clock?tab=review" aria-current={tab === "review" ? "page" : undefined}>Review requests</Link>}
-      <Link to="/clock?tab=history" aria-current={tab === "history" ? "page" : undefined}>Shift history</Link>
-    </nav>}
+    {data && <ClockTabs mode="staff" activeTab={tab} canReview={data.canReviewCorrections} />}
     {!data ? <p role="status">{loadError ? "Your attendance could not be loaded." : "Loading your attendance…"}</p> : <>
       {tab === "overview" && <div className="clock-workspace">
       {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>! Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. Use Time corrections below if a recorded time needs changing.</p></div>}
