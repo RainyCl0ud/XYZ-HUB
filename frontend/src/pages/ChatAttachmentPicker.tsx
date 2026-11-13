@@ -54,8 +54,9 @@ export default function ChatAttachmentPicker({ channelId, maxBytes, onSent }: {
       <button type="button" onClick={() => void send()} disabled={uploading}>{uploading ? "Uploading…" : "Send file"}</button>
       {!uploading && <button type="button" onClick={() => { setSelection(null); setError(""); }}>Remove file</button>}
     </> : <>
-      <button type="button" onClick={() => input.current?.click()}>Attach file</button>
-      <small>Up to 500 MB</small>
+      <button type="button" className="creator-chat-media-icon" onClick={() => input.current?.click()} aria-label="Attach file (up to 500 MB)" title="Attach file">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m20.4 11.6-8.1 8.1a5.2 5.2 0 0 1-7.4-7.4l9-9a3.4 3.4 0 1 1 4.8 4.8l-9.1 9.1a1.6 1.6 0 0 1-2.3-2.3l8.1-8.1" /></svg>
+      </button>
     </>}
     {error && <p role="alert">{error}</p>}
   </div>;
