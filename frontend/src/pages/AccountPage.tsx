@@ -497,7 +497,7 @@ function AccountPage() {
           <button type="button" role="switch" className="account-notification-toggle"
             aria-label="Notification" aria-checked={!!notificationControls?.enabled && notificationControls.permission === "granted"}
             title={notificationControls?.enabled && notificationControls.permission === "granted" ? "Turn notifications off" : "Turn notifications on"}
-            disabled={!notificationControls?.available || !notificationControls.supported || notificationControls.permission === "denied" || notificationControls.busy}
+            disabled={!notificationControls || !notificationControls.available || !notificationControls.supported || notificationControls.permission === "denied" || notificationControls.busy}
             onClick={() => {
               if (!notificationControls) return;
               if (notificationControls.enabled && notificationControls.permission === "granted") notificationControls.disable();
@@ -511,7 +511,7 @@ function AccountPage() {
           </button>
         </div>
         {(notificationControls?.permission === "denied" || notificationControls?.error) && <p className="account-notification-error" role="status">
-          {notificationControls.error || "Notifications are blocked in this browser's site settings."}
+          {notificationControls?.error || "Notifications are blocked in this browser's site settings."}
         </p>}
       </section>}
       {canManageChatNotifications && notificationSettingsOpen && <Suspense fallback={<p role="status">Loading notification settings…</p>}><ChatBrowserNotifications onClose={() => setNotificationSettingsOpen(false)} /></Suspense>}
