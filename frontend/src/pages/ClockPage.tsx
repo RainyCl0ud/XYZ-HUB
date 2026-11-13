@@ -115,7 +115,7 @@ export default function ClockPage() {
         if (data.historyVersion !== result.historyVersion) { await refresh(); toast.info("Approved corrections changed your history. Your latest shifts have been refreshed."); }
         else accept(result, true);
       }
-    } catch (e) { if (mounted.current) { setLoadError(describeError(e)); toast.error(describeError(e), "Could not load shift history"); } }
+    } catch (e) { if (mounted.current) toast.error(describeError(e), "Could not load shift history"); }
     finally { if (mounted.current) setLoadingOlder(false); }
   }
   const shift = data?.currentShift;
