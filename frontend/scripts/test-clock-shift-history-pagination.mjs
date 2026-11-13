@@ -111,7 +111,8 @@ try {
   pass("Older-page fetches are scoped, abortable and reset on changes or invalid cursors.");
 
   assert.ok(parentSource.includes("onOlderPageLoaded={cacheOlderHistory}"));
-  assert.ok(parentSource.includes("historyCache?.version === data.historyVersion"));
+  assert.ok(parentSource.includes("historyCache?.userId === userId"));
+  assert.ok(parentSource.includes("historyCache.version === data.historyVersion"));
   assert.ok(parentSource.includes("onHistoryChanged={syncHistoryAfterChange}"));
   assert.ok(!parentSource.includes("Load earlier shifts"));
   assert.ok(!parentSource.includes("accept(result, true)"));
