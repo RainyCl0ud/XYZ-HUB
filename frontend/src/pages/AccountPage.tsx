@@ -21,6 +21,8 @@ import {
 } from "../lib/profile-avatar";
 
 import UserAvatar from "../components/UserAvatar";
+import { useBrowserNotifications } from "../components/BrowserNotificationsContext";
+import ChatBrowserNotifications from "./ChatBrowserNotifications";
 
 import "./AccountPage.css";
 
@@ -60,6 +62,10 @@ function AccountPage() {
     access,
     refreshAuth,
   } = useAuth();
+
+  const notificationControls = useBrowserNotifications();
+  const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
+  const canManageChatNotifications = import.meta.env.VITE_BLOCK2_CHAT_ENABLED === "true" && !!access?.permissions.includes("chat.access");
 
   const [
     avatarEditorOpen,
@@ -482,6 +488,22 @@ function AccountPage() {
 
         </div>
       </section>
+
+      {canManageChatNotifications && <section className="content-card account-notification-card" aria-labelledby="account-notification-title">
+        <div>
+          <span className="account-profile-label">Personal preferences</span>
+          <h3 id="account-notification-title">Browser notifications</h3>
+          <p>Choose whether this browser alerts you to new Hub chat messages. You can also set up background notifications on supported devices.</p>
+          <p className="account-notification-status" role="status">
+            {notificationControls?.permission === "denied" ? "Blocked by browser" :
+              !notificationControls?.supported ? "Not supported on this browser" :
+              notificationControls.enabled && notificationControls.permission === "granted" ? "Enabled in this browser" :
+              "Off in this browser"}
+          </p>
+        </div>
+        <button type="button" className="secondary-button" onClick={() => setNotificationSettingsOpen(true)}>Manage browser notifications</button>
+      </section>}
+      {canManageChatNotifications && notificationSettingsOpen && <ChatBrowserNotifications onClose={() => setNotificationSettingsOpen(false)} />}
 
       {avatarEditorOpen && (
         <div
