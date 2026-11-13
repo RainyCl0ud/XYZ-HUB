@@ -14,6 +14,7 @@ export default function ChatVoicePlayback({ src, durationMs = 0, preview = false
   const request = useRef<AbortController | null>(null);
   const objectUrl = useRef("");
   const [loading, setLoading] = useState(false);
+  const [audioLoaded, setAudioLoaded] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(Math.max(0, durationMs / 1000));
@@ -50,6 +51,7 @@ export default function ChatVoicePlayback({ src, durationMs = 0, preview = false
         if (controller.signal.aborted) return;
         objectUrl.current = URL.createObjectURL(file);
         audio.src = objectUrl.current;
+        setAudioLoaded(true);
       } catch {
         if (!controller.signal.aborted) setError("Could not load the voice message. Try again.");
         return;
@@ -84,6 +86,7 @@ export default function ChatVoicePlayback({ src, durationMs = 0, preview = false
         if (!preview && objectUrl.current) {
           audio.removeAttribute("src"); audio.load();
           URL.revokeObjectURL(objectUrl.current); objectUrl.current = "";
+          setAudioLoaded(false);
         } else audio.currentTime = 0;
         setPosition(0); setPlaying(false);
       }} />
@@ -97,7 +100,7 @@ export default function ChatVoicePlayback({ src, durationMs = 0, preview = false
     <div className="creator-chat-voice-seek">
       <span className="creator-chat-voice-wave" aria-hidden="true" style={{ "--voice-progress": progress + "%" } as CSSProperties} />
       <input type="range" aria-label="Seek voice message" min={0} max={total || 1} step={0.1}
-        value={Math.min(position, total || 1)} disabled={!total || (!preview && !objectUrl.current)}
+        value={Math.min(position, total || 1)} disabled={!total || (!preview && !audioLoaded)}
         onChange={event => {
           const next = Number(event.currentTarget.value);
           if (player.current && Number.isFinite(next)) { player.current.currentTime = next; setPosition(next); }
