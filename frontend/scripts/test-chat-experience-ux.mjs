@@ -112,7 +112,7 @@ pass("Responsive conversation, composer, reminders and profile controls retain m
 assert.ok(message.includes('className="creator-chat-action-menu"'));
 assert.ok(message.includes('Download file</a>'));
 assert.ok(message.includes('Delete message…</button>'));
-assert.ok(message.includes('aria-label={\`More actions for message by \${m.authorName}\`}'));
+assert.ok(message.includes('aria-label={`More actions for message by ${m.authorName}`}'));
 assert.ok(player.includes('aria-label="Seek voice message"'));
 assert.ok(player.includes('title="Playback speed"'));
 assert.ok(player.includes("credentials: \"include\""));
