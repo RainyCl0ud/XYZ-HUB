@@ -9,7 +9,7 @@ import { useToast } from "../components/ToastProvider";
 import "./ClockPage.css";
 
 type BreakKind = "SHORT_ONE" | "SHORT_TWO" | "MEAL";
-remove redundant local wire shapestype ClockState = { serverNow: string; historyVersion: string; timeZone: string; canTrack: boolean; canRequestCorrections: boolean; canReviewCorrections: boolean; exempt: boolean; currentShift: Shift | null; history: Shift[]; hasMore: boolean; nextBefore: string | null; totals: { dayKey: string; weekKey: string; todaySeconds: number; weekSeconds: number } };
+type ClockState = { serverNow: string; historyVersion: string; timeZone: string; canTrack: boolean; canRequestCorrections: boolean; canReviewCorrections: boolean; exempt: boolean; currentShift: Shift | null; history: Shift[]; hasMore: boolean; nextBefore: string | null; totals: { dayKey: string; weekKey: string; todaySeconds: number; weekSeconds: number } };
 const BREAK_OPTIONS: { kind: BreakKind; label: string; minutes: number }[] = [
   { kind: "SHORT_ONE", label: "Short break 1", minutes: 15 },
   { kind: "SHORT_TWO", label: "Short break 2", minutes: 15 },
