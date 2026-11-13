@@ -33,7 +33,21 @@ export async function getOwnerClockOverview(userId: string, before?: string) {
     const now = await clockDatabaseNow(tx);
     const openStaffShift: Prisma.ClockShiftWhereInput = {
       endedAt: null,
-      user: { is: { status: "ACTIVE" } },
+      user: {
+        is: {
+          status: "ACTIVE",
+          // Exempt system roles never belong in the working-staff overview,
+          // even if an old shift record remains open.
+          roleMemberships: {
+            none: {
+              role: {
+                archivedAt: null,
+                systemKey: { in: ["OWNER", "DEV", "MODEL"] },
+              },
+            },
+          },
+        },
+      },
     };
 
     let cursor: { id: string; startedAt: Date } | null = null;
