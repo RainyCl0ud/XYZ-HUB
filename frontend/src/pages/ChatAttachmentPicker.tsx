@@ -4,7 +4,7 @@ import { sendChatFile } from "./chatFiles";
 
 export type ChatAttachmentPickerHandle = { open: () => void };
 
-const ChatAttachmentPicker = forwardRef<ChatAttachmentPickerHandle, { channelId: string; maxBytes: number; onSent: (message: ChatMessage) => void }>(function ChatAttachmentPicker({ channelId, maxBytes, onSent }, ref) {
+const ChatAttachmentPicker = forwardRef<ChatAttachmentPickerHandle, { channelId: string; maxBytes: number; onSent: (message: ChatMessage) => void; onActiveChange?: (active: boolean) => void }>(function ChatAttachmentPicker({ channelId, maxBytes, onSent, onActiveChange }, ref) {
 
   const [selection, setSelection] = useState<{ file: File; nonce: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -12,6 +12,8 @@ const ChatAttachmentPicker = forwardRef<ChatAttachmentPickerHandle, { channelId:
   const input = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => { onActiveChange?.(!!selection || uploading); }, [selection, uploading, onActiveChange]);
+  useEffect(() => () => onActiveChange?.(false), [onActiveChange]);
   useImperativeHandle(ref, () => ({ open: () => { if (!uploading && !request.current) input.current?.click(); } }));
 
   function select(file?: File) {
