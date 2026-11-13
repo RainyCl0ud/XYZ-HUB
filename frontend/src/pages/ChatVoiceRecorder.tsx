@@ -22,8 +22,8 @@ function releaseCapture(capture: Capture) {
 
 export type ChatVoiceRecorderHandle = { start: () => void };
 const ChatVoiceRecorder = forwardRef<ChatVoiceRecorderHandle, {
-  channelId: string; maxSeconds: number; onSent: (message: ChatMessage) => void;
-}>(function ChatVoiceRecorder({ channelId, maxSeconds, onSent }, ref) {
+  channelId: string; maxSeconds: number; onSent: (message: ChatMessage) => void; onActiveChange?: (active: boolean) => void;
+}>(function ChatVoiceRecorder({ channelId, maxSeconds, onSent, onActiveChange }, ref) {
   const capture = useRef<Capture | null>(null);
   const upload = useRef<AbortController | null>(null);
   const [phase, setPhase] = useState<"idle" | "permission" | "recording" | "stopping">("idle");
@@ -31,6 +31,9 @@ const ChatVoiceRecorder = forwardRef<ChatVoiceRecorderHandle, {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => { onActiveChange?.(phase !== "idle" || !!draft); }, [phase, draft, onActiveChange]);
+  useEffect(() => () => onActiveChange?.(false), [onActiveChange]);
 
   useEffect(() => () => {
     if (capture.current) releaseCapture(capture.current);
