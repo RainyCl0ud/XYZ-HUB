@@ -4,8 +4,6 @@ import { useAuth } from "../auth/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import ChatAnnouncements from "./ChatAnnouncements";
 import ChatUnreadReminders from "./ChatUnreadReminders";
-import ChatBrowserNotifications from './ChatBrowserNotifications';
-import { useBrowserNotifications } from '../components/BrowserNotificationsContext';
 import { setAlertReadingContext } from '../lib/browser-alerts';
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
@@ -65,8 +63,6 @@ export default function ChatPage() {
 }
 
 function ChatWorkspace({ userId }: { userId: string }) {
-  const browserNotifications = useBrowserNotifications();
-  const [showBrowserNotifications, setShowBrowserNotifications] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const linkedConversation = searchParams.get('conversation') ?? '';
   const retainedConversation = searchParams.get("retained") ?? "";
@@ -97,7 +93,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showConversationTools, setShowConversationTools] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
-  const [channelFilter, setChannelFilter] = useState<"all" | "channels" | "private">("all");
+  const [showChannelSearch, setShowChannelSearch] = useState(false);
+  const [channelFilter, setChannelFilter] = useState<"channels" | "private">("channels");
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [markingRead, setMarkingRead] = useState(false);
@@ -121,6 +118,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const followMessages = useRef(true);
   const earlierScroll = useRef<{ top: number; height: number } | null>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const channelSearchInput = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (showChannelSearch && showChannels) channelSearchInput.current?.focus(); }, [showChannelSearch, showChannels]);
   const replyId = reply?.id;
   useEffect(() => { if (replyId) composer.current?.focus(); }, [replyId]);
   const area = areas.find((a) => a.channels.some((c) => c.id === selected));
@@ -132,13 +131,14 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const browseArea = area ?? areas[0];
   const query = channelSearch.trim().toLocaleLowerCase();
   const visibleChannels = browseArea?.channels.filter((c) => !c.retained && c.name.toLocaleLowerCase().includes(query) &&
-    (!unreadOnly || (c.unreadCount ?? 0) > 0) && (channelFilter === "all" || (channelFilter === "private" ? c.isPrivate : !c.isPrivate))) ?? [];
-  const ordinaryChannels = visibleChannels.filter((c) => !c.archived && !c.isPrivate);
-  const privateChannels = visibleChannels.filter((c) => !c.archived && c.isPrivate);
+    (!unreadOnly || (c.unreadCount ?? 0) > 0) && (channelFilter === "private" ? c.isPrivate : !c.isPrivate)) ?? [];
+  const activeChannels = visibleChannels.filter((c) => !c.archived);
   const archivedChannels = visibleChannels.filter((c) => c.archived);
 
   const chooseChannel = useCallback((id: string, preserveCurrent = true) => {
     const place = availableAreas.current.find((a) => a.channels.some((c) => c.id === id && !c.retained));
+    const nextChannel = place?.channels.find((c) => c.id === id);
+    if (nextChannel) setChannelFilter(nextChannel.isPrivate ? "private" : "channels");
     if (place) rememberLocation(userId, { modelId: place.modelId, channelId: id });
     else if (!id) rememberLocation(userId, null);
     if (id === selectedRef.current) return;
@@ -218,7 +218,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     void refreshAreas().catch(() => {});
   }, [refreshAreas]);
   const readFailed = useCallback(() => setReadError("Read status wasn’t saved. It will retry when messages refresh."), []);
-  const notificationsPaused = !!(loading || error || tools || deleting || cleanupTarget || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || showBrowserNotifications || markingRead);
+  const notificationsPaused = !!(loading || error || tools || deleting || cleanupTarget || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || markingRead);
   useEffect(() => {
     setAlertReadingContext({ userId, conversationId: selected, paused: notificationsPaused });
     return () => setAlertReadingContext({ userId: '', conversationId: '', paused: true });
@@ -440,7 +440,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
           <p>Find your creator, choose a conversation and stay connected.</p>
         </div>
         <div className="creator-chat-heading-tools">
-          {(canAnnounce || remindersEnabled || browserNotifications?.available) && <button type="button"
+          {(canAnnounce || remindersEnabled) && <button type="button"
             className="creator-chat-mobile creator-chat-options-toggle"
             aria-controls="chat-page-options"
             aria-expanded={showChatOptions}
@@ -449,7 +449,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
             <span className="creator-chat-timezone">All times in US Central</span>
             {canAnnounce && <button type="button" onClick={() => { setShowChatOptions(false); setShowAnnouncements(true); }}>Staff announcements</button>}
             {remindersEnabled && <button type="button" onClick={() => { setShowChatOptions(false); setShowReminders(true); }}>Email reminders</button>}
-            {browserNotifications?.available && <button type="button" onClick={() => { setShowChatOptions(false); setShowBrowserNotifications(true); }}>Browser notifications</button>}
           </div>
         </div>
       </header>
@@ -457,7 +456,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
       {notice && <div className="creator-chat-notice" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss update" onClick={() => setNotice("")}>Dismiss</button></div>}
       {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
       {showReminders && <ChatUnreadReminders onClose={() => setShowReminders(false)} />}
-      {showBrowserNotifications && <ChatBrowserNotifications onClose={() => setShowBrowserNotifications(false)} />}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
         <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">
@@ -466,20 +464,27 @@ function ChatWorkspace({ userId }: { userId: string }) {
               <label className="creator-chat-field-label" htmlFor="chat-workspace">Creator / workspace</label>
               <select id="chat-workspace" disabled={sending} value={browseArea?.modelId ?? ""} onChange={(e) => {
                 const next = areas.find((a) => a.modelId === e.target.value);
-                setChannelSearch(""); setChannelFilter("all"); openConversation(next?.channels.find(c => !c.archived)?.id ?? next?.channels.find(c => !c.retained)?.id ?? "");
+                setChannelSearch(""); setShowChannelSearch(false); setUnreadOnly(false); openConversation(next?.channels.find(c => !c.archived)?.id ?? next?.channels.find(c => !c.retained)?.id ?? "");
               }}>{areas.map((a) => <option key={a.modelId} value={a.modelId}>{a.name}{a.archived ? " · Archived" : a.unreadCount ? ` · ${a.unreadCount} unread` : ""}</option>)}</select>
-              <div className="creator-chat-search"><ChatIcon name="search" /><label className="creator-chat-sr" htmlFor="chat-find-channel">Find a conversation</label><input id="chat-find-channel" type="search" value={channelSearch} onChange={(e) => setChannelSearch(e.target.value)} placeholder="Find a conversation…" /></div>
-              <div className="creator-chat-filters" role="group" aria-label="Conversation type">
-                {([['all', 'All'], ['channels', 'Channels'], ['private', 'Private']] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={channelFilter === value} onClick={() => setChannelFilter(value)}>{label}</button>)}
+              <div className="creator-chat-browse-switcher">
+                <div className="creator-chat-filters" role="group" aria-label="Conversation type">
+                  <button type="button" aria-pressed={channelFilter === "channels"} onClick={() => setChannelFilter("channels")}>Channels</button>
+                  <button type="button" aria-pressed={channelFilter === "private"} onClick={() => setChannelFilter("private")}>Private</button>
+                </div>
+                <button type="button" className="creator-chat-search-toggle" aria-controls="chat-conversation-search" aria-expanded={showChannelSearch} aria-label={showChannelSearch ? "Close conversation search" : "Search conversations"} title="Search conversations" onClick={() => {
+                  if (showChannelSearch) { setChannelSearch(""); setUnreadOnly(false); }
+                  setShowChannelSearch(open => !open);
+                }}><ChatIcon name="search" /></button>
               </div>
-              <button type="button" className="creator-chat-unread-filter" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(!unreadOnly)}>Unread only{browseArea?.unreadCount ? ` · ${browseArea.unreadCount}` : ""}</button>
-              {(channelSearch || channelFilter !== "all") && <p className="creator-chat-filter-help">Filters change this list, not your open conversation.</p>}
+              {showChannelSearch && <div id="chat-conversation-search" className="creator-chat-search-panel">
+                <div className="creator-chat-search"><ChatIcon name="search" /><label className="creator-chat-sr" htmlFor="chat-find-channel">Find a conversation</label><input ref={channelSearchInput} id="chat-find-channel" type="search" value={channelSearch} onChange={(e) => setChannelSearch(e.target.value)} placeholder={channelFilter === "channels" ? "Search channels…" : "Search private chats…"} /></div>
+                <button type="button" className="creator-chat-unread-filter" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(!unreadOnly)}>Unread only{browseArea?.unreadCount ? ` · ${browseArea.unreadCount}` : ""}</button>
+              </div>}}
             </div>
             <nav className="creator-chat-channel-list" aria-label={`${browseArea?.name ?? "Your"} conversations`}>
-              {!!ordinaryChannels.length && <div className="creator-chat-channel-group"><h2>Channels <span>{ordinaryChannels.length}</span></h2>{ordinaryChannels.map(channelRow)}</div>}
-              {!!privateChannels.length && <div className="creator-chat-channel-group"><h2>Private chats <span>{privateChannels.length}</span></h2>{privateChannels.map(channelRow)}</div>}
-              {!!archivedChannels.length && <div className="creator-chat-channel-group"><h2>Archived conversations <span>{archivedChannels.length}</span></h2>{archivedChannels.map(channelRow)}</div>}
-              {!visibleChannels.length && <div className="creator-chat-no-results"><p>{unreadOnly ? "No unread conversations match." : "No conversations match."}</p><button type="button" onClick={() => { setChannelSearch(""); setChannelFilter("all"); setUnreadOnly(false); }}>Clear filters</button></div>}
+              {!!activeChannels.length && <div className="creator-chat-channel-group"><h2>{channelFilter === "channels" ? "Channels" : "Private chats"} <span>{activeChannels.length}</span></h2>{activeChannels.map(channelRow)}</div>}
+              {!!archivedChannels.length && <div className="creator-chat-channel-group"><h2>{channelFilter === "channels" ? "Archived channels" : "Archived private chats"} <span>{archivedChannels.length}</span></h2>{archivedChannels.map(channelRow)}</div>}
+              {!visibleChannels.length && <div className="creator-chat-no-results"><p>{unreadOnly ? "No unread conversations match." : channelSearch ? "No matching conversations." : channelFilter === "channels" ? "No channels in this workspace." : "No private chats in this workspace."}</p>{(channelSearch || unreadOnly) && <button type="button" onClick={() => { setChannelSearch(""); setUnreadOnly(false); }}>Clear search</button>}</div>}
             </nav>
             <div className="creator-chat-browse-footer">{browseArea?.canManage ? <button type="button" onClick={() => { setSettings({ modelId: browseArea.modelId, name: "" }); setShowChannels(false); }}>+ New channel</button> : <p>Only conversations you can access appear here.</p>}</div>
           </aside>
@@ -518,10 +523,19 @@ function ChatWorkspace({ userId }: { userId: string }) {
               {editConflict && latestEdit && <div className="creator-chat-edit-conflict" role="alert"><strong>This message changed elsewhere.</strong><p>Your edit is kept below. Review the latest sent text before saving over it.</p><details><summary>View latest sent text</summary><p>{latestEdit.text}</p></details><button type="button" onClick={() => setEdit(latestEdit)}>I reviewed it — keep my edit</button></div>}
               {reply && <div className="creator-chat-replying" role="status"><div><strong>Replying to {reply.authorName}</strong><p>{reply.attachment?.fileName ?? reply.text}</p></div><button type="button" onClick={() => { setReply(null); composer.current?.focus(); }}>Cancel reply</button></div>}
               <label className="creator-chat-sr" htmlFor="chat-message">Message {channel?.name}</label>
-              <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
-              <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Ctrl / ⌘ + Enter to send</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000 · Draft kept while Chat stays open` : ""}</span></small><button type="submit" disabled={sending || editConflict || unchangedEdit || !draft.trim()}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button></div>
-              {attachmentMaxBytes > 0 && <div hidden={!!edit || !!reply}><ChatAttachmentPicker key={selected} channelId={selected} maxBytes={attachmentMaxBytes} onSent={message => showSentMessage(selected, message)} /></div>}
-              {voiceMaxSeconds > 0 && !edit && !reply && <ChatVoiceRecorder key={selected} channelId={selected} maxSeconds={voiceMaxSeconds} onSent={message => showSentMessage(selected, message)} />}
+              <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => {
+                if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229 || e.repeat) return;
+                e.preventDefault();
+                if (!sending && draft.trim() && !editConflict && !unchangedEdit) e.currentTarget.form?.requestSubmit();
+              }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
+              <div className="creator-chat-composer-actions">
+                <div className="creator-chat-composer-media">
+                  {attachmentMaxBytes > 0 && <div hidden={!!edit || !!reply}><ChatAttachmentPicker key={selected} channelId={selected} maxBytes={attachmentMaxBytes} onSent={message => showSentMessage(selected, message)} /></div>}
+                  {voiceMaxSeconds > 0 && !edit && !reply && <ChatVoiceRecorder key={selected} channelId={selected} maxSeconds={voiceMaxSeconds} onSent={message => showSentMessage(selected, message)} />}
+                </div>
+                <button type="submit" className="creator-chat-send" disabled={sending || editConflict || unchangedEdit || !draft.trim()} aria-label={edit ? "Save message changes" : "Send message"} title={edit ? "Save message changes" : "Send message"}><span>{sending ? "Sending…" : edit ? "Save changes" : "Send"}</span><ChatIcon name="send" /></button>
+              </div>
+              <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Enter to send · Shift + Enter for a new line</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000 · Draft kept while Chat stays open` : ""}</span></small></div>
             </form> : transcript && <div className="creator-chat-readonly">
               <ChatIcon name="lock" />
               <div>
