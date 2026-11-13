@@ -174,7 +174,7 @@ export default function ClockRequestDetailPage() {
           </>}
       </div>}
     </article>}
-    {item && decision && <DecisionForm item={item} decision={decision}
+    {item && decision && <DecisionForm item={item} decision={decision} own={data?.scope === "mine"}
       onClose={() => setDecision(null)} onSave={saveDecision} />}
   </section>;
 }
