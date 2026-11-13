@@ -149,8 +149,9 @@ export default function ChatVoiceRecorder({ channelId, maxSeconds, onSent }: {
 
   return <div className="creator-chat-file-picker creator-chat-voice">
     {phase === "idle" && !draft && <>
-      <button type="button" onClick={() => void start()}>Record voice message</button>
-      <small>Up to {maxSeconds / 60} min</small>
+      <button type="button" className="creator-chat-media-icon" onClick={() => void start()} aria-label="Record voice message" title={`Record voice message (up to ${maxSeconds / 60} minutes)`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="12" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V22m-4 0h8" /></svg>
+      </button>
     </>}
     {phase === "permission" && <span role="status">Waiting for microphone access…</span>}
     {phase === "recording" && <>
