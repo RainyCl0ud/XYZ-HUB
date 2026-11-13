@@ -8,6 +8,7 @@ import { prisma } from "../src/lib/prisma.js";
 import { clockIn, clockOut, getOwnClock, installClockDefaults } from "../src/services/clock.js";
 import { cancelClockCorrection, getClockCorrection, installClockCorrectionDefaults, listClockCorrections, requestClockCorrection, reviewClockCorrection } from "../src/services/clock-corrections.js";
 import { ClockError } from "../src/services/clock-policy.js";
+import { getOwnerClockOverview } from "../src/services/clock-owner-overview.js";
 import { centralDayKey, centralWeekKey } from "../src/services/clock-time.js";
 import { createSession } from "../src/services/session.js";
 import { loadSession } from "../src/middleware/session-auth.js";
@@ -83,6 +84,64 @@ async function main() {
     await expect(() => getClockCorrection(trial.id, requests[0].id), 404);
     await expect(() => getClockCorrection(staff.id, "nonexistent-correction"), 404);
     check("Direct request details are visible only to their owner and currently authorized reviewers");
+
+    // Owner attendance metrics must never be served from a staff account's
+    // personal timekeeping endpoint or from a caller-controlled role flag.
+    await expect(() => getOwnerClockOverview(staff.id), 403);
+    await expect(() => getOwnerClockOverview(ops.id), 403);
+    await expect(() => getOwnerClockOverview(dev.id), 403);
+    const ownerBefore = await getOwnerClockOverview(owner.id);
+    const overviewShifts: string[] = [];
+    const overviewPeople: string[] = [];
+    for (let index = 0; index < 22; index++) {
+      const employee = await make(`overview-${index}`, ["CHATTER"]);
+      overviewPeople.push(employee.id);
+      const start = new Date(now.getTime() - (3600 + index) * 1000);
+      const row = await prisma.clockShift.create({
+        data: {
+          userId: employee.id,
+          personName: `${prefix} overview-${index}`,
+          startedAt: start,
+          endedAt: null,
+          startDay: centralDayKey(start),
+          startWeek: centralWeekKey(start),
+          startRequestId: randomUUID(),
+        },
+      });
+      overviewShifts.push(row.id);
+    }
+    const breakStarted = new Date(now.getTime() - 900_000);
+    await prisma.clockBreak.create({
+      data: {
+        shiftId: overviewShifts[0], kind: "SHORT_ONE",
+        startedAt: breakStarted, endedAt: null, startRequestId: randomUUID(),
+      },
+    });
+    const overviewFirst = await getOwnerClockOverview(owner.id);
+    assert.equal(overviewFirst.counts.clockedInStaff, ownerBefore.counts.clockedInStaff + 22);
+    assert.equal(overviewFirst.counts.staffOnBreak, ownerBefore.counts.staffOnBreak + 1);
+    assert.ok(overviewFirst.counts.shiftsStartedToday >= ownerBefore.counts.shiftsStartedToday);
+    assert.equal(overviewFirst.counts.pendingReviewRequests, (await listClockCorrections(owner.id, "review", "pending")).reviewPendingCount);
+    assert.equal(overviewFirst.activeShifts.length, 20);
+    assert.equal(overviewFirst.hasMore, true);
+    assert.ok(overviewFirst.nextBefore);
+    const overviewSecond = await getOwnerClockOverview(owner.id, overviewFirst.nextBefore!);
+    const seen = new Set([...overviewFirst.activeShifts, ...overviewSecond.activeShifts].map(row => row.id));
+    assert.equal(seen.size, overviewFirst.activeShifts.length + overviewSecond.activeShifts.length);
+    assert.ok(overviewFirst.activeShifts.some(row => row.id === overviewShifts[0] && row.activeBreak?.kind === "SHORT_ONE"));
+    assert.ok(overviewFirst.activeShifts.every(row => row.teamName === "Unassigned" || typeof row.teamName === "string"));
+    await expect(() => getOwnerClockOverview(owner.id, "missing-owner-cursor"), 400);
+    await prisma.clockShift.update({ where: { id: overviewFirst.nextBefore! }, data: { endedAt: now } });
+    await expect(() => getOwnerClockOverview(owner.id, overviewFirst.nextBefore!), 400);
+    // Database role revocation takes effect immediately even if the caller
+    // still holds a previously valid session.
+    await prisma.userRole.delete({ where: { userId_roleId: { userId: owner.id, roleId: roles.get("OWNER")!.id } } });
+    try { await expect(() => getOwnerClockOverview(owner.id), 403); }
+    finally { await prisma.userRole.create({ data: { userId: owner.id, roleId: roles.get("OWNER")!.id } }); }
+    await prisma.user.update({ where: { id: overviewPeople[0] }, data: { status: "DEACTIVATED" } });
+    assert.ok(!(await getOwnerClockOverview(owner.id)).activeShifts.some(row => row.id === overviewShifts[0]));
+    check("Owner overview blocks other roles, enforces live role changes, pages active shifts and reports paid breaks");
+
     const decisions = await Promise.allSettled([reviewClockCorrection(manager.id, requests[0].id, "APPROVED", "Checked attendance."), reviewClockCorrection(owner.id, requests[0].id, "APPROVED", "Checked by Owner.")]);
     assert.equal(decisions.filter((d) => d.status === "fulfilled").length, 1);
     assert.equal(decisions.filter((d) => d.status === "rejected").length, 1);
@@ -188,6 +247,17 @@ async function main() {
     assert.equal((await fetch(`${base}/corrections/${missingRequest.id}/review`, { method: "POST", headers: { Cookie: otherCookie, "Content-Type": "application/json" }, body: JSON.stringify({ decision: "APPROVED", note: "   " }) })).status, 400);
     assert.ok((await listClockCorrections(staff.id)).requests.every((r) => r.personName.startsWith(prefix)));
     check("Authenticated HTTP enforces no-store, strict payloads, required review reasons and hidden personal records");
+
+    const ownerCookie = await cookie(owner.id);
+    const ownerOverview = await fetch(`${base}/owner/overview`, { headers: { Cookie: ownerCookie } });
+    assert.equal(ownerOverview.status, 200);
+    assert.equal(ownerOverview.headers.get("cache-control"), "no-store");
+    assert.ok((await ownerOverview.json()).counts.clockedInStaff >= 20);
+    assert.equal((await fetch(`${base}/owner/overview`, { headers: { Cookie: otherCookie } })).status, 403);
+    assert.equal((await fetch(`${base}/owner/overview`)).status, 401);
+    assert.equal((await fetch(`${base}/owner/overview?scope=all`, { headers: { Cookie: ownerCookie } })).status, 400);
+    check("Owner overview HTTP requires authentication, an active Owner role and strict query scope");
+
     const coreGrant = await prisma.permission.findUniqueOrThrow({ where: { key: "clock.corrections.request" } });
     await prisma.rolePermission.deleteMany({ where: { roleId: roles.get("CHATTER")!.id, permissionId: coreGrant.id } });
     assert.equal(await prisma.$transaction((tx) => installClockCorrectionDefaults(tx)), false);

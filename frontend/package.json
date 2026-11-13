@@ -11,6 +11,7 @@
     "test:browser-notifications": "node scripts/test-browser-notifications.mjs",
     "test:clock-correction-comparison": "node scripts/test-clock-correction-comparison.mjs",
     "test:clock-correction-ux": "node scripts/test-clock-correction-ux.mjs",
+    "test:clock-owner-workspace": "node scripts/test-clock-owner-workspace.mjs",
     "preview": "vite preview",
     "start": "serve -s dist -l $PORT"
   },
