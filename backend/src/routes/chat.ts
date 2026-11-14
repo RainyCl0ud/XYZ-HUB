@@ -19,6 +19,7 @@ import { chatAttachmentMetadata, uploadChatAttachment } from "../services/chat-a
 import { renderChatImagePreview } from "../services/chat-image-preview.js";
 import { chatVoiceEnabled, MAX_CHAT_VOICE_SECONDS } from "../services/chat-voice.js";
 import { downloadChatChannelExport } from "../services/chat-channel-export.js";
+import { getProfileAvatar } from "../services/profile-avatar.js";
 import { backgroundPushSettings, pushSubscriptionSchema, subscribeBackgroundPush, unsubscribeBackgroundPush } from "../services/hub-background-push.js";
 
 const router = Router();
@@ -147,6 +148,24 @@ router.get("/channels/:channelId/messages", run(async (req, res) => {
   res.json(await listChatMessages(user(req), param(req, "channelId"), before));
 }));
 router.get("/channels/:channelId/members", run(async (req, res) => res.json({ members: await listChatMembers(user(req), param(req, "channelId")) })));
+const memberAvatarLimit = createRateLimit({ windowMs: 60_000, max: 120, keyPrefix: "chat-member-avatar", getIdentity: user });
+router.get("/channels/:channelId/members/:memberId/avatar", memberAvatarLimit, run(async (req, res) => {
+  const channelId = param(req, "channelId"), memberId = param(req, "memberId");
+  // Reuse the exact current member visibility decision before exposing an image.
+  // People Management permissions must not be needed for a visible Chat avatar.
+  const authorized = (await listChatMembers(user(req), channelId))
+    .some((member) => member.id === memberId && !!member.avatarUpdatedAt);
+  if (!authorized) throw new ChatError(404, "Profile picture not found.");
+  const avatar = await getProfileAvatar(memberId);
+  if (!avatar?.avatarImage || !avatar.avatarMimeType) throw new ChatError(404, "Profile picture not found.");
+  const image = Buffer.from(avatar.avatarImage);
+  res.status(200).type(avatar.avatarMimeType).set({
+    "Content-Length": String(image.length),
+    "Cache-Control": "private, max-age=3600",
+    "Cross-Origin-Resource-Policy": "same-site",
+    "X-Content-Type-Options": "nosniff",
+  }).send(image);
+}));
 router.post("/channels/:channelId/messages", run(async (req, res) => {
   const input = sendSchema.parse(req.body);
   res.status(201).json({ message: await sendChatMessage(user(req), param(req, "channelId"), input.text, input.clientNonce, input.replyToId) });
