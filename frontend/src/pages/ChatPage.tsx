@@ -512,11 +512,11 @@ function ChatWorkspace({ userId }: { userId: string }) {
               <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.retained ? " · Retained history" : channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
               <div className="creator-chat-header-actions">
                 <div className="creator-chat-discover-actions" role="group" aria-label="Search and pinned messages">
-                  <button type="button" className="creator-chat-search-action" disabled={!transcript}
+                  <button type="button" className="creator-chat-search-action" disabled={typeof transcript?.canPin !== "boolean"}
                     onClick={() => setTools({ kind: "search", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>
                     <ChatIcon name="search" /><span>Search</span>
                   </button>
-                  <button type="button" className="creator-chat-pin-action" disabled={!transcript}
+                  <button type="button" className="creator-chat-pin-action" disabled={typeof transcript?.canPin !== "boolean"}
                     aria-label="Pinned messages" title="Pinned messages"
                     onClick={() => setTools({ kind: "pins", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>
                     <ChatIcon name="pin" />
