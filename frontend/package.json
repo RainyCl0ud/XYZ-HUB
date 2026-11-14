@@ -18,7 +18,8 @@
     "test:clock-tab-badges": "node scripts/test-clock-tab-badges.mjs",
     "test:clock-shift-history-pagination": "node scripts/test-clock-shift-history-pagination.mjs",
     "preview": "vite preview",
-    "start": "serve -s dist -l $PORT"
+    "start": "serve -s dist -l $PORT",
+    "test:chat-ui-polish": "node scripts/test-chat-ui-polish.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
