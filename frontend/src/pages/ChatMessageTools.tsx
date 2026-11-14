@@ -232,15 +232,17 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
     const element = dialog.current; element?.showModal(); searchInput.current?.focus();
     return () => element?.close();
   }, [inline]);
-  // Search as the user types, keeping the existing permission-checked API and
-  // cancelling older requests before they can show stale or private results.
+  // Invalidate old results from the user's input event, rather than doing
+  // synchronous state updates inside an effect. This also aborts the previous
+  // permission-checked request as soon as the submitted search is cleared.
+  function invalidateSearch() {
+    setSubmitted(null); setCursors([]); setResults([]); setNextBefore(null);
+    setLoaded(false); setBusy(false); setError("");
+  }
+  // Live search runs only after the user stops typing for 400ms.
   useEffect(() => {
     if (target.kind !== "search") return;
     const text = query.trim();
-    // Clear the previous query immediately so its polling request is aborted
-    // before the debounce finishes. Never display results for old search text.
-    setSubmitted(null); setCursors([]); setResults([]); setNextBefore(null);
-    setLoaded(false); setBusy(false); setError("");
     if (text.length < 2) return;
     const timer = setTimeout(() => {
       setSubmitted({ q: text, scope });
@@ -326,8 +328,8 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
     {(target.kind === "deleted" || target.kind === "history") && <p className="creator-chat-owner-help">{target.kind === "history" ? "Owner-only · Full message and change history." : "Only Owners can view these retained records. Deleted messages stay hidden from everyone else."}</p>}
     {notice && target.kind !== "history" && <p className="creator-chat-notice" role="status">{notice}</p>}
     {target.kind === "search" && <form className="creator-chat-message-search" role="search" onSubmit={submit}>
-      <label htmlFor="chat-search-text">Search messages</label><input ref={searchInput} id="chat-search-text" type="search" minLength={2} maxLength={120} required placeholder="Search for a word or phrase…" value={query} onChange={(e) => setQuery(e.target.value)} />
-      <label htmlFor="chat-search-scope">Search in</label><div><select id="chat-search-scope" value={scope} onChange={(e) => setScope(e.target.value)}><option value="conversation">This conversation</option><option value="all">All my conversations</option></select><button type="submit" disabled={query.trim().length < 2}>Go</button></div>
+      <label htmlFor="chat-search-text">Search messages</label><input ref={searchInput} id="chat-search-text" type="search" minLength={2} maxLength={120} required placeholder="Search for a word or phrase…" value={query} onChange={(e) => { invalidateSearch(); setQuery(e.target.value); }} />
+      <label htmlFor="chat-search-scope">Search in</label><div><select id="chat-search-scope" value={scope} onChange={(e) => { invalidateSearch(); setScope(e.target.value); }}><option value="conversation">This conversation</option><option value="all">All my conversations</option></select><button type="submit" disabled={query.trim().length < 2}>Go</button></div>
     </form>}
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
     {actionError && <p className="creator-chat-error" role="alert">{actionError}</p>}
