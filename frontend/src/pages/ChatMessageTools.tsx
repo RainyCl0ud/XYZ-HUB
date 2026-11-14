@@ -50,7 +50,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
 
   useEffect(() => {
     if (!menuOpen) return;
-    popupRef.current?.querySelector<HTMLElement>("button, a, summary")?.focus();
+    popupRef.current?.querySelector<HTMLElement>("button, a, summary")?.focus({ preventScroll: true });
     const closeOnOutside = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!popupRef.current?.contains(target) && !menuButton.current?.contains(target)) setMenuOpen(false);
@@ -125,7 +125,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       <div className={`creator-chat-file ${voiceDuration ? "is-voice" : ""}`}>
         {!voiceDuration && <><strong>{m.attachment.fileName}</strong><small>{m.attachment.byteSize.toLocaleString()} bytes</small></>}
         {m.attachment.available && !!voiceDuration && <ChatVoicePlayback key={attachmentPath} src={`${attachmentPath}/voice`} durationMs={voiceDuration} />}
-        {!m.attachment.available && <small>File unavailable</small>}
+        {!m.attachment.available && <small className="creator-chat-file-unavailable">File unavailable</small>}
       </div>
     </>}
     {!!reactions.length && <div className="creator-chat-reactions" aria-label="Message reactions">{reactions.map((r) => m.canReply ?
@@ -297,22 +297,21 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
   return <dialog ref={dialog} className="creator-chat-settings creator-chat-tools" aria-labelledby="chat-tools-title" onCancel={onClose}>
     <header><h2 id="chat-tools-title">{target.kind === "search" ? "Search messages" : target.kind === "pins" ? "Pinned messages" : target.kind === "deleted" ? "Deleted messages · Owner view" : target.kind === "history" ? "Message history · Owner view" : "Message"}</h2><button type="button" onClick={onClose}>Close</button></header>
     {backLabel && <button type="button" className="creator-chat-back" onClick={onBack}>← {backLabel}</button>}
-    <p className="creator-chat-tools-context">{target.channelName} · Times in US Central</p>
+    <p className="creator-chat-tools-context">{target.channelName}</p>
     {(target.kind === "deleted" || target.kind === "history") && <p className="creator-chat-owner-help">{target.kind === "history" ? "Owner-only · Full message and change history." : "Only Owners can view these retained records. Deleted messages stay hidden from everyone else."}</p>}
     {notice && target.kind !== "history" && <p className="creator-chat-notice" role="status">{notice}</p>}
     {target.kind === "search" && <form className="creator-chat-message-search" onSubmit={submit}>
       <label htmlFor="chat-search-text">Message text</label><input ref={searchInput} id="chat-search-text" type="search" minLength={2} maxLength={120} required placeholder="Search for a word or phrase…" value={query} onChange={(e) => setQuery(e.target.value)} />
       <label htmlFor="chat-search-scope">Search in</label><div><select id="chat-search-scope" value={scope} onChange={(e) => setScope(e.target.value)}><option value="conversation">This conversation</option><option value="all">All my conversations</option></select><button type="submit" disabled={query.trim().length < 2}>Search</button></div>
-      <p>Only messages you currently have access to are included.</p>
     </form>}
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
     {actionError && <p className="creator-chat-error" role="alert">{actionError}</p>}
     {busy && !loaded && <p role="status">Loading messages…</p>}
-    {target.kind === "search" && !submitted && <p>Enter at least two characters to find a message.</p>}
+    {target.kind === "search" && !submitted && }
     {target.kind === "search" && loaded && !error && <><p role="status">{results.length ? `Showing ${results.length}${nextBefore ? "+" : ""} matching messages for “${submitted?.q}”.` : "No matching messages in your current conversations."}</p>{results.map((r) => <article className="creator-chat-tool-result" key={r.message.id}><small>{r.areaName} / {r.channelName}{r.isPrivate ? " · Private" : ""}{r.message.deleted ? " · Deleted · Owner view" : ""}</small><strong>{r.message.authorName} · {chatTime(r.message.createdAt)}</strong><p>{r.message.text}</p><button type="button" onClick={() => navigate({ kind: "message", channelId: r.channelId, channelName: `${r.areaName} / ${r.channelName}`, messageId: r.message.id })}>View message</button></article>)}</>}
-    {(target.kind === "pins" || target.kind === "deleted") && loaded && !error && <>{!pins.length && <p>{target.kind === "pins" ? "No pinned messages yet. Pins keep useful messages easy to find." : "No deleted messages in this conversation."}</p>}{pins.map((m) => <article className="creator-chat-tool-result" key={m.id}>{content(m, target.channelId, target.channelName)}<button type="button" onClick={() => navigate({ kind: "message", channelId: target.channelId, channelName: target.channelName, messageId: m.id })}>View message</button></article>)}</>}
+    {(target.kind === "pins" || target.kind === "deleted") && loaded && !error && <>{!pins.length && <p>{target.kind === "pins" ? "No pinned messages yet." : "No deleted messages in this conversation."}</p>}{pins.map((m) => <article className="creator-chat-tool-result" key={m.id}>{content(m, target.channelId, target.channelName)}<button type="button" onClick={() => navigate({ kind: "message", channelId: target.channelId, channelName: target.channelName, messageId: m.id })}>View message</button></article>)}</>}
     {(target.kind === "message" || target.kind === "history") && message && <article className="creator-chat-tool-result">{target.kind === "history" ? <details className="creator-chat-record-preview"><summary>{message.deleted ? "Retained message" : "Current message"} · {message.authorName}</summary>{content(message, target.channelId, target.channelName)}</details> : content(message, target.channelId, target.channelName)}<button type="button" onClick={() => onConversation(target.channelId)}>Go to latest conversation</button></article>}
-    {target.kind === "history" && !error && loaded && <div className="creator-chat-revision-list"><h3>Activity history</h3><p>Newest first · Original text and each recorded change.</p>{!history.length && <p>No recorded history is available for this message.</p>}{history.map((event) => <article key={event.id}><header><strong>{event.action === "chat.message.send" ? "Sent" : event.action === "chat.message.edit" ? "Edited" : "Deleted"} · {event.actorName}</strong><time dateTime={event.occurredAt}>{chatTime(event.occurredAt)}</time></header>{event.beforeText !== null && <div><strong>{event.action === "chat.message.delete" ? "Retained text" : "Before"}</strong><p>{event.beforeText}</p></div>}{event.afterText !== null && <div><strong>{event.action === "chat.message.send" ? "Original text" : "After"}</strong><p>{event.afterText}</p></div>}{event.reason && <p>Reason: {event.reason}</p>}</article>)}</div>}
+    {target.kind === "history" && !error && loaded && <div className="creator-chat-revision-list"><h3>Activity history</h3>{!history.length && <p>No recorded history is available for this message.</p>}{history.map((event) => <article key={event.id}><header><strong>{event.action === "chat.message.send" ? "Sent" : event.action === "chat.message.edit" ? "Edited" : "Deleted"} · {event.actorName}</strong><time dateTime={event.occurredAt}>{chatTime(event.occurredAt)}</time></header>{event.beforeText !== null && <div><strong>{event.action === "chat.message.delete" ? "Retained text" : "Before"}</strong><p>{event.beforeText}</p></div>}{event.afterText !== null && <div><strong>{event.action === "chat.message.send" ? "Original text" : "After"}</strong><p>{event.afterText}</p></div>}{event.reason && <p>Reason: {event.reason}</p>}</article>)}</div>}
     {nextBefore && <button type="button" disabled={busy} onClick={() => setCursors((old) => [...old, nextBefore])}>Load more</button>}
     {error && <button type="button" onClick={() => { setCursors([]); setRevision((v) => v + 1); }}>Refresh messages</button>}
   </dialog>;
