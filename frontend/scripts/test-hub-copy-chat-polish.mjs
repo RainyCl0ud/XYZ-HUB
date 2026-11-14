@@ -51,6 +51,7 @@ assert.ok(!page.includes('showConversationTools'));
 assert.ok(page.indexOf('className="creator-chat-search-action"') < page.indexOf('className="creator-chat-pin-action"'));
 pass("Search is direct with the adjacent Pin icon and authorized deleted-message access.");
 
+assert.ok(!/&&\s*\}/.test(message), "No unfinished JSX condition remains after removing helper copy.");
 assert.ok(message.includes("createPortal("));
 assert.ok(message.includes('closest("dialog") ?? document.body'));
 assert.ok(message.includes('className="creator-chat-action-popover"'));
