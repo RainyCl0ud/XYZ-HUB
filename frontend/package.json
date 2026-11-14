@@ -10,6 +10,7 @@
     "test:chat-compat": "node scripts/test-chat-message-compat.mjs",
     "test:chat-mobile-ux": "node scripts/test-chat-mobile-ux.mjs",
     "test:chat-experience-ux": "node scripts/test-chat-experience-ux.mjs",
+    "test:hub-copy-chat-polish": "node scripts/test-hub-copy-chat-polish.mjs",
     "test:browser-notifications": "node scripts/test-browser-notifications.mjs",
     "test:clock-correction-comparison": "node scripts/test-clock-correction-comparison.mjs",
     "test:clock-correction-ux": "node scripts/test-clock-correction-ux.mjs",
