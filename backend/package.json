@@ -13,7 +13,7 @@
     "seed": "tsx prisma/seed.ts",
     "staging:reset-test-data": "tsx scripts/reset-staging-test-data.ts",
     "test:staging-reset-data-plan": "npm run test:staging-regressions && tsx scripts/reset-staging-test-data.ts --validate-only",
-    "test:staging-regressions": "tsc -p tsconfig.staging-checks.json && tsx scripts/test-staging-access-regressions.ts && tsx scripts/test-staging-reset-regressions.ts",
+    "test:staging-regressions": "tsc -p tsconfig.staging-checks.json && tsx scripts/test-staging-access-regressions.ts && tsx scripts/test-staging-reset-regressions.ts && npm run test:block2-acceptance-guards",
     "test:access": "tsx scripts/test-access-control.ts",
     "test:middleware": "tsx scripts/test-access-middleware.ts",
     "test:session-token": "tsx scripts/test-session-token.ts",
@@ -77,7 +77,8 @@
     "test:chat-announcements-upgrade": "tsx scripts/test-chat-announcements-upgrade.ts",
     "test:chat-unread-upgrade": "tsx scripts/test-chat-unread-upgrade.ts",
     "test:chat-quarantine": "tsx scripts/test-chat-quarantine.ts",
-    "test:chat-quarantine-upgrade": "tsx scripts/test-chat-quarantine-upgrade.ts"
+    "test:chat-quarantine-upgrade": "tsx scripts/test-chat-quarantine-upgrade.ts",
+    "test:block2-acceptance-guards": "tsx scripts/test-block2-acceptance-guards.ts"
   },
   "keywords": [],
   "author": "",
