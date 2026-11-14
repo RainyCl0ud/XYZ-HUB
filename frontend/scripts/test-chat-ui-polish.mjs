@@ -66,7 +66,7 @@ assert.ok(routes.includes('router.get("/channels/:channelId/members/:memberId/av
 assert.ok(routes.includes('listChatMembers(user(req), channelId)'));
 assert.ok(routes.includes('member.id === memberId && !!member.avatarUpdatedAt'));
 assert.ok(routes.includes('getProfileAvatar(memberId)'));
-assert.ok(routes.includes('"Cache-Control": "private, max-age=3600"'));
+assert.ok(routes.includes('"Cache-Control": "no-store"'));
 assert.ok(service.includes('const access = channel ? channelAccess(subject, channel) : standingAccess(subject, conversation!);'));
 pass("Member avatar reads recheck current channel visibility and do not depend on People permissions.");
 
