@@ -518,8 +518,31 @@ export async function listChatMembers(userId: string, channelId: string) {
       const quarantine = modelId && !conversationAccess.archived ? quarantineControl(viewer, subject, modelId) : null;
       // Only an authorized reviewer sees paused targets who no longer belong
       // to this ordinary channel. There is no team-wide quarantine notice.
-      return access.canView || quarantine?.active ? [{ id: user.id, name: user.name, canView: access.canView, canPost: access.canPost, quarantine }] : [];
+      const primaryRole = user.roleMemberships.map(({ role }) => role)
+        .sort((a, b) => (a.rank ?? Number.MAX_SAFE_INTEGER) - (b.rank ?? Number.MAX_SAFE_INTEGER))[0];
+      return access.canView || quarantine?.active ? [{
+        id: user.id, name: user.name, role: primaryRole?.name ?? "Member",
+        avatarUpdatedAt: user.avatarUpdatedAt, canView: access.canView, canPost: access.canPost, quarantine,
+      }] : [];
     });
+  });
+}
+
+/** Serve a member's profile image only while both accounts retain access to
+ * the same conversation. Avoid fetching every member for each avatar request. */
+export async function getChatMemberAvatar(userId: string, channelId: string, memberId: string) {
+  return prisma.$transaction(async (tx) => {
+    const { viewer, channel, conversation, access: conversationAccess } = await openChannel(tx, userId, channelId);
+    const user = await tx.user.findUnique({ where: { id: memberId }, include: viewerInclude });
+    if (!user || user.status !== "ACTIVE") throw new ChatError(404, "Profile picture not found.");
+    const member = makeViewer(user);
+    const access = channel ? channelAccess(member, channel) : standingAccess(member, conversation!);
+    const modelId = channel?.modelId ?? conversation?.modelId;
+    const quarantine = modelId && !conversationAccess.archived ? quarantineControl(viewer, member, modelId) : null;
+    if (!access.canView && !quarantine?.active) throw new ChatError(404, "Profile picture not found.");
+    if (!user.avatarUpdatedAt || !user.avatarImage || !user.avatarMimeType)
+      throw new ChatError(404, "Profile picture not found.");
+    return { avatarImage: user.avatarImage, avatarMimeType: user.avatarMimeType };
   });
 }
 

@@ -132,9 +132,12 @@ async function main() {
     const members = await listChatMembers(trial.id, feedback.id);
     assert.ok(!members.some((m) => m.id === chatter.id));
     assert.ok(members.some((m) => m.id === developer.id && !m.canPost));
-    assert.ok(members.every((m) => Object.keys(m).every((key) => ["id", "name", "canView", "canPost", "quarantine"].includes(key))));
+    assert.ok(members.every((m) => Object.keys(m).every((key) =>
+      ["id", "name", "role", "avatarUpdatedAt", "canView", "canPost", "quarantine"].includes(key))));
+    assert.ok(members.every((m) => typeof m.role === "string" && m.role.length > 0));
+    assert.ok(members.every((m) => m.avatarUpdatedAt === null || m.avatarUpdatedAt instanceof Date));
     assert.ok(members.every((m) => m.quarantine === null));
-    check("Member lists include only people who can actually open the channel and expose no email directory");
+    check("Member lists expose only authorized participants, role and avatar version; no email directory");
     const preservedGrant = await prisma.chatRoleGrant.findUniqueOrThrow({ where: { channelId_roleId: { channelId: general.id, roleId: roles.get("CHATTER")!.id } } });
     await prisma.chatChannel.update({ where: { id: general.id }, data: { name: "Custom General name" } });
     await prisma.chatRoleGrant.update({ where: { channelId_roleId: { channelId: general.id, roleId: preservedGrant.roleId } }, data: { canPost: false } });
