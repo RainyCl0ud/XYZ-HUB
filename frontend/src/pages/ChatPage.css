@@ -766,6 +766,8 @@
     max-height: none;
     min-width: 0;
     min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
     padding: 0;
     border: 0;
     border-left: 1px solid #333;
