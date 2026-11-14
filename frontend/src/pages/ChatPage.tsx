@@ -86,8 +86,13 @@ function ChatWorkspace({ userId }: { userId: string }) {
     if (!inlineDiscoveryOpen) return;
     const outside = (event: PointerEvent) => {
       const target = event.target;
+      // Message actions use a body portal. Keep their menus and any nested
+      // confirmation dialog interactive without dismissing this flyout.
       if (target instanceof Element &&
-        (target.closest(".creator-chat-live-panel") || target.closest(".creator-chat-discover-actions"))) return;
+        (target.closest(".creator-chat-live-panel") ||
+         target.closest(".creator-chat-discover-actions") ||
+         target.closest(".creator-chat-action-popover") ||
+         target.closest("dialog[open]"))) return;
       setTools(null); setToolsNotice("");
     };
     const escape = (event: KeyboardEvent) => {
