@@ -98,8 +98,6 @@ export default function ClockAlerts() {
     </aside>}
     <dialog ref={dialog} className="clock-alerts-dialog" aria-labelledby="attendance-alert-title" onCancel={() => setOpen(false)} onClose={() => setOpen(false)}>
       <header><div><p className="clock-alert-eyebrow">ATTENDANCE</p><h2 id="attendance-alert-title">Your alerts</h2></div><button type="button" onClick={() => setOpen(false)} aria-label="Close attendance alerts">Close</button></header>
-      <p>Marking an alert as read clears it for you only. It never changes recorded hours.</p>
-      {inbox?.canReviewStaff && <p className="clock-alert-scope">Management view · Staff flags follow your current attendance permissions and creator assignments.</p>}
       <div className="clock-alert-toolbar"><div role="group" aria-label="Filter attendance alerts"><button type="button" aria-pressed={filter === "unread"} onClick={() => { setFilter("unread"); setBefore(null); }}>Unread{inbox ? ` (${inbox.unreadCount})` : ""}</button><button type="button" aria-pressed={filter === "all"} onClick={() => { setFilter("all"); setBefore(null); }}>All alerts</button></div><button type="button" onClick={() => void load()}>Refresh</button></div>
       {error && <p className="clock-alert-error" role="alert">! {error}</p>}
       {!inbox ? <p role="status">{error ? "No alert details are shown until the connection is restored." : "Loading your alerts…"}</p> : <>
@@ -110,7 +108,6 @@ export default function ClockAlerts() {
         <div className="clock-alert-pagination">{before && <button type="button" onClick={() => setBefore(null)}>Latest alerts</button>}{inbox.hasMore && <button type="button" onClick={() => setBefore(inbox.nextBefore)}>Older alerts</button>}</div>
       </>}
       {hasPortalPermission(access, "clock.self.view") && <Link className="clock-alert-link" to="/clock" onClick={() => setOpen(false)}>Open Clock &amp; Hours →</Link>}
-      <p className="clock-alert-footnote">Notices appear in the Hub. Device push notifications are not enabled in this build.</p>
     </dialog>
   </div>;
 }

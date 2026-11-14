@@ -20,15 +20,15 @@ for (const label of ["Staff announcements", "Email reminders"]) {
 assert.ok(!page.includes("Browser notifications"), "Browser notification settings live under My Account, not Chat.");
 pass("Secondary Chat settings use one accessible, initially closed mobile control.");
 
-assert.ok(page.includes('const [showConversationTools, setShowConversationTools] = useState(false)'));
-assert.ok(page.includes('aria-controls="chat-message-tools"'));
-assert.ok(page.includes('aria-expanded={showConversationTools}'));
-assert.ok(page.includes('id="chat-message-tools"'));
-assert.ok(page.includes('className={`creator-chat-conversation-tools ${showConversationTools ? "is-open" : ""}`}'));
-for (const label of ["Search messages", "Pinned messages", "Deleted messages"]) {
-  assert.ok(page.includes(label));
-}
-pass("Message search, pins and deleted-message history remain accessible behind a mobile disclosure.");
+assert.ok(page.includes('className="creator-chat-discover-actions"'));
+assert.ok(page.includes('<span>Search</span>'));
+assert.ok(page.includes('aria-label="Pinned messages"'));
+assert.ok(page.includes('aria-label="Deleted messages"'));
+assert.ok(page.includes('kind: "search"'));
+assert.ok(page.includes('kind: "pins"'));
+assert.ok(page.includes('kind: "deleted"'));
+assert.ok(!page.includes('>Tools</span>'));
+pass("Search and pinned messages have direct, adjacent actions; Owner-only deleted history stays available.");
 
 assert.ok(page.includes('aria-label="Channel settings"'));
 assert.ok(page.includes('aria-label="Conversation members"'));
@@ -36,15 +36,15 @@ assert.ok(page.includes('aria-expanded={showMembers}'));
 assert.ok(page.includes('aria-controls="chat-members"'));
 assert.ok(page.includes("setShowMembers(false);"));
 assert.ok(page.includes("setShowChatOptions(false);"));
-assert.ok(page.includes("setShowConversationTools(false);"));
+assert.ok(page.includes('aria-label="Pinned messages"'));
 pass("Essential conversation controls keep screen-reader names, and menus reset on account/channel change.");
 
 assert.ok(css.includes("@media (max-width: 720px)"));
 assert.ok(css.includes(".creator-chat-heading-actions {\n    display: none;"));
 assert.ok(css.includes(".creator-chat-heading-actions.is-open { display: flex; }"));
-assert.ok(css.includes(".creator-chat-conversation-tools { display: none; }"));
-assert.ok(css.includes(".creator-chat-conversation-tools.is-open {"));
-assert.ok(css.includes("grid-template-columns: auto minmax(0, 1fr) auto"));
+assert.ok(css.includes(".creator-chat-discover-actions"));
+assert.ok(css.includes(".creator-chat-header-actions .creator-chat-search-action"));
+assert.ok(css.includes("grid-template-columns: auto minmax(0,1fr)"));
 pass("Compact layout and hidden secondary actions are limited to mobile viewports.");
 
 assert.ok(css.includes(".creator-chat-heading-actions button {"));

@@ -54,7 +54,7 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
     <header><h2 id="chat-announce-title">Staff announcements</h2><button type="button" disabled={busy || uncertain} onClick={onClose}>Close</button></header>
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
     {publishedId ? <>
-      <p role="status">Posted in the Hub. Email delivery is tracked separately below.</p>
+      <p role="status">Announcement posted.</p>
       {!posted && <p>{busy ? 'Loading delivery status…' : 'The announcement was posted. Retry loading its delivery status below; do not publish it again.'}</p>}
       {posted && <>
       <article className="creator-chat-announcement-body"><h3>{posted.title}</h3><small>{posted.authorName} · {time(posted.createdAt)}</small><p>{posted.text}</p></article>
@@ -62,18 +62,18 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
       </>}
       <div className="creator-chat-dialog-actions"><button type="button" disabled={busy} onClick={() => void details(publishedId)}>Refresh delivery status</button><button type="button" disabled={busy || !posted} onClick={() => { setPublishedId(null); setPosted(null); setPreview(null); setTitle(''); setText(''); setConfirmed(false); setError(''); }}>New announcement</button></div>
     </> : preview ? <>
-      <p>This goes to <strong>{preview.staffCount} active staff</strong> across the agency, through <strong>{preview.creatorCount} creator Updates channels</strong> and <strong>{preview.privateCopyCount} protected private copies</strong>. Creators and deactivated accounts are excluded.</p>
+      <p>Sending to <strong>{preview.staffCount} staff</strong> across <strong>{preview.creatorCount} creator areas</strong>{preview.privateCopyCount ? <> and <strong>{preview.privateCopyCount} private chats</strong></> : null}.</p>
       <article className="creator-chat-announcement-body"><h3>{preview.title}</h3><p>{preview.text}</p></article>
-      <p>{preview.emailMode === 'capture' ? 'Test mode: individual email previews will be saved. No emails will be sent.' : preview.emailMode === 'gmail' ? 'Each email contains the full announcement and is addressed to one person. Staging sends only to the configured test list.' : 'Email delivery is off. Hub posts will publish, and individual emails will wait in the queue.'}</p>
+      <p>{preview.emailMode === 'capture' ? 'Email previews only — no emails sent.' : preview.emailMode === 'gmail' ? 'Emails will go to approved test recipients only.' : 'Email delivery is off. The announcement will still appear in Chat.'}</p>
       <details><summary>Review {preview.staffCount} recipients</summary><ul>{preview.recipients.map((r,i) => <li key={i}>{r.name}{r.privateCopies ? ' · Private Hub copy' : ''}</li>)}</ul></details>
       {!!preview.blockers.length && <div className="creator-chat-error" role="alert"><strong>Resolve these before posting:</strong><ul>{preview.blockers.map((b,i) => <li key={i}>{b.name}: {b.reason}</li>)}</ul></div>}
       <label className="creator-chat-announcement-confirm"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} disabled={busy || uncertain || !!preview.blockers.length}/>I reviewed the full announcement and agency-wide audience.</label>
       {uncertain && <p role="alert">Publication could not be confirmed. “Check submission” checks the same request without creating a duplicate. Don’t start another announcement yet.</p>}
       <div className="creator-chat-dialog-actions"><button type="button" disabled={busy || uncertain} onClick={() => setPreview(null)}>Back to editing</button><button type="button" disabled={busy || !confirmed || !!preview.blockers.length} onClick={() => void publish()}>{busy ? 'Checking…' : uncertain ? 'Check submission' : 'Publish announcement'}</button></div>
     </> : <>
-      <p>Post one announcement to active staff across the agency. Staff who can’t open Updates receive a copy in their current permitted private chat. This doesn’t change anyone’s channel access.</p>
+      <p>Share an announcement with active staff across the agency.</p>
       <form onSubmit={e => void review(e)}><label htmlFor="announcement-title">Announcement title</label><input id="announcement-title" value={title} onChange={e=>setTitle(e.target.value)} maxLength={120} disabled={busy} required/>
-        <label htmlFor="announcement-text">Full announcement</label><textarea id="announcement-text" value={text} onChange={e=>setText(e.target.value)} maxLength={7800} rows={7} disabled={busy} required/><small>{text.length.toLocaleString()} / 7,800 characters · Review before posting</small>
+        <label htmlFor="announcement-text">Full announcement</label><textarea id="announcement-text" value={text} onChange={e=>setText(e.target.value)} maxLength={7800} rows={7} disabled={busy} required/><small>{text.length.toLocaleString()} / 7,800</small>
         <div className="creator-chat-dialog-actions"><button type="button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" disabled={busy || !title.trim() || !text.trim()}>{busy ? 'Preparing…' : 'Preview announcement'}</button></div>
       </form>
       {!!history.length && <details><summary>Recent announcements</summary><ul className="creator-chat-announcement-deliveries">{history.map(a => <li key={a.id}><strong>{a.title}</strong><small>{a.authorName} · {time(a.createdAt)}</small><button type="button" disabled={busy} onClick={() => void details(a.id)}>View delivery status</button></li>)}</ul></details>}

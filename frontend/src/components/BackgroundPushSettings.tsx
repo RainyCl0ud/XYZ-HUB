@@ -85,8 +85,8 @@ function DeviceSettings({ userId }: { userId: string }) {
   if (!publicKey) return null;
   return <section aria-label="Background notifications">
     <h3>Background notifications</h3>
-    <p>Get chat alerts and paid break reminders when the Hub tab is closed on supported devices. Chat alerts show the creator area, channel and unread count. Message text and files stay in the Hub.</p>
-    <p role="status">{active ? "Enabled for this browser sign-in." : supported ? "Off for this browser sign-in." : "This browser does not support background notifications."}</p>
+    <p>Get alerts even when the Hub is closed.</p>
+    {!supported && <p role="status">Not supported by this browser.</p>}
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
     <button type="button" disabled={busy || !supported} onClick={() => void toggle()}>
       {busy ? "Saving…" : active ? "Turn off background notifications" : "Enable background notifications"}

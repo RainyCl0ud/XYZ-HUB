@@ -72,7 +72,6 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     <form onSubmit={(e) => void saveName(e)}><label htmlFor="chat-channel-name">Channel name</label><div className="creator-chat-settings-name"><input id="chat-channel-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required /><button type="submit" disabled={busy || !name.trim()}>{target.channelId ? "Save name" : "Create channel"}</button></div></form>
-    {!target.channelId && <p>Create a channel for this creator, then use its settings to choose who can read and send messages.</p>}
     {target.channelId && <>
       {target.canArchive && <section className="creator-chat-archive-control" aria-label="Archive channel">
         {confirmArchive ? <>
@@ -82,11 +81,11 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
           <button type="button" disabled={busy} onClick={() => void archive()}>{busy ? "Saving…" : "Confirm archive"}</button>
         </> : <button type="button" disabled={busy} onClick={() => setConfirmArchive(true)}>Archive channel…</button>}
       </section>}
-      <p>Choose who can read and send messages in this channel. Access from a person's roles and individual settings adds together. “No extra access” removes only this setting; access from another role may still apply.</p>
-      <p>Staff must be assigned to this creator. Their role must also allow channels in Role Settings. These settings cannot change protected private chats.</p>
+      <p>Role and individual access work together. Removing one setting may not remove access granted elsewhere.</p>
+      <p>Only staff assigned to this creator can be added.</p>
       {!options ? <p role="status">Loading channel access…</p> : <>
         <h3>Access by role</h3><div className="creator-chat-grant-list">{options.roles.map((option) => <GrantRow key={option.id} kind="Role" option={option} busy={busy} onSave={(grant) => void saveGrant("roles", option, grant)} />)}</div>
-        <h3>Access for a person</h3><p>Only people currently assigned to this creator are listed. You cannot add yourself.</p><div className="creator-chat-grant-list">{options.people.map((option) => <GrantRow key={option.id} kind="Person" option={option} busy={busy} onSave={(grant) => void saveGrant("people", option, grant)} />)}{!options.people.length && <p>No other assigned staff are available.</p>}</div>
+        <h3>Individual access</h3><div className="creator-chat-grant-list">{options.people.map((option) => <GrantRow key={option.id} kind="Person" option={option} busy={busy} onSave={(grant) => void saveGrant("people", option, grant)} />)}{!options.people.length && <p>No other assigned staff are available.</p>}</div>
       </>}
     </>}
   </dialog>;

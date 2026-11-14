@@ -130,7 +130,7 @@ export default function ClockPage() {
       ? requestedTab : "overview";
 
   return <section className="clock-page" aria-labelledby="clock-title">
-    <header className="clock-page-heading"><div><p className="clock-eyebrow">YOUR ATTENDANCE</p><h1 id="clock-title">Clock &amp; Hours</h1><p>Your shifts and paid breaks, recorded in one place.</p></div><span className="clock-zone">US Central · CDT / CST automatically</span></header>
+    <header className="clock-page-heading"><div><p className="clock-eyebrow">YOUR ATTENDANCE</p><h1 id="clock-title">Clock &amp; Hours</h1></div><span className="clock-zone">US Central</span></header>
     {loadError && <div className="clock-error" role="alert">! {loadError} <button type="button" onClick={() => void refresh().catch((e: unknown) => setLoadError(describeError(e)))}>Retry connection</button></div>}
     {data && <ClockTabs mode="staff" activeTab={tab} canReview={data.canReviewCorrections} />}
     {!data ? <p role="status">{loadError ? "Your attendance could not be loaded." : "Loading your attendance…"}</p> : <>
@@ -139,7 +139,7 @@ export default function ClockPage() {
       <section className="clock-summary-section" aria-labelledby="current-shift-title">
         <header className="clock-section-heading">
           <h2 id="current-shift-title">Current shift</h2>
-          <p>Worked time includes paid breaks. Times use US Central.</p>
+          
         </header>
         <div className="clock-table-scroll" role="region" aria-label="Current shift details" tabIndex={0}>
           <table className="clock-data-table clock-shift-table">
@@ -160,10 +160,10 @@ export default function ClockPage() {
             </tr></tbody>
           </table>
         </div>
-        <p className="clock-recording-note">{online ? shift ? "Your shift follows you across creators. The server records times to the second." : "The server records times to the second." : "Connection needs refreshing. Actions are paused until your attendance is up to date."}</p>
+        {!online && <p className="clock-recording-note">Connection lost. Refresh to continue.</p>}
       </section>
       <section className="clock-hours-section" aria-labelledby="hours-summary-title">
-        <header className="clock-section-heading"><h2 id="hours-summary-title">Hours summary</h2><p>Shifts belong to the day and week they started in US Central.</p></header>
+        <header className="clock-section-heading"><h2 id="hours-summary-title">Hours summary</h2></header>
         <div className="clock-table-scroll" role="region" aria-label="Personal hours summary" tabIndex={0}>
           <table className="clock-data-table clock-hours-table">
             <thead><tr><th scope="col">Period</th><th scope="col" className="clock-number">Worked time</th><th scope="col">Counting rule</th></tr></thead>
@@ -173,7 +173,6 @@ export default function ClockPage() {
             </tbody>
           </table>
         </div>
-        <p className="clock-hours-note">Hours only. This screen does not calculate pay.</p>
       </section>
       {shift && <section className="clock-breaks" aria-labelledby="breaks-title">
         <header className="clock-section-heading"><h2 id="breaks-title">Your paid breaks</h2><p>Two 15-minute short breaks and one 30-minute meal break per shift.</p></header>

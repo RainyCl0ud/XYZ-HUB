@@ -236,10 +236,10 @@ try {
   const render = extra => renderToStaticMarkup(createElement(AuthProvider, null,
     createElement(BrowserNotificationsContext.Provider, { value: { available: true, supported: true, enabled: false, permission: 'default', busy: false, error: '', limitedScope: false, enable: async () => {}, disable() {}, test: async () => {}, ...extra } }, createElement(Dialog, { onClose() {} }))));
   const off = render({}), denied = render({ permission: 'denied' }), unsupported = render({ supported: false }), enabled = render({ enabled: true, permission: 'granted', limitedScope: true });
-  for (const text of ['Enable notifications', 'Open-tab alerts may be delayed when your browser pauses the Hub tab.', 'no message text or names', 'without replaying old unread messages']) assert.ok(off.includes(text));
+  for (const text of ['Enable notifications', 'Browser notifications']) assert.ok(off.includes(text));
   assert.ok(denied.includes('Blocked in your browser settings') && denied.includes('disabled=""'));
   assert.ok(unsupported.includes('Not supported in this browser') && unsupported.includes('disabled=""'));
-  for (const text of ['Turn off', 'Show test notification', 'added by name']) assert.ok(enabled.includes(text));
-  pass('Actual settings component clearly explains opt-in/open-tab limits and renders denied, unsupported, enabled and limited-role states');
+  for (const text of ['Turn off', 'Show test notification']) assert.ok(enabled.includes(text));
+  pass('Notification settings keep explicit opt-in, enabled, denied, unsupported and safe-action states without excessive helper text');
   console.log(`${count} browser notification client/worker groups passed. Platform APIs simulated; no native permission granted or OS alert claimed.`);
 } finally { await vite.close(); }

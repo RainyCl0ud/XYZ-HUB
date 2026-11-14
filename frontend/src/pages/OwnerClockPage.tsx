@@ -112,9 +112,8 @@ export default function OwnerClockPage() {
       <div>
         <p className="clock-eyebrow">AGENCY ATTENDANCE</p>
         <h1 id="clock-title">Clock &amp; Hours</h1>
-        <p>Operational attendance overview and correction approvals.</p>
       </div>
-      <span className="clock-zone">US Central · CDT / CST automatically</span>
+      <span className="clock-zone">US Central</span>
     </header>
     <ClockTabs mode="owner" activeTab={tab} canReview={true} />
 
@@ -130,7 +129,6 @@ export default function OwnerClockPage() {
       <div className="owner-attendance-toolbar">
         <div>
           <h2>Agency overview</h2>
-          <p>Current attendance and work requiring your attention.</p>
         </div>
         <button type="button" disabled={refreshing} onClick={refresh}>
           {refreshing ? "Refreshing…" : "Refresh overview"}
