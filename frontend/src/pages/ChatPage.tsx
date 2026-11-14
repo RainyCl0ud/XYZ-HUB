@@ -58,6 +58,27 @@ function ChatIcon({ name }: { name: IconName }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>;
 }
 
+function ChatMemberRoster({ members, onQuarantine }: {
+  members: Member[];
+  onQuarantine: (target: QuarantineControl) => void;
+}) {
+  return <div className="creator-chat-members-scroll" role="region" aria-label="Member list" tabIndex={0}>
+    {!members.length && <p className="creator-chat-members-empty">No members to display.</p>}
+    {members.map(member => <div className="creator-chat-member" key={member.id}>
+      <span className="creator-chat-avatar" aria-hidden="true">{member.name.slice(0, 1).toUpperCase()}</span>
+      <div className="creator-chat-member-info">
+        <strong>{member.name}</strong>
+        <small>{member.quarantine?.active ? "Chats paused" : member.canPost ? "Can post" : "Read only"}</small>
+      </div>
+      {member.quarantine && <button type="button" className="creator-chat-member-review"
+        onClick={() => onQuarantine(member.quarantine!)}
+        aria-label={`${member.quarantine.active ? "Review or lift pause for" : "Pause creator chats for"} ${member.name}`}>
+        {member.quarantine.active ? "Review pause" : "Pause chats"}
+      </button>}
+    </div>)}
+  </div>;
+}
+
 export default function ChatPage() {
   const { user } = useAuth();
   // A different signed-in account starts with its own state and pending requests.
@@ -92,6 +113,14 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [sending, setSending] = useState(false);
   const [showChannels, setShowChannels] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+  useEffect(() => {
+    if (!showMembers) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowMembers(false);
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [showMembers]);
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showComposerMenu, setShowComposerMenu] = useState(false);
   const [composerFileActive, setComposerFileActive] = useState(false);
@@ -122,6 +151,12 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const followMessages = useRef(true);
   const earlierScroll = useRef<{ top: number; height: number } | null>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const field = composer.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(152, Math.max(44, field.scrollHeight))}px`;
+  }, [draft, selected, edit, reply]);
   const composerMenuRef = useRef<HTMLDivElement>(null);
   const attachmentPicker = useRef<ChatAttachmentPickerHandle>(null);
   const voiceRecorder = useRef<ChatVoiceRecorderHandle>(null);
@@ -570,7 +605,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                   if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229 || e.repeat) return;
                   e.preventDefault();
                   if (!sending && draft.trim() && !editConflict && !unchangedEdit) e.currentTarget.form?.requestSubmit();
-                }} maxLength={8000} rows={2} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
+                }} maxLength={8000} rows={1} placeholder={`Message ${channel?.isPrivate ? "" : "#"}${channel?.name ?? "channel"}…`} disabled={sending} />
                 <button type="submit" className="creator-chat-send" disabled={sending || editConflict || unchangedEdit || !draft.trim()}
                   aria-label={edit ? "Save message changes" : "Send message"} title={edit ? "Save message changes" : "Send message"}><ChatIcon name="send" /></button>
               </div>
