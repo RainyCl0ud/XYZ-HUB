@@ -121,6 +121,14 @@ function ChatWorkspace({ userId }: { userId: string }) {
     window.addEventListener("keydown", onEscape);
     return () => window.removeEventListener("keydown", onEscape);
   }, [showMembers]);
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 1440px)");
+    const closeDrawerOnWideScreen = (event: MediaQueryListEvent) => {
+      if (event.matches) setShowMembers(false);
+    };
+    wide.addEventListener("change", closeDrawerOnWideScreen);
+    return () => wide.removeEventListener("change", closeDrawerOnWideScreen);
+  }, []);
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showComposerMenu, setShowComposerMenu] = useState(false);
   const [composerFileActive, setComposerFileActive] = useState(false);
