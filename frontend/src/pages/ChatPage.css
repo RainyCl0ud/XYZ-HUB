@@ -707,7 +707,7 @@
   .creator-chat-discover-actions { margin-right: auto; flex: 0 0 auto; }
   .creator-chat-header-actions button { min-width: 40px; min-height: 40px; padding: 7px; }
   .creator-chat-header-actions .creator-chat-search-action { min-width: 78px; padding: 6px 10px; }
-  .creator-chat-header-actions .creator-chat-search-action > span { display: inline; }
+  .creator-chat-header-actions button.creator-chat-search-action > span:not(.creator-chat-member-count) { display: inline; }
   .creator-chat-more-button { min-height: 42px; min-width: 42px; }
   .creator-chat-action-popover > button, .creator-chat-action-popover > a,
   .creator-chat-action-popover .creator-chat-reaction-menu > summary { min-height: 44px; }
