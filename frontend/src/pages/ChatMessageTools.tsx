@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { API_BASE_URL, apiRequest } from "../lib/api";
 import ChatVoicePlayback from "./ChatVoicePlayback";
 
@@ -38,21 +39,63 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   const reactions = m.reactions ?? [];
   const [busy, setBusy] = useState(false);
   const reactionMenu = useRef<HTMLDetailsElement>(null);
-  const actionMenu = useRef<HTMLDetailsElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const popupId = useId();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [popupHost, setPopupHost] = useState<HTMLElement | null>(null);
+  const [popupPosition, setPopupPosition] = useState<CSSProperties>({});
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
+
   useEffect(() => {
-    const close = (e: Event) => {
-      for (const menu of [actionMenu.current, reactionMenu.current]) if (menu?.open &&
-        (e instanceof KeyboardEvent ? e.key === "Escape" : !menu.contains(e.target as Node))) {
-        menu.open = false;
-        if (e instanceof KeyboardEvent) { e.preventDefault(); e.stopPropagation(); menu.querySelector("summary")?.focus(); }
-      }
+    if (!menuOpen) return;
+    popupRef.current?.querySelector<HTMLElement>("button, a, summary")?.focus();
+    const closeOnOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!popupRef.current?.contains(target) && !menuButton.current?.contains(target)) setMenuOpen(false);
     };
-    document.addEventListener("pointerdown", close); document.addEventListener("keydown", close);
-    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", close); };
-  }, []);
-  const act = (fn: () => void) => { if (busy) return; if (actionMenu.current) { actionMenu.current.open = false; actionMenu.current.querySelector("summary")?.focus(); } fn(); };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault(); event.stopPropagation();
+      setMenuOpen(false); menuButton.current?.focus();
+    };
+    const closeOnScroll = (event: Event) => {
+      if (!popupRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const closeOnResize = () => setMenuOpen(false);
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("scroll", closeOnScroll, true);
+    window.addEventListener("resize", closeOnResize);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("scroll", closeOnScroll, true);
+      window.removeEventListener("resize", closeOnResize);
+    };
+  }, [menuOpen]);
+
+  const openActionMenu = (event: MouseEvent<HTMLButtonElement>) => {
+    if (menuOpen) { setMenuOpen(false); return; }
+    const box = event.currentTarget.getBoundingClientRect();
+    const width = Math.min(232, window.innerWidth - 16);
+    const below = window.innerHeight - box.bottom;
+    const above = box.top;
+    const placeBelow = below >= 240 || below >= above;
+    const available = Math.max(100, (placeBelow ? below : above) - 12);
+    setPopupHost(event.currentTarget.closest("dialog") ?? document.body);
+    setPopupPosition({
+      left: Math.max(8, Math.min(box.right - width, window.innerWidth - width - 8)),
+      width, maxHeight: available,
+      ...(placeBelow ? { top: box.bottom + 6 } : { bottom: window.innerHeight - box.top + 6 }),
+    });
+    setMenuOpen(true);
+  };
+  const act = (fn: () => void) => {
+    if (busy) return;
+    setMenuOpen(false); menuButton.current?.focus(); fn();
+  };
   async function update(kind: "reaction" | "pin", body: object) {
     if (busy) return;
     const controller = new AbortController(); request.current = controller; setBusy(true);
@@ -80,8 +123,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         key={attachmentPath} src={`${attachmentPath}/preview`} fileName={m.attachment.fileName} onLoad={onPreviewLoad}
       />}
       <div className={`creator-chat-file ${voiceDuration ? "is-voice" : ""}`}>
-        <strong>{voiceDuration ? "Voice message" : m.attachment.fileName}</strong>
-        <small>{voiceDuration ? `${Math.ceil(voiceDuration / 1000)} sec` : `${m.attachment.byteSize.toLocaleString()} bytes`}</small>
+        {!voiceDuration && <><strong>{m.attachment.fileName}</strong><small>{m.attachment.byteSize.toLocaleString()} bytes</small></>}
         {m.attachment.available && !!voiceDuration && <ChatVoicePlayback key={attachmentPath} src={`${attachmentPath}/voice`} durationMs={voiceDuration} />}
         {!m.attachment.available && <small>File unavailable</small>}
       </div>
@@ -91,12 +133,14 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         onClick={() => void update("reaction", { emoji: r.emoji, active: !r.mine })}><span>{r.emoji}</span><span>{r.count}</span></button> :
       <span className="creator-chat-reaction-count" key={r.emoji} aria-label={`${r.emoji}: ${r.count}`}>{r.emoji} {r.count}</span>)}</div>}
     {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <div className="creator-chat-message-actions">
-      <details ref={actionMenu} name="chat-message-actions" className="creator-chat-action-menu"
-        onToggle={(e) => { if (e.currentTarget.open) e.currentTarget.scrollIntoView({ block: "nearest" }); }}>
-        <summary aria-label={`More actions for message by ${m.authorName}`} title="More message options">
+      <div className="creator-chat-action-menu">
+        <button ref={menuButton} type="button" className="creator-chat-more-button"
+          aria-label={`More actions for message by ${m.authorName}`} title="More"
+          aria-expanded={menuOpen} aria-controls={popupId} onClick={openActionMenu}>
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
-        </summary>
-        <div role="group" aria-label="Message actions">
+        </button>
+        {menuOpen && popupHost && createPortal(<div id={popupId} ref={popupRef}
+          className="creator-chat-action-popover" style={popupPosition} role="group" aria-label="Message actions">
           {m.canReply && <button type="button" disabled={busy} onClick={() => act(() => onReply(m))}>Reply</button>}
           {m.canReply && <details ref={reactionMenu} className="creator-chat-reaction-menu">
             <summary>React</summary>
@@ -104,19 +148,19 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
               <button type="button" key={emoji} disabled={busy} aria-label={label}
                 aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
                 onClick={() => { if (reactionMenu.current) reactionMenu.current.open = false;
-                  if (actionMenu.current) actionMenu.current.open = false;
+                  setMenuOpen(false);
                   void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
                 }}>{emoji}</button>)}
             </div>
           </details>}
           {m.attachment?.available && <a href={`${attachmentPath}/file`} target="_blank" rel="noopener"
-            aria-label={`Download ${m.attachment.fileName}`} onClick={() => { if (actionMenu.current) actionMenu.current.open = false; }}>Download file</a>}
+            aria-label={`Download ${m.attachment.fileName}`} onClick={() => setMenuOpen(false)}>Download file</a>}
           {m.canEdit && onEdit && <button type="button" disabled={busy} onClick={() => act(() => onEdit(m))}>Edit</button>}
           {m.canPin && <button type="button" disabled={busy} onClick={() => act(() => void update("pin", { pinned: !m.pinnedAt, version: m.pinVersion }))}>{m.pinnedAt ? "Unpin message" : "Pin message"}</button>}
           {m.canViewHistory && onHistory && <button type="button" disabled={busy} onClick={() => act(() => onHistory(m.id))}>View history</button>}
           {m.canModerate && onModerate && <button type="button" className="creator-chat-delete-action" disabled={busy} onClick={() => act(() => onModerate(m))}>Delete message…</button>}
-        </div>
-      </details>
+        </div>, popupHost)}
+      </div>
       {busy && <span role="status">Saving…</span>}
     </div>}
   </div>;
