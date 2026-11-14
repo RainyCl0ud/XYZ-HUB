@@ -161,7 +161,7 @@ router.get("/channels/:channelId/members/:memberId/avatar", memberAvatarLimit, r
   const image = Buffer.from(avatar.avatarImage);
   res.status(200).type(avatar.avatarMimeType).set({
     "Content-Length": String(image.length),
-    "Cache-Control": "private, max-age=3600",
+    "Cache-Control": "no-store",
     "Cross-Origin-Resource-Policy": "same-site",
     "X-Content-Type-Options": "nosniff",
   }).send(image);
