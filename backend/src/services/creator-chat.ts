@@ -528,6 +528,24 @@ export async function listChatMembers(userId: string, channelId: string) {
   });
 }
 
+/** Serve a member's profile image only while both accounts retain access to
+ * the same conversation. Avoid fetching every member for each avatar request. */
+export async function getChatMemberAvatar(userId: string, channelId: string, memberId: string) {
+  return prisma.$transaction(async (tx) => {
+    const { viewer, channel, conversation, access: conversationAccess } = await openChannel(tx, userId, channelId);
+    const user = await tx.user.findUnique({ where: { id: memberId }, include: viewerInclude });
+    if (!user || user.status !== "ACTIVE") throw new ChatError(404, "Profile picture not found.");
+    const member = makeViewer(user);
+    const access = channel ? channelAccess(member, channel) : standingAccess(member, conversation!);
+    const modelId = channel?.modelId ?? conversation?.modelId;
+    const quarantine = modelId && !conversationAccess.archived ? quarantineControl(viewer, member, modelId) : null;
+    if (!access.canView && !quarantine?.active) throw new ChatError(404, "Profile picture not found.");
+    if (!user.avatarUpdatedAt || !user.avatarImage || !user.avatarMimeType)
+      throw new ChatError(404, "Profile picture not found.");
+    return { avatarImage: user.avatarImage, avatarMimeType: user.avatarMimeType };
+  });
+}
+
 export async function setChatGrant(userId: string, channelId: string, input: { roleId?: string; personId?: string; canView: boolean; canPost: boolean }) {
   if (!!input.roleId === !!input.personId) throw new ChatError(400, "Choose one role or person.");
   return prisma.$transaction(async (tx) => {
