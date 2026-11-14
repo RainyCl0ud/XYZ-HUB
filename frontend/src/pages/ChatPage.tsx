@@ -479,6 +479,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const toolView = tools ? <ChatMessageTools inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
   return (
     <section className="creator-chat" aria-label="Chat workspace">
+      <h1 className="creator-chat-sr">Chat</h1>
       {(canAnnounce || remindersEnabled) && <header className="creator-chat-heading" aria-label="Chat options">
         <div className="creator-chat-heading-tools">
           {(canAnnounce || remindersEnabled) && <button type="button"
