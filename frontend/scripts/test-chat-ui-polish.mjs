@@ -48,6 +48,8 @@ pass("Debounced live search preserves cancellable, permission-checked requests a
 
 assert.ok(page.includes('document.addEventListener("pointerdown", outside)'));
 assert.ok(page.includes('document.addEventListener("keydown", escape)'));
+assert.ok(page.includes('target.closest(".creator-chat-action-popover")'));
+assert.ok(page.includes('target.closest("dialog[open]")'));
 assert.ok(page.includes('setTools(null); setToolsNotice("")'));
 assert.ok(tools.includes('onKeyDown={(event) => { if (event.key === "Escape")'));
 assert.ok(page.includes('setTools(null); setDeleting(null)'));
