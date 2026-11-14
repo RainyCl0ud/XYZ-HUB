@@ -54,4 +54,24 @@ assert.ok(css.includes("background: #141414;"));
 assert.ok(css.includes("outline: 2px solid #FFFFFF"));
 pass("Touch targets, member overlay bounds, monochrome theme and keyboard focus remain defined.");
 
+assert.ok(page.includes('className="creator-chat-members-toggle"'));
+assert.ok(page.includes('className={`creator-chat-members ${showMembers ? "is-open" : ""}`}'));
+assert.ok(page.includes('className="creator-chat-members-list" tabIndex={0}'));
+assert.ok(!page.includes('{showMembers && <aside'), "The member rail must not unmount on desktop when the mobile drawer closes.");
+assert.ok(css.includes("@media (min-width: 1280px)"));
+assert.ok(css.includes("grid-template-columns: clamp(232px, 18vw, 294px) minmax(0, 1fr) clamp(236px, 19vw, 290px)"));
+assert.ok(css.includes("scrollbar-width: none;"));
+assert.ok(css.includes(".creator-chat-members-list::-webkit-scrollbar { display: none; }"));
+assert.ok(css.includes("overflow-y: auto;"));
+assert.ok(css.includes("touch-action: pan-y;"));
+assert.ok(!page.includes("membersList.scrollTop"), "Members must never auto-scroll.");
+pass("The Chat-only desktop member rail stays mounted and has manual wheel/touch scrolling without a visible scrollbar.");
+
+assert.ok(page.includes("field.style.height = \"auto\";"));
+assert.ok(page.includes("Math.min(naturalHeight, 140)"));
+assert.ok(page.includes("rows={1} placeholder="));
+assert.ok(css.includes(".creator-chat-composer-bar { align-items: center; min-height: 58px; }"));
+assert.ok(css.includes(".creator-chat-composer-plus { display: flex; align-items: center; align-self: center; }"));
+pass("The composer starts as one aligned text row, grows for multiline drafts, and centers the plus/send actions.");
+
 console.log(`${passed} mobile Chat UX source regression groups passed.`);
