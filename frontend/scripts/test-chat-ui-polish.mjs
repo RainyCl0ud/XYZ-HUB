@@ -42,6 +42,11 @@ assert.ok(tools.includes('element?.showModal()'), "Protected deleted/history too
 assert.ok(tools.includes('setTimeout(() => {'));
 assert.ok(tools.includes('setSubmitted({ q: text, scope })'));
 assert.ok(tools.includes('}, 400)'));
+assert.ok(tools.includes('function invalidateSearch()'));
+assert.ok(tools.includes('invalidateSearch(); setQuery(e.target.value)'));
+assert.ok(tools.includes('invalidateSearch(); setScope(e.target.value)'));
+assert.ok(!tools.includes('    // Clear the previous query immediately so its polling request is aborted'),
+  "Search invalidation must happen in input callbacks, not synchronously within the debounce effect.");
 assert.ok(tools.includes('controller.abort()'));
 assert.ok(tools.includes('scope === "conversation"') || tools.includes('submitted.scope === "conversation"'));
 pass("Debounced live search preserves cancellable, permission-checked requests and both scopes.");
