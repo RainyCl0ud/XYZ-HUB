@@ -61,7 +61,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       setMenuOpen(false); menuButton.current?.focus();
     };
     const closeOnScroll = (event: Event) => {
-      if (!popupRef.current?.contains(event.target as Node)) setMenuOpen(false);
+      if (!(event.target instanceof Node) || !popupRef.current?.contains(event.target)) setMenuOpen(false);
     };
     const closeOnResize = () => setMenuOpen(false);
     document.addEventListener("pointerdown", closeOnOutside);
