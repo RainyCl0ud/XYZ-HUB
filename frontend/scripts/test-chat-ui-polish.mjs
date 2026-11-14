@@ -63,12 +63,13 @@ assert.ok(service.includes('avatarUpdatedAt: user.avatarUpdatedAt'));
 pass("Member list has avatars, name and muted primary role without access labels.");
 
 assert.ok(routes.includes('router.get("/channels/:channelId/members/:memberId/avatar"'));
-assert.ok(routes.includes('listChatMembers(user(req), channelId)'));
-assert.ok(routes.includes('member.id === memberId && !!member.avatarUpdatedAt'));
-assert.ok(routes.includes('getProfileAvatar(memberId)'));
+assert.ok(routes.includes('getChatMemberAvatar(user(req), channelId, memberId)'));
+assert.ok(service.includes('export async function getChatMemberAvatar('));
+assert.ok(service.includes('channelAccess(member, channel) : standingAccess(member, conversation!)'));
+assert.ok(service.includes('if (!access.canView && !quarantine?.active)'));
 assert.ok(routes.includes('"Cache-Control": "no-store"'));
 assert.ok(service.includes('const access = channel ? channelAccess(subject, channel) : standingAccess(subject, conversation!);'));
-pass("Member avatar reads recheck current channel visibility and do not depend on People permissions.");
+pass("Member avatar reads recheck both participants, without exposing the roster or People permissions.");
 
 assert.ok(settings.includes('creator-chat-settings-tabs'));
 assert.ok(settings.includes('aria-pressed={activeTab === "details"}'));
