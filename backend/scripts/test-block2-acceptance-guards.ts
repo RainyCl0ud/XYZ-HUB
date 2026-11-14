@@ -4,7 +4,6 @@ import type { Response } from "express";
 import { RoleDataScope } from "@prisma/client";
 import { prisma } from "../src/lib/prisma.js";
 import strikeRoutes from "../src/routes/strikes.js";
-import { listOwnStrikes } from "../src/services/strike-management.js";
 import type { AccessContext } from "../src/services/access-control.js";
 import type { AuthenticatedRequest } from "../src/middleware/access.js";
 import {
