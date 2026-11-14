@@ -1858,7 +1858,7 @@ function PeopleDetailPage() {
               <div>
                 <span className="page-eyebrow">Team assignment</span>
                 <h3>{person.teamGroup ? "Change Team" : "Add to a Team"}</h3>
-                <p>Transfer {person.name} within your permitted team hierarchy. Their role, creator assignments and historical records will be preserved.</p>
+                
               </div>
               <button type="button" className="people-close" aria-label="Close team assignment" onClick={() => setShowTeamEditor(false)} disabled={saving}>&times;</button>
             </div>
@@ -1872,7 +1872,7 @@ function PeopleDetailPage() {
                   ))}
                 </select>
               </label>
-              <p className="people-scope-note">Changing teams may change who can view or manage this employee. Existing roles and creator assignments will not change.</p>
+              <p className="people-scope-note">Moving teams may change who can manage this employee. Roles and creator assignments stay the same.</p>
             </div>
             <div className="people-modal-footer">
               <button type="button" className="secondary-button" disabled={saving} onClick={() => setShowTeamEditor(false)}>Cancel</button>
