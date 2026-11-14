@@ -19,7 +19,8 @@
     "test:clock-shift-history-pagination": "node scripts/test-clock-shift-history-pagination.mjs",
     "preview": "vite preview",
     "start": "serve -s dist -l $PORT",
-    "test:chat-ui-polish": "node scripts/test-chat-ui-polish.mjs"
+    "test:chat-ui-polish": "node scripts/test-chat-ui-polish.mjs",
+    "test:chat-settings-workspace": "node scripts/test-chat-settings-workspace.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
