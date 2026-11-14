@@ -1396,7 +1396,7 @@ function PeoplePage() {
         <div>
           <p className="page-eyebrow">Team management</p>
           <h2>Employee Management</h2>
-          <p className="page-description">Organize employees by team, manage role and creator access, and control account status.</p>
+          
         </div>
 
         <button
@@ -1415,7 +1415,7 @@ function PeoplePage() {
         !loading && (
         <div className="people-email-notice">
           <strong>Invitation sending is temporarily disabled.</strong>
-          <span>Invitation email delivery is not configured for the current environment.</span>
+          <span>Try again later.</span>
         </div>
       )}
 
@@ -1439,7 +1439,7 @@ function PeoplePage() {
           </div>
 
           {reorderParentId && <div className="people-reorder-toolbar" role="region" aria-label="Reorder teams">
-            <span>Reorder mode: drag sibling teams into position. Subteams are collapsed for clarity; the original tree view returns when you finish.</span>
+            <span>Drag teams to reorder them.</span>
             <button className="secondary-button" type="button" disabled={saving} onClick={cancelTeamReorder}>Cancel</button>
             <button className="primary-button" type="button" disabled={saving} onClick={() => void saveTeamReorder()}>{saving ? "Saving…" : "Save order"}</button>
           </div>}
@@ -1450,7 +1450,7 @@ function PeoplePage() {
           </div>
 
           {options?.capabilities.canManageOrganization && (
-            <div className="people-org-help">Right-click a team or subteam, or use its actions button, to reorder, add, rename, change color, or delete. The agency root has no team actions.</div>
+            <div className="people-org-help">Right-click a team or use its actions button to make changes.</div>
           )}
         </aside>
 
