@@ -22,12 +22,11 @@ export default function ChatUnreadReminders({ onClose }: { onClose: () => void }
   }, []);
   useEffect(() => { dialog.current?.showModal(); const initial = setTimeout(() => void refresh(), 0); return () => { clearTimeout(initial); controller.current?.abort(); }; }, [refresh]);
   const deliverySummary = data?.emailMode === 'capture'
-    ? 'Preview mode — no emails are sent'
-    : data?.emailMode === 'gmail' ? 'Email delivery enabled for approved Staging test recipients' : 'Email reminders are currently off';
+    ? 'Email previews only'
+    : data?.emailMode === 'gmail' ? 'Reminders on for test recipients' : 'Reminders off';
 
   return <dialog ref={dialog} className="creator-chat-settings creator-chat-reminder-dialog" aria-labelledby="chat-reminder-title" onCancel={onClose}>
     <header><h2 id="chat-reminder-title">Email reminder activity</h2><button type="button" onClick={onClose}>Close</button></header>
-    <p className="creator-chat-reminder-intro">A quick view of automatic reminders for unread chat messages. Refreshing this page never sends an email.</p>
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
     {busy && !data && <p role="status">Loading your reminder activity…</p>}
     {data && <>
@@ -39,9 +38,7 @@ export default function ChatUnreadReminders({ onClose }: { onClose: () => void }
       <details className="creator-chat-reminder-policy">
         <summary>How email reminders work</summary>
         <p>A reminder becomes eligible at 10 unread messages or when one has been unread for 30 minutes. Only one email reminder is allowed per person per hour.</p>
-        <p>Reminders include an unread count and a link to the Hub, never message text, fan names or attachments.</p>
-        {data.limitedScope && <p>For your role, email alerts cover standing private chats and channels you were added to individually. Other channels still show unread badges.</p>}
-        <p>Email delivery is managed by XYZ. This page shows status and history, not a personal email on/off switch.</p>
+        <p>Reminder emails include a link to your messages.</p>
       </details>
       <h3>Recent reminder activity</h3>
       {!data.deliveries.length ? <p className="creator-chat-reminder-empty">No reminder activity recorded yet.</p> : <ul className="creator-chat-reminder-activity">{data.deliveries.map(d => <li key={d.id}>
