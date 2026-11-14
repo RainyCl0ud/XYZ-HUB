@@ -40,12 +40,14 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : "
 const day = (value: string) => new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Chicago", month: "long", day: "numeric", year: "numeric",
 }).format(new Date(value));
-type IconName = "channel" | "lock" | "search" | "people" | "send" | "menu" | "close" | "settings" | "chat";
+type IconName = "channel" | "lock" | "search" | "pin" | "trash" | "people" | "send" | "menu" | "close" | "settings" | "chat";
 function ChatIcon({ name }: { name: IconName }) {
   const paths: Record<IconName, string> = {
     channel: "M5 9h14M4 15h14M11 3 7 21M17 3l-4 18",
     lock: "M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3",
     search: "m21 21-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
+    pin: "M9 3l12 12M3 9l12 12M7 7l10-4-4 10-4 1-4 7-2-2 7-4z",
+    trash: "M4 7h16M10 4h4M6 7l1 13h10l1-13M10 11v5M14 11v5",
     people: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M15 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
     send: "m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13",
     menu: "M4 6h16M4 12h16M4 18h16",
@@ -91,7 +93,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [showChannels, setShowChannels] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [showChatOptions, setShowChatOptions] = useState(false);
-  const [showConversationTools, setShowConversationTools] = useState(false);
   const [showComposerMenu, setShowComposerMenu] = useState(false);
   const [composerFileActive, setComposerFileActive] = useState(false);
   const [composerVoiceActive, setComposerVoiceActive] = useState(false);
@@ -170,7 +171,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
     setReply(saved?.reply ?? null); setTools(null); setDeleting(null); setNotice(saved?.text ? "Your unsent draft was kept for this conversation." : "");
     setShowMembers(false);
     setShowChatOptions(false);
-    setShowConversationTools(false);
     setShowComposerMenu(false);
     setComposerFileActive(false);
     setComposerVoiceActive(false);
@@ -252,7 +252,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     try {
       await apiRequest(`/api/chat/channels/${channelId}/read`, { method: "PUT", body: JSON.stringify({ throughMessageId: anchor }), signal: requestRef.current?.signal });
       if (selectedRef.current !== channelId) return;
-      setNotice("Conversation marked read up to the latest loaded message."); setRefreshTick((v) => v + 1);
+      setNotice("Marked as read."); setRefreshTick((v) => v + 1);
       await refreshAreas();
     } catch (e) { if (selectedRef.current === channelId) setReadError(errorText(e)); }
     finally { setMarkingRead(false); }
@@ -456,7 +456,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
         <div className="creator-chat-heading-intro">
           <p className="creator-chat-eyebrow">TEAM COMMUNICATION</p>
           <h1 id="chat-page-title">Chat</h1>
-          <p>Find your creator, choose a conversation and stay connected.</p>
         </div>
         <div className="creator-chat-heading-tools">
           {(canAnnounce || remindersEnabled) && <button type="button"
@@ -465,7 +464,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
             aria-expanded={showChatOptions}
             onClick={() => setShowChatOptions(open => !open)}>Chat options {showChatOptions ? "−" : "+"}</button>}
           <div id="chat-page-options" className={`creator-chat-heading-actions ${showChatOptions ? "is-open" : ""}`}>
-            <span className="creator-chat-timezone">All times in US Central</span>
             {canAnnounce && <button type="button" onClick={() => { setShowChatOptions(false); setShowAnnouncements(true); }}>Staff announcements</button>}
             {remindersEnabled && <button type="button" onClick={() => { setShowChatOptions(false); setShowReminders(true); }}>Email reminders</button>}
           </div>
@@ -505,7 +503,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               {!!archivedChannels.length && <div className="creator-chat-channel-group"><h2>{channelFilter === "channels" ? "Archived channels" : "Archived private chats"} <span>{archivedChannels.length}</span></h2>{archivedChannels.map(channelRow)}</div>}
               {!visibleChannels.length && <div className="creator-chat-no-results"><p>{unreadOnly ? "No unread conversations match." : channelSearch ? "No matching conversations." : channelFilter === "channels" ? "No channels in this workspace." : "No private chats in this workspace."}</p>{(channelSearch || unreadOnly) && <button type="button" onClick={() => { setChannelSearch(""); setUnreadOnly(false); }}>Clear search</button>}</div>}
             </nav>
-            <div className="creator-chat-browse-footer">{browseArea?.canManage && channelFilter === "channels" ? <button type="button" onClick={() => { setSettings({ modelId: browseArea.modelId, name: "" }); setShowChannels(false); }}>+ New channel</button> : <p>{channelFilter === "private" ? "Private chats are assigned automatically." : "Only channels you can access appear here."}</p>}</div>
+            <div className="creator-chat-browse-footer">{browseArea?.canManage && channelFilter === "channels" && <button type="button" onClick={() => { setSettings({ modelId: browseArea.modelId, name: "" }); setShowChannels(false); }}>+ New channel</button>}</div>
           </aside>
           <div className="creator-chat-conversation" role="region" aria-label="Conversation">
             <header className="creator-chat-channel-header">
@@ -513,20 +511,29 @@ function ChatWorkspace({ userId }: { userId: string }) {
               <div className={`creator-chat-title-icon ${channel?.isPrivate ? "is-private" : ""}`}><ChatIcon name={channel?.isPrivate ? "lock" : "channel"} /></div>
               <div className="creator-chat-channel-title"><p>{area?.name}<span> · {channel?.isPrivate ? "Private chat" : "Channel"}{channel?.retained ? " · Retained history" : channel?.archived ? " · Archived" : ""}</span></p><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
               <div className="creator-chat-header-actions">
-                 {channel?.canManage && area && <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}
-                 <button type="button" aria-label="Conversation members" title="Conversation members" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button>
-                 <button type="button" className="creator-chat-message-tools-toggle" aria-controls="chat-message-tools" aria-expanded={showConversationTools} onClick={() => setShowConversationTools(open => !open)} title="Message tools" aria-label="Message tools"><ChatIcon name="search" /><span>Tools</span></button>
-               </div>
+                <div className="creator-chat-discover-actions" role="group" aria-label="Search and pinned messages">
+                  <button type="button" className="creator-chat-search-action" disabled={!transcript}
+                    onClick={() => setTools({ kind: "search", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>
+                    <ChatIcon name="search" /><span>Search</span>
+                  </button>
+                  <button type="button" className="creator-chat-pin-action" disabled={!transcript}
+                    aria-label="Pinned messages" title="Pinned messages"
+                    onClick={() => setTools({ kind: "pins", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>
+                    <ChatIcon name="pin" />
+                  </button>
+                  {transcript?.canViewDeleted && <button type="button" className="creator-chat-deleted-action" aria-label="Deleted messages" title="Deleted messages"
+                    onClick={() => setTools({ kind: "deleted", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` })}>
+                    <ChatIcon name="trash" />
+                  </button>}
+                </div>
+                {channel?.canManage && area && <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}
+                <button type="button" aria-label="Conversation members" title="Conversation members" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button>
+              </div>
             </header>
-            <div id="chat-message-tools" className={`creator-chat-conversation-tools ${showConversationTools ? "is-open" : ""}`} role="group" aria-label="Message tools">
-              <button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => { setShowConversationTools(false); setTools({ kind: "search", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` }); }}><ChatIcon name="search" />Search messages</button>
-              <button type="button" disabled={typeof transcript?.canPin !== "boolean"} onClick={() => { setShowConversationTools(false); setTools({ kind: "pins", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` }); }}>Pinned messages</button>
-              {transcript?.canViewDeleted && <button type="button" onClick={() => { setShowConversationTools(false); setTools({ kind: "deleted", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}` }); }}>Deleted messages</button>}
-            </div>
-            {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span>{transcript?.quarantine && <button type="button" onClick={() => setQuarantining(transcript.quarantine!)}>{transcript.quarantine.active ? "Review / lift chat pause" : "Pause creator chats…"}</button>}</div>}
-            {area?.pausedForYou && <div className="creator-chat-pause-notice" role="status"><strong>Your other chats for {area.name} are paused.</strong><p>Use your private management chat below. Login, Clock &amp; Hours and other creators are unaffected.</p></div>}
+                        {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span>{transcript?.quarantine && <button type="button" onClick={() => setQuarantining(transcript.quarantine!)}>{transcript.quarantine.active ? "Review / lift chat pause" : "Pause creator chats…"}</button>}</div>}
+            {area?.pausedForYou && <div className="creator-chat-pause-notice" role="status"><strong>Your other chats for {area.name} are paused.</strong></div>}
             {(!!channel?.unreadCount || readError) && <div className="creator-chat-read-status"><span role="status">{readError || `${channel?.unreadCount} unread · Messages clear as you view them.`}</span>{!!channel?.unreadCount && <button type="button" disabled={markingRead || !transcript?.messages.length} title="Mark all messages read up to the latest loaded message, including earlier history." onClick={() => void markConversationRead()}>{markingRead ? "Saving…" : "Mark conversation read"}</button>}</div>}
-            {showMembers && <aside id="chat-members" className="creator-chat-members" aria-label="Conversation members"><header><h3>People and access</h3><button type="button" onClick={() => setShowMembers(false)} aria-label="Close member list"><ChatIcon name="close" /></button></header><p className="creator-chat-members-hint">Current members are listed below. Authorized reviewers can also see people whose creator chats are paused.</p>{members.map((m) => <div className="creator-chat-member" key={m.id}><span className="creator-chat-avatar" aria-hidden="true">{m.name.slice(0, 1).toUpperCase()}</span><strong>{m.name}</strong><span>{m.quarantine?.active ? "Creator chats paused" : m.canPost ? "Can post" : "Read only"}</span>{m.quarantine && <button type="button" onClick={() => setQuarantining(m.quarantine!)} aria-label={`${m.quarantine.active ? "Review or lift pause for" : "Pause creator chats for"} ${m.name}`}>{m.quarantine.active ? "Review / lift pause" : "Pause chats…"}</button>}</div>)}</aside>}
+            {showMembers && <aside id="chat-members" className="creator-chat-members" aria-label="Conversation members"><header><h3>People and access</h3><button type="button" onClick={() => setShowMembers(false)} aria-label="Close member list"><ChatIcon name="close" /></button></header>{members.map((m) => <div className="creator-chat-member" key={m.id}><span className="creator-chat-avatar" aria-hidden="true">{m.name.slice(0, 1).toUpperCase()}</span><strong>{m.name}</strong><span>{m.quarantine?.active ? "Creator chats paused" : m.canPost ? "Can post" : "Read only"}</span>{m.quarantine && <button type="button" onClick={() => setQuarantining(m.quarantine!)} aria-label={`${m.quarantine.active ? "Review or lift pause for" : "Pause creator chats for"} ${m.name}`}>{m.quarantine.active ? "Review / lift pause" : "Pause chats…"}</button>}</div>)}</aside>}
             <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
               {!transcript ? <p role="status">Loading messages…</p> : <>
                 {transcript.hasMore && <button className="creator-chat-load-older" type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load earlier messages"}</button>}
@@ -573,7 +580,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 {voiceMaxSeconds > 0 && !edit && !reply && <ChatVoiceRecorder ref={voiceRecorder} key={selected} channelId={selected}
                   maxSeconds={voiceMaxSeconds} onActiveChange={setComposerVoiceActive} onSent={message => showSentMessage(selected, message)} />}
               </div>
-              <div className="creator-chat-composer-footer"><small><span className="creator-chat-shortcut">Enter to send · Shift + Enter for a new line</span><span className={draft.length > 7500 ? "creator-chat-limit" : ""}>{draft.length > 0 ? `${draft.length.toLocaleString()} / 8,000 · Draft kept while Chat stays open` : ""}</span></small></div>
+              <div className="creator-chat-composer-footer">{draft.length > 7500 && <small className="creator-chat-limit">{draft.length.toLocaleString()} / 8,000</small>}</div>
             </form> : transcript && <div className="creator-chat-readonly">
               <ChatIcon name="lock" />
               <div>
