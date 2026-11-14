@@ -518,7 +518,12 @@ export async function listChatMembers(userId: string, channelId: string) {
       const quarantine = modelId && !conversationAccess.archived ? quarantineControl(viewer, subject, modelId) : null;
       // Only an authorized reviewer sees paused targets who no longer belong
       // to this ordinary channel. There is no team-wide quarantine notice.
-      return access.canView || quarantine?.active ? [{ id: user.id, name: user.name, canView: access.canView, canPost: access.canPost, quarantine }] : [];
+      const primaryRole = user.roleMemberships.map(({ role }) => role)
+        .sort((a, b) => (a.rank ?? Number.MAX_SAFE_INTEGER) - (b.rank ?? Number.MAX_SAFE_INTEGER))[0];
+      return access.canView || quarantine?.active ? [{
+        id: user.id, name: user.name, role: primaryRole?.name ?? "Member",
+        avatarUpdatedAt: user.avatarUpdatedAt, canView: access.canView, canPost: access.canPost, quarantine,
+      }] : [];
     });
   });
 }
