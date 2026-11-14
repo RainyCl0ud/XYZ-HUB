@@ -74,7 +74,7 @@ assert.ok(message.includes('m.canModerate && onModerate && <button'));
 assert.ok(message.includes('m.canViewHistory && onHistory && <button'));
 assert.ok(message.includes('m.canPin && <button'));
 assert.ok(message.includes('m.attachment?.available && <a href='));
-assert.ok(sources.get("src/pages/ChatModerationDialog.tsx").includes("onConfirmed"));
+assert.ok(sources.get("src/pages/ChatModerationDialog.tsx").includes("onDeleted"));
 assert.ok(sources.get("src/pages/ChatAnnouncements.tsx").includes("preview.blockers"));
 assert.ok(sources.get("src/pages/ChatChannelCleanupDialog.tsx").includes("target.download"));
 assert.ok(alerts.includes("markRead(alert.id)"));
