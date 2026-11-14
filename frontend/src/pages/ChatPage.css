@@ -832,11 +832,11 @@
 /* Search and Pins float in-context like a messaging-app flyout. They never
    resize the message list, block the composer, or use the modal top layer. */
 .creator-chat-live-panel-anchor {
-  position: absolute; z-index: 22; top: 68px; right: 12px;
-  width: min(428px, calc(100% - 24px)); pointer-events: none;
+  position: absolute; z-index: 22; top: 68px; bottom: 10px; right: 12px;
+  width: min(428px, calc(100% - 24px)); display: flex; align-items: flex-start; pointer-events: none;
 }
 .creator-chat-live-panel {
-  pointer-events: auto; width: 100%; max-height: min(68dvh, 590px);
+  pointer-events: auto; width: 100%; max-height: min(68dvh, 100%);
   overflow-y: auto; overscroll-behavior: contain;
   padding: 16px; border: 1px solid #515158; border-radius: 10px;
   background: #242428; color: #F5F5F6; box-shadow: 0 16px 42px rgba(0, 0, 0, .5);
@@ -956,7 +956,7 @@
   .creator-chat-channel-header { min-height: 62px; padding: 10px; gap: 7px; }
   .creator-chat-channel-title h2 { font-size: 16px; }
   .creator-chat-live-panel-anchor { top: 116px; right: 7px; width: calc(100% - 14px); }
-  .creator-chat-live-panel { max-height: min(57dvh, 440px); padding: 12px; }
+  .creator-chat-live-panel { max-height: min(57dvh, 100%); padding: 12px; }
   .creator-chat-channel-settings { width: calc(100vw - 20px); }
   .creator-chat-settings-top { padding: 18px 16px 14px; }
   .creator-chat-settings-tabs { padding: 10px 16px 0; }
