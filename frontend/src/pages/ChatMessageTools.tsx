@@ -237,13 +237,12 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
   useEffect(() => {
     if (target.kind !== "search") return;
     const text = query.trim();
-    if (text.length < 2) {
-      setSubmitted(null); setCursors([]); setResults([]); setNextBefore(null);
-      setLoaded(false); setBusy(false); setError("");
-      return;
-    }
+    // Clear the previous query immediately so its polling request is aborted
+    // before the debounce finishes. Never display results for old search text.
+    setSubmitted(null); setCursors([]); setResults([]); setNextBefore(null);
+    setLoaded(false); setBusy(false); setError("");
+    if (text.length < 2) return;
     const timer = setTimeout(() => {
-      setResults([]); setError(""); setLoaded(false); setNextBefore(null); setCursors([]);
       setSubmitted({ q: text, scope });
     }, 400);
     return () => clearTimeout(timer);
