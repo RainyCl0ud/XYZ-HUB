@@ -66,6 +66,10 @@ try {
   assert.deepEqual(loadRecentEmojis(""), initial);
   pass("Corrupted, missing or anonymous storage falls back safely without leaking other users' data.");
 
+  // Keep the browser storage stub out of server-side React rendering.
+  if (previousWindow === undefined) delete globalThis.window;
+  else globalThis.window = previousWindow;
+
   const { ChatMessageContent } = await vite.ssrLoadModule("/src/pages/ChatMessageTools.tsx");
   const message = {
     id: "message-1", authorName: "Test member", text: "Hello there", version: 1,
@@ -108,6 +112,8 @@ try {
   assert.ok(tools.includes('window.addEventListener("resize", closeResize)'));
   assert.ok(tools.includes('document.removeEventListener("pointerdown", closeOutside)'));
   assert.ok(tools.includes('pickerTrigger.current?.focus({ preventScroll: true })'));
+  assert.ok(tools.includes('Escape closes only the picker, never the parent Search/Pins flyout.'));
+  assert.ok(chat.includes('target.closest(".creator-chat-emoji-popover")'));
   pass("Dismissal and keyboard behavior clean up listeners, prevent detached popovers, and restore focus.");
 
   assert.ok(css.includes('/* Touch: tapping/focusing a message exposes a floating toolbar.'));
