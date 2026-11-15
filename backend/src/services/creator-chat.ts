@@ -372,6 +372,12 @@ export async function markChatMessagesRead(userId: string, channelId: string, in
   });
 }
 
+/** Recheck current Chat visibility for a live connection without exposing
+ * any message contents or accepting an archived/foreign channel ID. */
+export async function assertChatChannelReadable(userId: string, channelId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => { await openChannel(tx, userId, channelId); });
+}
+
 export async function listChatMessages(userId: string, channelId: string, before?: string) {
   return prisma.$transaction(async (tx) => {
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId);

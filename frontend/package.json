@@ -20,7 +20,8 @@
     "preview": "vite preview",
     "start": "serve -s dist -l $PORT",
     "test:chat-ui-polish": "node scripts/test-chat-ui-polish.mjs",
-    "test:chat-settings-workspace": "node scripts/test-chat-settings-workspace.mjs"
+    "test:chat-settings-workspace": "node scripts/test-chat-settings-workspace.mjs",
+    "test:chat-realtime-toolbar": "node scripts/test-chat-realtime-toolbar.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

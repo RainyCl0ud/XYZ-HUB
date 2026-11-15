@@ -130,6 +130,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const availableAreas = useRef<Area[]>([]);
   const areasRequest = useRef(0);
   const requestRef = useRef<AbortController | null>(null);
+  const liveRefresh = useRef<() => void>(() => {});
   const pendingSend = useRef<{ channelId: string; text: string; replyToId?: string; nonce: string } | null>(null);
   const transcriptRef = useRef(transcript);
   const messageRevision = useRef(0);
@@ -311,10 +312,15 @@ function ChatWorkspace({ userId }: { userId: string }) {
     selectedRef.current = selected;
     if (!selected) return;
     let stopped = false;
+    let refreshing = false;
+    let pendingRefresh = false;
     let timer: ReturnType<typeof setTimeout>;
     const controller = new AbortController();
     requestRef.current = controller;
     const refresh = async () => {
+      if (stopped) return;
+      if (refreshing) { pendingRefresh = true; return; }
+      refreshing = true;
       const revision = messageRevision.current;
       try {
         // A fresh authenticated request rechecks roles and assignments on every
@@ -369,12 +375,58 @@ function ChatWorkspace({ userId }: { userId: string }) {
         }
         setError(errorText(e));
       } finally {
-        if (!stopped) timer = setTimeout(() => { if (document.visibilityState === "visible") void refresh(); else timer = setTimeout(() => void refresh(), 5000); }, 5000);
+        refreshing = false;
+        if (!stopped) {
+          timer = setTimeout(() => { if (document.visibilityState === "visible") void refresh(); else timer = setTimeout(() => { void refresh(); }, 5000); }, 5000);
+          if (pendingRefresh) {
+            pendingRefresh = false;
+            clearTimeout(timer);
+            timer = setTimeout(() => { void refresh(); }, 0);
+          }
+        }
       }
     };
+    // EventSource notifications can arrive while an ordinary fetch is running.
+    // Coalesce them and keep the existing 5-second polling as a safe fallback.
+    liveRefresh.current = () => {
+      if (stopped) return;
+      clearTimeout(timer);
+      void refresh();
+    };
     void refresh();
-    return () => { stopped = true; clearTimeout(timer); controller.abort(); requestRef.current = null; };
+    return () => {
+      stopped = true;
+      liveRefresh.current = () => {};
+      clearTimeout(timer);
+      controller.abort();
+      requestRef.current = null;
+    };
   }, [selected, refreshAreas, refreshTick]);
+
+  useEffect(() => {
+    if (!selected || typeof EventSource === "undefined") return;
+    const source = new EventSource(
+      `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(selected)}/live`,
+      { withCredentials: true },
+    );
+    const onChanged = () => {
+      if (document.visibilityState === "visible") liveRefresh.current();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") liveRefresh.current();
+    };
+    // Refresh once whenever the stream connects/reconnects: a write could
+    // have committed between the initial GET and the SSE subscription.
+    source.addEventListener("open", onChanged);
+    source.addEventListener("changed", onChanged);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      source.removeEventListener("open", onChanged);
+      source.removeEventListener("changed", onChanged);
+      document.removeEventListener("visibilitychange", onVisibility);
+      source.close();
+    };
+  }, [selected]);
 
   useLayoutEffect(() => {
     const pane = messagePane.current;

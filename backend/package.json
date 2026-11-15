@@ -78,7 +78,8 @@
     "test:chat-unread-upgrade": "tsx scripts/test-chat-unread-upgrade.ts",
     "test:chat-quarantine": "tsx scripts/test-chat-quarantine.ts",
     "test:chat-quarantine-upgrade": "tsx scripts/test-chat-quarantine-upgrade.ts",
-    "test:block2-acceptance-guards": "tsx scripts/test-block2-acceptance-guards.ts"
+    "test:block2-acceptance-guards": "tsx scripts/test-block2-acceptance-guards.ts",
+    "test:chat-live-events": "tsx scripts/test-chat-live-events.ts"
   },
   "keywords": [],
   "author": "",

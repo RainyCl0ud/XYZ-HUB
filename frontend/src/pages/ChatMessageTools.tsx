@@ -39,6 +39,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   const reactions = m.reactions ?? [];
   const [busy, setBusy] = useState(false);
   const reactionMenu = useRef<HTMLDetailsElement>(null);
+  const quickReactionMenu = useRef<HTMLDetailsElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const popupId = useId();
@@ -132,7 +133,36 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       <button type="button" key={r.emoji} aria-pressed={r.mine} aria-label={`${palette.find(([emoji]) => emoji === r.emoji)?.[1] ?? "Reaction"}: ${r.count}${r.mine ? ", yours; remove reaction" : "; add reaction"}`} disabled={busy}
         onClick={() => void update("reaction", { emoji: r.emoji, active: !r.mine })}><span>{r.emoji}</span><span>{r.count}</span></button> :
       <span className="creator-chat-reaction-count" key={r.emoji} aria-label={`${r.emoji}: ${r.count}`}>{r.emoji} {r.count}</span>)}</div>}
-    {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <div className="creator-chat-message-actions">
+    {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <div
+      className="creator-chat-message-actions" role="group" aria-label={`Actions for message by ${m.authorName}`}>
+      {m.canReply && <div className="creator-chat-quick-reactions" role="group" aria-label="Quick reactions">
+        {palette.slice(0, 3).map(([emoji, label]) => <button key={emoji} type="button" disabled={busy}
+          title={label} aria-label={`React with ${label}`}
+          aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
+          onClick={() => void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) })}>{emoji}</button>)}
+        <details className="creator-chat-toolbar-reaction-picker" ref={quickReactionMenu}>
+          <summary title="Choose reaction" aria-label="Choose a reaction"><span aria-hidden="true">☺+</span></summary>
+          <div className="creator-chat-toolbar-reaction-grid" role="group" aria-label="Choose a reaction">
+            {palette.map(([emoji, label]) => <button key={emoji} type="button" disabled={busy}
+              title={label} aria-label={label}
+              aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
+              onClick={() => {
+                if (quickReactionMenu.current) quickReactionMenu.current.open = false;
+                void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
+              }}>{emoji}</button>)}
+          </div>
+        </details>
+      </div>}
+      {m.canReply && <button className="creator-chat-toolbar-action" type="button" disabled={busy}
+        aria-label="Reply to message" title="Reply" onClick={() => onReply(m)}>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+          strokeLinecap="round" strokeLinejoin="round"><path d="M10 9 5 13l5 4M5 13h9c4 0 6 2 6 6" /></svg>
+      </button>}
+      {m.canEdit && onEdit && <button className="creator-chat-toolbar-action" type="button" disabled={busy}
+        aria-label="Edit message" title="Edit" onClick={() => onEdit(m)}>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+          strokeLinecap="round" strokeLinejoin="round"><path d="m4 16-.6 4.6L8 20l11-11-4-4L4 16ZM13 7l4 4" /></svg>
+      </button>}
       <div className="creator-chat-action-menu">
         <button ref={menuButton} type="button" className="creator-chat-more-button"
           aria-label={`More actions for message by ${m.authorName}`} title="More"
