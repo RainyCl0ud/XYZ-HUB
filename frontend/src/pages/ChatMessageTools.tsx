@@ -206,22 +206,19 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <div
       className="creator-chat-message-actions" role="group" aria-label={`Actions for message by ${m.authorName}`}>
       {m.canReply && <div className="creator-chat-quick-reactions" role="group" aria-label="Quick reactions">
-        {palette.slice(0, 3).map(([emoji, label]) => <button key={emoji} type="button" disabled={busy}
-          title={label} aria-label={`React with ${label}`}
+        {sixRecentEmojis.slice(0, 3).map((emoji) => <button key={emoji} type="button" disabled={busy}
+          title={emojiLabel(emoji)} aria-label={`React with ${emojiLabel(emoji)}`}
           aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
           onClick={() => void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) })}>{emoji}</button>)}
-        <details className="creator-chat-toolbar-reaction-picker" ref={quickReactionMenu}>
-          <summary title="Choose reaction" aria-label="Choose a reaction"><span aria-hidden="true">☺+</span></summary>
-          <div className="creator-chat-toolbar-reaction-grid" role="group" aria-label="Choose a reaction">
-            {palette.map(([emoji, label]) => <button key={emoji} type="button" disabled={busy}
-              title={label} aria-label={label}
-              aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
-              onClick={() => {
-                if (quickReactionMenu.current) quickReactionMenu.current.open = false;
-                void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
-              }}>{emoji}</button>)}
-          </div>
-        </details>
+        <button ref={pickerTrigger} type="button" className="creator-chat-toolbar-emoji-trigger"
+          title="Choose another emoji" aria-label="Choose another emoji" aria-haspopup="dialog"
+          aria-expanded={pickerOpen} aria-controls={pickerId} disabled={busy}
+          onClick={openReactionPicker}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M17 13.2A7.6 7.6 0 1 1 11 4.4M7.6 13.7c1.5 2 4.3 2 5.8 0M8.2 9.7h.1M12.4 9.7h.1M19 2v7M15.5 5.5h7" />
+          </svg>
+        </button>
       </div>}
       {m.canReply && <button className="creator-chat-toolbar-action" type="button" disabled={busy}
         aria-label="Reply to message" title="Reply" onClick={() => onReply(m)}>
@@ -242,17 +239,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         {menuOpen && popupHost && createPortal(<div id={popupId} ref={popupRef}
           className="creator-chat-action-popover" style={popupPosition} role="group" aria-label="Message actions">
           {m.canReply && <button type="button" disabled={busy} onClick={() => act(() => onReply(m))}>Reply</button>}
-          {m.canReply && <details ref={reactionMenu} className="creator-chat-reaction-menu">
-            <summary>React</summary>
-            <div role="group" aria-label="Choose a reaction">{palette.map(([emoji, label]) =>
-              <button type="button" key={emoji} disabled={busy} aria-label={label}
-                aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
-                onClick={() => { if (reactionMenu.current) reactionMenu.current.open = false;
-                  setMenuOpen(false);
-                  void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
-                }}>{emoji}</button>)}
-            </div>
-          </details>}
+          {m.canReply && <button type="button" disabled={busy} onClick={openReactionPicker}>React…</button>}
           {m.attachment?.available && <a href={`${attachmentPath}/file`} target="_blank" rel="noopener"
             aria-label={`Download ${m.attachment.fileName}`} onClick={() => setMenuOpen(false)}>Download file</a>}
           {m.canEdit && onEdit && <button type="button" disabled={busy} onClick={() => act(() => onEdit(m))}>Edit</button>}
@@ -263,6 +250,36 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       </div>
       {busy && <span role="status">Saving…</span>}
     </div>}
+    {pickerOpen && pickerHost && m.canReply && createPortal(
+      <div id={pickerId} ref={pickerRef} className="creator-chat-emoji-popover"
+        style={pickerPosition} role="dialog" aria-label="Choose reaction emoji">
+        <header className="creator-chat-emoji-popover-heading">
+          <strong>{pickerMode === "recent" ? "Your recent emojis" : "Browse emojis"}</strong>
+          <button type="button" aria-label="Close emoji picker" onClick={() => setPickerOpen(false)}>×</button>
+        </header>
+        <div className="creator-chat-emoji-popover-grid" role="group"
+          aria-label={pickerMode === "recent" ? "Six recent emojis" : "Six available emojis"}>
+          {pickerEmojis.map((emoji) => <button key={emoji} type="button" disabled={busy}
+            title={emojiLabel(emoji)} aria-label={emojiLabel(emoji)}
+            aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
+            onClick={() => {
+              setPickerOpen(false);
+              void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
+            }}>{emoji}</button>)}
+        </div>
+        <footer className="creator-chat-emoji-popover-footer">
+          <button type="button" onClick={() => {
+            setPickerMode(pickerMode === "recent" ? "browse" : "recent"); setBrowsePage(0);
+          }}>{pickerMode === "recent" ? "Browse more" : "Recent"}</button>
+          {pickerMode === "browse" && <div className="creator-chat-emoji-popover-pages" aria-label="Emoji pages">
+            <button type="button" aria-label="Previous emoji page" disabled={browsePage === 0}
+              onClick={() => setBrowsePage((page) => Math.max(0, page - 1))}>‹</button>
+            <span>{browsePage + 1} / {browsePageCount}</span>
+            <button type="button" aria-label="Next emoji page" disabled={browsePage >= browsePageCount - 1}
+              onClick={() => setBrowsePage((page) => Math.min(browsePageCount - 1, page + 1))}>›</button>
+          </div>}
+        </footer>
+      </div>, pickerHost)}
   </div>;
 }
 
