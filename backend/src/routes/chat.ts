@@ -111,17 +111,25 @@ router.post("/areas/:modelId/channels", run(async (req, res) => {
   res.status(201).json({ channel: await createChatChannel(user(req), param(req, "modelId"), input.name) });
 }));
 router.patch("/channels/:channelId", run(async (req, res) => {
-  await renameChatChannel(user(req), param(req, "channelId"), channelNameSchema.parse(req.body).name);
+  const channelId = param(req, "channelId");
+  await renameChatChannel(user(req), channelId, channelNameSchema.parse(req.body).name);
+  publishChatChange(channelId);
   res.json({ success: true });
 }));
 router.put("/channels/:channelId/archive", run(async (req, res) => {
   const { name } = channelNameSchema.parse(req.body);
-  res.json(await archiveChatChannel(user(req), param(req, "channelId"), name));
+  const channelId = param(req, "channelId");
+  const result = await archiveChatChannel(user(req), channelId, name);
+  publishChatChange(channelId);
+  res.json(result);
 }));
 const cleanupSchema = channelNameSchema.extend({ downloadId: z.string().min(1).max(100), confirmedSaved: z.literal(true) });
 router.put("/channels/:channelId/cleanup", run(async (req, res) => {
   const { name, downloadId } = cleanupSchema.parse(req.body);
-  res.json(await cleanUpChatChannel(user(req), param(req, "channelId"), name, downloadId));
+  const channelId = param(req, "channelId");
+  const result = await cleanUpChatChannel(user(req), channelId, name, downloadId);
+  publishChatChange(channelId);
+  res.json(result);
 }));
 const archiveExportLimit = createRateLimit({ windowMs: 60_000, max: 5, keyPrefix: "chat-archive-export", getIdentity: user });
 router.get("/channels/:channelId/archive/export", archiveExportLimit, run(async (req, res) => {
@@ -295,7 +303,9 @@ router.patch("/channels/:channelId/messages/:messageId", run(async (req, res) =>
 }));
 router.get("/channels/:channelId/grants", run(async (req, res) => res.json(await chatGrantOptions(user(req), param(req, "channelId")))));
 router.put("/channels/:channelId/grants", run(async (req, res) => {
-  await setChatGrant(user(req), param(req, "channelId"), grantSchema.parse(req.body));
+  const channelId = param(req, "channelId");
+  await setChatGrant(user(req), channelId, grantSchema.parse(req.body));
+  publishChatChange(channelId);
   res.json({ success: true });
 }));
 const searchLimit = createRateLimit({ windowMs: 60_000, max: 30, keyPrefix: "chat-search", getIdentity: (req) => (req as AuthenticatedRequest).userId! });
