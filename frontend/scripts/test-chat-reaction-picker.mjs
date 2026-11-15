@@ -66,6 +66,7 @@ try {
   assert.deepEqual(loadRecentEmojis(""), initial);
   pass("Corrupted, missing or anonymous storage falls back safely without leaking other users' data.");
 
+  const accountARecent = loadRecentEmojis("test-user-a");
   // Keep the browser storage stub out of server-side React rendering.
   if (previousWindow === undefined) delete globalThis.window;
   else globalThis.window = previousWindow;
@@ -79,7 +80,7 @@ try {
   };
   const noop = () => {};
   const markup = renderToStaticMarkup(createElement(ChatMessageContent, {
-    message, channelId: "fictional-channel", recentEmojis: loadRecentEmojis("test-user-a"),
+    message, channelId: "fictional-channel", recentEmojis: accountARecent,
     onReply: noop, onEdit: noop, onChanged: noop, onOpen: noop, onError: noop,
     onReactionSelected: noop,
   }));
