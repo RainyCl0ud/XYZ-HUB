@@ -255,7 +255,14 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     </div>}
     {pickerOpen && pickerHost && m.canReply && createPortal(
       <div id={pickerId} ref={pickerRef} className="creator-chat-emoji-popover"
-        style={pickerPosition} role="dialog" aria-label="Choose reaction emoji">
+        style={pickerPosition} role="dialog" aria-label="Choose reaction emoji"
+        onKeyDown={(event) => {
+          // Portal key events still bubble through their React owner. Escape
+          // closes only the picker, never the parent Search/Pins flyout.
+          if (event.key !== "Escape") return;
+          event.preventDefault(); event.stopPropagation();
+          setPickerOpen(false); pickerTrigger.current?.focus({ preventScroll: true });
+        }}>
         <header className="creator-chat-emoji-popover-heading">
           <strong>{pickerMode === "recent" ? "Your recent emojis" : "Browse emojis"}</strong>
           <button type="button" aria-label="Close emoji picker" onClick={() => setPickerOpen(false)}>×</button>
