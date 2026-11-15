@@ -168,7 +168,8 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     setMenuOpen(false); menuButton.current?.focus(); fn();
   };
   async function update(kind: "reaction" | "pin", body: object) {
-    if (busy) return;
+    // Ref lock closes the gap before React commits busy=true on rapid taps.
+    if (busy || request.current) return;
     const controller = new AbortController(); request.current = controller; setBusy(true);
     try {
       const response = await apiRequest<{ message: ChatMessage }>(`/api/chat/channels/${channelId}/messages/${m.id}/${kind}`, {
@@ -179,7 +180,10 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         if (kind === "reaction" && "emoji" in body && typeof body.emoji === "string") onReactionSelected?.(body.emoji);
       }
     } catch (e) { if (!controller.signal.aborted) onError(e); }
-    finally { if (!controller.signal.aborted) setBusy(false); }
+    finally {
+      if (request.current === controller) request.current = null;
+      if (!controller.signal.aborted) setBusy(false);
+    }
   }
   const attachmentPath = `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(m.id)}`;
   const voiceDuration = m.attachment?.voiceDurationMs;
