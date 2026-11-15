@@ -49,7 +49,9 @@ pass("Committed message writes broadcast scoped invalidations without additional
 
 assert.ok(page.includes('new EventSource('));
 assert.ok(page.includes('{ withCredentials: true }'));
+assert.ok(page.includes('source.addEventListener("open", onChanged)'));
 assert.ok(page.includes('source.addEventListener("changed", onChanged)'));
+assert.ok(page.includes('source.removeEventListener("open", onChanged)'));
 assert.ok(page.includes('source.close()'));
 assert.ok(page.includes('document.addEventListener("visibilitychange", onVisibility)'));
 assert.ok(page.includes('const liveRefresh = useRef<() => void>'));
