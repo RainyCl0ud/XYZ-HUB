@@ -90,6 +90,60 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     };
   }, [menuOpen]);
 
+  // The picker uses the same viewport-bounded portal approach as More.
+  // It must never become a child of the message row's scrollable layout.
+  const openReactionPicker = (event: MouseEvent<HTMLButtonElement>) => {
+    if (busy) return;
+    if (pickerOpen) { setPickerOpen(false); return; }
+    const box = event.currentTarget.getBoundingClientRect();
+    const width = Math.min(224, Math.max(160, window.innerWidth - 16));
+    const height = 244;
+    const below = window.innerHeight - box.bottom;
+    const above = box.top;
+    const placeBelow = below >= height + 8 || below >= above;
+    const top = placeBelow
+      ? Math.max(8, Math.min(box.bottom + 6, window.innerHeight - height - 8))
+      : Math.max(8, box.top - height - 6);
+    setPickerHost(event.currentTarget.closest("dialog") ?? document.body);
+    setPickerPosition({
+      position: "fixed",
+      top, left: Math.max(8, Math.min(box.right - width, window.innerWidth - width - 8)),
+      width, maxHeight: Math.max(130, window.innerHeight - 16),
+    });
+    setPickerMode("recent"); setBrowsePage(0);
+    setMenuOpen(false);
+    setPickerOpen(true);
+  };
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (pickerRef.current?.contains(event.target) || pickerTrigger.current?.contains(event.target)) return;
+      setPickerOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault(); event.stopPropagation();
+      setPickerOpen(false);
+      pickerTrigger.current?.focus({ preventScroll: true });
+    };
+    const closeScroll = (event: Event) => {
+      if (event.target instanceof Node && pickerRef.current?.contains(event.target)) return;
+      setPickerOpen(false);
+    };
+    const closeResize = () => setPickerOpen(false);
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    document.addEventListener("scroll", closeScroll, true);
+    window.addEventListener("resize", closeResize);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+      document.removeEventListener("scroll", closeScroll, true);
+      window.removeEventListener("resize", closeResize);
+    };
+  }, [pickerOpen]);
+
   const openActionMenu = (event: MouseEvent<HTMLButtonElement>) => {
     if (menuOpen) { setMenuOpen(false); return; }
     const box = event.currentTarget.getBoundingClientRect();
