@@ -115,6 +115,9 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     setPickerOpen(true);
   };
   useEffect(() => {
+    if (pickerOpen) pickerRef.current?.querySelector<HTMLButtonElement>(".creator-chat-emoji-popover-grid button")?.focus({ preventScroll: true });
+  }, [pickerOpen]);
+  useEffect(() => {
     if (!pickerOpen) return;
     const closeOutside = (event: PointerEvent) => {
       if (!(event.target instanceof Node)) return;
