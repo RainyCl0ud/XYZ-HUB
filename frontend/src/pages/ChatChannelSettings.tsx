@@ -20,6 +20,8 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "access">("details");
   const [accessQuery, setAccessQuery] = useState("");
+  const [accessExpanded, setAccessExpanded] = useState(false);
+  const [accessCategory, setAccessCategory] = useState<"roles" | "people">("roles");
   useEffect(() => { workspace.current?.focus(); }, []);
   useEffect(() => {
     if (!target.channelId) return;
@@ -74,8 +76,9 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
       role="region" aria-labelledby="chat-settings-title">
       <header className="creator-chat-settings-top">
         <button type="button" className="creator-chat-settings-back" onClick={onClose} disabled={busy}
-          aria-label={target.channelId ? `Back to ${target.name} conversation` : "Back to conversations"}>
-          <span aria-hidden="true">←</span> {target.channelId ? `Back to #${target.name}` : "Back to conversations"}
+          aria-label={target.channelId ? `Back to #${target.name} conversation` : "Back to conversations"}>
+          <span className="creator-chat-settings-back-icon" aria-hidden="true">←</span>
+          <span>Back to Chat</span>
         </button>
         <div className="creator-chat-settings-title-block">
           <p className="creator-chat-settings-kicker">{target.channelId ? "CHANNEL SETTINGS" : "NEW CHANNEL"}</p>
@@ -86,8 +89,26 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
       <div className="creator-chat-settings-layout">
         {target.channelId && (
           <nav className="creator-chat-settings-tabs" aria-label="Channel settings sections">
-            <button type="button" aria-pressed={activeTab === "details"} onClick={() => setActiveTab("details")}>Overview</button>
-            <button type="button" aria-pressed={activeTab === "access"} onClick={() => setActiveTab("access")}>Permissions</button>
+            <button type="button" aria-pressed={activeTab === "details"}
+              onClick={() => { setActiveTab("details"); setAccessExpanded(false); }}>Overview</button>
+            <div className="creator-chat-settings-nav-group">
+              <button type="button" aria-pressed={activeTab === "access"} aria-expanded={accessExpanded}
+                aria-controls="chat-settings-permission-children"
+                onClick={() => {
+                  setActiveTab("access");
+                  setAccessExpanded((open) => activeTab === "access" ? !open : true);
+                }}>
+                <span>Permissions</span>
+                <span className="creator-chat-settings-nav-chevron" aria-hidden="true">▾</span>
+              </button>
+              {accessExpanded && <div id="chat-settings-permission-children"
+                className="creator-chat-settings-subnav" role="group" aria-label="Permission categories">
+                <button type="button" aria-current={activeTab === "access" && accessCategory === "roles" ? "page" : undefined}
+                  onClick={() => { setActiveTab("access"); setAccessCategory("roles"); setAccessQuery(""); }}>Role</button>
+                <button type="button" aria-current={activeTab === "access" && accessCategory === "people" ? "page" : undefined}
+                  onClick={() => { setActiveTab("access"); setAccessCategory("people"); setAccessQuery(""); }}>Member</button>
+              </div>}
+            </div>
           </nav>
         )}
         <div className="creator-chat-settings-main">
@@ -134,27 +155,32 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
       )}
       {target.channelId && activeTab === "access" && (
         <section className="creator-chat-settings-section creator-chat-settings-access" aria-labelledby="chat-settings-access-title">
-          <h3 id="chat-settings-access-title">Member permissions</h3>
-          <p>Control who can view or send messages. Role and individual permissions combine; removing one grant may not remove access from another. Only staff assigned to this creator can be added.</p>
-          <label htmlFor="chat-settings-find-access">Find a role or person</label>
+          <h3 id="chat-settings-access-title">{accessCategory === "roles" ? "Role permissions" : "Member permissions"}</h3>
+          <p>{accessCategory === "roles"
+            ? "Control channel access by role. Members may also have individual permission grants."
+            : "Manage individual channel access for staff assigned to this creator. Role grants still apply."}</p>
+          <label htmlFor="chat-settings-find-access">{accessCategory === "roles" ? "Find a role" : "Find a member"}</label>
           <input id="chat-settings-find-access" type="search" value={accessQuery} onChange={(event) => setAccessQuery(event.target.value)}
-            placeholder="Search members and roles…" />
+            placeholder={accessCategory === "roles" ? "Search roles…" : "Search members…"} />
           {!options ? <p role="status">Loading channel access…</p> : (
             <div className="creator-chat-settings-grant-groups">
-              <section aria-labelledby="chat-access-roles-title">
-                <div className="creator-chat-settings-group-title"><h4 id="chat-access-roles-title">Roles</h4><span>{matchingRoles.length}</span></div>
-                <div className="creator-chat-grant-list">
-                  {matchingRoles.map((option) => <GrantRow key={option.id} kind="Role" option={option} busy={busy} onSave={(grant) => void saveGrant("roles", option, grant)} />)}
-                  {!matchingRoles.length && <p className="creator-chat-settings-no-match">No matching roles.</p>}
-                </div>
-              </section>
-              <section aria-labelledby="chat-access-people-title">
-                <div className="creator-chat-settings-group-title"><h4 id="chat-access-people-title">Individuals</h4><span>{matchingPeople.length}</span></div>
-                <div className="creator-chat-grant-list">
-                  {matchingPeople.map((option) => <GrantRow key={option.id} kind="Person" option={option} busy={busy} onSave={(grant) => void saveGrant("people", option, grant)} />)}
-                  {!matchingPeople.length && <p className="creator-chat-settings-no-match">No matching assigned staff.</p>}
-                </div>
-              </section>
+              {accessCategory === "roles" ? (
+                <section aria-labelledby="chat-access-roles-title">
+                  <div className="creator-chat-settings-group-title"><h4 id="chat-access-roles-title">Role</h4><span>{matchingRoles.length}</span></div>
+                  <div className="creator-chat-grant-list">
+                    {matchingRoles.map((option) => <GrantRow key={option.id} kind="Role" option={option} busy={busy} onSave={(grant) => void saveGrant("roles", option, grant)} />)}
+                    {!matchingRoles.length && <p className="creator-chat-settings-no-match">No matching roles.</p>}
+                  </div>
+                </section>
+              ) : (
+                <section aria-labelledby="chat-access-people-title">
+                  <div className="creator-chat-settings-group-title"><h4 id="chat-access-people-title">Member</h4><span>{matchingPeople.length}</span></div>
+                  <div className="creator-chat-grant-list">
+                    {matchingPeople.map((option) => <GrantRow key={option.id} kind="Member" option={option} busy={busy} onSave={(grant) => void saveGrant("people", option, grant)} />)}
+                    {!matchingPeople.length && <p className="creator-chat-settings-no-match">No matching members.</p>}
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </section>
