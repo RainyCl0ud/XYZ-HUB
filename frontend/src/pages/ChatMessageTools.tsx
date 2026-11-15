@@ -296,6 +296,7 @@ type ToolProps = {
   onChanged: (channelId: string, message: ChatMessage) => void;
   onModerate: (channelId: string, message: ChatMessage) => void;
   notice?: string; revision?: number; paused?: boolean;
+  recentEmojis?: readonly string[]; onReactionSelected?: (emoji: string) => void;
 };
 const toolName = (target: ChatToolTarget) => target.kind === "search" ? "Search results" : target.kind === "pins" ? "Pinned messages" : target.kind === "deleted" ? "Deleted messages" : target.kind === "history" ? "Message history" : "Message";
 
@@ -308,7 +309,7 @@ export default function ChatMessageTools(props: Omit<ToolProps, "onOpen">) {
     onOpen={(target, saved) => setTrail((old) => [...old.slice(0, -1), { ...old[old.length - 1], saved }, { target }])} />;
 }
 
-function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChanged, onModerate, saved, backLabel, onBack, notice, revision: parentRevision, paused, inline = false }: Omit<ToolProps, "onOpen"> & {
+function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChanged, onModerate, saved, backLabel, onBack, notice, revision: parentRevision, paused, inline = false, recentEmojis, onReactionSelected }: Omit<ToolProps, "onOpen"> & {
   saved?: ToolState; backLabel?: string; onBack: () => void; onOpen: (target: ChatToolTarget, state: ToolState) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -434,7 +435,7 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
     setPins((old) => old.map((m) => m.id === value.id ? value : m).filter((m) => !!m.pinnedAt));
   }
   function content(value: ChatMessage, channelId: string, channelName: string) {
-    return <ChatMessageContent message={value} channelId={channelId} onReply={(m) => onReply(channelId, m)} onChanged={(m) => changed(channelId, m)}
+    return <ChatMessageContent message={value} channelId={channelId} recentEmojis={recentEmojis} onReactionSelected={onReactionSelected} onReply={(m) => onReply(channelId, m)} onChanged={(m) => changed(channelId, m)}
       onOpen={(messageId) => navigate({ kind: "message", channelId, channelName, messageId })} onError={(e) => { setActionError(errorText(e)); setRevision((v) => v + 1); }}
       onModerate={(m) => onModerate(channelId, m)} onHistory={target.kind === "history" ? undefined : (messageId) => navigate({ kind: "history", channelId, channelName, messageId })} />;
   }
