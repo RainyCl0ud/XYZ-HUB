@@ -104,6 +104,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
         (target.closest(".creator-chat-live-panel") ||
          target.closest(".creator-chat-discover-actions") ||
          target.closest(".creator-chat-action-popover") ||
+         target.closest(".creator-chat-emoji-popover") ||
          target.closest("dialog[open]"))) return;
       setTools(null); setToolsNotice("");
     };
