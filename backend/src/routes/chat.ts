@@ -19,7 +19,8 @@ import { chatAttachmentMetadata, uploadChatAttachment } from "../services/chat-a
 import { renderChatImagePreview } from "../services/chat-image-preview.js";
 import { chatVoiceEnabled, MAX_CHAT_VOICE_SECONDS } from "../services/chat-voice.js";
 import { downloadChatChannelExport } from "../services/chat-channel-export.js";
-import { getChatMemberAvatar } from "../services/creator-chat.js";
+import { getChatMemberAvatar, assertChatChannelReadable } from "../services/creator-chat.js";
+import { subscribeChatChanges, publishChatChange } from "../services/chat-live-events.js";
 import { backgroundPushSettings, pushSubscriptionSchema, subscribeBackgroundPush, unsubscribeBackgroundPush } from "../services/hub-background-push.js";
 
 const router = Router();
@@ -142,6 +143,58 @@ router.get("/channels/:channelId/archive/export", archiveExportLimit, run(async 
     res.off("close", cancel);
   }
 }));
+// EventSource invalidates the open transcript as soon as a committed write
+// occurs on this Backend replica. No message text, user names, or channel IDs
+// are ever sent on the stream. Ordinary polling remains the fallback.
+const liveLimit = createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: "chat-live", getIdentity: user });
+router.get("/channels/:channelId/live", liveLimit, run(async (req, res) => {
+  if (req.get("Sec-Fetch-Site") === "cross-site") throw new ChatError(404, "Channel not found.");
+  const channelId = param(req, "channelId");
+  const viewerId = user(req);
+  await assertChatChannelReadable(viewerId, channelId);
+  let closed = false;
+  let verifying = false;
+  let queued = false;
+  const checkAndSignal = async (changed: boolean) => {
+    if (closed) return;
+    if (verifying) { queued = queued || changed; return; }
+    verifying = true;
+    try {
+      // A revoked role/assignment never receives further update signals.
+      await assertChatChannelReadable(viewerId, channelId);
+      if (!closed && !res.destroyed) {
+        res.write(changed ? "event: changed\\ndata: {}\\n\\n" : ": keepalive\\n\\n");
+      }
+    } catch {
+      if (!closed) res.end();
+    } finally {
+      verifying = false;
+      if (queued && !closed) { queued = false; void checkAndSignal(true); }
+    }
+  };
+  const unsubscribe = subscribeChatChanges(channelId, () => { void checkAndSignal(true); });
+  if (!unsubscribe) throw new ChatError(503, "Too many live viewers. Messages will still refresh normally.");
+  res.status(200).set({
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-store, no-transform",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+    "X-Content-Type-Options": "nosniff",
+  });
+  res.flushHeaders();
+  res.write("retry: 1500\\n\\n");
+  const heartbeat = setInterval(() => { void checkAndSignal(false); }, 20_000);
+  // Force periodic reauthentication so a revoked session cannot stay open.
+  const rotation = setTimeout(() => { if (!closed) res.end(); }, 55_000);
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    clearInterval(heartbeat); clearTimeout(rotation);
+    unsubscribe();
+  };
+  res.once("close", close);
+  req.once("aborted", close);
+}));
 router.get("/channels/:channelId/messages", run(async (req, res) => {
   const before = req.query.before;
   if (before !== undefined && (typeof before !== "string" || before.length > 100)) throw new ChatError(400, "The message cursor is invalid.");
@@ -165,7 +218,10 @@ router.get("/channels/:channelId/members/:memberId/avatar", memberAvatarLimit, r
 }));
 router.post("/channels/:channelId/messages", run(async (req, res) => {
   const input = sendSchema.parse(req.body);
-  res.status(201).json({ message: await sendChatMessage(user(req), param(req, "channelId"), input.text, input.clientNonce, input.replyToId) });
+  const channelId = param(req, "channelId");
+  const message = await sendChatMessage(user(req), channelId, input.text, input.clientNonce, input.replyToId);
+  publishChatChange(channelId);
+  res.status(201).json({ message });
 }));
 router.post("/channels/:channelId/files", run(async (req, res) => {
   const directory = chatAttachmentDirectory();
@@ -185,7 +241,10 @@ router.post("/channels/:channelId/files", run(async (req, res) => {
   if (length !== undefined && Number(length) !== metadata.byteSize) {
     throw new ChatError(400, "The upload size did not match the selected file.");
   }
-  res.status(201).json({ message: await uploadChatAttachment(req, directory, user(req), param(req, "channelId"), metadata) });
+  const channelId = param(req, "channelId");
+  const message = await uploadChatAttachment(req, directory, user(req), channelId, metadata);
+  publishChatChange(channelId);
+  res.status(201).json({ message });
 }));
 const downloadLimit = createRateLimit({ windowMs: 60_000, max: 60, keyPrefix: "chat-files", getIdentity: user });
 const streamAttachment = (purpose: "download" | "voice") => run(async (req, res) => {
@@ -229,7 +288,10 @@ router.get("/channels/:channelId/messages/:messageId/preview", previewLimit, run
 }));
 router.patch("/channels/:channelId/messages/:messageId", run(async (req, res) => {
   const input = editSchema.parse(req.body);
-  res.json({ message: await editChatMessage(user(req), param(req, "channelId"), param(req, "messageId"), input.text, input.version) });
+  const channelId = param(req, "channelId");
+  const message = await editChatMessage(user(req), channelId, param(req, "messageId"), input.text, input.version);
+  publishChatChange(channelId);
+  res.json({ message });
 }));
 router.get("/channels/:channelId/grants", run(async (req, res) => res.json(await chatGrantOptions(user(req), param(req, "channelId")))));
 router.put("/channels/:channelId/grants", run(async (req, res) => {
@@ -251,14 +313,23 @@ router.get("/channels/:channelId/deleted", run(async (req, res) => res.json(awai
 router.get("/channels/:channelId/messages/:messageId/history", run(async (req, res) => res.json(await getChatMessageHistory(user(req), param(req, "channelId"), param(req, "messageId"), pageSchema.parse(req.query).before))));
 router.delete("/channels/:channelId/messages/:messageId", run(async (req, res) => {
   const input = deleteSchema.parse(req.body);
-  res.json(await deleteChatMessage(user(req), param(req, "channelId"), param(req, "messageId"), input.version, input.reason));
+  const channelId = param(req, "channelId");
+  const result = await deleteChatMessage(user(req), channelId, param(req, "messageId"), input.version, input.reason);
+  publishChatChange(channelId);
+  res.json(result);
 }));
 router.put("/channels/:channelId/messages/:messageId/reaction", run(async (req, res) => {
   const input = reactionSchema.parse(req.body);
-  res.json({ message: await setChatReaction(user(req), param(req, "channelId"), param(req, "messageId"), input.emoji, input.active) });
+  const channelId = param(req, "channelId");
+  const message = await setChatReaction(user(req), channelId, param(req, "messageId"), input.emoji, input.active);
+  publishChatChange(channelId);
+  res.json({ message });
 }));
 router.put("/channels/:channelId/messages/:messageId/pin", run(async (req, res) => {
   const input = pinSchema.parse(req.body);
-  res.json({ message: await setChatPin(user(req), param(req, "channelId"), param(req, "messageId"), input.pinned, input.version) });
+  const channelId = param(req, "channelId");
+  const message = await setChatPin(user(req), channelId, param(req, "messageId"), input.pinned, input.version);
+  publishChatChange(channelId);
+  res.json({ message });
 }));
 export default router;
