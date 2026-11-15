@@ -415,9 +415,13 @@ function ChatWorkspace({ userId }: { userId: string }) {
     const onVisibility = () => {
       if (document.visibilityState === "visible") liveRefresh.current();
     };
+    // Refresh once whenever the stream connects/reconnects: a write could
+    // have committed between the initial GET and the SSE subscription.
+    source.addEventListener("open", onChanged);
     source.addEventListener("changed", onChanged);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      source.removeEventListener("open", onChanged);
       source.removeEventListener("changed", onChanged);
       document.removeEventListener("visibilitychange", onVisibility);
       source.close();
