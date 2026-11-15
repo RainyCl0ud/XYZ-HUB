@@ -227,7 +227,7 @@ export async function cleanUpChatChannel(userId: string, channelId: string, expe
     return { cleanedUp: true };
   });
 }
-export const CHAT_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅"] as const;
+export const CHAT_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅", "😊", "😍", "😮", "😢", "😎", "🤔", "👏", "🙌", "🔥", "💯", "🙏", "🚀", "🤝", "😭", "💀", "⭐", "✨", "👎"] as const;
 const messageInclude = {
   attachment: true,
   replyTo: { select: { id: true, authorName: true, text: true, version: true, createdAt: true, deletedAt: true } },
