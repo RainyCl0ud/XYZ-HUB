@@ -211,6 +211,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
   }, [userId]);
 
   function openConversation(id: string) {
+    // Selecting a channel (even the one already selected) exits its settings page.
+    setSettings(null);
     if (retainedConversation && retainedConversation !== id) {
       setSearchParams(previous => {
         const next = new URLSearchParams(previous);
@@ -219,6 +221,12 @@ function ChatWorkspace({ userId }: { userId: string }) {
       }, { replace: true });
     }
     chooseChannel(id);
+  }
+
+  function openChannelSettings(next: { modelId: string; channelId?: string; name: string }) {
+    setTools(null); setToolsNotice(""); setShowMembers(false);
+    setShowChannels(false); setShowComposerMenu(false);
+    setSettings(next);
   }
 
   const refreshAreas = useCallback(async (signal?: AbortSignal) => {
@@ -503,7 +511,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
       {showReminders && <ChatUnreadReminders onClose={() => setShowReminders(false)} />}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
-        <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""}`}>
+        <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""} ${settings ? "is-settings" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">
             <div className="creator-chat-browse-tools">
               <div className="creator-chat-channel-heading"><strong>Conversations</strong><button type="button" className="creator-chat-mobile" onClick={() => setShowChannels(false)} aria-label="Back to conversation"><ChatIcon name="close" /></button></div>
@@ -532,7 +540,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               {!!archivedChannels.length && <div className="creator-chat-channel-group"><h2>{channelFilter === "channels" ? "Archived channels" : "Archived private chats"} <span>{archivedChannels.length}</span></h2>{archivedChannels.map(channelRow)}</div>}
               {!visibleChannels.length && <div className="creator-chat-no-results"><p>{unreadOnly ? "No unread conversations match." : channelSearch ? "No matching conversations." : channelFilter === "channels" ? "No channels in this workspace." : "No private chats in this workspace."}</p>{(channelSearch || unreadOnly) && <button type="button" onClick={() => { setChannelSearch(""); setUnreadOnly(false); }}>Clear search</button>}</div>}
             </nav>
-            <div className="creator-chat-browse-footer">{browseArea?.canManage && channelFilter === "channels" && <button type="button" onClick={() => { setSettings({ modelId: browseArea.modelId, name: "" }); setShowChannels(false); }}>+ New channel</button>}</div>
+            <div className="creator-chat-browse-footer">{browseArea?.canManage && channelFilter === "channels" && <button type="button" onClick={() => openChannelSettings({ modelId: browseArea.modelId, name: "" })}>+ New channel</button>}</div>
           </aside>
           <div className="creator-chat-conversation" role="region" aria-label="Conversation">
             <header className="creator-chat-channel-header">
@@ -557,7 +565,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                     <ChatIcon name="trash" />
                   </button>}
                 </div>
-                {channel?.canManage && area && <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => setSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}
+                {channel?.canManage && area && <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => openChannelSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}
                 <button type="button" className="creator-chat-members-toggle" aria-label="Conversation members" title="Conversation members" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button>
               </div>
             </header>
@@ -627,6 +635,17 @@ function ChatWorkspace({ userId }: { userId: string }) {
               </div>
             </div>}
           </div>
+          {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId}
+            target={{ ...settings, name: channel && channel.id === settings.channelId ? channel.name : settings.name, canArchive: channel?.id === settings.channelId && channel?.canArchive }}
+            onClose={() => setSettings(null)}
+            onSaved={async (id) => { await refreshAreas(); if (id) openConversation(id); }}
+            onArchived={() => {
+              setSettings(null); setTranscript(null); setMembers([]); setTools(null); setDeleting(null); setQuarantining(null);
+              setEdit(null); setReply(null); setDraft("");
+              setNotice("Channel archived. Its messages and files were kept.");
+              setRefreshTick(n => n + 1);
+            }}
+          />}
           <aside id="chat-members" className={`creator-chat-members ${showMembers ? "is-open" : ""}`} aria-label="Conversation members">
             <header>
               <h3>Members</h3>
@@ -653,17 +672,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
           </aside>
         </div>
       )}
-      {settings && <ChatChannelSettings key={settings.channelId ?? settings.modelId}
-        target={{ ...settings, name: channel && channel.id === settings.channelId ? channel.name : settings.name, canArchive: channel?.id === settings.channelId && channel?.canArchive }}
-        onClose={() => setSettings(null)}
-        onSaved={async (id) => { await refreshAreas(); if (id) openConversation(id); }}
-        onArchived={() => {
-          setSettings(null); setTranscript(null); setMembers([]); setTools(null); setDeleting(null); setQuarantining(null);
-          setEdit(null); setReply(null); setDraft("");
-          setNotice("Channel archived. Its messages and files were kept.");
-          setRefreshTick(n => n + 1);
-        }}
-      />}
+
       {tools && !inlineDiscoveryOpen && toolView}
       {cleanupTarget && <ChatChannelCleanupDialog target={cleanupTarget} onClose={() => setCleanupTarget(null)} onCleaned={async () => {
         setCleanupTarget(null);

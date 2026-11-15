@@ -11,7 +11,7 @@ type Props = {
   onArchived: () => void;
 };
 export default function ChatChannelSettings({ target, onClose, onSaved, onArchived }: Props) {
-  const dialog = useRef<HTMLDialogElement>(null);
+  const workspace = useRef<HTMLElement>(null);
   const [name, setName] = useState(target.name);
   const [options, setOptions] = useState<Options | null>(null);
   const [error, setError] = useState("");
@@ -20,11 +20,7 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "access">("details");
   const [accessQuery, setAccessQuery] = useState("");
-  useEffect(() => {
-    const element = dialog.current;
-    element?.showModal();
-    return () => element?.close();
-  }, []);
+  useEffect(() => { workspace.current?.focus(); }, []);
   useEffect(() => {
     if (!target.channelId) return;
     const controller = new AbortController();
@@ -73,24 +69,30 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
   const matchingRoles = options?.roles.filter((entry) => entry.name.toLocaleLowerCase().includes(accessQuery.trim().toLocaleLowerCase())) ?? [];
   const matchingPeople = options?.people.filter((entry) => entry.name.toLocaleLowerCase().includes(accessQuery.trim().toLocaleLowerCase())) ?? [];
   return (
-    <dialog ref={dialog} className="creator-chat-settings creator-chat-channel-settings" aria-labelledby="chat-settings-title"
-      onCancel={(event) => { if (busy) event.preventDefault(); else onClose(); }}>
-      <div className="creator-chat-settings-top">
+    <section ref={workspace} tabIndex={-1}
+      className={`creator-chat-settings creator-chat-channel-settings creator-chat-settings-workspace ${target.channelId ? "" : "is-create"}`}
+      role="region" aria-labelledby="chat-settings-title">
+      <header className="creator-chat-settings-top">
+        <button type="button" className="creator-chat-settings-back" onClick={onClose} disabled={busy}
+          aria-label={target.channelId ? `Back to ${target.name} conversation` : "Back to conversations"}>
+          <span aria-hidden="true">←</span> {target.channelId ? `Back to #${target.name}` : "Back to conversations"}
+        </button>
         <div className="creator-chat-settings-title-block">
           <p className="creator-chat-settings-kicker">{target.channelId ? "CHANNEL SETTINGS" : "NEW CHANNEL"}</p>
           <h2 id="chat-settings-title">{target.channelId ? "#" + target.name : "Create a channel"}</h2>
           <p>{target.channelId ? "Manage the channel and who can participate." : "Add a new conversation for your team."}</p>
         </div>
-        <button type="button" className="creator-chat-settings-close" onClick={onClose} disabled={busy} aria-label="Close channel settings">×</button>
-      </div>
-      {target.channelId && (
-        <nav className="creator-chat-settings-tabs" aria-label="Channel settings sections">
-          <button type="button" aria-pressed={activeTab === "details"} onClick={() => setActiveTab("details")}>Overview</button>
-          <button type="button" aria-pressed={activeTab === "access"} onClick={() => setActiveTab("access")}>Permissions</button>
-        </nav>
-      )}
-      {error && <p className="creator-chat-error" role="alert">{error}</p>}
-      {notice && <p className="creator-chat-settings-success" role="status">{notice}</p>}
+      </header>
+      <div className="creator-chat-settings-layout">
+        {target.channelId && (
+          <nav className="creator-chat-settings-tabs" aria-label="Channel settings sections">
+            <button type="button" aria-pressed={activeTab === "details"} onClick={() => setActiveTab("details")}>Overview</button>
+            <button type="button" aria-pressed={activeTab === "access"} onClick={() => setActiveTab("access")}>Permissions</button>
+          </nav>
+        )}
+        <div className="creator-chat-settings-main">
+          {error && <p className="creator-chat-error" role="alert">{error}</p>}
+          {notice && <p className="creator-chat-settings-success" role="status">{notice}</p>}
       {(!target.channelId || activeTab === "details") && (
         <div className="creator-chat-settings-section-stack">
           <section className="creator-chat-settings-section" aria-labelledby="chat-settings-details-title">
@@ -157,7 +159,9 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
           )}
         </section>
       )}
-    </dialog>
+        </div>
+      </div>
+    </section>
   );
 }
 function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option; busy: boolean; onSave: (grant: Grant) => void }) {
