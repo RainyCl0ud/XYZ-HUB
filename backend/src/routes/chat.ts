@@ -163,7 +163,7 @@ router.get("/channels/:channelId/live", liveLimit, run(async (req, res) => {
       // A revoked role/assignment never receives further update signals.
       await assertChatChannelReadable(viewerId, channelId);
       if (!closed && !res.destroyed) {
-        res.write(changed ? "event: changed\\ndata: {}\\n\\n" : ": keepalive\\n\\n");
+        res.write(changed ? "event: changed\ndata: {}\n\n" : ": keepalive\n\n");
       }
     } catch {
       if (!closed) res.end();
@@ -182,7 +182,7 @@ router.get("/channels/:channelId/live", liveLimit, run(async (req, res) => {
     "X-Content-Type-Options": "nosniff",
   });
   res.flushHeaders();
-  res.write("retry: 1500\\n\\n");
+  res.write("retry: 1500\n\n");
   const heartbeat = setInterval(() => { void checkAndSignal(false); }, 20_000);
   // Force periodic reauthentication so a revoked session cannot stay open.
   const rotation = setTimeout(() => { if (!closed) res.end(); }, 55_000);
