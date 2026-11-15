@@ -75,7 +75,7 @@ try {
   };
   const noop = () => {};
   const markup = renderToStaticMarkup(createElement(ChatMessageContent, {
-    message, channelId: "fictional-channel", recentEmojis: userA,
+    message, channelId: "fictional-channel", recentEmojis: loadRecentEmojis("test-user-a"),
     onReply: noop, onEdit: noop, onChanged: noop, onOpen: noop, onError: noop,
     onReactionSelected: noop,
   }));
