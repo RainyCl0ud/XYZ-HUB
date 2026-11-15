@@ -377,7 +377,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       } finally {
         refreshing = false;
         if (!stopped) {
-          timer = setTimeout(() => { void refresh(); }, 5000);
+          timer = setTimeout(() => { if (document.visibilityState === "visible") void refresh(); else timer = setTimeout(() => { void refresh(); }, 5000); }, 5000);
           if (pendingRefresh) {
             pendingRefresh = false;
             clearTimeout(timer);
