@@ -7,7 +7,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const read = (path) => readFile(resolve(root, path), "utf8");
+// Normalize checkout line endings: Windows Git may use CRLF for CSS files.
+const read = async (path) => (await readFile(resolve(root, path), "utf8")).replace(/\r\n?/g, "\n");
 const vite = await createServer({
   root, configFile: false, envDir: false,
   optimizeDeps: { noDiscovery: true, include: [] },
