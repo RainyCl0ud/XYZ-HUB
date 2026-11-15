@@ -1207,34 +1207,29 @@
 .creator-chat .creator-chat-settings-workspace .creator-chat-settings-title-block h2 { color: #FFFFFF; }
 .creator-chat .creator-chat-settings-workspace .creator-chat-settings-title-block p:last-child { color: #CCCCCC; }
 .creator-chat .creator-chat-settings-workspace .creator-chat-settings-back {
-  display: inline-flex;
-  flex: 0 0 auto;
-  justify-content: flex-start;
-  align-items: stretch;
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
   align-self: flex-start;
-  gap: 0;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
   min-height: 42px;
   padding: 0;
   border: 1px solid #666666;
   border-radius: 0;
   background: #0D0D0D;
   color: #FFFFFF;
-  font-weight: 700;
-}
-.creator-chat .creator-chat-settings-workspace .creator-chat-settings-back > span:last-child {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 16px;
 }
 .creator-chat .creator-chat-settings-workspace .creator-chat-settings-back-icon {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 40px;
+  width: 100%;
+  height: 100%;
   font-size: 21px;
   line-height: 1;
-  border-right: 1px solid #666666;
-  background: #1A1A1A;
+  border: 0;
+  background: transparent;
 }
 .creator-chat .creator-chat-settings-workspace .creator-chat-settings-back:hover:not(:disabled),
 .creator-chat .creator-chat-settings-workspace .creator-chat-settings-back:hover:not(:disabled) .creator-chat-settings-back-icon {
@@ -1263,7 +1258,7 @@
 .creator-chat .creator-chat-settings-workspace .creator-chat-settings-tabs > button[aria-pressed="true"],
 .creator-chat .creator-chat-settings-workspace .creator-chat-settings-nav-group > button[aria-pressed="true"] {
   background: #1A1A1A;
-  border: 1px solid #FFFFFF;
+  border: 1px solid transparent;
   border-left: 2px solid #FFFFFF;
   color: #FFFFFF;
 }
@@ -1372,6 +1367,34 @@
   border-radius: 0;
   background: #141414;
   color: #FFFFFF;
+}
+/* Keep settings controls consistent with the Hub's squared geometry,
+   including native keyboard focus (no rounded double-focus ring). */
+.creator-chat .creator-chat-settings-workspace .creator-chat-settings-nav-group,
+.creator-chat .creator-chat-settings-workspace .creator-chat-settings-tabs > button,
+.creator-chat .creator-chat-settings-workspace .creator-chat-settings-nav-group > button,
+.creator-chat .creator-chat-settings-workspace .creator-chat-settings-subnav button {
+  appearance: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.creator-chat .creator-chat-settings-workspace .creator-chat-settings-tabs button:focus-visible,
+.creator-chat .creator-chat-settings-workspace .creator-chat-settings-subnav button:focus-visible {
+  outline: 2px solid #FFFFFF;
+  outline-offset: -3px;
+  border-radius: 0;
+  box-shadow: none;
+}
+/* Overview keeps just the name field rather than an unnecessary nested card. */
+.creator-chat .creator-chat-settings-workspace .creator-chat-settings-details {
+  padding: 6px 0 24px;
+  border: 0;
+  border-bottom: 1px solid #333333;
+  border-radius: 0;
+  background: transparent;
+}
+.creator-chat .creator-chat-settings-workspace .creator-chat-settings-details .creator-chat-settings-name {
+  margin-top: 10px;
 }
 @media (max-width: 720px) {
   .creator-chat .creator-chat-settings-workspace > .creator-chat-settings-top { padding: 12px 14px 16px; }
