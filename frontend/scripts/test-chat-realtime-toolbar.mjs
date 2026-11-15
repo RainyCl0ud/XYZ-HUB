@@ -60,8 +60,8 @@ assert.ok(page.includes('if (document.visibilityState === "visible") void refres
 pass("Authenticated EventSource wakes the transcript and preserves coalesced polling fallback.");
 
 assert.ok(message.includes('className="creator-chat-quick-reactions"'));
-assert.ok(message.includes('palette.slice(0, 3).map'));
-assert.ok(message.includes('className="creator-chat-toolbar-reaction-picker"'));
+assert.ok(message.includes('sixRecentEmojis.slice(0, 3).map'));
+assert.ok(message.includes('className="creator-chat-toolbar-emoji-trigger"'));
 assert.ok(message.includes('aria-label="Reply to message"'));
 assert.ok(message.includes('aria-label="Edit message"'));
 assert.ok(message.includes('className="creator-chat-action-menu"'));
@@ -70,8 +70,9 @@ assert.ok(message.includes('m.canReply &&'));
 assert.ok(message.includes('m.canEdit && onEdit'));
 pass("Discord-style toolbar provides authorized reactions, Reply, Edit and More.");
 
-assert.ok(message.includes('aria-label="Choose a reaction"'));
-assert.ok(message.includes('const quickReactionMenu = useRef<HTMLDetailsElement>(null)'));
+assert.ok(message.includes('aria-label="Choose another emoji"'));
+assert.ok(message.includes('const pickerTrigger = useRef<HTMLButtonElement>(null)'));
+assert.ok(message.includes('className="creator-chat-emoji-popover"'));
 assert.ok(message.includes('onChanged(response.message)'));
 assert.ok(message.includes('disabled={busy}'));
 assert.ok(message.includes('aria-pressed={reactions.some'));
@@ -80,7 +81,7 @@ pass("Reaction picker uses the existing API with correct state, pending and erro
 assert.ok(css.includes('creator-chat .creator-chat-message:hover .creator-chat-message-actions'));
 assert.ok(css.includes('creator-chat .creator-chat-message:focus-within .creator-chat-message-actions'));
 assert.ok(css.includes('@media (hover: none), (pointer: coarse)'));
-assert.ok(css.includes('creator-chat-toolbar-reaction-picker[open]'));
+assert.ok(css.includes('creator-chat-toolbar-emoji-trigger[aria-expanded="true"]'));
 assert.ok(css.includes('border-radius: 0;'));
 assert.ok(css.includes('pointer-events: none'));
 assert.ok(css.includes('pointer-events: auto'));

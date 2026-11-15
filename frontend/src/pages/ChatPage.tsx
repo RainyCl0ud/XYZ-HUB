@@ -15,6 +15,7 @@ import ChatVoiceRecorder, { type ChatVoiceRecorderHandle } from "./ChatVoiceReco
 import ChatModerationDialog, { type ModerationTarget } from "./ChatModerationDialog";
 import ChatQuarantineDialog, { type QuarantineControl } from "./ChatQuarantineDialog";
 import { useChatReadTracking } from "./useChatReadTracking";
+import { loadRecentEmojis, recentEmojiStorageKey, saveRecentEmojiSelection } from "../lib/chat-reaction-emojis";
 
 const noUnreadIds: string[] = [];
 type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; canArchive?: boolean; archived: boolean; retained?: boolean; isPrivate: boolean; unreadCount?: number };
@@ -81,6 +82,17 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [edit, setEdit] = useState<Message | null>(null);
   const [reply, setReply] = useState<Message | null>(null);
   const [tools, setTools] = useState<ChatToolTarget | null>(null);
+  const [recentEmojis, setRecentEmojis] = useState(() => loadRecentEmojis(userId));
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === recentEmojiStorageKey(userId)) setRecentEmojis(loadRecentEmojis(userId));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [userId]);
+  const trackReactionEmoji = (emoji: string) => {
+    setRecentEmojis(saveRecentEmojiSelection(userId, emoji));
+  };
   const inlineDiscoveryOpen = tools?.kind === "search" || tools?.kind === "pins";
   useEffect(() => {
     if (!inlineDiscoveryOpen) return;
@@ -92,6 +104,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
         (target.closest(".creator-chat-live-panel") ||
          target.closest(".creator-chat-discover-actions") ||
          target.closest(".creator-chat-action-popover") ||
+         target.closest(".creator-chat-emoji-popover") ||
          target.closest("dialog[open]"))) return;
       setTools(null); setToolsNotice("");
     };
@@ -541,7 +554,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       {c.archived && <span className="creator-chat-row-badge">Archived</span>}
     </button>;
   }
-  const toolView = tools ? <ChatMessageTools inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
+  const toolView = tools ? <ChatMessageTools recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
   return (
     <section className="creator-chat" aria-label="Chat workspace">
       <h1 className="creator-chat-sr">Chat</h1>
@@ -631,7 +644,12 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p><button type="button" onClick={() => setShowMembers(true)}>View members</button></div>}
                 {transcript.messages.map((m, index) => <Fragment key={m.id}>
                   {(index === 0 || day(transcript.messages[index - 1].createdAt) !== day(m.createdAt)) && <div className="creator-chat-day"><span>{day(m.createdAt)}</span></div>}
-                  <article className="creator-chat-message" data-chat-message-id={m.id}><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} onReply={(message) => startReply(selected, message)} onEdit={startEdit} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => setTools({ kind: "message", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onPreviewLoad={followLoadedPreview} /></article>
+                  <article className="creator-chat-message" data-chat-message-id={m.id} tabIndex={0}
+                    onPointerDown={(event) => {
+                      if (event.pointerType !== "touch" || !(event.target instanceof Element)) return;
+                      if (event.target.closest("button, a, input, textarea, select, summary")) return;
+                      event.currentTarget.focus({ preventScroll: true });
+                    }}><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onReply={(message) => startReply(selected, message)} onEdit={startEdit} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => setTools({ kind: "message", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onPreviewLoad={followLoadedPreview} /></article>
                 </Fragment>)}
               </>}
             </div>

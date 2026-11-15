@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties
 import { createPortal } from "react-dom";
 import { API_BASE_URL, apiRequest } from "../lib/api";
 import ChatVoicePlayback from "./ChatVoicePlayback";
+import { CHAT_EMOJI_OPTIONS, CHAT_RECENT_EMOJI_LIMIT, emojiLabel, normalizeRecentEmojis } from "../lib/chat-reaction-emojis";
 
 export type ChatMessage = {
   id: string; authorName: string; text: string; version: number; createdAt: string; updatedAt: string;
@@ -17,7 +18,7 @@ export type ChatMessage = {
 const chatTime = (value: string) => new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
 }).format(new Date(value));
-const palette = [["👍", "Thumbs up"], ["❤️", "Heart"], ["😂", "Laugh"], ["🎉", "Celebrate"], ["👀", "Eyes"], ["✅", "Check"]] as const;
+const palette = CHAT_EMOJI_OPTIONS;
 const errorText = (e: unknown) => e instanceof Error ? e.message : "Unable to load messages. Please try again.";
 export type ChatToolTarget = { kind: "search" | "pins" | "deleted"; channelId: string; channelName: string } |
   { kind: "message" | "history"; channelId: string; channelName: string; messageId: string };
@@ -29,17 +30,29 @@ function ChatImagePreview({ src, fileName, onLoad }: { src: string; fileName: st
     loading="lazy" decoding="async" referrerPolicy="no-referrer" onLoad={onLoad} onError={() => setFailed(true)} />;
 }
 
-export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onChanged, onOpen, onError, onModerate, onHistory, onPreviewLoad }: {
+export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onChanged, onOpen, onError, onModerate, onHistory, onPreviewLoad, recentEmojis, onReactionSelected }: {
   message: ChatMessage; channelId: string; onReply: (message: ChatMessage) => void; onEdit?: (message: ChatMessage) => void;
   onChanged: (message: ChatMessage) => void; onOpen: (messageId: string) => void; onError: (e: unknown) => void;
   onModerate?: (message: ChatMessage) => void; onHistory?: (messageId: string) => void;
   onPreviewLoad?: () => void;
+  recentEmojis?: readonly string[]; onReactionSelected?: (emoji: string) => void;
 }) {
   // During a rolling deploy the older API still returns ordinary messages.
   const reactions = m.reactions ?? [];
   const [busy, setBusy] = useState(false);
-  const reactionMenu = useRef<HTMLDetailsElement>(null);
-  const quickReactionMenu = useRef<HTMLDetailsElement>(null);
+  const pickerTrigger = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerMode, setPickerMode] = useState<"recent" | "browse">("recent");
+  const [browsePage, setBrowsePage] = useState(0);
+  const [pickerHost, setPickerHost] = useState<HTMLElement | null>(null);
+  const [pickerPosition, setPickerPosition] = useState<CSSProperties>({});
+  const pickerId = useId();
+  const sixRecentEmojis = normalizeRecentEmojis(recentEmojis);
+  const pickerEmojis = pickerMode === "recent"
+    ? sixRecentEmojis
+    : palette.slice(browsePage * CHAT_RECENT_EMOJI_LIMIT, (browsePage + 1) * CHAT_RECENT_EMOJI_LIMIT).map(([emoji]) => emoji);
+  const browsePageCount = Math.ceil(palette.length / CHAT_RECENT_EMOJI_LIMIT);
   const menuButton = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const popupId = useId();
@@ -77,6 +90,63 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     };
   }, [menuOpen]);
 
+  // The picker uses the same viewport-bounded portal approach as More.
+  // It must never become a child of the message row's scrollable layout.
+  const openReactionPicker = (event: MouseEvent<HTMLButtonElement>) => {
+    if (busy) return;
+    if (pickerOpen) { setPickerOpen(false); return; }
+    const box = event.currentTarget.getBoundingClientRect();
+    const width = Math.min(224, Math.max(160, window.innerWidth - 16));
+    const height = 244;
+    const below = window.innerHeight - box.bottom;
+    const above = box.top;
+    const placeBelow = below >= height + 8 || below >= above;
+    const top = placeBelow
+      ? Math.max(8, Math.min(box.bottom + 6, window.innerHeight - height - 8))
+      : Math.max(8, box.top - height - 6);
+    setPickerHost(event.currentTarget.closest("dialog") ?? document.body);
+    setPickerPosition({
+      position: "fixed",
+      top, left: Math.max(8, Math.min(box.right - width, window.innerWidth - width - 8)),
+      width, maxHeight: Math.max(130, window.innerHeight - 16),
+    });
+    setPickerMode("recent"); setBrowsePage(0);
+    setMenuOpen(false);
+    setPickerOpen(true);
+  };
+  useEffect(() => {
+    if (pickerOpen) pickerRef.current?.querySelector<HTMLButtonElement>(".creator-chat-emoji-popover-grid button")?.focus({ preventScroll: true });
+  }, [pickerOpen]);
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (pickerRef.current?.contains(event.target) || pickerTrigger.current?.contains(event.target)) return;
+      setPickerOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault(); event.stopPropagation();
+      setPickerOpen(false);
+      pickerTrigger.current?.focus({ preventScroll: true });
+    };
+    const closeScroll = (event: Event) => {
+      if (event.target instanceof Node && pickerRef.current?.contains(event.target)) return;
+      setPickerOpen(false);
+    };
+    const closeResize = () => setPickerOpen(false);
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    document.addEventListener("scroll", closeScroll, true);
+    window.addEventListener("resize", closeResize);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+      document.removeEventListener("scroll", closeScroll, true);
+      window.removeEventListener("resize", closeResize);
+    };
+  }, [pickerOpen]);
+
   const openActionMenu = (event: MouseEvent<HTMLButtonElement>) => {
     if (menuOpen) { setMenuOpen(false); return; }
     const box = event.currentTarget.getBoundingClientRect();
@@ -98,15 +168,22 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     setMenuOpen(false); menuButton.current?.focus(); fn();
   };
   async function update(kind: "reaction" | "pin", body: object) {
-    if (busy) return;
+    // Ref lock closes the gap before React commits busy=true on rapid taps.
+    if (busy || request.current) return;
     const controller = new AbortController(); request.current = controller; setBusy(true);
     try {
       const response = await apiRequest<{ message: ChatMessage }>(`/api/chat/channels/${channelId}/messages/${m.id}/${kind}`, {
         method: "PUT", body: JSON.stringify(body), signal: controller.signal,
       });
-      if (!controller.signal.aborted) onChanged(response.message);
+      if (!controller.signal.aborted) {
+        onChanged(response.message);
+        if (kind === "reaction" && "emoji" in body && typeof body.emoji === "string") onReactionSelected?.(body.emoji);
+      }
     } catch (e) { if (!controller.signal.aborted) onError(e); }
-    finally { if (!controller.signal.aborted) setBusy(false); }
+    finally {
+      if (request.current === controller) request.current = null;
+      if (!controller.signal.aborted) setBusy(false);
+    }
   }
   const attachmentPath = `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(m.id)}`;
   const voiceDuration = m.attachment?.voiceDurationMs;
@@ -136,22 +213,19 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <div
       className="creator-chat-message-actions" role="group" aria-label={`Actions for message by ${m.authorName}`}>
       {m.canReply && <div className="creator-chat-quick-reactions" role="group" aria-label="Quick reactions">
-        {palette.slice(0, 3).map(([emoji, label]) => <button key={emoji} type="button" disabled={busy}
-          title={label} aria-label={`React with ${label}`}
+        {sixRecentEmojis.slice(0, 3).map((emoji) => <button key={emoji} type="button" disabled={busy}
+          title={emojiLabel(emoji)} aria-label={`React with ${emojiLabel(emoji)}`}
           aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
           onClick={() => void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) })}>{emoji}</button>)}
-        <details className="creator-chat-toolbar-reaction-picker" ref={quickReactionMenu}>
-          <summary title="Choose reaction" aria-label="Choose a reaction"><span aria-hidden="true">☺+</span></summary>
-          <div className="creator-chat-toolbar-reaction-grid" role="group" aria-label="Choose a reaction">
-            {palette.map(([emoji, label]) => <button key={emoji} type="button" disabled={busy}
-              title={label} aria-label={label}
-              aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
-              onClick={() => {
-                if (quickReactionMenu.current) quickReactionMenu.current.open = false;
-                void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
-              }}>{emoji}</button>)}
-          </div>
-        </details>
+        <button ref={pickerTrigger} type="button" className="creator-chat-toolbar-emoji-trigger"
+          title="Choose another emoji" aria-label="Choose another emoji" aria-haspopup="dialog"
+          aria-expanded={pickerOpen} aria-controls={pickerId} disabled={busy}
+          onClick={openReactionPicker}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M17 13.2A7.6 7.6 0 1 1 11 4.4M7.6 13.7c1.5 2 4.3 2 5.8 0M8.2 9.7h.1M12.4 9.7h.1M19 2v7M15.5 5.5h7" />
+          </svg>
+        </button>
       </div>}
       {m.canReply && <button className="creator-chat-toolbar-action" type="button" disabled={busy}
         aria-label="Reply to message" title="Reply" onClick={() => onReply(m)}>
@@ -172,17 +246,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         {menuOpen && popupHost && createPortal(<div id={popupId} ref={popupRef}
           className="creator-chat-action-popover" style={popupPosition} role="group" aria-label="Message actions">
           {m.canReply && <button type="button" disabled={busy} onClick={() => act(() => onReply(m))}>Reply</button>}
-          {m.canReply && <details ref={reactionMenu} className="creator-chat-reaction-menu">
-            <summary>React</summary>
-            <div role="group" aria-label="Choose a reaction">{palette.map(([emoji, label]) =>
-              <button type="button" key={emoji} disabled={busy} aria-label={label}
-                aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
-                onClick={() => { if (reactionMenu.current) reactionMenu.current.open = false;
-                  setMenuOpen(false);
-                  void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
-                }}>{emoji}</button>)}
-            </div>
-          </details>}
+          {m.canReply && <button type="button" disabled={busy} onClick={openReactionPicker}>React…</button>}
           {m.attachment?.available && <a href={`${attachmentPath}/file`} target="_blank" rel="noopener"
             aria-label={`Download ${m.attachment.fileName}`} onClick={() => setMenuOpen(false)}>Download file</a>}
           {m.canEdit && onEdit && <button type="button" disabled={busy} onClick={() => act(() => onEdit(m))}>Edit</button>}
@@ -193,6 +257,43 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       </div>
       {busy && <span role="status">Saving…</span>}
     </div>}
+    {pickerOpen && pickerHost && m.canReply && createPortal(
+      <div id={pickerId} ref={pickerRef} className="creator-chat-emoji-popover"
+        style={pickerPosition} role="dialog" aria-label="Choose reaction emoji"
+        onKeyDown={(event) => {
+          // Portal key events still bubble through their React owner. Escape
+          // closes only the picker, never the parent Search/Pins flyout.
+          if (event.key !== "Escape") return;
+          event.preventDefault(); event.stopPropagation();
+          setPickerOpen(false); pickerTrigger.current?.focus({ preventScroll: true });
+        }}>
+        <header className="creator-chat-emoji-popover-heading">
+          <strong>{pickerMode === "recent" ? "Your recent emojis" : "Browse emojis"}</strong>
+          <button type="button" aria-label="Close emoji picker" onClick={() => setPickerOpen(false)}>×</button>
+        </header>
+        <div className="creator-chat-emoji-popover-grid" role="group"
+          aria-label={pickerMode === "recent" ? "Six recent emojis" : "Six available emojis"}>
+          {pickerEmojis.map((emoji) => <button key={emoji} type="button" disabled={busy}
+            title={emojiLabel(emoji)} aria-label={emojiLabel(emoji)}
+            aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
+            onClick={() => {
+              setPickerOpen(false);
+              void update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
+            }}>{emoji}</button>)}
+        </div>
+        <footer className="creator-chat-emoji-popover-footer">
+          <button type="button" onClick={() => {
+            setPickerMode(pickerMode === "recent" ? "browse" : "recent"); setBrowsePage(0);
+          }}>{pickerMode === "recent" ? "Browse more" : "Recent"}</button>
+          {pickerMode === "browse" && <div className="creator-chat-emoji-popover-pages" aria-label="Emoji pages">
+            <button type="button" aria-label="Previous emoji page" disabled={browsePage === 0}
+              onClick={() => setBrowsePage((page) => Math.max(0, page - 1))}>‹</button>
+            <span>{browsePage + 1} / {browsePageCount}</span>
+            <button type="button" aria-label="Next emoji page" disabled={browsePage >= browsePageCount - 1}
+              onClick={() => setBrowsePage((page) => Math.min(browsePageCount - 1, page + 1))}>›</button>
+          </div>}
+        </footer>
+      </div>, pickerHost)}
   </div>;
 }
 
@@ -209,6 +310,7 @@ type ToolProps = {
   onChanged: (channelId: string, message: ChatMessage) => void;
   onModerate: (channelId: string, message: ChatMessage) => void;
   notice?: string; revision?: number; paused?: boolean;
+  recentEmojis?: readonly string[]; onReactionSelected?: (emoji: string) => void;
 };
 const toolName = (target: ChatToolTarget) => target.kind === "search" ? "Search results" : target.kind === "pins" ? "Pinned messages" : target.kind === "deleted" ? "Deleted messages" : target.kind === "history" ? "Message history" : "Message";
 
@@ -221,7 +323,7 @@ export default function ChatMessageTools(props: Omit<ToolProps, "onOpen">) {
     onOpen={(target, saved) => setTrail((old) => [...old.slice(0, -1), { ...old[old.length - 1], saved }, { target }])} />;
 }
 
-function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChanged, onModerate, saved, backLabel, onBack, notice, revision: parentRevision, paused, inline = false }: Omit<ToolProps, "onOpen"> & {
+function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChanged, onModerate, saved, backLabel, onBack, notice, revision: parentRevision, paused, inline = false, recentEmojis, onReactionSelected }: Omit<ToolProps, "onOpen"> & {
   saved?: ToolState; backLabel?: string; onBack: () => void; onOpen: (target: ChatToolTarget, state: ToolState) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -347,7 +449,7 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
     setPins((old) => old.map((m) => m.id === value.id ? value : m).filter((m) => !!m.pinnedAt));
   }
   function content(value: ChatMessage, channelId: string, channelName: string) {
-    return <ChatMessageContent message={value} channelId={channelId} onReply={(m) => onReply(channelId, m)} onChanged={(m) => changed(channelId, m)}
+    return <ChatMessageContent message={value} channelId={channelId} recentEmojis={recentEmojis} onReactionSelected={onReactionSelected} onReply={(m) => onReply(channelId, m)} onChanged={(m) => changed(channelId, m)}
       onOpen={(messageId) => navigate({ kind: "message", channelId, channelName, messageId })} onError={(e) => { setActionError(errorText(e)); setRevision((v) => v + 1); }}
       onModerate={(m) => onModerate(channelId, m)} onHistory={target.kind === "history" ? undefined : (messageId) => navigate({ kind: "history", channelId, channelName, messageId })} />;
   }
