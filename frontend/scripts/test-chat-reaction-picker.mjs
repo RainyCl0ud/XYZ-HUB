@@ -113,7 +113,7 @@ try {
   assert.ok(tools.includes('window.addEventListener("resize", closeResize)'));
   assert.ok(tools.includes('document.removeEventListener("pointerdown", closeOutside)'));
   assert.ok(tools.includes('pickerTrigger.current?.focus({ preventScroll: true })'));
-  assert.ok(tools.includes('Escape closes only the picker, never the parent Search/Pins flyout.'));
+  assert.ok(tools.includes('closes only the picker, never the parent Search/Pins flyout.'));
   assert.ok(chat.includes('target.closest(".creator-chat-emoji-popover")'));
   pass("Dismissal and keyboard behavior clean up listeners, prevent detached popovers, and restore focus.");
 
