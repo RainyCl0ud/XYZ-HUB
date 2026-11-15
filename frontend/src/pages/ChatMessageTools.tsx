@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties
 import { createPortal } from "react-dom";
 import { API_BASE_URL, apiRequest } from "../lib/api";
 import ChatVoicePlayback from "./ChatVoicePlayback";
+import { CHAT_EMOJI_OPTIONS, CHAT_RECENT_EMOJI_LIMIT, emojiLabel, normalizeRecentEmojis } from "../lib/chat-reaction-emojis";
 
 export type ChatMessage = {
   id: string; authorName: string; text: string; version: number; createdAt: string; updatedAt: string;
@@ -17,7 +18,7 @@ export type ChatMessage = {
 const chatTime = (value: string) => new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
 }).format(new Date(value));
-const palette = [["👍", "Thumbs up"], ["❤️", "Heart"], ["😂", "Laugh"], ["🎉", "Celebrate"], ["👀", "Eyes"], ["✅", "Check"]] as const;
+const palette = CHAT_EMOJI_OPTIONS;
 const errorText = (e: unknown) => e instanceof Error ? e.message : "Unable to load messages. Please try again.";
 export type ChatToolTarget = { kind: "search" | "pins" | "deleted"; channelId: string; channelName: string } |
   { kind: "message" | "history"; channelId: string; channelName: string; messageId: string };
@@ -29,17 +30,29 @@ function ChatImagePreview({ src, fileName, onLoad }: { src: string; fileName: st
     loading="lazy" decoding="async" referrerPolicy="no-referrer" onLoad={onLoad} onError={() => setFailed(true)} />;
 }
 
-export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onChanged, onOpen, onError, onModerate, onHistory, onPreviewLoad }: {
+export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onChanged, onOpen, onError, onModerate, onHistory, onPreviewLoad, recentEmojis, onReactionSelected }: {
   message: ChatMessage; channelId: string; onReply: (message: ChatMessage) => void; onEdit?: (message: ChatMessage) => void;
   onChanged: (message: ChatMessage) => void; onOpen: (messageId: string) => void; onError: (e: unknown) => void;
   onModerate?: (message: ChatMessage) => void; onHistory?: (messageId: string) => void;
   onPreviewLoad?: () => void;
+  recentEmojis?: readonly string[]; onReactionSelected?: (emoji: string) => void;
 }) {
   // During a rolling deploy the older API still returns ordinary messages.
   const reactions = m.reactions ?? [];
   const [busy, setBusy] = useState(false);
-  const reactionMenu = useRef<HTMLDetailsElement>(null);
-  const quickReactionMenu = useRef<HTMLDetailsElement>(null);
+  const pickerTrigger = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerMode, setPickerMode] = useState<"recent" | "browse">("recent");
+  const [browsePage, setBrowsePage] = useState(0);
+  const [pickerHost, setPickerHost] = useState<HTMLElement | null>(null);
+  const [pickerPosition, setPickerPosition] = useState<CSSProperties>({});
+  const pickerId = useId();
+  const sixRecentEmojis = normalizeRecentEmojis(recentEmojis);
+  const pickerEmojis = pickerMode === "recent"
+    ? sixRecentEmojis
+    : palette.slice(browsePage * CHAT_RECENT_EMOJI_LIMIT, (browsePage + 1) * CHAT_RECENT_EMOJI_LIMIT).map(([emoji]) => emoji);
+  const browsePageCount = Math.ceil(palette.length / CHAT_RECENT_EMOJI_LIMIT);
   const menuButton = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const popupId = useId();
@@ -104,7 +117,10 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       const response = await apiRequest<{ message: ChatMessage }>(`/api/chat/channels/${channelId}/messages/${m.id}/${kind}`, {
         method: "PUT", body: JSON.stringify(body), signal: controller.signal,
       });
-      if (!controller.signal.aborted) onChanged(response.message);
+      if (!controller.signal.aborted) {
+        onChanged(response.message);
+        if (kind === "reaction" && "emoji" in body && typeof body.emoji === "string") onReactionSelected?.(body.emoji);
+      }
     } catch (e) { if (!controller.signal.aborted) onError(e); }
     finally { if (!controller.signal.aborted) setBusy(false); }
   }
