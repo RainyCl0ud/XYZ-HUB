@@ -54,7 +54,7 @@ assert.ok(page.includes('source.close()'));
 assert.ok(page.includes('document.addEventListener("visibilitychange", onVisibility)'));
 assert.ok(page.includes('const liveRefresh = useRef<() => void>'));
 assert.ok(page.includes("if (refreshing) { pendingRefresh = true; return; }"));
-assert.ok(page.includes('timer = setTimeout(() => { void refresh(); }, 5000)'));
+assert.ok(page.includes('if (document.visibilityState === "visible") void refresh(); else timer = setTimeout(() => { void refresh(); }, 5000)'));
 pass("Authenticated EventSource wakes the transcript and preserves coalesced polling fallback.");
 
 assert.ok(message.includes('className="creator-chat-quick-reactions"'));
