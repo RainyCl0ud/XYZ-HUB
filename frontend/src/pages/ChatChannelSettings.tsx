@@ -89,7 +89,7 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
         {target.channelId && (
           <nav className="creator-chat-settings-tabs" aria-label="Channel settings sections">
             <button type="button" aria-pressed={activeTab === "details"}
-              onClick={() => { setActiveTab("details"); setAccessExpanded(false); }}>Overview</button>
+              onClick={() => { setActiveTab("details"); setAccessExpanded(false); }}>General</button>
             <div className="creator-chat-settings-nav-group">
               <button type="button" aria-pressed={activeTab === "access"} aria-expanded={accessExpanded}
                 aria-controls="chat-settings-permission-children"
