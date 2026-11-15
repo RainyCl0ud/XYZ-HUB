@@ -78,7 +78,6 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
         <button type="button" className="creator-chat-settings-back" onClick={onClose} disabled={busy}
           aria-label={target.channelId ? `Back to #${target.name} conversation` : "Back to conversations"}>
           <span className="creator-chat-settings-back-icon" aria-hidden="true">←</span>
-          <span>Back to Chat</span>
         </button>
         <div className="creator-chat-settings-title-block">
           <p className="creator-chat-settings-kicker">{target.channelId ? "CHANNEL SETTINGS" : "NEW CHANNEL"}</p>
@@ -116,9 +115,7 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
           {notice && <p className="creator-chat-settings-success" role="status">{notice}</p>}
       {(!target.channelId || activeTab === "details") && (
         <div className="creator-chat-settings-section-stack">
-          <section className="creator-chat-settings-section" aria-labelledby="chat-settings-details-title">
-            <h3 id="chat-settings-details-title">Channel details</h3>
-            <p>Use a short name that your team can recognize easily.</p>
+          <section className="creator-chat-settings-section creator-chat-settings-details" aria-label="Channel name">
             <form onSubmit={(event) => void saveName(event)}>
               <label htmlFor="chat-channel-name">Channel name</label>
               <div className="creator-chat-settings-name">

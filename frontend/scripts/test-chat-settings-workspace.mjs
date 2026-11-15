@@ -90,8 +90,12 @@ assert.ok(settings.includes('kind="Member"'), "Individual grants should be prese
 pass("Permissions expand into separate accessible Role and Member child views.");
 
 assert.ok(settings.includes('className="creator-chat-settings-back" onClick={onClose} disabled={busy}'));
-assert.ok(settings.includes('<span>Back to Chat</span>'));
-assert.ok(settings.includes('creator-chat-settings-back-icon'));
+assert.ok(settings.includes('<span className="creator-chat-settings-back-icon" aria-hidden="true">←</span>'));
+assert.ok(!settings.includes('<span>Back to Chat</span>'), "Back button must remain icon-only.");
+assert.ok(settings.includes('aria-label={target.channelId ? `Back to #${target.name} conversation` : "Back to conversations"}'));
+assert.ok(css.includes('width: 42px;'));
+assert.ok(css.includes('height: 42px;'));
+assert.ok(!css.includes('.creator-chat-settings-back > span:last-child'), "No obsolete text-button layout rules.");
 assert.ok(css.includes('/* Channel Settings: exact XYZ Hub visual language.'));
 assert.ok(css.includes('background: #141414;'));
 assert.ok(css.includes('background: #0D0D0D;'));
@@ -102,5 +106,21 @@ for (const legacyAccent of ["#554348", "#272326", "#8F6A71", "#3C3034", "#FAF7F8
   assert.ok(!css.includes(legacyAccent), "Unexpected previous colored Settings accent: " + legacyAccent);
 }
 pass("Settings match the square-corner, neutral-black/white Hub theme with a visible Back control.");
+
+assert.ok(settings.includes('<section className="creator-chat-settings-section creator-chat-settings-details" aria-label="Channel name">'));
+assert.ok(!settings.includes('Channel details'), "Overview must not repeat a redundant heading.");
+assert.ok(!settings.includes('Use a short name that your team can recognize easily.'), "Unneeded helper copy should be removed.");
+assert.ok(settings.includes('<label htmlFor="chat-channel-name">Channel name</label>'));
+assert.ok(css.includes('.creator-chat .creator-chat-settings-workspace .creator-chat-settings-details {'));
+assert.ok(css.includes('border-bottom: 1px solid #333333;'));
+pass("Overview is reduced to one accessible channel-name field with flat styling.");
+
+assert.ok(css.includes('.creator-chat .creator-chat-settings-workspace .creator-chat-settings-nav-group,'));
+assert.ok(css.includes('.creator-chat .creator-chat-settings-workspace .creator-chat-settings-tabs button:focus-visible,'));
+assert.ok(css.includes('outline-offset: -3px;'));
+assert.ok(css.includes('appearance: none;'));
+assert.ok(css.includes('border-radius: 0;'));
+assert.ok(css.includes('box-shadow: none;'));
+pass("Navigation and keyboard focus retain square corners without a rounded focus frame.");
 
 console.log(`${count} Channel Settings workspace regression groups passed.`);
