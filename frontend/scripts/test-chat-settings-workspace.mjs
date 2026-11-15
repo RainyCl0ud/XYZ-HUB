@@ -78,4 +78,29 @@ assert.ok(css.includes(".creator-chat-members-list::-webkit-scrollbar { display:
 assert.ok(css.includes("grid-template-columns: clamp(232px, 18vw, 294px) minmax(0, 1fr) clamp(236px, 19vw, 290px)"));
 pass("Mobile Settings stays in Chat, and desktop Members scrolling stays unchanged when Chat is open.");
 
+assert.ok(settings.includes('className="creator-chat-settings-subnav" role="group" aria-label="Permission categories"'));
+assert.ok(settings.includes('aria-controls="chat-settings-permission-children"'));
+assert.ok(settings.includes('aria-expanded={accessExpanded}'));
+assert.ok(settings.includes('setAccessCategory("roles")'));
+assert.ok(settings.includes('setAccessCategory("people")'));
+assert.ok(settings.includes('accessCategory === "roles" ? ('));
+assert.ok(settings.includes('matchingRoles.map'));
+assert.ok(settings.includes('matchingPeople.map'));
+assert.ok(settings.includes('kind="Member"'), "Individual grants should be presented as Members.");
+pass("Permissions expand into separate accessible Role and Member child views.");
+
+assert.ok(settings.includes('className="creator-chat-settings-back" onClick={onClose} disabled={busy}'));
+assert.ok(settings.includes('<span>Back to Chat</span>'));
+assert.ok(settings.includes('creator-chat-settings-back-icon'));
+assert.ok(css.includes('/* Channel Settings: exact XYZ Hub visual language.'));
+assert.ok(css.includes('background: #141414;'));
+assert.ok(css.includes('background: #0D0D0D;'));
+assert.ok(css.includes('border-radius: 0;'));
+assert.ok(css.includes('.creator-chat .creator-chat-settings-workspace .creator-chat-settings-nav-group'));
+assert.ok(css.includes('.creator-chat .creator-chat-settings-workspace .creator-chat-settings-subnav'));
+for (const legacyAccent of ["#554348", "#272326", "#8F6A71", "#3C3034", "#FAF7F8", "#765A60", "#30282B", "#52604F", "#E7F1E5"]) {
+  assert.ok(!css.includes(legacyAccent), "Unexpected previous colored Settings accent: " + legacyAccent);
+}
+pass("Settings match the square-corner, neutral-black/white Hub theme with a visible Back control.");
+
 console.log(`${count} Channel Settings workspace regression groups passed.`);

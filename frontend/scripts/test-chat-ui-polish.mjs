@@ -81,13 +81,16 @@ pass("Member avatar reads recheck both participants, without exposing the roster
 assert.ok(settings.includes('creator-chat-settings-tabs'));
 assert.ok(settings.includes('aria-pressed={activeTab === "details"}'));
 assert.ok(settings.includes('aria-pressed={activeTab === "access"}'));
-assert.ok(settings.includes('Find a role or person'));
+assert.ok(settings.includes('Find a role'));
+assert.ok(settings.includes('Find a member'));
+assert.ok(settings.includes('aria-controls="chat-settings-permission-children"'));
+assert.ok(settings.includes('className="creator-chat-settings-subnav"'));
 assert.ok(settings.includes('matchingRoles.map'));
 assert.ok(settings.includes('matchingPeople.map'));
 assert.ok(settings.includes('No access'));
 assert.ok(settings.includes('Can view'));
 assert.ok(settings.includes('Can send'));
-pass("Channel Settings separates Overview and searchable Permissions with existing grant semantics.");
+pass("Channel Settings has Overview and expandable Role/Member permissions with existing grant semantics.");
 
 assert.ok(settings.includes('Confirm archive'));
 assert.ok(settings.includes('setConfirmArchive(true)'));
