@@ -39,7 +39,10 @@ pass("SSE validates existing Chat permissions, sends no message payload, and rel
 
 const writes = ["sendChatMessage", "uploadChatAttachment", "editChatMessage", "deleteChatMessage", "setChatReaction", "setChatPin"];
 for (const operation of writes) assert.ok(routes.includes(operation + "("), operation + " must be wired.");
-assert.equal((routes.match(/publishChatChange\(channelId\)/g) ?? []).length, 6);
+assert.equal((routes.match(/publishChatChange\(channelId\)/g) ?? []).length, 10);
+for (const op of ["renameChatChannel", "archiveChatChannel", "cleanUpChatChannel", "setChatGrant"]) {
+  assert.ok(routes.includes(op + "("), "Permission and archive operations must remain wired: " + op);
+}
 assert.ok(broker.includes("const MAX_LISTENERS_PER_CHANNEL = 150"));
 assert.ok(broker.includes("listeners.delete(channelId)"));
 pass("Committed message writes broadcast scoped invalidations without additional paid services.");
