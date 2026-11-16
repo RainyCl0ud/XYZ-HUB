@@ -1673,8 +1673,8 @@
 .creator-chat-emoji-popover-pages button { width: 30px; height: 32px; font-size: 23px; }
 .creator-chat-emoji-popover-pages span { min-width: 33px; text-align: center; font-size: 12px; color: #CCCCCC; }
 @media (hover: none), (pointer: coarse) {
-  /* Touch: tapping/focusing a message exposes a floating toolbar. It never
-     increases message height or pushes the next message/composer downward. */
+  /* Touch: the explicit message-actions button opens the floating toolbar.
+     Tapping blank message content does not trigger actions or shift layout. */
   .creator-chat .creator-chat-message-actions {
     position: absolute;
     z-index: 8;
