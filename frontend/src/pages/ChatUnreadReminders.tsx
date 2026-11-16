@@ -22,7 +22,7 @@ export default function ChatUnreadReminders({ onClose }: { onClose: () => void }
   }, []);
   useEffect(() => { dialog.current?.showModal(); const initial = setTimeout(() => void refresh(), 0); return () => { clearTimeout(initial); controller.current?.abort(); }; }, [refresh]);
   const deliverySummary = data?.emailMode === 'capture'
-    ? 'Email previews only'
+    ? 'Preview mode'
     : data?.emailMode === 'gmail' ? 'Reminders on for test recipients' : 'Reminders off';
 
   return <dialog ref={dialog} className="creator-chat-settings creator-chat-reminder-dialog" aria-labelledby="chat-reminder-title" onCancel={onClose}>
