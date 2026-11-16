@@ -519,7 +519,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
           // transcript. Never merge in cached records from another channel.
           setTranscript((old) => old ? { ...old, messages: context.messages,
             hasMore: context.hasMore, nextBefore: context.nextBefore } : old);
-        } catch (err) {
+        } catch {
           if (!controller.signal.aborted && selectedRef.current === destination.channelId) {
             setJumpTarget(null);
             setNotice("That message is unavailable or you no longer have access to it.");
