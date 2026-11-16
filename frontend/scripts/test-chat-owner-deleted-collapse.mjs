@@ -31,32 +31,36 @@ try {
   const kept = { ...base, deleted: { at: base.createdAt, by: "Retained moderator", reason: "Retained reason" } };
   const collapsed = render(kept);
   assert.ok(collapsed.includes('class="creator-chat-deleted-toggle"'));
-  assert.ok(collapsed.includes(">Deleted Messages</button>"));
+  assert.ok(collapsed.includes(">Deleted Message</button>"));
   assert.ok(collapsed.includes('aria-expanded="false"'));
   assert.ok(collapsed.includes("is-deleted is-collapsed"));
-  pass("A retained message starts as one accessible collapsed Deleted Messages control.");
+  assert.ok(collapsed.includes("Retained author"));
+  assert.ok(collapsed.includes(`dateTime="${base.createdAt}"`) || collapsed.includes(`datetime="${base.createdAt}"`));
+  assert.ok(collapsed.indexOf("Retained author") < collapsed.indexOf(">Deleted Message</button>"));
+  pass("A retained message keeps its original author/time above the compact Deleted Message control.");
 
-  for (const hidden of ["Confidential retained message body", "Retained author", "Retained moderator",
+  for (const hidden of ["Confidential retained message body", "Retained moderator",
     "Retained reason", "Deleted · Owner view", "View history", "creator-chat-file", "creator-chat-deleted-notice"]) {
     assert.ok(!collapsed.includes(hidden), "Collapsed content leaked: " + hidden);
   }
   assert.equal((collapsed.match(/<button\b/g) ?? []).length, 1);
-  pass("Collapsed Owner view renders no original text, attribution, metadata, actions, or attached media.");
+  pass("Collapsed Owner view hides retained body, deletion metadata, actions and media without concealing the original author/time.");
 
   const retainedFile = render({
     ...kept, text: "", attachment: { fileName: "Secret retained photo.png", byteSize: 2048, available: true, canPreview: true },
   });
-  assert.ok(retainedFile.includes(">Deleted Messages</button>"));
+  assert.ok(retainedFile.includes(">Deleted Message</button>"));
   assert.ok(!retainedFile.includes("Secret retained photo.png"));
   assert.ok(!retainedFile.includes("/preview"));
   assert.ok(!retainedFile.includes("/file"));
   assert.ok(!retainedFile.includes("creator-chat-image-preview"));
-  pass("Retained image and attachment previews do not mount or request data until expanded.");
+  assert.ok((await read("src/pages/ChatMessageTools.tsx")).includes('(!m.deleted || !m.attachment.canPreview || !m.attachment.available || !!voiceDuration)'));
+  pass("Retained image previews load only when expanded and hide redundant filenames and file sizes.");
 
   const normal = render({ ...base, deleted: null });
   assert.ok(normal.includes("Confidential retained message body"));
   assert.ok(normal.includes("Retained author"));
-  assert.ok(!normal.includes("Deleted Messages"));
+  assert.ok(!normal.includes("Deleted Message"));
   pass("Ordinary and existing older messages retain their normal rendering.");
 
   const [source, page, css, backend] = await Promise.all([
@@ -68,19 +72,24 @@ try {
   assert.ok(source.includes('const [deletedExpanded, setDeletedExpanded] = useState(false)'));
   assert.ok(source.includes('onClick={() => setDeletedExpanded((open) => !open)}'));
   assert.ok(source.includes('{(!m.deleted || deletedExpanded) && <>'));
-  assert.ok(source.includes('{m.deleted && <div className="creator-chat-deleted-notice">'));
+  assert.ok(source.includes('className="creator-chat-deleted-author"'));
+  assert.ok(source.includes('{!m.deleted && <header>'));
+  assert.ok(!source.includes('Deleted by {m.deleted.by}'));
+  assert.ok(!source.includes('Reason: {m.deleted.reason}'));
+  assert.ok(!source.includes('Deleted · Owner view</strong>'));
   assert.ok(source.includes('m.canViewHistory && onHistory'));
-  pass("Disclosure can expand/collapse the same Owner-retained body and keep history accessible.");
+  pass("Expanding keeps original content and Owner history, without repeating the author or deletion metadata.");
 
   assert.ok(page.includes('m.deleted ? "is-deleted-message" : ""'));
-  assert.ok(page.includes('{!m.deleted && <div className="creator-chat-avatar"'));
+  assert.ok(page.includes('<div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent'));
   assert.ok(css.includes('.creator-chat .creator-chat-message.is-deleted-message {'));
-  assert.ok(css.includes('margin-bottom: 6px;'));
+  assert.ok(css.includes('margin-bottom: 10px;'));
   assert.ok(css.includes('.creator-chat .creator-chat-deleted-toggle {'));
+  assert.ok(css.includes('.creator-chat-message-content .creator-chat-deleted-author {'));
   assert.ok(css.includes('color: #F08080;'));
   assert.ok(css.includes('.creator-chat-message-content.is-deleted.is-expanded {'));
-  assert.ok(!css.includes('.creator-chat-message-content.is-deleted { border: 2px solid #FFFFFF;'));
-  pass("Deleted rows are compact and red, with no redundant avatar or large default border.");
+  assert.ok(!css.includes('rgba(138, 39, 39, .07)'));
+  pass("Deleted author/time align with ordinary messages and expanded content has no oversized red panel.");
 
   assert.ok(backend.includes('if (!viewer.isOwner) throw new ChatError(403, "Only Owners can view retained deleted messages.");'));
   assert.ok(backend.includes('if (!viewer.isOwner) throw new ChatError(403, "Only Owners can view retained message history.");'));
