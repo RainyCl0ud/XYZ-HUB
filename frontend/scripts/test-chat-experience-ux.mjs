@@ -85,7 +85,7 @@ assert.ok(provider.includes("void releaseBackgroundPush(id)"));
 pass("My Account has a monochrome opt-in switch; Off also releases previous background push and advanced setup remains reachable.");
 
 assert.ok(reminders.includes("Email reminder activity"));
-assert.ok(reminders.includes('Email previews only'));
+assert.ok(reminders.includes("'Preview mode'"));
 assert.ok(reminders.includes("Messages eligible"));
 assert.ok(reminders.includes("Next possible reminder"));
 assert.ok(reminders.includes("How email reminders work"));
