@@ -2202,3 +2202,16 @@
   height: 17px;
   margin-top: 2px;
 }
+
+@media (hover: none), (pointer: coarse) {
+  /* Search/history reuse ChatMessageContent without a transcript row. Give
+     their explicit touch action toggle a local positioning context too. */
+  .creator-chat .creator-chat-tools .creator-chat-message-content {
+    position: relative;
+    padding-right: 44px;
+  }
+  .creator-chat .creator-chat-tools .creator-chat-message-content > .creator-chat-touch-actions-toggle {
+    top: 0;
+    right: 0;
+  }
+}
