@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { API_BASE_URL, apiRequest } from "../lib/api";
 import { CENTRAL_TIME_ZONE, formatCentralMessageTime } from "../lib/central-time";
 import ChatVoicePlayback from "./ChatVoicePlayback";
-import { CHAT_EMOJI_OPTIONS, CHAT_RECENT_EMOJI_LIMIT, emojiLabel, normalizeRecentEmojis } from "../lib/chat-reaction-emojis";
+import { CHAT_EMOJI_OPTIONS, emojiLabel, normalizeRecentEmojis } from "../lib/chat-reaction-emojis";
 
 export type ChatMessage = {
   id: string; authorName: string; text: string; version: number; createdAt: string; updatedAt: string;
