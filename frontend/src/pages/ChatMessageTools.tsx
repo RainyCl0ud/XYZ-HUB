@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { API_BASE_URL, apiRequest } from "../lib/api";
-import { formatCentralMessageTime } from "../lib/central-time";
+import { CENTRAL_TIME_ZONE, formatCentralMessageTime } from "../lib/central-time";
 import ChatVoicePlayback from "./ChatVoicePlayback";
 import { CHAT_EMOJI_OPTIONS, CHAT_RECENT_EMOJI_LIMIT, emojiLabel, normalizeRecentEmojis } from "../lib/chat-reaction-emojis";
 
