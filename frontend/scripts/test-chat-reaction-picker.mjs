@@ -102,7 +102,7 @@ try {
   assert.ok(tools.includes('Math.min(box.right - width, window.innerWidth - width - 8)'));
   assert.ok(tools.includes('const height = 350'));
   assert.ok(tools.includes('pickerEmojis.map'));
-  assert.ok(tools.includes('CHAT_RECENT_EMOJI_LIMIT'));
+  assert.ok(tools.includes('sixRecentEmojis = normalizeRecentEmojis(recentEmojis)'));
   assert.ok(tools.includes('source.addEventListener') === false);
   assert.ok(css.includes('position: fixed;\n  z-index: 1250;'));
   assert.ok(css.includes('creator-chat-emoji-popover-grid'));
