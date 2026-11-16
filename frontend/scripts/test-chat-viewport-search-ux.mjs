@@ -71,7 +71,7 @@ pass("Search results scroll within a full-height overlay, with the Close header 
 assert.ok(tools.includes('className="creator-chat-message-search-field"'));
 assert.ok(tools.includes('className="creator-chat-search-clear"'));
 assert.ok(tools.includes('aria-label="Clear message search"'));
-assert.ok(tools.includes('onPointerDown={(event) => event.preventDefault()}'));
+assert.ok(!tools.includes('onPointerDown={(event) => event.preventDefault()}'));
 assert.ok(tools.includes('invalidateSearch(); setQuery(""); searchInput.current?.focus();'));
 assert.ok(css.includes(".creator-chat .creator-chat-message-search-field .creator-chat-search-clear {"));
 assert.ok(css.includes("width: 44px;"));
