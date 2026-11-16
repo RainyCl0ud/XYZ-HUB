@@ -566,7 +566,9 @@ function ChatWorkspace({ userId }: { userId: string }) {
     const heading = section.querySelector<HTMLElement>(".creator-chat-heading");
     let raf = 0;
     const measure = () => {
-      const shellTop = shell.getBoundingClientRect().top;
+      // Main-content may retain a scroll offset after navigating from another
+      // page. Recover the unscrolled top before sizing the Chat workspace.
+      const shellTop = shell.getBoundingClientRect().top + main.scrollTop;
       const mainBottom = main.getBoundingClientRect().bottom;
       const sectionBottomPadding = Number.parseFloat(getComputedStyle(section).paddingBottom) || 0;
       // Do not force the legacy 430px min-height when space is tight.
@@ -596,11 +598,12 @@ function ChatWorkspace({ userId }: { userId: string }) {
     observer.observe(section);
     if (heading) observer.observe(heading);
     window.addEventListener("resize", schedule);
-    window.addEventListener("scroll", schedule, true);
+    // Internal message scrolling must not trigger repeated layout measuring.
+    main.addEventListener("scroll", schedule, { passive: true });
     return () => {
       cancelAnimationFrame(raf); observer.disconnect();
       window.removeEventListener("resize", schedule);
-      window.removeEventListener("scroll", schedule, true);
+      main.removeEventListener("scroll", schedule);
       shell.style.removeProperty("height");
     };
   }, [loading, areas.length, canAnnounce, remindersEnabled, inlineDiscoveryOpen, showChatOptions]);
