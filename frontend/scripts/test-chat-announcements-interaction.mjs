@@ -97,7 +97,7 @@ try {
   assert.ok(announcements.includes('previewToken: preview.previewToken'));
   assert.ok(announcements.includes('requestId: requestId.current'));
   assert.ok(announcements.includes('disabled={busy || !confirmed || !!preview.blockers.length}'));
-  assert.ok(announcements.includes('uncertain ? "Check submission" : "Publish announcement"'));
+  assert.ok(announcements.includes("uncertain ? 'Check submission' : 'Publish announcement'"));
   assert.ok(announcements.includes('if (busy || uncertain) e.preventDefault()'));
   pass("The redesigned review retains audience validation, explicit confirmation, idempotent publication and uncertain-delivery safeguards.");
 
