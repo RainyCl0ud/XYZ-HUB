@@ -48,15 +48,14 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   const pickerRef = useRef<HTMLDivElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerMode, setPickerMode] = useState<"recent" | "browse">("recent");
-  const [browsePage, setBrowsePage] = useState(0);
+  const [emojiSearch, setEmojiSearch] = useState("");
   const [pickerHost, setPickerHost] = useState<HTMLElement | null>(null);
   const [pickerPosition, setPickerPosition] = useState<CSSProperties>({});
   const pickerId = useId();
   const sixRecentEmojis = normalizeRecentEmojis(recentEmojis);
   const pickerEmojis = pickerMode === "recent"
     ? sixRecentEmojis
-    : palette.slice(browsePage * CHAT_RECENT_EMOJI_LIMIT, (browsePage + 1) * CHAT_RECENT_EMOJI_LIMIT).map(([emoji]) => emoji);
-  const browsePageCount = Math.ceil(palette.length / CHAT_RECENT_EMOJI_LIMIT);
+    : palette.filter(([emoji, label]) => `${label} ${emoji}`.toLowerCase().includes(emojiSearch.trim().toLowerCase())).map(([emoji]) => emoji);
   const menuButton = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const popupId = useId();
@@ -100,8 +99,8 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     if (busy) return;
     if (pickerOpen) { setPickerOpen(false); return; }
     const box = event.currentTarget.getBoundingClientRect();
-    const width = Math.min(224, Math.max(160, window.innerWidth - 16));
-    const height = 244;
+    const width = Math.min(248, Math.max(160, window.innerWidth - 16));
+    const height = 350;
     const below = window.innerHeight - box.bottom;
     const above = box.top;
     const placeBelow = below >= height + 8 || below >= above;
@@ -114,7 +113,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       top, left: Math.max(8, Math.min(box.right - width, window.innerWidth - width - 8)),
       width, maxHeight: Math.max(130, window.innerHeight - 16),
     });
-    setPickerMode("recent"); setBrowsePage(0);
+    setPickerMode("recent"); setEmojiSearch("");
     setMenuOpen(false);
     setPickerOpen(true);
   };
@@ -280,11 +279,16 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
           setPickerOpen(false); pickerTrigger.current?.focus({ preventScroll: true });
         }}>
         <header className="creator-chat-emoji-popover-heading">
-          <strong>{pickerMode === "recent" ? "Your recent emojis" : "Browse emojis"}</strong>
+          <strong>{pickerMode === "recent" ? "Your recent emojis" : "Add emoji"}</strong>
           <button type="button" aria-label="Close emoji picker" onClick={() => setPickerOpen(false)}>×</button>
         </header>
-        <div className="creator-chat-emoji-popover-grid" role="group"
-          aria-label={pickerMode === "recent" ? "Six recent emojis" : "Six available emojis"}>
+        {pickerMode === "browse" && <label className="creator-chat-emoji-library-search">
+          <span className="creator-chat-sr">Search emoji library</span>
+          <input type="search" placeholder="Search emojis…" value={emojiSearch}
+            onChange={(event) => setEmojiSearch(event.target.value)} />
+        </label>}
+        <div className={`creator-chat-emoji-popover-grid ${pickerMode === "browse" ? "is-library" : ""}`} role="group"
+          aria-label={pickerMode === "recent" ? "Six recent emojis" : "Available emoji library"}>
           {pickerEmojis.map((emoji) => <button key={emoji} type="button" disabled={busy}
             title={emojiLabel(emoji)} aria-label={emojiLabel(emoji)}
             aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
@@ -295,15 +299,9 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         </div>
         <footer className="creator-chat-emoji-popover-footer">
           <button type="button" onClick={() => {
-            setPickerMode(pickerMode === "recent" ? "browse" : "recent"); setBrowsePage(0);
-          }}>{pickerMode === "recent" ? "Browse more" : "Recent"}</button>
-          {pickerMode === "browse" && <div className="creator-chat-emoji-popover-pages" aria-label="Emoji pages">
-            <button type="button" aria-label="Previous emoji page" disabled={browsePage === 0}
-              onClick={() => setBrowsePage((page) => Math.max(0, page - 1))}>‹</button>
-            <span>{browsePage + 1} / {browsePageCount}</span>
-            <button type="button" aria-label="Next emoji page" disabled={browsePage >= browsePageCount - 1}
-              onClick={() => setBrowsePage((page) => Math.min(browsePageCount - 1, page + 1))}>›</button>
-          </div>}
+            setPickerMode(pickerMode === "recent" ? "browse" : "recent"); setEmojiSearch("");
+          }}>{pickerMode === "recent" ? "Add emoji" : "Recent"}</button>
+          {pickerMode === "browse" && <span className="creator-chat-emoji-library-count">{pickerEmojis.length} emojis</span>}
         </footer>
       </div>, pickerHost)}
     </>}
