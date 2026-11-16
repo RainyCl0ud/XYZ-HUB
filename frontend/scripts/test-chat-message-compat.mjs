@@ -23,13 +23,14 @@ try {
   console.log("PASS: the real Chat component renders the previous backend response without new fields; existing text/edit controls remain available and unsupported interaction controls stay hidden.");
   const render = (message) => renderToStaticMarkup(createElement(ChatMessageContent, { message, channelId: "test-channel", onReply: noop, onEdit: noop, onChanged: noop, onOpen: noop, onError: noop, onModerate: noop, onHistory: noop }));
   const retained = render({ ...legacy, canEdit: false, canReply: false, canPin: false, canModerate: false, canViewHistory: true, reactions: [], deleted: { at: legacy.createdAt, by: "Test moderator", reason: "Test retained reason" } });
-  assert.ok(retained.includes(">Deleted Messages</button>") && retained.includes('aria-expanded="false"'));
+  assert.ok(retained.includes(">Deleted Message</button>") && retained.includes('aria-expanded="false"'));
+  assert.ok(retained.includes(legacy.authorName) && retained.includes(`dateTime="${legacy.createdAt}"`) || retained.includes(legacy.authorName) && retained.includes(`datetime="${legacy.createdAt}"`));
   for (const confidential of [legacy.text, "Test moderator", "Test retained reason", "More actions for message by Test author"]) {
-    assert.ok(!retained.includes(confidential), "Owner deleted content must start collapsed: " + confidential);
+    assert.ok(!retained.includes(confidential), "Owner deleted body/metadata must start collapsed: " + confidential);
   }
   assert.ok(!retained.includes("creator-chat-deleted-notice"));
   for (const action of ["Edit", "Reply", "Pin", "Delete", "React"]) assert.ok(!retained.includes(`>${action}</button>`));
-  console.log("PASS: Owner deleted messages start behind an accessible collapsed label; retained text, attribution and history stay hidden until expanded.");
+  console.log("PASS: Owner deleted messages retain visible author/time with one red collapsed label; original content and audit metadata remain hidden until expanded.");
   const redacted = render({ ...legacy, replyTo: null, replyUnavailable: true });
   assert.ok(redacted.includes("Original message unavailable"));
   assert.ok(!redacted.includes("Deleted · Owner view") && !redacted.includes("Test retained reason"));
@@ -49,6 +50,8 @@ try {
   const image = render({ ...legacy, text: "", attachment: { ...attachment, fileName: "Preview.jpg", canPreview: true } });
   assert.ok(image.includes("/api/chat/channels/test-channel/messages/old-message/preview"));
   assert.ok(image.includes('loading="lazy"') && image.includes('alt="Preview of Preview.jpg"'));
+  assert.ok(!image.includes("<strong>Preview.jpg</strong>"), "Previewed images must not repeat filenames below the image.");
+  assert.ok(!image.includes(">8 bytes</small>"), "Previewed images must not render a redundant byte count.");
   assert.ok(!image.includes("/api/chat/channels/test-channel/messages/old-message/file"), "Download stays hidden until More opens.");
   console.log("PASS: an eligible image loads its small preview separately from the original download.");
   const voice = render({ ...legacy, text: "", attachment: { ...attachment, fileName: "Voice message.wav", voiceDurationMs: 2300 } });
