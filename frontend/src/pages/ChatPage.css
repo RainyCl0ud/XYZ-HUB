@@ -1922,3 +1922,9 @@
   font-size: 13px;
 }
 .creator-chat-emoji-library-count { font-size: 11px; color: #AEAEAE; }
+
+.creator-chat .creator-chat-live-panel.is-pins > header h2 {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px;
+}
+.creator-chat-pin-heading-icon { width: 17px; height: 17px; flex: 0 0 auto; }
