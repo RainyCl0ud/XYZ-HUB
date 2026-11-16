@@ -40,6 +40,9 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   // During a rolling deploy the older API still returns ordinary messages.
   const reactions = m.reactions ?? [];
   const [busy, setBusy] = useState(false);
+  // Owner-retained deleted content stays hidden until explicitly requested.
+  // The component keeps its state across the normal transcript refreshes.
+  const [deletedExpanded, setDeletedExpanded] = useState(false);
   const pickerTrigger = useRef<HTMLButtonElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -187,7 +190,10 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   }
   const attachmentPath = `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(m.id)}`;
   const voiceDuration = m.attachment?.voiceDurationMs;
-  return <div className={`creator-chat-message-content ${m.deleted ? "is-deleted" : ""}`}>
+  return <div className={`creator-chat-message-content ${m.deleted ? (deletedExpanded ? "is-deleted is-expanded" : "is-deleted is-collapsed") : ""}`}>
+    {m.deleted && <button type="button" className="creator-chat-deleted-toggle"
+      aria-expanded={deletedExpanded} onClick={() => setDeletedExpanded((open) => !open)}>Deleted Messages</button>}
+    {(!m.deleted || deletedExpanded) && <>
     {m.replyUnavailable && <p className="creator-chat-unavailable">Original message unavailable.</p>}
     {m.replyTo && <button type="button" className="creator-chat-quote" onClick={() => onOpen(m.replyTo!.id)} aria-label={`View original message by ${m.replyTo.authorName}`}>
       <strong>Reply to {m.replyTo.authorName}{m.replyTo.deleted ? " · Deleted" : ""}{m.replyTo.version > 1 ? " · edited" : ""}</strong><span>{m.replyTo.text}</span>
@@ -294,6 +300,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
           </div>}
         </footer>
       </div>, pickerHost)}
+    </>}
   </div>;
 }
 
