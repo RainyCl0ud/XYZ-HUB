@@ -482,7 +482,7 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onJumpToMessage
     } finally { setUnpinBusy(false); }
   }
   const body = <>
-    <header><h2 id="chat-tools-title">{target.kind === "search" ? "Search messages" : target.kind === "pins" ? "Pinned messages" : target.kind === "deleted" ? "Deleted messages · Owner view" : target.kind === "history" ? "Message history · Owner view" : "Message"}</h2><button type="button" className="creator-chat-live-close" onClick={onClose}>Close</button></header>
+    <header><h2 id="chat-tools-title">{target.kind === "search" ? "Search messages" : target.kind === "pins" ? "Pinned messages" : target.kind === "deleted" ? "Deleted messages · Owner view" : target.kind === "history" ? "Message history · Owner view" : "Message"}</h2><button type="button" className={target.kind === "pins" ? "creator-chat-pin-close" : "creator-chat-live-close"} aria-label={target.kind === "pins" ? "Close pinned messages" : "Close panel"} onClick={onClose}>{target.kind === "pins" ? "×" : "Close"}</button></header>
     {backLabel && <button type="button" className="creator-chat-back" onClick={onBack}>← {backLabel}</button>}
     <p className="creator-chat-tools-context">{target.channelName}</p>
     {(target.kind === "deleted" || target.kind === "history") && <p className="creator-chat-owner-help">{target.kind === "history" ? "Owner-only · Full message and change history." : "Only Owners can view these retained records. Deleted messages stay hidden from everyone else."}</p>}
