@@ -15,8 +15,10 @@ export type ChatMessage = {
   replyTo: { id: string; authorName: string; text: string; version: number; createdAt: string; deleted?: boolean } | null;
   reactions: { emoji: string; count: number; mine: boolean }[];
 };
+// Dates are already shown by conversation day dividers. Keep individual
+// message timestamps compact, like Discord, without repeating the month.
 const chatTime = (value: string) => new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
+  timeZone: "America/Chicago", hour: "numeric", minute: "2-digit",
 }).format(new Date(value));
 const palette = CHAT_EMOJI_OPTIONS;
 const errorText = (e: unknown) => e instanceof Error ? e.message : "Unable to load messages. Please try again.";
@@ -197,9 +199,12 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     {m.deleted && <button type="button" className="creator-chat-deleted-toggle"
       aria-expanded={deletedExpanded} onClick={() => setDeletedExpanded((open) => !open)}>Deleted Message</button>}
     {(!m.deleted || deletedExpanded) && <>
-    {m.replyUnavailable && <p className="creator-chat-unavailable">Original message unavailable.</p>}
-    {m.replyTo && <button type="button" className="creator-chat-quote" onClick={() => onOpen(m.replyTo!.id)} aria-label={`View original message by ${m.replyTo.authorName}`}>
-      <strong>Reply to {m.replyTo.authorName}{m.replyTo.deleted ? " · Deleted" : ""}{m.replyTo.version > 1 ? " · edited" : ""}</strong><span>{m.replyTo.text}</span>
+    {m.replyUnavailable && <span className="creator-chat-quote-unavailable">Original message unavailable.</span>}
+    {m.replyTo && <button type="button" className="creator-chat-quote" onClick={() => onOpen(m.replyTo!.id)}
+      aria-label={`View original message by ${m.replyTo.authorName}`}
+      title={`Reply to ${m.replyTo.authorName}: ${m.replyTo.text || "Attachment"}`}>
+      <span className="creator-chat-quote-author">{m.replyTo.authorName}{m.replyTo.deleted ? " · Deleted" : ""}{m.replyTo.version > 1 ? " · edited" : ""}</span>
+      <span className="creator-chat-quote-preview">{m.replyTo.text || "Attachment"}</span>
     </button>}
     {!m.deleted && <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>}
     {m.pinnedAt && <small className="creator-chat-pin-label">Pinned by {m.pinnedByName}</small>}
