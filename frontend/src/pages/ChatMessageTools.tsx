@@ -463,13 +463,24 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
       onModerate={(m) => onModerate(channelId, m)} onHistory={target.kind === "history" ? undefined : (messageId) => navigate({ kind: "history", channelId, channelName, messageId })} />;
   }
   const body = <>
-    <header><h2 id="chat-tools-title">{target.kind === "search" ? "Search messages" : target.kind === "pins" ? "Pinned messages" : target.kind === "deleted" ? "Deleted messages · Owner view" : target.kind === "history" ? "Message history · Owner view" : "Message"}</h2><button type="button" onClick={onClose}>Close</button></header>
+    <header><h2 id="chat-tools-title">{target.kind === "search" ? "Search messages" : target.kind === "pins" ? "Pinned messages" : target.kind === "deleted" ? "Deleted messages · Owner view" : target.kind === "history" ? "Message history · Owner view" : "Message"}</h2><button type="button" className="creator-chat-live-close" onClick={onClose}>Close</button></header>
     {backLabel && <button type="button" className="creator-chat-back" onClick={onBack}>← {backLabel}</button>}
     <p className="creator-chat-tools-context">{target.channelName}</p>
     {(target.kind === "deleted" || target.kind === "history") && <p className="creator-chat-owner-help">{target.kind === "history" ? "Owner-only · Full message and change history." : "Only Owners can view these retained records. Deleted messages stay hidden from everyone else."}</p>}
     {notice && target.kind !== "history" && <p className="creator-chat-notice" role="status">{notice}</p>}
     {target.kind === "search" && <form className="creator-chat-message-search" role="search" onSubmit={submit}>
-      <label htmlFor="chat-search-text">Search messages</label><input ref={searchInput} id="chat-search-text" type="search" minLength={2} maxLength={120} required placeholder="Search for a word or phrase…" value={query} onChange={(e) => { invalidateSearch(); setQuery(e.target.value); }} />
+      <label htmlFor="chat-search-text">Search messages</label>
+      <div className="creator-chat-message-search-field">
+        <input ref={searchInput} id="chat-search-text" type="search" minLength={2} maxLength={120} required
+          placeholder="Search for a word or phrase…" value={query}
+          onChange={(e) => { invalidateSearch(); setQuery(e.target.value); }} />
+        {!!query && <button type="button" className="creator-chat-search-clear" aria-label="Clear message search"
+          title="Clear search"
+          onClick={() => { invalidateSearch(); setQuery(""); searchInput.current?.focus(); }}>
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            strokeLinecap="round"><path d="M6 6 18 18M18 6 6 18" /></svg>
+        </button>}
+      </div>
       <label htmlFor="chat-search-scope">Search in</label><div><select id="chat-search-scope" value={scope} onChange={(e) => { invalidateSearch(); setScope(e.target.value); }}><option value="conversation">This conversation</option><option value="all">All my conversations</option></select><button type="submit" disabled={query.trim().length < 2}>Go</button></div>
     </form>}
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
