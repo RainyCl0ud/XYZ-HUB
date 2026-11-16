@@ -127,7 +127,9 @@ try {
   assert.ok(css.includes('position: absolute;\n    z-index: 8;\n    top: -9px;'));
   assert.ok(css.includes('pointer-events: none;'));
   assert.ok(css.includes('.creator-chat-message-actions[data-touch-open="true"]'));
-  assert.ok(chat.includes('event.pointerType !== "touch"'));
+  assert.ok(!chat.includes('event.pointerType !== "touch"'));
+  assert.ok(!chat.includes('tabIndex={m.deleted ? undefined : 0}'));
+  assert.ok(tools.includes('className="creator-chat-touch-actions-toggle"'));
   assert.ok(chat.includes('event.currentTarget.focus({ preventScroll: true })'));
   assert.ok(css.includes('creator-chat .creator-chat-toolbar-emoji-trigger svg'));
   pass("Touch toolbar stays outside message flow and the emoji-plus SVG remains centered.");
