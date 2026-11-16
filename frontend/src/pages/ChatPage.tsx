@@ -15,6 +15,7 @@ import ChatVoiceRecorder, { type ChatVoiceRecorderHandle } from "./ChatVoiceReco
 import ChatModerationDialog, { type ModerationTarget } from "./ChatModerationDialog";
 import ChatQuarantineDialog, { type QuarantineControl } from "./ChatQuarantineDialog";
 import { useChatReadTracking } from "./useChatReadTracking";
+import { CENTRAL_TIME_ZONE } from "../lib/central-time";
 import { loadRecentEmojis, recentEmojiStorageKey, saveRecentEmojiSelection } from "../lib/chat-reaction-emojis";
 
 const noUnreadIds: string[] = [];
@@ -40,7 +41,7 @@ function rememberLocation(userId: string, location: ChatLocation | null) {
 }
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Unable to load chat. Please try again.";
 const day = (value: string) => new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Chicago", month: "long", day: "numeric", year: "numeric",
+  timeZone: CENTRAL_TIME_ZONE, month: "long", day: "numeric", year: "numeric",
 }).format(new Date(value));
 type IconName = "channel" | "lock" | "search" | "pin" | "trash" | "people" | "send" | "menu" | "close" | "settings" | "chat";
 function ChatIcon({ name }: { name: IconName }) {
