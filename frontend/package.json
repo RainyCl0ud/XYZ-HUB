@@ -25,7 +25,8 @@
     "test:chat-reaction-picker": "node scripts/test-chat-reaction-picker.mjs",
     "test:chat-owner-deleted-collapse": "node scripts/test-chat-owner-deleted-collapse.mjs",
     "test:chat-viewport-search-ux": "node scripts/test-chat-viewport-search-ux.mjs",
-    "test:chat-discord-reply-ux": "node scripts/test-chat-discord-reply-ux.mjs"
+    "test:chat-discord-reply-ux": "node scripts/test-chat-discord-reply-ux.mjs",
+    "test:chat-jump-pins-ux": "node scripts/test-chat-jump-pins-ux.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
