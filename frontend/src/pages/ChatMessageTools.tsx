@@ -52,12 +52,18 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   useEffect(() => {
     if (!touchActionsOpen) return;
     const closeOutside = (event: PointerEvent) => {
-      const row = touchActionsTrigger.current?.closest(".creator-chat-message");
-      if (event.target instanceof Node && row?.contains(event.target)) return;
+      const trigger = touchActionsTrigger.current;
+      const actions = trigger?.nextElementSibling;
+      if (event.target instanceof Node && (trigger?.contains(event.target) || actions?.contains(event.target))) return;
       setTouchActionsOpen(false);
+      if (document.activeElement instanceof HTMLElement && actions?.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
     };
     const closeEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setTouchActionsOpen(false);
+      if (event.key !== "Escape") return;
+      setTouchActionsOpen(false);
+      touchActionsTrigger.current?.focus({ preventScroll: true });
     };
     document.addEventListener("pointerdown", closeOutside);
     document.addEventListener("keydown", closeEscape);
