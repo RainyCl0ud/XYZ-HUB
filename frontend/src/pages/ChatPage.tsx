@@ -651,19 +651,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
       // Do not force the legacy 430px min-height when space is tight.
       const available = Math.max(0, Math.floor(mainBottom - shellTop - sectionBottomPadding - 2));
       if (shell.style.height !== `${available}px`) shell.style.height = `${available}px`;
-      const anchor = shell.querySelector<HTMLElement>(".creator-chat-live-panel-anchor");
-      const conversation = shell.querySelector<HTMLElement>(".creator-chat-conversation");
-      const header = conversation?.querySelector<HTMLElement>(".creator-chat-channel-header");
-      if (anchor && conversation && header) {
-        const rect = conversation.getBoundingClientRect();
-        const top = Math.min(window.innerHeight - 80, Math.max(0, Math.round(header.getBoundingClientRect().bottom)));
-        const width = Math.min(428, Math.max(0, rect.width - 16), window.innerWidth - 16);
-        const left = Math.max(8, Math.min(Math.round(rect.right - width - 10), window.innerWidth - width - 8));
-        // Write only when changed to avoid ResizeObserver layout loops.
-        if (anchor.style.top !== `${top}px`) anchor.style.top = `${top}px`;
-        if (anchor.style.left !== `${left}px`) anchor.style.left = `${left}px`;
-        if (anchor.style.width !== `${width}px`) anchor.style.width = `${width}px`;
-      }
     };
     const schedule = () => {
       cancelAnimationFrame(raf);
@@ -765,7 +752,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 <button type="button" className="creator-chat-members-toggle" aria-label="Conversation members" title="Conversation members" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button>
               </div>
             </header>
-            {inlineDiscoveryOpen && <div id="chat-discovery-panel" className="creator-chat-live-panel-anchor">{toolView}</div>}
+            {inlineDiscoveryOpen && <div id="chat-discovery-panel" className={`creator-chat-live-panel-anchor ${tools?.kind === "pins" ? "is-pins" : "is-search"}`}>{toolView}</div>}
             {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span>{transcript?.quarantine && <button type="button" onClick={() => setQuarantining(transcript.quarantine!)}>{transcript.quarantine.active ? "Review / lift chat pause" : "Pause creator chats…"}</button>}</div>}
             {area?.pausedForYou && <div className="creator-chat-pause-notice" role="status"><strong>Your other chats for {area.name} are paused.</strong></div>}
             {(!!channel?.unreadCount || readError) && <div className="creator-chat-read-status"><span role="status">{readError || `${channel?.unreadCount} unread · Messages clear as you view them.`}</span>{!!channel?.unreadCount && <button type="button" disabled={markingRead || !transcript?.messages.length} title="Mark all messages read up to the latest loaded message, including earlier history." onClick={() => void markConversationRead()}>{markingRead ? "Saving…" : "Mark conversation read"}</button>}</div>}
