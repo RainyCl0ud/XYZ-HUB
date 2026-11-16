@@ -41,6 +41,26 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   // During a rolling deploy the older API still returns ordinary messages.
   const reactions = m.reactions ?? [];
   const [busy, setBusy] = useState(false);
+  const [touchActionsOpen, setTouchActionsOpen] = useState(false);
+  const touchActionsId = useId();
+  const touchActionsTrigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!touchActionsOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      const row = touchActionsTrigger.current?.closest(".creator-chat-message");
+      if (event.target instanceof Node && row?.contains(event.target)) return;
+      setTouchActionsOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setTouchActionsOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [touchActionsOpen]);
   // Owner-retained deleted content stays hidden until explicitly requested.
   // The component keeps its state across the normal transcript refreshes.
   const [deletedExpanded, setDeletedExpanded] = useState(false);
@@ -221,8 +241,16 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       <button type="button" key={r.emoji} aria-pressed={r.mine} aria-label={`${palette.find(([emoji]) => emoji === r.emoji)?.[1] ?? "Reaction"}: ${r.count}${r.mine ? ", yours; remove reaction" : "; add reaction"}`} disabled={busy}
         onClick={() => void update("reaction", { emoji: r.emoji, active: !r.mine })}><span>{r.emoji}</span><span>{r.count}</span></button> :
       <span className="creator-chat-reaction-count" key={r.emoji} aria-label={`${r.emoji}: ${r.count}`}>{r.emoji} {r.count}</span>)}</div>}
-    {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <div
-      className="creator-chat-message-actions" role="group" aria-label={`Actions for message by ${m.authorName}`}>
+    {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <>
+      <button ref={touchActionsTrigger} type="button" className="creator-chat-touch-actions-toggle"
+        aria-label={`Message actions for ${m.authorName}`} aria-expanded={touchActionsOpen}
+        aria-controls={touchActionsId} onClick={() => setTouchActionsOpen((open) => !open)}>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+          <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
+        </svg>
+      </button>
+      <div id={touchActionsId} data-touch-open={touchActionsOpen}
+        className="creator-chat-message-actions" role="group" aria-label={`Actions for message by ${m.authorName}`}>
       {m.canReply && <div className="creator-chat-quick-reactions" role="group" aria-label="Quick reactions">
         {sixRecentEmojis.slice(0, 3).map((emoji) => <button key={emoji} type="button" disabled={busy}
           title={emojiLabel(emoji)} aria-label={`React with ${emojiLabel(emoji)}`}
@@ -267,7 +295,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         </div>, popupHost)}
       </div>
       {busy && <span role="status">Saving…</span>}
-    </div>}
+    </div></>}
     {pickerOpen && pickerHost && m.canReply && createPortal(
       <div id={pickerId} ref={pickerRef} className="creator-chat-emoji-popover"
         style={pickerPosition} role="dialog" aria-label="Choose reaction emoji"
