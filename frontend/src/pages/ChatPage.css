@@ -2158,3 +2158,34 @@
   .creator-chat-announcement-footer { align-items: stretch; }
   .creator-chat-announcement-footer > button { min-height: 44px; }
 }
+
+/* Published announcements are visually distinct in the transcript without
+   introducing a giant full-width card or altering normal message controls. */
+.creator-chat .creator-chat-message.is-announcement {
+  border-left: 2px solid #A5A5A5;
+  padding-left: 12px;
+  background: #1A1A1A;
+}
+.creator-chat .creator-chat-announcement-tag {
+  color: #E7E7E7;
+  border: 1px solid #555555;
+  padding: 2px 6px;
+  font-size: 10px;
+  line-height: 1.35;
+  letter-spacing: .02em;
+}
+.creator-chat .creator-chat-announcement-message { min-width: 0; padding-top: 7px; }
+.creator-chat .creator-chat-announcement-message h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.creator-chat .creator-chat-announcement-message p {
+  margin: 0;
+  line-height: 1.6;
+  color: #E3E3E3;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
