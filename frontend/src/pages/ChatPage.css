@@ -1899,3 +1899,26 @@
     animation: none; background: rgba(87, 88, 178, .22); box-shadow: inset 3px 0 0 #9392ED;
   }
 }
+
+/* Full searchable emoji library; only the Recent view is limited to six.
+   The library scrolls inside its portal and never grows the message row. */
+.creator-chat-emoji-popover-grid.is-library {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-height: 214px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #555 transparent;
+}
+.creator-chat-emoji-popover-grid.is-library button {
+  height: 43px;
+  font-size: 23px;
+}
+.creator-chat-emoji-library-search { display: block; margin-bottom: 9px; }
+.creator-chat-emoji-library-search input {
+  width: 100%; min-width: 0; min-height: 38px;
+  padding: 6px 9px; border: 1px solid #686868;
+  border-radius: 0; background: #0D0D0D; color: #FFFFFF;
+  font-size: 13px;
+}
+.creator-chat-emoji-library-count { font-size: 11px; color: #AEAEAE; }
