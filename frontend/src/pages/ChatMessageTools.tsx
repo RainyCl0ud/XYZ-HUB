@@ -40,7 +40,38 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
 }) {
   // During a rolling deploy the older API still returns ordinary messages.
   const reactions = m.reactions ?? [];
+  // The announcement service stores the title and body as plain text separated
+  // by a blank line. Present that trusted structure without converting to HTML.
+  const announcementBreak = m.announcement && m.text ? m.text.indexOf("\n\n") : -1;
+  const announcementTitle = m.announcement ? (announcementBreak < 0 ? m.text : m.text.slice(0, announcementBreak)) : "";
+  const announcementBody = announcementBreak < 0 ? "" : m.text.slice(announcementBreak + 2);
   const [busy, setBusy] = useState(false);
+  const [touchActionsOpen, setTouchActionsOpen] = useState(false);
+  const touchActionsId = useId();
+  const touchActionsTrigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!touchActionsOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      const trigger = touchActionsTrigger.current;
+      const actions = trigger?.nextElementSibling;
+      if (event.target instanceof Node && (trigger?.contains(event.target) || actions?.contains(event.target))) return;
+      setTouchActionsOpen(false);
+      if (document.activeElement instanceof HTMLElement && actions?.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setTouchActionsOpen(false);
+      touchActionsTrigger.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [touchActionsOpen]);
   // Owner-retained deleted content stays hidden until explicitly requested.
   // The component keeps its state across the normal transcript refreshes.
   const [deletedExpanded, setDeletedExpanded] = useState(false);
@@ -204,9 +235,12 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       <span className="creator-chat-quote-author">{m.replyTo.authorName}{m.replyTo.deleted ? " · Deleted" : ""}{m.replyTo.version > 1 ? " · edited" : ""}</span>
       <span className="creator-chat-quote-preview">{m.replyTo.text || "Attachment"}</span>
     </button>}
-    {!m.deleted && <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>}
+    {!m.deleted && <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small className={m.announcement ? "creator-chat-announcement-tag" : undefined}>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>}
     {m.pinnedAt && <small className="creator-chat-pin-label">Pinned by {m.pinnedByName}</small>}
-    {m.text && <p>{m.text}</p>}
+    {m.announcement && m.text ? <section className="creator-chat-announcement-message" aria-label="Staff announcement">
+      <h4>{announcementTitle}</h4>
+      {announcementBody && <p>{announcementBody}</p>}
+    </section> : m.text && <p>{m.text}</p>}
     {m.attachment && <>
       {m.attachment.available && m.attachment.canPreview && <ChatImagePreview
         key={attachmentPath} src={`${attachmentPath}/preview`} fileName={m.attachment.fileName} onLoad={onPreviewLoad}
@@ -221,8 +255,16 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       <button type="button" key={r.emoji} aria-pressed={r.mine} aria-label={`${palette.find(([emoji]) => emoji === r.emoji)?.[1] ?? "Reaction"}: ${r.count}${r.mine ? ", yours; remove reaction" : "; add reaction"}`} disabled={busy}
         onClick={() => void update("reaction", { emoji: r.emoji, active: !r.mine })}><span>{r.emoji}</span><span>{r.count}</span></button> :
       <span className="creator-chat-reaction-count" key={r.emoji} aria-label={`${r.emoji}: ${r.count}`}>{r.emoji} {r.count}</span>)}</div>}
-    {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <div
-      className="creator-chat-message-actions" role="group" aria-label={`Actions for message by ${m.authorName}`}>
+    {(m.attachment?.available || m.canReply || (m.canEdit && onEdit) || m.canPin || (m.canModerate && onModerate) || (m.canViewHistory && onHistory)) && <>
+      <button ref={touchActionsTrigger} type="button" className="creator-chat-touch-actions-toggle"
+        aria-label={`Message actions for ${m.authorName}`} aria-expanded={touchActionsOpen}
+        aria-controls={touchActionsId} onClick={() => setTouchActionsOpen((open) => !open)}>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+          <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
+        </svg>
+      </button>
+      <div id={touchActionsId} data-touch-open={touchActionsOpen}
+        className="creator-chat-message-actions" role="group" aria-label={`Actions for message by ${m.authorName}`}>
       {m.canReply && <div className="creator-chat-quick-reactions" role="group" aria-label="Quick reactions">
         {sixRecentEmojis.slice(0, 3).map((emoji) => <button key={emoji} type="button" disabled={busy}
           title={emojiLabel(emoji)} aria-label={`React with ${emojiLabel(emoji)}`}
@@ -267,7 +309,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         </div>, popupHost)}
       </div>
       {busy && <span role="status">Saving…</span>}
-    </div>}
+    </div></>}
     {pickerOpen && pickerHost && m.canReply && createPortal(
       <div id={pickerId} ref={pickerRef} className="creator-chat-emoji-popover"
         style={pickerPosition} role="dialog" aria-label="Choose reaction emoji"

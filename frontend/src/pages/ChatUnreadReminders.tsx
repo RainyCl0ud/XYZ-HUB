@@ -7,7 +7,7 @@ type ReminderHistory = {
     previewEmail: { to: string; subject: string; text: string } | null }[];
 };
 const time = (value: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(value));
-const statusLabel: Record<string, string> = { SENDING: 'Sending email', SENT: 'Email sent', CAPTURED: 'Preview saved · no email sent', SKIPPED: 'Email skipped', REVIEW: 'Delivery needs review · reminders paused' };
+const statusLabel: Record<string, string> = { SENDING: 'Sending email', SENT: 'Email sent', CAPTURED: 'Preview saved', SKIPPED: 'Email skipped', REVIEW: 'Delivery needs review · reminders paused' };
 
 export default function ChatUnreadReminders({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), controller = useRef<AbortController | null>(null);
@@ -22,7 +22,7 @@ export default function ChatUnreadReminders({ onClose }: { onClose: () => void }
   }, []);
   useEffect(() => { dialog.current?.showModal(); const initial = setTimeout(() => void refresh(), 0); return () => { clearTimeout(initial); controller.current?.abort(); }; }, [refresh]);
   const deliverySummary = data?.emailMode === 'capture'
-    ? 'Email previews only'
+    ? 'Preview mode'
     : data?.emailMode === 'gmail' ? 'Reminders on for test recipients' : 'Reminders off';
 
   return <dialog ref={dialog} className="creator-chat-settings creator-chat-reminder-dialog" aria-labelledby="chat-reminder-title" onCancel={onClose}>

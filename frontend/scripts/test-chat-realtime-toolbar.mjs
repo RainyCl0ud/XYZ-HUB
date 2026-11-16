@@ -79,7 +79,7 @@ assert.ok(message.includes('aria-pressed={reactions.some'));
 pass("Reaction picker uses the existing API with correct state, pending and error guards.");
 
 assert.ok(css.includes('creator-chat .creator-chat-message:hover .creator-chat-message-actions'));
-assert.ok(css.includes('creator-chat .creator-chat-message:focus-within .creator-chat-message-actions'));
+assert.ok(css.includes('creator-chat .creator-chat-message-actions:focus-within'));
 assert.ok(css.includes('@media (hover: none), (pointer: coarse)'));
 assert.ok(css.includes('creator-chat-toolbar-emoji-trigger[aria-expanded="true"]'));
 assert.ok(css.includes('border-radius: 0;'));
