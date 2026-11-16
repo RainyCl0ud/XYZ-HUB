@@ -563,6 +563,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
     const main = shell?.closest<HTMLElement>(".main-content");
     const section = shell?.closest<HTMLElement>(".creator-chat");
     if (!shell || !main || !section) return;
+    // Do not inherit the previous route's page scroll when entering Chat.
+    if (main.scrollTop) main.scrollTop = 0;
     const heading = section.querySelector<HTMLElement>(".creator-chat-heading");
     let raf = 0;
     const measure = () => {
