@@ -76,6 +76,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [voiceMaxSeconds, setVoiceMaxSeconds] = useState(0);
   const [areas, setAreas] = useState<Area[]>([]);
   const [selected, setSelected] = useState("");
+  const chatShellRef = useRef<HTMLDivElement>(null);
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [draft, setDraft] = useState("");
@@ -554,6 +555,56 @@ function ChatWorkspace({ userId }: { userId: string }) {
       {c.archived && <span className="creator-chat-row-badge">Archived</span>}
     </button>;
   }
+  // Chat owns its vertical space inside the fixed Hub shell, rather than
+  // guessing how many pixels its header, notices and action row consume.
+  // The page itself must not scroll: only the conversations/messages do.
+  useLayoutEffect(() => {
+    const shell = chatShellRef.current;
+    const main = shell?.closest<HTMLElement>(".main-content");
+    const section = shell?.closest<HTMLElement>(".creator-chat");
+    if (!shell || !main || !section) return;
+    const heading = section.querySelector<HTMLElement>(".creator-chat-heading");
+    let raf = 0;
+    const measure = () => {
+      const shellTop = shell.getBoundingClientRect().top;
+      const mainBottom = main.getBoundingClientRect().bottom;
+      const sectionBottomPadding = Number.parseFloat(getComputedStyle(section).paddingBottom) || 0;
+      // Do not force the legacy 430px min-height when space is tight.
+      const available = Math.max(0, Math.floor(mainBottom - shellTop - sectionBottomPadding - 2));
+      if (shell.style.height !== `${available}px`) shell.style.height = `${available}px`;
+      const anchor = shell.querySelector<HTMLElement>(".creator-chat-live-panel-anchor");
+      const conversation = shell.querySelector<HTMLElement>(".creator-chat-conversation");
+      const header = conversation?.querySelector<HTMLElement>(".creator-chat-channel-header");
+      if (anchor && conversation && header) {
+        const rect = conversation.getBoundingClientRect();
+        const top = Math.min(window.innerHeight - 80, Math.max(0, Math.round(header.getBoundingClientRect().bottom)));
+        const width = Math.min(428, Math.max(0, rect.width - 16), window.innerWidth - 16);
+        const left = Math.max(8, Math.min(Math.round(rect.right - width - 10), window.innerWidth - width - 8));
+        // Write only when changed to avoid ResizeObserver layout loops.
+        if (anchor.style.top !== `${top}px`) anchor.style.top = `${top}px`;
+        if (anchor.style.left !== `${left}px`) anchor.style.left = `${left}px`;
+        if (anchor.style.width !== `${width}px`) anchor.style.width = `${width}px`;
+      }
+    };
+    const schedule = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    };
+    measure();
+    const observer = new ResizeObserver(schedule);
+    observer.observe(main);
+    observer.observe(section);
+    if (heading) observer.observe(heading);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
+    return () => {
+      cancelAnimationFrame(raf); observer.disconnect();
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      shell.style.removeProperty("height");
+    };
+  }, [loading, areas.length, canAnnounce, remindersEnabled, inlineDiscoveryOpen, showChatOptions]);
+
   const toolView = tools ? <ChatMessageTools recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
   return (
     <section className="creator-chat" aria-label="Chat workspace">
@@ -576,7 +627,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
       {showReminders && <ChatUnreadReminders onClose={() => setShowReminders(false)} />}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
-        <div className={`creator-chat-shell ${showChannels ? "is-browsing" : ""} ${settings ? "is-settings" : ""}`}>
+        <div ref={chatShellRef} className={`creator-chat-shell ${showChannels ? "is-browsing" : ""} ${settings ? "is-settings" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">
             <div className="creator-chat-browse-tools">
               <div className="creator-chat-channel-heading"><strong>Conversations</strong><button type="button" className="creator-chat-mobile" onClick={() => setShowChannels(false)} aria-label="Back to conversation"><ChatIcon name="close" /></button></div>
