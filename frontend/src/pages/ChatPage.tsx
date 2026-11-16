@@ -84,6 +84,10 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [edit, setEdit] = useState<Message | null>(null);
   const [reply, setReply] = useState<Message | null>(null);
   const [tools, setTools] = useState<ChatToolTarget | null>(null);
+  const [jumpTarget, setJumpTarget] = useState<{ channelId: string; messageId: string } | null>(null);
+  const [jumpHighlight, setJumpHighlight] = useState<string | null>(null);
+  const [viewingOlderJump, setViewingOlderJump] = useState(false);
+  const jumpFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [recentEmojis, setRecentEmojis] = useState(() => loadRecentEmojis(userId));
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
@@ -224,6 +228,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
     pendingSend.current = null;
     followMessages.current = true;
     earlierScroll.current = null;
+    setViewingOlderJump(false); setJumpHighlight(null);
+    if (jumpFlashTimer.current) clearTimeout(jumpFlashTimer.current);
   }, [userId]);
 
   function openConversation(id: string) {
@@ -237,6 +243,21 @@ function ChatWorkspace({ userId }: { userId: string }) {
       }, { replace: true });
     }
     chooseChannel(id);
+  }
+
+  function jumpToMessage(channelId: string, messageId: string) {
+    if (!channelId || !messageId) return;
+    followMessages.current = false;
+    setJumpHighlight(null);
+    setJumpTarget({ channelId, messageId });
+    setTools(null); setToolsNotice("");
+    if (selectedRef.current !== channelId) openConversation(channelId);
+  }
+  function jumpToLatest() {
+    followMessages.current = true;
+    setViewingOlderJump(false); setJumpTarget(null);
+    setTranscript(null);
+    setRefreshTick((v) => v + 1);
   }
 
   function openChannelSettings(next: { modelId: string; channelId?: string; name: string }) {
@@ -452,6 +473,59 @@ function ChatWorkspace({ userId }: { userId: string }) {
     } else if (followMessages.current) pane.scrollTop = pane.scrollHeight;
   }, [transcript]);
 
+  // An in-view target needs no extra network call. Never scroll the outer Hub
+  // page: only move the Chat transcript pane and briefly highlight its row.
+  useLayoutEffect(() => {
+    if (!jumpTarget || selected !== jumpTarget.channelId || !transcript?.messages.some((m) => m.id === jumpTarget.messageId)) return;
+    const pane = messagePane.current;
+    const node = pane && Array.from(pane.querySelectorAll<HTMLElement>("[data-chat-message-id]"))
+      .find((el) => el.dataset.chatMessageId === jumpTarget.messageId);
+    if (!pane || !node) return;
+    followMessages.current = false;
+    const paneBox = pane.getBoundingClientRect();
+    const box = node.getBoundingClientRect();
+    const desiredTop = pane.scrollTop + box.top - paneBox.top - (pane.clientHeight - box.height) / 2;
+    pane.scrollTo({ top: Math.max(0, desiredTop), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    setJumpHighlight(jumpTarget.messageId);
+    setJumpTarget(null);
+    if (jumpFlashTimer.current) clearTimeout(jumpFlashTimer.current);
+    jumpFlashTimer.current = setTimeout(() => { setJumpHighlight(null); jumpFlashTimer.current = null; }, 2700);
+  }, [jumpTarget, selected, transcript]);
+
+  const transcriptLoaded = !!transcript;
+  useEffect(() => {
+    if (!jumpTarget || selected !== jumpTarget.channelId || !transcriptLoaded) return;
+    if (transcriptRef.current?.messages.some((m) => m.id === jumpTarget.messageId)) return;
+    const controller = new AbortController();
+    const destination = jumpTarget;
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const context = await apiRequest<{
+            messages: Message[]; hasMore: boolean; nextBefore: string | null; hasNewer: boolean;
+          }>(`/api/chat/channels/${encodeURIComponent(destination.channelId)}/messages/${encodeURIComponent(destination.messageId)}/context`,
+            { signal: controller.signal });
+          if (controller.signal.aborted || selectedRef.current !== destination.channelId) return;
+          messageRevision.current++;
+          followMessages.current = false;
+          earlierScroll.current = null;
+          setViewingOlderJump(true);
+          // The context API applies the same role/deletion checks as the
+          // transcript. Never merge in cached records from another channel.
+          setTranscript((old) => old ? { ...old, messages: context.messages,
+            hasMore: context.hasMore, nextBefore: context.nextBefore } : old);
+        } catch (err) {
+          if (!controller.signal.aborted && selectedRef.current === destination.channelId) {
+            setJumpTarget(null);
+            setNotice("That message is unavailable or you no longer have access to it.");
+          }
+        }
+      })();
+    }, 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [jumpTarget, selected, transcriptLoaded]);
+  useEffect(() => () => { if (jumpFlashTimer.current) clearTimeout(jumpFlashTimer.current); }, []);
+
   function followLoadedPreview() {
     const pane = messagePane.current;
     if (pane && followMessages.current) pane.scrollTop = pane.scrollHeight;
@@ -611,7 +685,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     };
   }, [loading, areas.length, canAnnounce, remindersEnabled, inlineDiscoveryOpen, showChatOptions, notice, error]);
 
-  const toolView = tools ? <ChatMessageTools recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
+  const toolView = tools ? <ChatMessageTools recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onJumpToMessage={jumpToMessage} inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
   return (
     <section className="creator-chat" aria-label="Chat workspace">
       <h1 className="creator-chat-sr">Chat</h1>
@@ -697,16 +771,17 @@ function ChatWorkspace({ userId }: { userId: string }) {
             {(!!channel?.unreadCount || readError) && <div className="creator-chat-read-status"><span role="status">{readError || `${channel?.unreadCount} unread · Messages clear as you view them.`}</span>{!!channel?.unreadCount && <button type="button" disabled={markingRead || !transcript?.messages.length} title="Mark all messages read up to the latest loaded message, including earlier history." onClick={() => void markConversationRead()}>{markingRead ? "Saving…" : "Mark conversation read"}</button>}</div>}
             <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
               {!transcript ? <p role="status">Loading messages…</p> : <>
+                {viewingOlderJump && <button type="button" className="creator-chat-return-latest" onClick={jumpToLatest}>Return to latest messages</button>}
                 {transcript.hasMore && <button className="creator-chat-load-older" type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load earlier messages"}</button>}
                 {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p><button type="button" onClick={() => setShowMembers(true)}>View members</button></div>}
                 {transcript.messages.map((m, index) => <Fragment key={m.id}>
                   {(index === 0 || day(transcript.messages[index - 1].createdAt) !== day(m.createdAt)) && <div className="creator-chat-day"><span>{day(m.createdAt)}</span></div>}
-                  <article className={`creator-chat-message ${m.deleted ? "is-deleted-message" : ""} ${!m.deleted && (m.replyTo || m.replyUnavailable) ? "has-reply" : ""}`} data-chat-message-id={m.id} tabIndex={m.deleted ? undefined : 0}
+                  <article className={`creator-chat-message ${m.deleted ? "is-deleted-message" : ""} ${!m.deleted && (m.replyTo || m.replyUnavailable) ? "has-reply" : ""} ${jumpHighlight === m.id ? "is-jump-highlight" : ""}`} data-chat-message-id={m.id} tabIndex={m.deleted ? undefined : 0}
                     onPointerDown={(event) => {
                       if (event.pointerType !== "touch" || !(event.target instanceof Element)) return;
                       if (event.target.closest("button, a, input, textarea, select, summary")) return;
                       event.currentTarget.focus({ preventScroll: true });
-                    }}><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onReply={(message) => startReply(selected, message)} onEdit={startEdit} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => setTools({ kind: "message", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onPreviewLoad={followLoadedPreview} /></article>
+                    }}><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onReply={(message) => startReply(selected, message)} onEdit={startEdit} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => jumpToMessage(selected, messageId)} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onPreviewLoad={followLoadedPreview} /></article>
                 </Fragment>)}
               </>}
             </div>
