@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { API_BASE_URL, apiRequest } from "../lib/api";
+import { formatCentralMessageTime } from "../lib/central-time";
 import ChatVoicePlayback from "./ChatVoicePlayback";
 import { CHAT_EMOJI_OPTIONS, CHAT_RECENT_EMOJI_LIMIT, emojiLabel, normalizeRecentEmojis } from "../lib/chat-reaction-emojis";
 
@@ -17,9 +18,7 @@ export type ChatMessage = {
 };
 // Dates are already shown by conversation day dividers. Keep individual
 // message timestamps compact, like Discord, without repeating the month.
-const chatTime = (value: string) => new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Chicago", hour: "numeric", minute: "2-digit",
-}).format(new Date(value));
+const chatTime = formatCentralMessageTime;
 const palette = CHAT_EMOJI_OPTIONS;
 const errorText = (e: unknown) => e instanceof Error ? e.message : "Unable to load messages. Please try again.";
 export type ChatToolTarget = { kind: "search" | "pins" | "deleted"; channelId: string; channelName: string } |
