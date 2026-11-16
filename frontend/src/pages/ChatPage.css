@@ -1703,7 +1703,7 @@
 }
 .creator-chat .creator-chat-live-panel > header {
   position: sticky;
-  top: -16px;
+  top: 0;
   z-index: 2;
   min-height: 45px;
   margin: -2px 0 10px;
@@ -1779,5 +1779,5 @@
     max-height: none;
     padding: 12px;
   }
-  .creator-chat .creator-chat-live-panel > header { top: -12px; }
+  .creator-chat .creator-chat-live-panel > header { top: 0; }
 }
