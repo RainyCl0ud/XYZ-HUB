@@ -191,26 +191,28 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   const attachmentPath = `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(m.id)}`;
   const voiceDuration = m.attachment?.voiceDurationMs;
   return <div className={`creator-chat-message-content ${m.deleted ? (deletedExpanded ? "is-deleted is-expanded" : "is-deleted is-collapsed") : ""}`}>
+    {m.deleted && <header className="creator-chat-deleted-author">
+      <strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>
+    </header>}
     {m.deleted && <button type="button" className="creator-chat-deleted-toggle"
-      aria-expanded={deletedExpanded} onClick={() => setDeletedExpanded((open) => !open)}>Deleted Messages</button>}
+      aria-expanded={deletedExpanded} onClick={() => setDeletedExpanded((open) => !open)}>Deleted Message</button>}
     {(!m.deleted || deletedExpanded) && <>
     {m.replyUnavailable && <p className="creator-chat-unavailable">Original message unavailable.</p>}
     {m.replyTo && <button type="button" className="creator-chat-quote" onClick={() => onOpen(m.replyTo!.id)} aria-label={`View original message by ${m.replyTo.authorName}`}>
       <strong>Reply to {m.replyTo.authorName}{m.replyTo.deleted ? " · Deleted" : ""}{m.replyTo.version > 1 ? " · edited" : ""}</strong><span>{m.replyTo.text}</span>
     </button>}
-    <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>
-    {m.deleted && <div className="creator-chat-deleted-notice"><strong>Deleted · Owner view</strong><p>Deleted by {m.deleted.by} · {chatTime(m.deleted.at)}</p><p>Reason: {m.deleted.reason}</p></div>}
+    {!m.deleted && <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>}
     {m.pinnedAt && <small className="creator-chat-pin-label">Pinned by {m.pinnedByName}</small>}
     {m.text && <p>{m.text}</p>}
     {m.attachment && <>
       {m.attachment.available && m.attachment.canPreview && <ChatImagePreview
         key={attachmentPath} src={`${attachmentPath}/preview`} fileName={m.attachment.fileName} onLoad={onPreviewLoad}
       />}
-      <div className={`creator-chat-file ${voiceDuration ? "is-voice" : ""}`}>
-        {!voiceDuration && <><strong>{m.attachment.fileName}</strong><small>{m.attachment.byteSize.toLocaleString()} bytes</small></>}
+      {(!m.deleted || !m.attachment.canPreview || !m.attachment.available || !!voiceDuration) && <div className={`creator-chat-file ${voiceDuration ? "is-voice" : ""}`}>
+        {!voiceDuration && <><strong>{m.attachment.fileName}</strong>{!m.deleted && <small>{m.attachment.byteSize.toLocaleString()} bytes</small>}</>}
         {m.attachment.available && !!voiceDuration && <ChatVoicePlayback key={attachmentPath} src={`${attachmentPath}/voice`} durationMs={voiceDuration} />}
         {!m.attachment.available && <small className="creator-chat-file-unavailable">File unavailable</small>}
-      </div>
+      </div>}
     </>}
     {!!reactions.length && <div className="creator-chat-reactions" aria-label="Message reactions">{reactions.map((r) => m.canReply ?
       <button type="button" key={r.emoji} aria-pressed={r.mine} aria-label={`${palette.find(([emoji]) => emoji === r.emoji)?.[1] ?? "Reaction"}: ${r.count}${r.mine ? ", yours; remove reaction" : "; add reaction"}`} disabled={busy}
