@@ -208,7 +208,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       {m.attachment.available && m.attachment.canPreview && <ChatImagePreview
         key={attachmentPath} src={`${attachmentPath}/preview`} fileName={m.attachment.fileName} onLoad={onPreviewLoad}
       />}
-      {(!m.deleted || !m.attachment.canPreview || !m.attachment.available || !!voiceDuration) && <div className={`creator-chat-file ${voiceDuration ? "is-voice" : ""}`}>
+      {(!m.attachment.canPreview || !m.attachment.available || !!voiceDuration) && <div className={`creator-chat-file ${voiceDuration ? "is-voice" : ""}`}>
         {!voiceDuration && <><strong>{m.attachment.fileName}</strong>{!m.deleted && <small>{m.attachment.byteSize.toLocaleString()} bytes</small>}</>}
         {m.attachment.available && !!voiceDuration && <ChatVoicePlayback key={attachmentPath} src={`${attachmentPath}/voice`} durationMs={voiceDuration} />}
         {!m.attachment.available && <small className="creator-chat-file-unavailable">File unavailable</small>}
