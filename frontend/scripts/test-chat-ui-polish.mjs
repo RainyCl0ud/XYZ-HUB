@@ -33,7 +33,7 @@ assert.ok(page.includes('<span>Search</span>'));
 assert.ok(page.includes('aria-controls="chat-discovery-panel"'));
 assert.ok(page.includes('creator-chat-live-panel-anchor'));
 assert.ok(page.includes('inline={inlineDiscoveryOpen}'));
-assert.ok(tools.includes('className="creator-chat-live-panel creator-chat-tools"'));
+assert.ok(tools.includes('className={`creator-chat-live-panel creator-chat-tools ${target.kind === "pins" ? "is-pins" : "is-search"}`}'));
 assert.ok(tools.includes('return inline'));
 pass("Search and Pins open anchored, in-context flyouts rather than modal dialogs.");
 
