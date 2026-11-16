@@ -54,8 +54,8 @@ try {
   assert.ok(!retainedFile.includes("/preview"));
   assert.ok(!retainedFile.includes("/file"));
   assert.ok(!retainedFile.includes("creator-chat-image-preview"));
-  assert.ok((await read("src/pages/ChatMessageTools.tsx")).includes('(!m.deleted || !m.attachment.canPreview || !m.attachment.available || !!voiceDuration)'));
-  pass("Retained image previews load only when expanded and hide redundant filenames and file sizes.");
+  assert.ok((await read("src/pages/ChatMessageTools.tsx")).includes('(!m.attachment.canPreview || !m.attachment.available || !!voiceDuration)'));
+  pass("Retained image previews load only when expanded; previewable images omit redundant filenames and sizes.");
 
   const normal = render({ ...base, deleted: null });
   assert.ok(normal.includes("Confidential retained message body"));
