@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js";
 import { createRateLimit } from "../middleware/rate-limit.js";
 import { ChatError, chatGrantOptions, editChatMessage, isCreatorChatEnabled, listChatAreas, listChatMembers, listChatMessages, sendChatMessage, setChatGrant } from "../services/creator-chat.js";
-import { getChatMessage, refreshChatMessages, searchChatMessages, listChatPins, setChatPin, setChatReaction } from "../services/creator-chat.js";
+import { getChatMessage, getChatMessageContext, refreshChatMessages, searchChatMessages, listChatPins, setChatPin, setChatReaction } from "../services/creator-chat.js";
 import { archiveChatChannel, cleanUpChatChannel, createChatChannel, renameChatChannel } from "../services/creator-chat.js";
 import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } from "../services/creator-chat.js";
 import { getChatQuarantine, setChatQuarantine } from "../services/creator-chat.js";
@@ -317,6 +317,9 @@ router.get("/channels/:channelId/pins", run(async (req, res) => res.json(await l
 router.get("/channels/:channelId/messages/refresh", run(async (req, res) => {
   const input = z.object({ ids: z.string().min(1).max(10100) }).strict().parse(req.query);
   res.json(await refreshChatMessages(user(req), param(req, "channelId"), input.ids.split(",")));
+}));
+router.get("/channels/:channelId/messages/:messageId/context", run(async (req, res) => {
+  res.json(await getChatMessageContext(user(req), param(req, "channelId"), param(req, "messageId")));
 }));
 router.get("/channels/:channelId/messages/:messageId", run(async (req, res) => res.json({ message: await getChatMessage(user(req), param(req, "channelId"), param(req, "messageId")) })));
 router.get("/channels/:channelId/deleted", run(async (req, res) => res.json(await listDeletedChatMessages(user(req), param(req, "channelId"), pageSchema.parse(req.query).before))));
