@@ -477,19 +477,24 @@ function ChatWorkspace({ userId }: { userId: string }) {
   // page: only move the Chat transcript pane and briefly highlight its row.
   useLayoutEffect(() => {
     if (!jumpTarget || selected !== jumpTarget.channelId || !transcript?.messages.some((m) => m.id === jumpTarget.messageId)) return;
-    const pane = messagePane.current;
-    const node = pane && Array.from(pane.querySelectorAll<HTMLElement>("[data-chat-message-id]"))
-      .find((el) => el.dataset.chatMessageId === jumpTarget.messageId);
-    if (!pane || !node) return;
-    followMessages.current = false;
-    const paneBox = pane.getBoundingClientRect();
-    const box = node.getBoundingClientRect();
-    const desiredTop = pane.scrollTop + box.top - paneBox.top - (pane.clientHeight - box.height) / 2;
-    pane.scrollTo({ top: Math.max(0, desiredTop), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-    setJumpHighlight(jumpTarget.messageId);
-    setJumpTarget(null);
-    if (jumpFlashTimer.current) clearTimeout(jumpFlashTimer.current);
-    jumpFlashTimer.current = setTimeout(() => { setJumpHighlight(null); jumpFlashTimer.current = null; }, 2700);
+    const destinationId = jumpTarget.messageId;
+    const frame = requestAnimationFrame(() => {
+      const pane = messagePane.current;
+      const node = pane && Array.from(pane.querySelectorAll<HTMLElement>("[data-chat-message-id]"))
+        .find((el) => el.dataset.chatMessageId === destinationId);
+      if (!pane || !node) return;
+      followMessages.current = false;
+      const paneBox = pane.getBoundingClientRect();
+      const box = node.getBoundingClientRect();
+      const desiredTop = pane.scrollTop + box.top - paneBox.top - (pane.clientHeight - box.height) / 2;
+      pane.scrollTo({ top: Math.max(0, desiredTop),
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      setJumpHighlight(destinationId);
+      setJumpTarget(null);
+      if (jumpFlashTimer.current) clearTimeout(jumpFlashTimer.current);
+      jumpFlashTimer.current = setTimeout(() => { setJumpHighlight(null); jumpFlashTimer.current = null; }, 2700);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [jumpTarget, selected, transcript]);
 
   const transcriptLoaded = !!transcript;
