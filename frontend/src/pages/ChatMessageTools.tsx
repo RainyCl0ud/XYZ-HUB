@@ -319,7 +319,7 @@ type ToolState = { query: string; scope: string; submitted: SearchSubmission; cu
 type ToolProps = {
   inline?: boolean;
   target: ChatToolTarget; onClose: () => void; onOpen: (target: ChatToolTarget) => void;
-  onConversation: (channelId: string) => void; onReply: (channelId: string, message: ChatMessage) => void;
+  onConversation: (channelId: string) => void; onJumpToMessage: (channelId: string, messageId: string) => void; onReply: (channelId: string, message: ChatMessage) => void;
   onChanged: (channelId: string, message: ChatMessage) => void;
   onModerate: (channelId: string, message: ChatMessage) => void;
   notice?: string; revision?: number; paused?: boolean;
@@ -336,7 +336,7 @@ export default function ChatMessageTools(props: Omit<ToolProps, "onOpen">) {
     onOpen={(target, saved) => setTrail((old) => [...old.slice(0, -1), { ...old[old.length - 1], saved }, { target }])} />;
 }
 
-function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChanged, onModerate, saved, backLabel, onBack, notice, revision: parentRevision, paused, inline = false, recentEmojis, onReactionSelected }: Omit<ToolProps, "onOpen"> & {
+function ChatToolView({ target, onClose, onOpen, onConversation, onJumpToMessage, onReply, onChanged, onModerate, saved, backLabel, onBack, notice, revision: parentRevision, paused, inline = false, recentEmojis, onReactionSelected }: Omit<ToolProps, "onOpen"> & {
   saved?: ToolState; backLabel?: string; onBack: () => void; onOpen: (target: ChatToolTarget, state: ToolState) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -348,6 +348,8 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
   const [cursors, setCursors] = useState<string[]>(saved?.cursors ?? []);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [pins, setPins] = useState<ChatMessage[]>([]);
+  const [confirmUnpin, setConfirmUnpin] = useState<string | null>(null);
+  const [unpinBusy, setUnpinBusy] = useState(false);
   const [message, setMessage] = useState<ChatMessage | null>(null);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
@@ -466,6 +468,19 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
       onOpen={(messageId) => navigate({ kind: "message", channelId, channelName, messageId })} onError={(e) => { setActionError(errorText(e)); setRevision((v) => v + 1); }}
       onModerate={(m) => onModerate(channelId, m)} onHistory={target.kind === "history" ? undefined : (messageId) => navigate({ kind: "history", channelId, channelName, messageId })} />;
   }
+  async function removePin(value: ChatMessage) {
+    if (!value.canPin || unpinBusy || !value.pinnedAt) return;
+    setUnpinBusy(true); setActionError("");
+    try {
+      const response = await apiRequest<{ message: ChatMessage }>(
+        `/api/chat/channels/${encodeURIComponent(target.channelId)}/messages/${encodeURIComponent(value.id)}/pin`,
+        { method: "PUT", body: JSON.stringify({ pinned: false, version: value.pinVersion }) });
+      changed(target.channelId, response.message);
+      setConfirmUnpin(null);
+    } catch (err) {
+      setActionError(errorText(err)); setRevision((v) => v + 1);
+    } finally { setUnpinBusy(false); }
+  }
   const body = <>
     <header><h2 id="chat-tools-title">{target.kind === "search" ? "Search messages" : target.kind === "pins" ? "Pinned messages" : target.kind === "deleted" ? "Deleted messages · Owner view" : target.kind === "history" ? "Message history · Owner view" : "Message"}</h2><button type="button" className="creator-chat-live-close" onClick={onClose}>Close</button></header>
     {backLabel && <button type="button" className="creator-chat-back" onClick={onBack}>← {backLabel}</button>}
@@ -485,21 +500,49 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
             strokeLinecap="round"><path d="M6 6 18 18M18 6 6 18" /></svg>
         </button>}
       </div>
-      <label htmlFor="chat-search-scope">Search in</label><div><select id="chat-search-scope" value={scope} onChange={(e) => { invalidateSearch(); setScope(e.target.value); }}><option value="conversation">This conversation</option><option value="all">All my conversations</option></select><button type="submit" disabled={query.trim().length < 2}>Go</button></div>
+      <label htmlFor="chat-search-scope">Search in</label><div><select id="chat-search-scope" value={scope} onChange={(e) => { invalidateSearch(); setScope(e.target.value); }}><option value="conversation">Current conversation</option><option value="all">All conversations I can access</option></select><button type="submit" disabled={query.trim().length < 2}>Go</button></div>
     </form>}
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
     {actionError && <p className="creator-chat-error" role="alert">{actionError}</p>}
     {busy && !loaded && <p role="status">Loading messages…</p>}
     {target.kind === "search" && !submitted && <p className="creator-chat-search-hint">Type at least 2 characters to search messages.</p>}
-    {target.kind === "search" && loaded && !error && <><p role="status">{results.length ? `Showing ${results.length}${nextBefore ? "+" : ""} matching messages for “${submitted?.q}”.` : "No matching messages in your current conversations."}</p>{results.map((r) => <article className="creator-chat-tool-result" key={r.message.id}><small>{r.areaName} / {r.channelName}{r.isPrivate ? " · Private" : ""}{r.message.deleted ? " · Deleted · Owner view" : ""}</small><strong>{r.message.authorName} · {chatTime(r.message.createdAt)}</strong><p>{r.message.text}</p><button type="button" onClick={() => navigate({ kind: "message", channelId: r.channelId, channelName: `${r.areaName} / ${r.channelName}`, messageId: r.message.id })}>View message</button></article>)}</>}
-    {(target.kind === "pins" || target.kind === "deleted") && loaded && !error && <>{!pins.length && <p>{target.kind === "pins" ? "No pinned messages yet." : "No deleted messages in this conversation."}</p>}{pins.map((m) => <article className="creator-chat-tool-result" key={m.id}>{content(m, target.channelId, target.channelName)}<button type="button" onClick={() => navigate({ kind: "message", channelId: target.channelId, channelName: target.channelName, messageId: m.id })}>View message</button></article>)}</>}
+    {target.kind === "search" && loaded && !error && <><p role="status">{results.length ? `Showing ${results.length}${nextBefore ? "+" : ""} matching messages for “${submitted?.q}”.` : "No matching messages in your current conversations."}</p>{results.map((r) => <article className="creator-chat-tool-result" key={r.message.id}><small>{r.areaName} / {r.channelName}{r.isPrivate ? " · Private" : ""}{r.message.deleted ? " · Deleted · Owner view" : ""}</small><strong>{r.message.authorName} · {chatTime(r.message.createdAt)}</strong><p>{r.message.text}</p><button type="button" onClick={() => onJumpToMessage(r.channelId, r.message.id)}>Jump to message</button></article>)}</>}
+    {target.kind === "pins" && loaded && !error && <div className="creator-chat-pin-list" role="list" aria-label="Pinned messages">
+      {!pins.length && <p>No pinned messages yet.</p>}
+      {pins.map((m) => <article className="creator-chat-pin-card" role="listitem" key={m.id}>
+        <div className="creator-chat-pin-card-head">
+          <span className="creator-chat-pin-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</span>
+          <div className="creator-chat-pin-identity">
+            <strong>{m.authorName}</strong>
+            <time dateTime={m.createdAt}>{new Intl.DateTimeFormat("en-US", {
+              timeZone: CENTRAL_TIME_ZONE, month: "short", day: "numeric", year: "numeric",
+              hour: "numeric", minute: "2-digit",
+            }).format(new Date(m.createdAt))}</time>
+          </div>
+          {m.canPin && <button type="button" className="creator-chat-pin-remove"
+            aria-label={`Remove pinned message by ${m.authorName}`}
+            title="Remove pin" disabled={unpinBusy}
+            onClick={() => setConfirmUnpin(confirmUnpin === m.id ? null : m.id)}>×</button>}
+        </div>
+        <p className="creator-chat-pin-excerpt">{m.deleted ? "Deleted message" : m.text || (m.attachment?.fileName ?? "Attachment")}</p>
+        <div className="creator-chat-pin-card-actions">
+          <button type="button" onClick={() => onJumpToMessage(target.channelId, m.id)}>Jump</button>
+          {confirmUnpin === m.id && <div className="creator-chat-pin-confirm" role="group" aria-label="Confirm unpin">
+            <span>Unpin this message?</span>
+            <button type="button" disabled={unpinBusy} onClick={() => void removePin(m)}>{unpinBusy ? "Removing…" : "Confirm"}</button>
+            <button type="button" disabled={unpinBusy} onClick={() => setConfirmUnpin(null)}>Cancel</button>
+          </div>}
+        </div>
+      </article>)}
+    </div>}
+    {target.kind === "deleted" && loaded && !error && <>{!pins.length && <p>No deleted messages in this conversation.</p>}{pins.map((m) => <article className="creator-chat-tool-result" key={m.id}>{content(m, target.channelId, target.channelName)}<button type="button" onClick={() => navigate({ kind: "message", channelId: target.channelId, channelName: target.channelName, messageId: m.id })}>View message</button></article>)}</>}
     {(target.kind === "message" || target.kind === "history") && message && <article className="creator-chat-tool-result">{target.kind === "history" ? <details className="creator-chat-record-preview"><summary>{message.deleted ? "Retained message" : "Current message"} · {message.authorName}</summary>{content(message, target.channelId, target.channelName)}</details> : content(message, target.channelId, target.channelName)}<button type="button" onClick={() => onConversation(target.channelId)}>Go to latest conversation</button></article>}
     {target.kind === "history" && !error && loaded && <div className="creator-chat-revision-list"><h3>Activity history</h3>{!history.length && <p>No recorded history is available for this message.</p>}{history.map((event) => <article key={event.id}><header><strong>{event.action === "chat.message.send" ? "Sent" : event.action === "chat.message.edit" ? "Edited" : "Deleted"} · {event.actorName}</strong><time dateTime={event.occurredAt}>{chatTime(event.occurredAt)}</time></header>{event.beforeText !== null && <div><strong>{event.action === "chat.message.delete" ? "Retained text" : "Before"}</strong><p>{event.beforeText}</p></div>}{event.afterText !== null && <div><strong>{event.action === "chat.message.send" ? "Original text" : "After"}</strong><p>{event.afterText}</p></div>}{event.reason && <p>Reason: {event.reason}</p>}</article>)}</div>}
     {nextBefore && <button type="button" disabled={busy} onClick={() => setCursors((old) => [...old, nextBefore])}>Load more</button>}
     {error && <button type="button" onClick={() => { setCursors([]); setRevision((v) => v + 1); }}>Refresh messages</button>}
   </>;
   return inline
-    ? <aside ref={inlinePanel} className="creator-chat-live-panel creator-chat-tools" aria-labelledby="chat-tools-title"
+    ? <aside ref={inlinePanel} className={`creator-chat-live-panel creator-chat-tools ${target.kind === "pins" ? "is-pins" : "is-search"}`} aria-labelledby="chat-tools-title"
         onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}>{body}</aside>
     : <dialog ref={dialog} className="creator-chat-settings creator-chat-tools" aria-labelledby="chat-tools-title" onCancel={onClose}>{body}</dialog>;
 }
