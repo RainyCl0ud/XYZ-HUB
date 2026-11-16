@@ -49,7 +49,7 @@ assert.ok(page.includes('onJumpToMessage(r.channelId, r.message.id)') === false)
 pass("Quoted messages and discovered messages route through the same real transcript jump handler.");
 
 assert.ok(page.includes('pane.scrollTo({ top: Math.max(0, desiredTop)'));
-assert.ok(page.includes('setJumpHighlight(jumpTarget.messageId)'));
+assert.ok(page.includes('setJumpHighlight(destinationId)'));
 assert.ok(page.includes('setJumpTarget(null)'));
 assert.ok(page.includes('className={\`creator-chat-message'));
 assert.ok(page.includes('jumpHighlight === m.id ? "is-jump-highlight" : ""'));
