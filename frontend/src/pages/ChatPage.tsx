@@ -608,7 +608,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       main.removeEventListener("scroll", schedule);
       shell.style.removeProperty("height");
     };
-  }, [loading, areas.length, canAnnounce, remindersEnabled, inlineDiscoveryOpen, showChatOptions]);
+  }, [loading, areas.length, canAnnounce, remindersEnabled, inlineDiscoveryOpen, showChatOptions, notice, error]);
 
   const toolView = tools ? <ChatMessageTools recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
   return (
