@@ -126,7 +126,7 @@ try {
   assert.ok(css.includes('/* Touch: tapping/focusing a message exposes a floating toolbar.'));
   assert.ok(css.includes('position: absolute;\n    z-index: 8;\n    top: -9px;'));
   assert.ok(css.includes('pointer-events: none;'));
-  assert.ok(css.includes('.creator-chat-message:focus-within .creator-chat-message-actions'));
+  assert.ok(css.includes('.creator-chat-message-actions[data-touch-open="true"]'));
   assert.ok(chat.includes('event.pointerType !== "touch"'));
   assert.ok(chat.includes('event.currentTarget.focus({ preventScroll: true })'));
   assert.ok(css.includes('creator-chat .creator-chat-toolbar-emoji-trigger svg'));
