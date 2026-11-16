@@ -700,7 +700,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p><button type="button" onClick={() => setShowMembers(true)}>View members</button></div>}
                 {transcript.messages.map((m, index) => <Fragment key={m.id}>
                   {(index === 0 || day(transcript.messages[index - 1].createdAt) !== day(m.createdAt)) && <div className="creator-chat-day"><span>{day(m.createdAt)}</span></div>}
-                  <article className={`creator-chat-message ${m.deleted ? "is-deleted-message" : ""}`} data-chat-message-id={m.id} tabIndex={m.deleted ? undefined : 0}
+                  <article className={`creator-chat-message ${m.deleted ? "is-deleted-message" : ""} ${!m.deleted && (m.replyTo || m.replyUnavailable) ? "has-reply" : ""}`} data-chat-message-id={m.id} tabIndex={m.deleted ? undefined : 0}
                     onPointerDown={(event) => {
                       if (event.pointerType !== "touch" || !(event.target instanceof Element)) return;
                       if (event.target.closest("button, a, input, textarea, select, summary")) return;
