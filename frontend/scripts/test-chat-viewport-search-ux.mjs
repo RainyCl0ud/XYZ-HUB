@@ -47,26 +47,24 @@ assert.ok(page.includes('shell.style.removeProperty("height")'));
 pass("Height recomputes on container/heading resize without reacting to transcript scrolling, and cleans up listeners.");
 
 assert.ok(css.includes(".creator-chat .creator-chat-live-panel-anchor {"));
-assert.ok(css.includes("position: fixed;"));
-assert.ok(css.includes("z-index: 1400;"));
-assert.ok(css.includes("bottom: 0;"));
-assert.ok(page.includes('shell.querySelector<HTMLElement>(".creator-chat-live-panel-anchor")'));
-assert.ok(page.includes('conversation?.querySelector<HTMLElement>(".creator-chat-channel-header")'));
-assert.ok(page.includes("window.innerWidth - width - 8"));
-assert.ok(page.includes("anchor.style.top"));
-assert.ok(page.includes("anchor.style.left"));
-assert.ok(page.includes("anchor.style.width"));
-pass("Search flyout is viewport-aligned beneath the conversation header and extends over the fixed footer.");
+assert.ok(css.includes("position: absolute;"));
+assert.ok(css.includes("z-index: 22;"));
+assert.ok(css.includes("top: 68px;"));
+assert.ok(css.includes("bottom: 10px;"));
+assert.ok(!page.includes('anchor.style.top'));
+assert.ok(!page.includes('anchor.style.left'));
+assert.ok(!page.includes('anchor.style.width'));
+assert.ok(page.includes('className={`creator-chat-live-panel-anchor ${tools?.kind === "pins" ? "is-pins" : "is-search"}`}'));
+pass("Search restores the original bounded in-context panel instead of a clipped viewport-fixed overlay.");
 
 assert.ok(css.includes(".creator-chat .creator-chat-live-panel {"));
-assert.ok(css.includes("height: 100%;"));
-assert.ok(css.includes("max-height: none;"));
+assert.ok(css.includes("height: auto;"));
+assert.ok(css.includes("max-height: min(68dvh, 100%);"));
 assert.ok(css.includes("overflow-y: auto;"));
 assert.ok(css.includes("overscroll-behavior: contain;"));
 assert.ok(css.includes(".creator-chat .creator-chat-live-panel > header {"));
 assert.ok(css.includes("position: sticky;"));
-assert.ok(page.includes('className="creator-chat-live-panel-anchor"'));
-pass("Search results scroll within a full-height overlay, with the Close header remaining visible.");
+pass("Search results scroll independently in a bounded flyout; Close remains visible.");
 
 assert.ok(tools.includes('className="creator-chat-message-search-field"'));
 assert.ok(tools.includes('className="creator-chat-search-clear"'));
@@ -79,12 +77,12 @@ assert.ok(css.includes("height: 44px;"));
 assert.ok(css.includes('input::-webkit-search-cancel-button'));
 pass("Search X has a full 44×44 px pointer/touch target, accessible label and safe result invalidation.");
 
-assert.ok(tools.includes('className="creator-chat-live-close"'));
+assert.ok(tools.includes('target.kind === "pins" ? "creator-chat-pin-close" : "creator-chat-live-close"'));
 assert.ok(css.includes(".creator-chat .creator-chat-live-panel > header .creator-chat-live-close {"));
 assert.ok(css.includes("background: #FFFFFF;"));
 assert.ok(css.includes("color: #101010;"));
 assert.ok(css.includes("min-width: 82px;"));
-assert.ok(tools.includes('onClick={onClose}>Close</button>'));
+assert.ok(tools.includes('onClick={onClose}>{target.kind === "pins" ? "×" : "Close"}</button>'));
 pass("The Close action is a clearly distinguishable high-contrast button.");
 
 assert.ok(css.includes("@media (max-width: 720px)"));
