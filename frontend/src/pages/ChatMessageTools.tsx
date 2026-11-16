@@ -40,6 +40,11 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
 }) {
   // During a rolling deploy the older API still returns ordinary messages.
   const reactions = m.reactions ?? [];
+  // The announcement service stores the title and body as plain text separated
+  // by a blank line. Present that trusted structure without converting to HTML.
+  const announcementBreak = m.announcement && m.text ? m.text.indexOf("\n\n") : -1;
+  const announcementTitle = m.announcement ? (announcementBreak < 0 ? m.text : m.text.slice(0, announcementBreak)) : "";
+  const announcementBody = announcementBreak < 0 ? "" : m.text.slice(announcementBreak + 2);
   const [busy, setBusy] = useState(false);
   const [touchActionsOpen, setTouchActionsOpen] = useState(false);
   const touchActionsId = useId();
@@ -224,9 +229,12 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       <span className="creator-chat-quote-author">{m.replyTo.authorName}{m.replyTo.deleted ? " · Deleted" : ""}{m.replyTo.version > 1 ? " · edited" : ""}</span>
       <span className="creator-chat-quote-preview">{m.replyTo.text || "Attachment"}</span>
     </button>}
-    {!m.deleted && <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>}
+    {!m.deleted && <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small className={m.announcement ? "creator-chat-announcement-tag" : undefined}>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>}
     {m.pinnedAt && <small className="creator-chat-pin-label">Pinned by {m.pinnedByName}</small>}
-    {m.text && <p>{m.text}</p>}
+    {m.announcement && m.text ? <section className="creator-chat-announcement-message" aria-label="Staff announcement">
+      <h4>{announcementTitle}</h4>
+      {announcementBody && <p>{announcementBody}</p>}
+    </section> : m.text && <p>{m.text}</p>}
     {m.attachment && <>
       {m.attachment.available && m.attachment.canPreview && <ChatImagePreview
         key={attachmentPath} src={`${attachmentPath}/preview`} fileName={m.attachment.fileName} onLoad={onPreviewLoad}
