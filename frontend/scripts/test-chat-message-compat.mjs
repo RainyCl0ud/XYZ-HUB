@@ -50,6 +50,8 @@ try {
   const image = render({ ...legacy, text: "", attachment: { ...attachment, fileName: "Preview.jpg", canPreview: true } });
   assert.ok(image.includes("/api/chat/channels/test-channel/messages/old-message/preview"));
   assert.ok(image.includes('loading="lazy"') && image.includes('alt="Preview of Preview.jpg"'));
+  assert.ok(!image.includes("<strong>Preview.jpg</strong>"), "Previewed images must not repeat filenames below the image.");
+  assert.ok(!image.includes(">8 bytes</small>"), "Previewed images must not render a redundant byte count.");
   assert.ok(!image.includes("/api/chat/channels/test-channel/messages/old-message/file"), "Download stays hidden until More opens.");
   console.log("PASS: an eligible image loads its small preview separately from the original download.");
   const voice = render({ ...legacy, text: "", attachment: { ...attachment, fileName: "Voice message.wav", voiceDurationMs: 2300 } });
