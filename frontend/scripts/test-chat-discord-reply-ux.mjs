@@ -45,13 +45,13 @@ try {
   assert.ok(replied.includes("View original message by Original member"));
   pass("A reply shows a compact original-author/text preview above the sender and new message.");
 
-  assert.ok(replied.includes(">11:30 PM</time>"), "Message time must be Chicago time-only.");
-  assert.ok(!replied.includes("Nov 16") && !replied.includes("CST") && !replied.includes(">11/16"));
+  assert.ok(replied.includes(">11:30 PM CST</time>"), "Message time must match the global Hub clock: US Central, CST in winter.");
+  assert.ok(!replied.includes("Nov 16") && !replied.includes(">11/16"));
   assert.ok(replied.includes(`dateTime="${sentAt}"`) || replied.includes(`datetime="${sentAt}"`));
   const normal = render({ ...base, replyTo: null });
-  assert.ok(normal.includes(">11:30 PM</time>"));
+  assert.ok(normal.includes(">11:30 PM CST</time>"));
   assert.ok(!normal.includes('class="creator-chat-quote"'));
-  pass("Ordinary/replied messages show only the message time; the semantic dateTime remains intact.");
+  pass("Message headers use compact clock time and the global Hub clock CST/CDT abbreviation.");
 
   const long = "This is a very long original message ".repeat(40);
   const verbose = render({ ...base, replyTo: { ...base.replyTo, text: long, authorName: "Very Long Name" } });
@@ -60,9 +60,9 @@ try {
   pass("Long quoted content remains accessible while the display is constrained through CSS ellipsis.");
 
   const older = render({ ...base, createdAt: "2026-10-03T16:15:00.000Z", updatedAt: "2026-10-03T16:15:00.000Z" });
-  assert.ok(older.includes(">11:15 AM</time>"));
-  assert.ok(!older.includes(">Oct 3,") && !older.includes("CDT</time>"));
-  pass("Older message headers also use time-only formatting rather than repeating a date or timezone.");
+  assert.ok(older.includes(">11:15 AM CDT</time>"));
+  assert.ok(!older.includes(">Oct 3,"));
+  pass("Older message headers automatically switch to CDT during daylight-saving time.");
 
   const unavailable = render({ ...base, replyTo: null, replyUnavailable: true });
   assert.ok(unavailable.includes('class="creator-chat-quote-unavailable"'));
@@ -75,7 +75,7 @@ try {
     deleted: { at: sentAt, by: "Moderator", reason: "Retained audit" },
   });
   assert.ok(deleted.includes("Deleted Message</button>"));
-  assert.ok(deleted.includes(">11:30 PM</time>"));
+  assert.ok(deleted.includes(">11:30 PM CST</time>"));
   assert.ok(!deleted.includes("replying to this"));
   assert.ok(!deleted.includes("Moderator") && !deleted.includes("Retained audit"));
   pass("Owner-retained deleted messages still start collapsed and display the compact timestamp.");
@@ -84,9 +84,14 @@ try {
     read("src/pages/ChatMessageTools.tsx"), read("src/pages/ChatPage.tsx"),
     read("src/pages/ChatPage.css"), read("../backend/src/services/creator-chat.ts"),
   ]);
-  assert.ok(component.includes('timeZone: "America/Chicago", hour: "numeric", minute: "2-digit"'));
+  assert.ok(component.includes('const chatTime = formatCentralMessageTime;'));
+  const centralTime = await read("src/lib/central-time.ts");
+  const layout = await read("src/components/AppLayout.tsx");
+  assert.ok(centralTime.includes('CENTRAL_TIME_ZONE = "America/Chicago"'));
+  assert.ok(centralTime.includes('timeZoneName: "short"'));
+  assert.ok(layout.includes('import { CENTRAL_TIME_ZONE } from "../lib/central-time";'));
   assert.ok(!component.includes('month: "short", day: "numeric", hour: "numeric"'));
-  assert.ok(page.includes('timeZone: "America/Chicago", month: "long", day: "numeric", year: "numeric"'));
+  assert.ok(page.includes('timeZone: CENTRAL_TIME_ZONE, month: "long", day: "numeric", year: "numeric"'));
   assert.ok(page.includes('className="creator-chat-day"'));
   assert.ok(page.includes('!m.deleted && (m.replyTo || m.replyUnavailable) ? "has-reply" : ""'));
   assert.ok(css.includes(".creator-chat .creator-chat-message.has-reply > .creator-chat-avatar { margin-top: 21px; }"));
