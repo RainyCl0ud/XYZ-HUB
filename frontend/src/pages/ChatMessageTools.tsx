@@ -475,7 +475,7 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onReply, onChan
           placeholder="Search for a word or phrase…" value={query}
           onChange={(e) => { invalidateSearch(); setQuery(e.target.value); }} />
         {!!query && <button type="button" className="creator-chat-search-clear" aria-label="Clear message search"
-          title="Clear search" onPointerDown={(event) => event.preventDefault()}
+          title="Clear search"
           onClick={() => { invalidateSearch(); setQuery(""); searchInput.current?.focus(); }}>
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
             strokeLinecap="round"><path d="M6 6 18 18M18 6 6 18" /></svg>
