@@ -84,7 +84,7 @@ assert.ok(css.includes(".creator-chat .creator-chat-live-panel > header .creator
 assert.ok(css.includes("background: #FFFFFF;"));
 assert.ok(css.includes("color: #101010;"));
 assert.ok(css.includes("min-width: 82px;"));
-assert.ok(css.includes('onClick={onClose}>Close</button>'));
+assert.ok(tools.includes('onClick={onClose}>Close</button>'));
 pass("The Close action is a clearly distinguishable high-contrast button.");
 
 assert.ok(css.includes("@media (max-width: 720px)"));
