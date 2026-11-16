@@ -5,7 +5,7 @@ type Delivery = { personName: string; status: string; lastError: string | null; 
 type Announcement = { id: string; title: string; text: string; createdAt: string; authorName: string; deliveries: Delivery[] };
 type History = { id: string; title: string; createdAt: string; authorName: string };
 const time = (value: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(value));
-const statusLabel: Record<string,string> = { PENDING: 'Email waiting', SENDING: 'Sending email', SENT: 'Email sent', CAPTURED: 'Preview saved · no email sent', SKIPPED: 'Email skipped', REVIEW: 'Check delivery · resend paused' };
+const statusLabel: Record<string,string> = { PENDING: 'Email waiting', SENDING: 'Sending email', SENT: 'Email sent', CAPTURED: 'Preview saved', SKIPPED: 'Email skipped', REVIEW: 'Check delivery · resend paused' };
 export default function ChatAnnouncements({ onClose, onPublished }: { onClose: () => void; onPublished: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), controller = useRef<AbortController | null>(null), requestId = useRef(crypto.randomUUID());
   const [title, setTitle] = useState(''), [text, setText] = useState('');
