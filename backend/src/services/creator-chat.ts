@@ -406,6 +406,42 @@ export async function listChatMessages(userId: string, channelId: string, before
   });
 }
 
+/** Locate a reply target in a bounded, chronological window. Reuse the
+ * exact same viewer/channel and deleted-message filtering as normal reads;
+ * unauthorised/removed messages never create a searchable navigation oracle. */
+export async function getChatMessageContext(userId: string, channelId: string, messageId: string) {
+  return prisma.$transaction(async (tx) => {
+    const { viewer, access, scope } = await openChannel(tx, userId, channelId);
+    const audience = { ...scope, ...visibleMessages(viewer) };
+    const target = await tx.chatMessage.findFirst({
+      where: { ...audience, id: messageId }, include: messageInclude,
+    });
+    if (!target) throw new ChatError(404, "Message not found.");
+    const older = await tx.chatMessage.findMany({
+      where: { ...audience, OR: [
+        { createdAt: { lt: target.createdAt } },
+        { createdAt: target.createdAt, id: { lt: target.id } },
+      ] }, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 26, include: messageInclude,
+    });
+    const newer = await tx.chatMessage.findMany({
+      where: { ...audience, OR: [
+        { createdAt: { gt: target.createdAt } },
+        { createdAt: target.createdAt, id: { gt: target.id } },
+      ] }, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: 26, include: messageInclude,
+    });
+    const messages = [...older.slice(0, 25).reverse(), target, ...newer.slice(0, 25)]
+      .map((m) => messageDto(m, viewer, access.canPost, access.archived));
+    return {
+      messages,
+      hasMore: older.length > 25,
+      nextBefore: older.length > 25 ? messages[0].id : null,
+      hasNewer: newer.length > 25,
+    };
+  });
+}
+
 type NewAttachment = { id: string; fileName: string; byteSize: number; sha256: string; voiceDurationMs: number | null };
 
 async function postChatMessage(userId: string, channelId: string, text: string, clientNonce: string, replyToId?: string, attachment?: NewAttachment) {

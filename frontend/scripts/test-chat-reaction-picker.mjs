@@ -100,13 +100,18 @@ try {
   assert.ok(tools.includes('createPortal('));
   assert.ok(tools.includes('position: "fixed"'));
   assert.ok(tools.includes('Math.min(box.right - width, window.innerWidth - width - 8)'));
-  assert.ok(tools.includes('const height = 244'));
+  assert.ok(tools.includes('const height = 350'));
   assert.ok(tools.includes('pickerEmojis.map'));
-  assert.ok(tools.includes('CHAT_RECENT_EMOJI_LIMIT'));
+  assert.ok(tools.includes('sixRecentEmojis = normalizeRecentEmojis(recentEmojis)'));
   assert.ok(tools.includes('source.addEventListener') === false);
   assert.ok(css.includes('position: fixed;\n  z-index: 1250;'));
   assert.ok(css.includes('creator-chat-emoji-popover-grid'));
-  pass("Picker renders through a viewport-bounded overlay with a maximum of six choices per page.");
+  assert.ok(tools.includes('? sixRecentEmojis'));
+  assert.ok(tools.includes('Available emoji library'));
+  assert.ok(tools.includes('Search emoji library'));
+  assert.ok(tools.includes('"Add emoji" : "Recent"'));
+  assert.ok(css.includes('creator-chat-emoji-popover-grid.is-library'));
+  pass("Six personal recents remain separate from a searchable, scrollable approved emoji library.");
 
   assert.ok(tools.includes('document.addEventListener("pointerdown", closeOutside)'));
   assert.ok(tools.includes('document.addEventListener("keydown", closeEscape)'));

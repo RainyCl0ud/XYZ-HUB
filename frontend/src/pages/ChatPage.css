@@ -1712,29 +1712,39 @@
     white-space: nowrap;
   }
 }
-/* Search and Pins float to the bottom edge of the browser, including the
-   fixed footer area, without changing the Chat shell or its composer height.
-   Inline top/left/width are measured from the live conversation header. */
+/* Search reverts to the original bounded, in-context flyout. Pins use
+   the same safe anchor but a narrower Discord-style card list. */
 .creator-chat .creator-chat-live-panel-anchor {
-  position: fixed;
-  z-index: 1400;
-  right: auto;
-  bottom: 0;
+  position: absolute;
+  z-index: 22;
+  top: 68px;
+  right: 12px;
+  left: auto;
+  bottom: 10px;
+  width: min(428px, calc(100% - 24px));
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   min-height: 0;
   overflow: visible;
   pointer-events: none;
 }
+.creator-chat .creator-chat-live-panel-anchor.is-pins {
+  width: min(356px, calc(100% - 24px));
+}
 .creator-chat .creator-chat-live-panel {
-  flex: 1 1 auto;
-  height: 100%;
+  flex: 0 1 auto;
+  width: 100%;
+  height: auto;
   min-height: 0;
-  max-height: none;
+  max-height: min(68dvh, 100%);
   overflow-y: auto;
   overscroll-behavior: contain;
   border-radius: 0;
   pointer-events: auto;
+}
+.creator-chat .creator-chat-live-panel.is-pins {
+  max-height: min(76dvh, 100%);
+  padding: 12px;
 }
 .creator-chat .creator-chat-live-panel > header {
   position: sticky;
@@ -1807,14 +1817,114 @@
 }
 @media (max-width: 720px) {
   .creator-chat { padding-bottom: 4px; }
-  .creator-chat .creator-chat-live-panel-anchor {
-    right: auto;
-    bottom: 0;
+  .creator-chat .creator-chat-live-panel-anchor,
+  .creator-chat .creator-chat-live-panel-anchor.is-pins {
+    position: absolute;
+    top: 68px;
+    right: 7px;
+    left: auto;
+    bottom: 8px;
+    width: calc(100% - 14px);
   }
-  .creator-chat .creator-chat-live-panel {
-    height: 100%;
-    max-height: none;
+  .creator-chat .creator-chat-live-panel,
+  .creator-chat .creator-chat-live-panel.is-pins {
+    height: auto;
+    max-height: min(67dvh, 100%);
     padding: 12px;
   }
   .creator-chat .creator-chat-live-panel > header { top: 0; }
 }
+
+/* Compact pinned-message cards: scan the author, excerpt and Jump action.
+   One large pinned text entry scrolls within its own card, not the whole page. */
+.creator-chat-pin-list { display: flex; flex-direction: column; gap: 9px; }
+.creator-chat-pin-card {
+  display: flex; flex-direction: column; min-width: 0;
+  gap: 7px; padding: 10px;
+  border: 1px solid #414148;
+  border-radius: 0;
+  background: #29292E;
+}
+.creator-chat-pin-card-head { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+.creator-chat-pin-avatar {
+  display: inline-grid; place-items: center;
+  flex: 0 0 32px; width: 32px; height: 32px;
+  border: 1px solid #57575E; border-radius: 50%;
+  font-size: 12px; color: #F4F4F6; background: #202024;
+}
+.creator-chat-pin-identity { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 6px; }
+.creator-chat-pin-identity strong {
+  min-width: 0; max-width: 100%; font-size: 12px; line-height: 18px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.creator-chat-pin-identity time { font-size: 11px; color: #A6A6B0; line-height: 18px; }
+.creator-chat .creator-chat-pin-remove,
+.creator-chat .creator-chat-pin-close {
+  display: inline-grid; place-items: center;
+  flex: 0 0 32px; width: 32px; height: 32px; min-height: 32px;
+  padding: 0; margin: 0; border: 0; border-radius: 0;
+  font-size: 20px; color: #D1D1D8; background: transparent;
+}
+.creator-chat .creator-chat-pin-remove:hover,
+.creator-chat .creator-chat-pin-close:hover { background: #393941; color: #FFFFFF; }
+.creator-chat-pin-excerpt {
+  min-width: 0; max-height: 172px; margin: 0;
+  padding: 2px 5px 2px 42px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  color: #E7E7EA; font-size: 12px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.creator-chat-pin-card-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-left: 42px; }
+.creator-chat .creator-chat-pin-card-actions > button {
+  padding: 5px 12px; min-height: 33px;
+  border: 1px solid #62626A; background: #34343B; font-size: 12px;
+}
+.creator-chat-pin-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 11px; }
+.creator-chat .creator-chat-pin-confirm button { padding: 5px 8px; min-height: 33px; font-size: 11px; }
+.creator-chat .creator-chat-live-panel.is-pins > header .creator-chat-pin-close { border: 0; background: transparent; min-width: 32px; color: #E1E1E5; }
+.creator-chat .creator-chat-live-panel.is-pins > header .creator-chat-pin-close:hover { background: #393941; }
+.creator-chat .creator-chat-message.is-jump-highlight {
+  animation: creator-chat-target-highlight 2.7s ease-out 1;
+}
+@keyframes creator-chat-target-highlight {
+  0%, 24% { background: rgba(87, 88, 178, .34); box-shadow: inset 3px 0 0 #9392ED; }
+  100% { background: transparent; box-shadow: none; }
+}
+.creator-chat .creator-chat-return-latest {
+  display: block; margin: 0 auto 16px; min-height: 38px;
+  border: 1px solid #696976; background: #26262B;
+}
+@media (prefers-reduced-motion: reduce) {
+  .creator-chat .creator-chat-message.is-jump-highlight {
+    animation: none; background: rgba(87, 88, 178, .22); box-shadow: inset 3px 0 0 #9392ED;
+  }
+}
+
+/* Full searchable emoji library; only the Recent view is limited to six.
+   The library scrolls inside its portal and never grows the message row. */
+.creator-chat-emoji-popover-grid.is-library {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-height: 214px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #555 transparent;
+}
+.creator-chat-emoji-popover-grid.is-library button {
+  height: 43px;
+  font-size: 23px;
+}
+.creator-chat-emoji-library-search { display: block; margin-bottom: 9px; }
+.creator-chat-emoji-library-search input {
+  width: 100%; min-width: 0; min-height: 38px;
+  padding: 6px 9px; border: 1px solid #686868;
+  border-radius: 0; background: #0D0D0D; color: #FFFFFF;
+  font-size: 13px;
+}
+.creator-chat-emoji-library-count { font-size: 11px; color: #AEAEAE; }
+
+.creator-chat .creator-chat-live-panel.is-pins > header h2 {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px;
+}
+.creator-chat-pin-heading-icon { width: 17px; height: 17px; flex: 0 0 auto; }

@@ -34,13 +34,12 @@ import ClockAlerts from "./ClockAlerts";
 import xyzManagementLogo from "../assets/xyz-management-logo.svg";
 
 import "./PortalAccess.css";
+import { CENTRAL_TIME_ZONE } from "../lib/central-time";
 import SidebarNavigation from "./SidebarNavigation";
 
 const MODEL_CONTEXT_STORAGE_KEY =
   "xyz_active_model_id";
 
-const CENTRAL_TIME_ZONE =
-  "America/Chicago";
 
 type AccessModel = {
   id: string;
