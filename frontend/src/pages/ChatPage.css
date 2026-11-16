@@ -2189,3 +2189,16 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Override legacy settings-dialog rules only within the announcement flow. */
+.creator-chat-settings.creator-chat-announcements > .creator-chat-announcement-topbar {
+  margin-bottom: 0;
+  align-items: flex-start;
+}
+.creator-chat-announcements .creator-chat-announcement-confirm input[type="checkbox"] {
+  flex: 0 0 17px;
+  width: 17px;
+  min-width: 17px;
+  height: 17px;
+  margin-top: 2px;
+}
