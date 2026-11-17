@@ -2078,7 +2078,7 @@
 .creator-chat-announcement-history li strong { display: block; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
 .creator-chat-announcement-history li small { display: block; margin-top: 4px; color: #A5A5A5; font-size: 11px; }
 .creator-chat-announcements .creator-chat-announcement-history li button { flex: 0 0 auto; padding: 5px 9px; min-height: 32px; }
-.creator-chat-announcement-reach { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 18px; }
+.creator-chat-announcement-reach { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 8px; margin-bottom: 18px; }
 .creator-chat-announcement-reach > div {
   display: flex;
   flex-direction: column;
@@ -2101,6 +2101,25 @@
 .creator-chat-announcement-preview-card h4 { font-size: 17px; margin: 10px 0 9px; line-height: 1.4; overflow-wrap: anywhere; }
 .creator-chat-announcement-preview-card p { margin: 0; max-height: 32dvh; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 13px; }
 .creator-chat-announcement-review-details { display: grid; gap: 8px; margin-bottom: 16px; }
+.creator-chat-announcement-email-note {
+  min-width: 0;
+  padding: 13px 15px;
+  border: 1px solid #404040;
+  background: #171717;
+}
+.creator-chat-announcement-email-note strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #EEEEEE;
+  font-size: 13px;
+  font-weight: 650;
+}
+.creator-chat-announcement-email-note p {
+  margin: 0;
+  color: #BBBBBB;
+  font-size: 12px;
+  line-height: 1.55;
+}
 .creator-chat-announcement-disclosure { border: 1px solid #3A3A3A; background: #171717; min-width: 0; }
 /* Explicit SVG icons avoid font-dependent +/- misalignment. The title and
    meta labels occupy stable grid columns at all sizes. */
@@ -2209,7 +2228,7 @@
   .creator-chat-announcement-steps span { gap: 5px; font-size: 11px; }
   .creator-chat-announcement-workspace { padding: 16px; }
   .creator-chat-announcement-compose-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-  .creator-chat-announcement-reach { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .creator-chat-announcement-reach { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
   .creator-chat-announcement-reach > div { padding: 10px; }
   .creator-chat-announcement-reach strong { font-size: 19px; }
   .creator-chat-announcement-preview-card { padding: 14px; }
