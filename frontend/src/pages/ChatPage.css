@@ -2102,11 +2102,10 @@
 .creator-chat-announcement-preview-card p { margin: 0; max-height: 32dvh; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 13px; }
 .creator-chat-announcement-review-details { display: grid; gap: 8px; margin-bottom: 16px; }
 .creator-chat-announcement-disclosure { border: 1px solid #3A3A3A; background: #171717; min-width: 0; }
-/* Explicit SVG icons avoid font-dependent +/- misalignment. The title and
-   meta labels occupy stable grid columns at all sizes. */
+/* Keep the label, count, and chevron aligned inside the full-width disclosure trigger. */
 .creator-chat-announcements .creator-chat-announcement-disclosure > summary {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto 18px;
   align-items: center;
   column-gap: 12px;
   min-height: 48px;
@@ -2116,7 +2115,10 @@
   font-weight: 650;
   color: #F2F2F2;
   text-align: left;
+  cursor: pointer;
 }
+.creator-chat-announcements .creator-chat-announcement-disclosure > summary:hover { background: #202020; }
+.creator-chat-announcements .creator-chat-announcement-disclosure > summary:focus-visible { outline: 2px solid #EEEEEE; outline-offset: -3px; }
 .creator-chat-announcements .creator-chat-announcement-disclosure > summary::-webkit-details-marker { display: none; }
 .creator-chat-announcements .creator-chat-announcement-disclosure > summary::marker { content: ""; }
 .creator-chat-announcement-disclosure-icon {
@@ -2125,8 +2127,12 @@
   width: 18px;
   height: 18px;
   color: #CFCFCF;
+  transition: transform 160ms ease;
 }
-.creator-chat-announcement-disclosure[open] .creator-chat-announcement-disclosure-plus { display: none; }
+.creator-chat-announcement-disclosure[open] > summary .creator-chat-announcement-disclosure-icon { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .creator-chat-announcement-disclosure-icon { transition: none; }
+}
 .creator-chat-announcements .creator-chat-announcement-disclosure-title {
   min-width: 0;
   color: #F2F2F2;
@@ -2144,50 +2150,16 @@
   overflow-wrap: anywhere;
 }
 .creator-chat-announcement-disclosure > p { padding: 0 14px 14px; font-size: 12px; line-height: 1.5; color: #CACACA; margin: 0; }
-.creator-chat-announcement-recipient-content { border-top: 1px solid #333333; padding: 14px; }
-.creator-chat-announcement-recipient-help { margin: 0 0 12px; color: #B8B8B8; font-size: 12px; }
 .creator-chat-announcement-recipient-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
   margin: 0;
-  padding: 0;
+  padding: 3px 14px 13px;
   list-style: none;
-  max-height: 288px;
+  max-height: 220px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-.creator-chat-announcement-recipient-list li {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-  padding: 11px 12px;
-  border: 1px solid #353535;
-  background: #1D1D1D;
-  border-radius: 6px;
-}
-.creator-chat-announcement-recipient-avatar {
-  display: grid;
-  place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  border: 1px solid #4A4A4A;
-  border-radius: 50%;
-  background: #303030;
-  color: #EDEDED;
-  font-size: 11px;
-  font-weight: 700;
-}
-.creator-chat-announcement-recipient-info { display: grid; gap: 3px; min-width: 0; flex: 1; }
-.creator-chat-announcement-recipient-info strong { overflow-wrap: anywhere; font-size: 12px; font-weight: 650; color: #F0F0F0; }
-.creator-chat-announcement-recipient-info small { color: #B8B8B8; font-size: 11px; line-height: 1.35; }
-.creator-chat-announcement-recipient-indicator { flex: 0 0 auto; padding: 4px 6px; border: 1px solid #484848; border-radius: 4px; color: #CECECE; font-size: 10px; }
-@media (max-width: 600px) {
-  .creator-chat-announcement-recipient-list { grid-template-columns: minmax(0, 1fr); max-height: 260px; }
-  .creator-chat-announcement-recipient-content { padding: 12px; }
-}
+.creator-chat-announcement-recipient-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid #303030; font-size: 12px; }
+.creator-chat-announcement-recipient-list li small { color: #BBBBBB; }
 .creator-chat-announcement-confirm { margin: 17px 0; padding: 12px; border: 1px solid #555555; background: #181818; font-size: 13px; line-height: 1.5; }
 .creator-chat-announcement-confirm span { flex: 1; }
 .creator-chat-announcements label.creator-chat-announcement-confirm {
