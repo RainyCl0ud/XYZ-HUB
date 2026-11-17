@@ -28,6 +28,14 @@ assert.ok(!chat.includes("['all', 'All']"));
 assert.ok(chat.includes('channelFilter === "private" ? c.isPrivate : !c.isPrivate'));
 assert.ok(chat.includes("const archivedChannels = visibleChannels.filter((c) => c.archived);"));
 assert.ok(chat.includes('"Archived private chats"'));
+assert.ok(chat.includes("isOwnPrivate?: boolean"));
+assert.ok(chat.includes("const ownPrivateChannels = activeChannels.filter((c) => c.isOwnPrivate);"));
+assert.ok(chat.includes("const oversightPrivateChannels = activeChannels.filter((c) => !c.isOwnPrivate);"));
+assert.ok(chat.includes("Your chats <span>{ownPrivateChannels.length}</span>"));
+assert.ok(chat.includes("Other conversations <span>{oversightPrivateChannels.length}</span>"));
+assert.ok(chat.includes("ownPrivateChannels.map(channelRow)"));
+assert.ok(chat.includes("oversightPrivateChannels.map(channelRow)"));
+assert.ok(chat.includes("archivedChannels.map(channelRow)"));
 pass("Channels and Private are exclusive permission-filtered views; archived items stay in their corresponding type.");
 
 assert.ok(chat.includes("const [showChannelSearch, setShowChannelSearch] = useState(false)"));

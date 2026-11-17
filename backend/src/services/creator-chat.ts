@@ -278,7 +278,7 @@ export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: 
     const result = areas.map((area) => {
       const channels = area.channels.flatMap((channel) => {
         const access = channelAccess(viewer, channel);
-        return access.canView ? [{ id: channel.id, name: channel.name, isPrivate: false, retained: !!channel.cleanedUpAt, ...access, canArchive: canArchiveChannel(viewer, channel, access.canManage) }] : [];
+        return access.canView ? [{ id: channel.id, name: channel.name, isPrivate: false, isOwnPrivate: false, retained: !!channel.cleanedUpAt, ...access, canArchive: canArchiveChannel(viewer, channel, access.canManage) }] : [];
       });
       const pausedForYou = viewer.user.chatQuarantines.some((q) => q.modelId === area.modelId);
       const inArea = !pausedForYou && viewer.permissions.has("chat.ordinary.access") && (viewer.permissions.has("chat.areas.all") || viewer.user.modelAssignments.some((a) => a.modelId === area.modelId));
@@ -305,7 +305,7 @@ export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: 
         : conversation.subjectUserId === userId
           ? `Your ${purpose.toLowerCase()}`
           : `${conversation.subjectUser?.name ?? conversation.subjectName} · ${purpose}`;
-      area.channels.push({ id: conversation.id, name, isPrivate: true, retained: false, ...access, canArchive: false });
+      area.channels.push({ id: conversation.id, name, isPrivate: true, isOwnPrivate: conversation.subjectUserId === userId, retained: false, ...access, canArchive: false });
     }
     return result.filter((area) => area.channels.length || area.canManage);
 }
