@@ -143,18 +143,20 @@ try {
   pass("Disclosure icons, titles and counts align in three columns; expanded icons and confirmation copy remain readable.");
 
   assert.ok(!announcements.includes("Email previews only — no emails sent."));
-  assert.ok(!reminders.includes("Email previews only"));
-  assert.ok(reminders.includes("'Preview mode'"));
-  assert.ok(announcements.includes('const emailNotice = (mode: string) =>'));
-  assert.ok(announcements.includes("No emails will be sent during testing."));
-  assert.ok(announcements.includes("Email notifications will go only to approved test addresses."));
-  assert.ok(announcements.includes("Email notifications are currently off."));
-  assert.ok(announcements.includes('className="creator-chat-announcement-email-note"'));
-  assert.ok(announcements.includes("Staff email notifications"));
+  assert.ok(!announcements.includes("No emails will be sent during testing."));
+  assert.ok(!announcements.includes("approved test addresses"));
+  assert.ok(!announcements.includes("Not sent (test)"));
+  assert.ok(!announcements.includes("View sample email"));
+  assert.ok(!announcements.includes("creator-chat-announcement-email-note"));
+  assert.ok(!announcements.includes("emailNotice("));
+  assert.ok(!announcements.includes("preview.emailMode"));
+  assert.ok(announcements.includes("CAPTURED: 'Not emailed'"));
+  assert.ok(announcements.includes("View email details"));
+  assert.ok(announcements.includes("Staff email status"));
+  assert.ok(announcements.includes("posted.deliveries.map("));
   assert.ok(!announcements.includes("Preview mode"));
   assert.ok(!announcements.includes("Email delivery</span>"));
-  assert.ok(css.includes(".creator-chat-announcement-email-note {"));
-  pass("Review explains email notifications in plain language without exposing technical delivery modes or falsely claiming emails were sent.");
+  pass("Staff-facing announcement flow omits testing-only notices while retaining accurate post-publication email status.");
 
   assert.ok(service.includes("where: { key: 'updates'"));
   assert.ok(service.includes("export function buildAnnouncementEmail"));
