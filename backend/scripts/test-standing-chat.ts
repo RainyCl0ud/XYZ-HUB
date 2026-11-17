@@ -101,6 +101,7 @@ async function main() {
     const newStaffChat = (await listChatAreas(chatter.id)).find((a) => a.modelId === mei)!.channels.find((c) => c.isPrivate)!.id;
     assert.notEqual(newStaffChat, staffChat); assert.equal((await listChatMessages(chatter.id, newStaffChat)).messages.length, 0);
     assert.equal((await listChatAreas(chatter.id)).find((a) => a.modelId === mei)!.channels.find((c) => c.id === newStaffChat)?.name, "Your staff chat");
+    assert.equal((await listChatAreas(chatter.id)).find((a) => a.modelId === mei)!.channels.find((c) => c.id === newStaffChat)?.isOwnPrivate, true);
     check("Returning staff receive a fresh private chat with none of the old conversation copied");
     await prisma.$transaction((tx) => syncUserStandingChats(tx, chatter.id));
     await prisma.$transaction((tx) => provisionCreatorChat(tx, mei));
@@ -118,6 +119,8 @@ async function main() {
     const generalChat = (await listChatAreas(general.id)).flatMap((a) => a.channels);
     assert.equal(generalChat.length, 1);
     assert.equal(generalChat[0].name, "Your general chat");
+    assert.equal(generalChat[0].isOwnPrivate, true);
+    assert.equal((await listChatAreas(owner.id)).flatMap((a) => a.channels).find((c) => c.id === generalChat[0].id)?.isOwnPrivate, false);
     const generalMembers = await listChatMembers(general.id, generalChat[0].id);
     assert.ok(generalMembers.some((p) => p.id === owner.id));
     assert.ok(!generalMembers.some((p) => p.id === ops.id || p.id === developer.id || p.id === creator.id));
@@ -132,6 +135,8 @@ async function main() {
     const accountantChat = (await listChatAreas(accountant.id)).flatMap((a) => a.channels);
     assert.equal(accountantChat.length, 1); assert.ok(accountantChat[0].isPrivate);
     assert.equal(accountantChat[0].name, "Your accounting chat");
+    assert.equal(accountantChat[0].isOwnPrivate, true);
+    assert.equal((await listChatAreas(owner.id)).flatMap((a) => a.channels).find((c) => c.id === accountantChat[0].id)?.isOwnPrivate, false);
     assert.ok((await listChatMembers(accountant.id, accountantChat[0].id)).some((p) => p.id === ops.id));
     await denied(() => listChatMessages(accountant.id, ordinary.id));
     check("Accountant receives a separate personal chat and no creator operations channels");
