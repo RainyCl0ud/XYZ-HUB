@@ -19,7 +19,7 @@ import { CENTRAL_TIME_ZONE } from "../lib/central-time";
 import { loadRecentEmojis, recentEmojiStorageKey, saveRecentEmojiSelection } from "../lib/chat-reaction-emojis";
 
 const noUnreadIds: string[] = [];
-type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; canArchive?: boolean; archived: boolean; retained?: boolean; isPrivate: boolean; unreadCount?: number };
+type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; canArchive?: boolean; archived: boolean; retained?: boolean; isPrivate: boolean; isOwnPrivate?: boolean; unreadCount?: number };
 type Area = { modelId: string; name: string; archived: boolean; canManage: boolean; pausedForYou?: boolean; channels: Channel[]; unreadCount?: number };
 type Transcript = { messages: Message[]; unreadMessageIds?: string[]; quarantine?: QuarantineControl | null; canPost: boolean; canPin?: boolean; canViewDeleted?: boolean; canExportArchive?: boolean; cleanup?: { download: CleanupTarget["download"] | null }; hasMore: boolean; nextBefore: string | null };
 type Member = { id: string; name: string; role: string; avatarUpdatedAt: string | null; canView?: boolean; canPost: boolean; quarantine?: QuarantineControl | null };
@@ -201,6 +201,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const visibleChannels = browseArea?.channels.filter((c) => !c.retained && c.name.toLocaleLowerCase().includes(query) &&
     (!unreadOnly || (c.unreadCount ?? 0) > 0) && (channelFilter === "private" ? c.isPrivate : !c.isPrivate)) ?? [];
   const activeChannels = visibleChannels.filter((c) => !c.archived);
+  const ownPrivateChannels = activeChannels.filter((c) => c.isOwnPrivate);
+  const oversightPrivateChannels = activeChannels.filter((c) => !c.isOwnPrivate);
   const archivedChannels = visibleChannels.filter((c) => c.archived);
 
   const chooseChannel = useCallback((id: string, preserveCurrent = true) => {
@@ -724,7 +726,9 @@ function ChatWorkspace({ userId }: { userId: string }) {
               </div>}
             </div>
             <nav className="creator-chat-channel-list" aria-label={`${browseArea?.name ?? "Your"} conversations`}>
-              {!!activeChannels.length && <div className="creator-chat-channel-group"><h2>{channelFilter === "channels" ? "Channels" : "Private chats"} <span>{activeChannels.length}</span></h2>{activeChannels.map(channelRow)}</div>}
+              {channelFilter === "channels" && !!activeChannels.length && <div className="creator-chat-channel-group"><h2>Channels <span>{activeChannels.length}</span></h2>{activeChannels.map(channelRow)}</div>}
+              {channelFilter === "private" && !!ownPrivateChannels.length && <div className="creator-chat-channel-group"><h2>Your chats <span>{ownPrivateChannels.length}</span></h2>{ownPrivateChannels.map(channelRow)}</div>}
+              {channelFilter === "private" && !!oversightPrivateChannels.length && <div className="creator-chat-channel-group"><h2>Other conversations <span>{oversightPrivateChannels.length}</span></h2>{oversightPrivateChannels.map(channelRow)}</div>}
               {!!archivedChannels.length && <div className="creator-chat-channel-group"><h2>{channelFilter === "channels" ? "Archived channels" : "Archived private chats"} <span>{archivedChannels.length}</span></h2>{archivedChannels.map(channelRow)}</div>}
               {!visibleChannels.length && <div className="creator-chat-no-results"><p>{unreadOnly ? "No unread conversations match." : channelSearch ? "No matching conversations." : channelFilter === "channels" ? "No channels in this workspace." : "No private chats in this workspace."}</p>{(channelSearch || unreadOnly) && <button type="button" onClick={() => { setChannelSearch(""); setUnreadOnly(false); }}>Clear search</button>}</div>}
             </nav>
