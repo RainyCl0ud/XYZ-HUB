@@ -85,11 +85,12 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
         </article>
         <details className="creator-chat-announcement-disclosure">
           <summary>
-            <svg className="creator-chat-announcement-disclosure-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-              <path d="M4 10h12" /><path className="creator-chat-announcement-disclosure-plus" d="M10 4v12" />
-            </svg>
+
             <span className="creator-chat-announcement-disclosure-title">Staff email status</span>
             <span className="creator-chat-announcement-disclosure-meta">{posted.deliveries.length} staff</span>
+            <svg className="creator-chat-announcement-disclosure-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <path d="m5 7 5 5 5-5" />
+            </svg>
           </summary>
           <ul className="creator-chat-announcement-deliveries">{posted.deliveries.map((d,i) => <li key={i}>
             <div className="creator-chat-announcement-delivery-row"><strong>{d.personName}</strong><span>{statusLabel[d.status] ?? d.status}</span></div>
@@ -116,25 +117,16 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
       <div className="creator-chat-announcement-review-details">
         <details className="creator-chat-announcement-disclosure">
           <summary>
-            <svg className="creator-chat-announcement-disclosure-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-              <path d="M4 10h12" /><path className="creator-chat-announcement-disclosure-plus" d="M10 4v12" />
-            </svg>
+
             <span className="creator-chat-announcement-disclosure-title">Recipients</span>
             <span className="creator-chat-announcement-disclosure-meta">{preview.staffCount} staff</span>
+            <svg className="creator-chat-announcement-disclosure-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <path d="m5 7 5 5 5-5" />
+            </svg>
           </summary>
-          <div className="creator-chat-announcement-recipient-content">
-            <p className="creator-chat-announcement-recipient-help">Staff included in this announcement</p>
-            <ul className="creator-chat-announcement-recipient-list">
-              {preview.recipients.map((r,i) => <li key={i}>
-                <span className="creator-chat-announcement-recipient-avatar" aria-hidden="true">{r.name.trim().split(/\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase() || '?'}</span>
-                <span className="creator-chat-announcement-recipient-info">
-                  <strong>{r.name}</strong>
-                  {r.privateCopies > 0 && <small>Also receives a private Chat message</small>}
-                </span>
-                {r.privateCopies > 0 && <span className="creator-chat-announcement-recipient-indicator" aria-label="Private Chat copy" title="Private Chat copy">Chat</span>}
-              </li>)}
-            </ul>
-          </div>
+          <ul className="creator-chat-announcement-recipient-list">
+            {preview.recipients.map((r,i) => <li key={i}><span>{r.name}</span>{r.privateCopies ? <small>Also receives a private Chat copy</small> : null}</li>)}
+          </ul>
         </details>
       </div>
       {!!preview.blockers.length && <div className="creator-chat-error" role="alert">
