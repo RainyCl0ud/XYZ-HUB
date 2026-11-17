@@ -126,7 +126,7 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
             <p className="creator-chat-announcement-recipient-help">Staff included in this announcement</p>
             <ul className="creator-chat-announcement-recipient-list">
               {preview.recipients.map((r,i) => <li key={i}>
-                <span className="creator-chat-announcement-recipient-avatar" aria-hidden="true">{r.name.trim().split(/\\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase() || '?'}</span>
+                <span className="creator-chat-announcement-recipient-avatar" aria-hidden="true">{r.name.trim().split(/\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase() || '?'}</span>
                 <span className="creator-chat-announcement-recipient-info">
                   <strong>{r.name}</strong>
                   {r.privateCopies > 0 && <small>Also receives a private Chat message</small>}
