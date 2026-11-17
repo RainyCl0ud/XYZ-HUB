@@ -295,7 +295,16 @@ export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: 
       const areaId = conversation.modelId ?? "personal";
       let area = result.find((a) => a.modelId === areaId);
       if (!area) { area = { modelId: areaId, name: conversation.model?.name ?? "Private workspace", archived: !!conversation.model?.chatArea?.archivedAt, pausedForYou: viewer.user.chatQuarantines.some((q) => q.modelId === areaId), canManage: false, channels: [] }; result.push(area); }
-      const name = conversation.kind === "CREATOR" ? `${conversation.model?.name ?? conversation.subjectName} · Private` : conversation.subjectUserId === userId ? "Your private chat" : `${conversation.subjectUser?.name ?? conversation.subjectName} · Private`;
+      // Use the actual protected-conversation purpose instead of generic "Private" labels.
+      // Distinct staff, accounting, and general chats must never look interchangeable.
+      const purpose = conversation.kind === "STAFF" ? "Staff chat"
+        : conversation.kind === "ACCOUNTANT" ? "Accounting chat"
+        : conversation.kind === "GENERAL_STAFF" ? "General chat" : "Creator chat";
+      const name = conversation.kind === "CREATOR"
+        ? `${conversation.model?.name ?? conversation.subjectName} · ${purpose}`
+        : conversation.subjectUserId === userId
+          ? `Your ${purpose.toLowerCase()}`
+          : `${conversation.subjectUser?.name ?? conversation.subjectName} · ${purpose}`;
       area.channels.push({ id: conversation.id, name, isPrivate: true, retained: false, ...access, canArchive: false });
     }
     return result.filter((area) => area.channels.length || area.canManage);
