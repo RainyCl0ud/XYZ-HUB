@@ -2102,21 +2102,47 @@
 .creator-chat-announcement-preview-card p { margin: 0; max-height: 32dvh; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 13px; }
 .creator-chat-announcement-review-details { display: grid; gap: 8px; margin-bottom: 16px; }
 .creator-chat-announcement-disclosure { border: 1px solid #3A3A3A; background: #171717; min-width: 0; }
-.creator-chat-announcement-disclosure > summary {
-  display: flex;
-  justify-content: space-between;
+/* Explicit SVG icons avoid font-dependent +/- misalignment. The title and
+   meta labels occupy stable grid columns at all sizes. */
+.creator-chat-announcements .creator-chat-announcement-disclosure > summary {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  list-style: none;
-  min-height: 44px;
+  column-gap: 12px;
+  min-height: 48px;
   padding: 11px 14px;
-  font-weight: 650;
+  list-style: none;
   font-size: 13px;
+  font-weight: 650;
+  color: #F2F2F2;
+  text-align: left;
 }
-.creator-chat-announcement-disclosure > summary::-webkit-details-marker { display: none; }
-.creator-chat-announcement-disclosure > summary::before { content: "+"; color: #BDBDBD; font-size: 17px; line-height: 1; }
-.creator-chat-announcement-disclosure[open] > summary::before { content: "−"; }
-.creator-chat-announcement-disclosure > summary > span { margin-left: auto; color: #AFAFAF; font-weight: 400; font-size: 12px; text-align: right; }
+.creator-chat-announcements .creator-chat-announcement-disclosure > summary::-webkit-details-marker { display: none; }
+.creator-chat-announcements .creator-chat-announcement-disclosure > summary::marker { content: ""; }
+.creator-chat-announcement-disclosure-icon {
+  display: block;
+  justify-self: center;
+  width: 18px;
+  height: 18px;
+  color: #CFCFCF;
+}
+.creator-chat-announcement-disclosure[open] .creator-chat-announcement-disclosure-plus { display: none; }
+.creator-chat-announcements .creator-chat-announcement-disclosure-title {
+  min-width: 0;
+  color: #F2F2F2;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+}
+.creator-chat-announcements .creator-chat-announcement-disclosure-meta {
+  min-width: 0;
+  max-width: 185px;
+  color: #B8B8B8;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
 .creator-chat-announcement-disclosure > p { padding: 0 14px 14px; font-size: 12px; line-height: 1.5; color: #CACACA; margin: 0; }
 .creator-chat-announcement-recipient-list {
   margin: 0;
@@ -2129,7 +2155,39 @@
 .creator-chat-announcement-recipient-list li small { color: #BBBBBB; }
 .creator-chat-announcement-confirm { margin: 17px 0; padding: 12px; border: 1px solid #555555; background: #181818; font-size: 13px; line-height: 1.5; }
 .creator-chat-announcement-confirm span { flex: 1; }
-.creator-chat-announcement-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin: 21px 0 0; padding-top: 14px; border-top: 1px solid #444444; }
+.creator-chat-announcements label.creator-chat-announcement-confirm {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #E2E2E2;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.5;
+}
+/* This is a dialog sibling of the scrollable workspace, not a sticky item
+   inside it. Review, Compose and Published actions never scroll away. */
+.creator-chat-announcements > .creator-chat-announcement-footer {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+  min-height: 72px;
+  margin: 0;
+  padding: 12px 24px;
+  border-top: 1px solid #444444;
+  background: #111111;
+}
+.creator-chat-announcements > .creator-chat-announcement-footer > button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  min-width: 148px;
+  justify-content: center;
+}
 .creator-chat-announcements .creator-chat-announcement-primary {
   border: 1px solid #FFFFFF;
   background: #FFFFFF;
@@ -2155,8 +2213,22 @@
   .creator-chat-announcement-reach > div { padding: 10px; }
   .creator-chat-announcement-reach strong { font-size: 19px; }
   .creator-chat-announcement-preview-card { padding: 14px; }
-  .creator-chat-announcement-footer { align-items: stretch; }
-  .creator-chat-announcement-footer > button { min-height: 44px; }
+  .creator-chat-announcements > .creator-chat-announcement-footer {
+    padding: 11px 16px;
+    gap: 8px;
+  }
+  .creator-chat-announcements > .creator-chat-announcement-footer > button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding-inline: 8px;
+  }
+  .creator-chat-announcements .creator-chat-announcement-disclosure > summary {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    column-gap: 8px;
+    padding-inline: 11px;
+  }
+  .creator-chat-announcements .creator-chat-announcement-disclosure-meta { max-width: 120px; }
 }
 
 /* Published announcements are visually distinct in the transcript without
