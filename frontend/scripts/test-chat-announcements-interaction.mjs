@@ -112,6 +112,16 @@ try {
   assert.ok(css.includes("grid-template-columns: minmax(0, 1.5fr) minmax(240px, .9fr)"));
   assert.ok(css.includes(".creator-chat-announcement-workspace {"));
   assert.ok(css.includes("overflow-y: auto;"));
+  assert.ok(announcements.includes('className="creator-chat-announcement-recipient-content"'));
+  assert.ok(announcements.includes('className="creator-chat-announcement-recipient-avatar"'));
+  assert.ok(announcements.includes('className="creator-chat-announcement-recipient-info"'));
+  assert.ok(announcements.includes('className="creator-chat-announcement-recipient-indicator"'));
+  assert.ok(announcements.includes('aria-label="Private Chat copy"'));
+  assert.ok(announcements.includes('Staff included in this announcement'));
+  assert.ok(css.includes('grid-template-columns: repeat(2, minmax(0, 1fr));'));
+  assert.ok(css.includes('.creator-chat-announcement-recipient-list { grid-template-columns: minmax(0, 1fr);'));
+  assert.ok(css.includes('max-height: 288px;'));
+  assert.ok(css.includes('overscroll-behavior: contain;'));
   pass("Audience counts and recipient/delivery drill-downs are compact and internally scrollable.");
 
   // The footer must be outside .creator-chat-announcement-workspace. In the
