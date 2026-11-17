@@ -86,7 +86,13 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
           <p>{posted.text}</p>
         </article>
         <details className="creator-chat-announcement-disclosure">
-          <summary>Delivery activity <span>{posted.deliveries.length} staff</span></summary>
+          <summary>
+            <svg className="creator-chat-announcement-disclosure-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <path d="M4 10h12" /><path className="creator-chat-announcement-disclosure-plus" d="M10 4v12" />
+            </svg>
+            <span className="creator-chat-announcement-disclosure-title">Delivery activity</span>
+            <span className="creator-chat-announcement-disclosure-meta">{posted.deliveries.length} staff</span>
+          </summary>
           <ul className="creator-chat-announcement-deliveries">{posted.deliveries.map((d,i) => <li key={i}>
             <div className="creator-chat-announcement-delivery-row"><strong>{d.personName}</strong><span>{statusLabel[d.status] ?? d.status}</span></div>
             {d.lastError && <p role="alert">{d.lastError}</p>}
@@ -94,11 +100,6 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
           </li>)}</ul>
         </details>
       </>}
-      <div className="creator-chat-dialog-actions creator-chat-announcement-footer">
-        <button type="button" disabled={busy} onClick={() => void details(publishedId)}>Refresh delivery status</button>
-        <button type="button" className="creator-chat-announcement-primary" disabled={busy || !posted}
-          onClick={() => { setPublishedId(null); setPosted(null); setPreview(null); setTitle(''); setText(''); setConfirmed(false); setError(''); requestId.current = crypto.randomUUID(); }}>New announcement</button>
-      </div>
     </section> : preview ? <section className="creator-chat-announcement-stage" aria-label="Review announcement">
       <div className="creator-chat-announcement-section-heading">
         <h3>Review before publishing</h3>
@@ -116,13 +117,25 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
       </article>
       <div className="creator-chat-announcement-review-details">
         <details className="creator-chat-announcement-disclosure">
-          <summary>Recipients <span>{preview.staffCount} staff</span></summary>
+          <summary>
+            <svg className="creator-chat-announcement-disclosure-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <path d="M4 10h12" /><path className="creator-chat-announcement-disclosure-plus" d="M10 4v12" />
+            </svg>
+            <span className="creator-chat-announcement-disclosure-title">Recipients</span>
+            <span className="creator-chat-announcement-disclosure-meta">{preview.staffCount} staff</span>
+          </summary>
           <ul className="creator-chat-announcement-recipient-list">
             {preview.recipients.map((r,i) => <li key={i}><span>{r.name}</span>{r.privateCopies ? <small>Private Hub copy</small> : null}</li>)}
           </ul>
         </details>
         <details className="creator-chat-announcement-disclosure">
-          <summary>Email delivery <span>{showDeliveryMode(preview.emailMode)}</span></summary>
+          <summary>
+            <svg className="creator-chat-announcement-disclosure-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <path d="M4 10h12" /><path className="creator-chat-announcement-disclosure-plus" d="M10 4v12" />
+            </svg>
+            <span className="creator-chat-announcement-disclosure-title">Email delivery</span>
+            <span className="creator-chat-announcement-disclosure-meta">{showDeliveryMode(preview.emailMode)}</span>
+          </summary>
           <p>{preview.emailMode === 'capture' ? 'The email output is saved for review; delivery is not attempted in this mode.' :
             preview.emailMode === 'gmail' ? 'Emails are limited to approved test recipients.' :
             'Email delivery is disabled. The announcement can still be published in Chat.'}</p>
@@ -137,18 +150,13 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
         <span>I have reviewed the announcement and its recipients.</span>
       </label>
       {uncertain && <p role="alert">Publication could not be confirmed. Check the same submission before creating another announcement.</p>}
-      <div className="creator-chat-dialog-actions creator-chat-announcement-footer">
-        <button type="button" disabled={busy || uncertain} onClick={() => { setPreview(null); setConfirmed(false); setError(''); }}>Back to editing</button>
-        <button type="button" className="creator-chat-announcement-primary" disabled={busy || !confirmed || !!preview.blockers.length}
-          onClick={() => void publish()}>{busy ? 'Checking…' : uncertain ? 'Check submission' : 'Publish announcement'}</button>
-      </div>
     </section> : <div className="creator-chat-announcement-compose-layout">
       <section className="creator-chat-announcement-stage" aria-label="Compose announcement">
         <div className="creator-chat-announcement-section-heading">
           <h3>Compose announcement</h3>
           <p>Write once. Review the audience before anything is posted.</p>
         </div>
-        <form onSubmit={e => void review(e)}>
+        <form id="chat-announcement-compose-form" onSubmit={e => void review(e)}>
           <label htmlFor="announcement-title">Title</label>
           <input id="announcement-title" value={title} onChange={e=>setTitle(e.target.value)}
             maxLength={120} disabled={busy} placeholder="What does the team need to know?" required />
@@ -157,11 +165,6 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
             maxLength={7800} rows={9} disabled={busy}
             placeholder="Share the update, important details, and any next steps…" required />
           <small className="creator-chat-announcement-counter">{text.length.toLocaleString()} / 7,800</small>
-          <div className="creator-chat-dialog-actions creator-chat-announcement-footer">
-            <button type="button" disabled={busy} onClick={onClose}>Cancel</button>
-            <button type="submit" className="creator-chat-announcement-primary"
-              disabled={busy || !title.trim() || !text.trim()}>{busy ? 'Preparing…' : 'Review audience'}</button>
-          </div>
         </form>
       </section>
       <aside className="creator-chat-announcement-sidebar" aria-label="Announcement information">
@@ -179,5 +182,20 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
       </aside>
     </div>}
     </div>
+    <footer className="creator-chat-dialog-actions creator-chat-announcement-footer" aria-label="Announcement actions">
+      {publishedId ? <>
+        <button type="button" disabled={busy} onClick={() => void details(publishedId)}>Refresh delivery status</button>
+        <button type="button" className="creator-chat-announcement-primary" disabled={busy || !posted}
+          onClick={() => { setPublishedId(null); setPosted(null); setPreview(null); setTitle(''); setText(''); setConfirmed(false); setError(''); requestId.current = crypto.randomUUID(); }}>New announcement</button>
+      </> : preview ? <>
+        <button type="button" disabled={busy || uncertain} onClick={() => { setPreview(null); setConfirmed(false); setError(''); }}>Back to editing</button>
+        <button type="button" className="creator-chat-announcement-primary" disabled={busy || !confirmed || !!preview.blockers.length}
+          onClick={() => void publish()}>{busy ? 'Checking…' : uncertain ? 'Check submission' : 'Publish announcement'}</button>
+      </> : <>
+        <button type="button" disabled={busy} onClick={onClose}>Cancel</button>
+        <button type="submit" form="chat-announcement-compose-form" className="creator-chat-announcement-primary"
+          disabled={busy || !title.trim() || !text.trim()}>{busy ? 'Preparing…' : 'Review audience'}</button>
+      </>}
+    </footer>
   </dialog>;
 }
