@@ -114,6 +114,34 @@ try {
   assert.ok(css.includes("overflow-y: auto;"));
   pass("Audience counts and recipient/delivery drill-downs are compact and internally scrollable.");
 
+  // The footer must be outside .creator-chat-announcement-workspace. In the
+  // Compose stage this is also verifiable from the actual server-rendered UI.
+  assert.equal((announcements.match(/className="creator-chat-dialog-actions creator-chat-announcement-footer"/g) ?? []).length, 1);
+  assert.ok(announcements.includes('<footer className="creator-chat-dialog-actions creator-chat-announcement-footer" aria-label="Announcement actions">'));
+  assert.ok(announcements.includes('form id="chat-announcement-compose-form"'));
+  assert.ok(announcements.includes('type="submit" form="chat-announcement-compose-form"'));
+  assert.ok(announcements.indexOf('    </div>\n    <footer className="creator-chat-dialog-actions creator-chat-announcement-footer"') > announcements.indexOf('    <div className="creator-chat-announcement-workspace">'));
+  assert.ok(compose.includes('aria-label="Announcement actions"'));
+  assert.ok(compose.includes('form="chat-announcement-compose-form"'));
+  assert.ok(compose.includes('id="chat-announcement-compose-form"'));
+  assert.ok(css.includes('.creator-chat-announcements > .creator-chat-announcement-footer {'));
+  assert.ok(css.includes('flex: 0 0 auto;'));
+  assert.ok(css.includes('min-height: 0;\n  overflow-y: auto;'));
+  assert.ok(announcements.includes('disabled={busy || uncertain} onClick={() => { setPreview(null); setConfirmed(false); setError(\'\'); }}'));
+  assert.ok(announcements.includes('onClick={() => void publish()}'));
+  pass("All stage actions render once in a footer outside the scrollable workspace; Compose submission and guarded Review actions stay wired.");
+
+  assert.equal((announcements.match(/creator-chat-announcement-disclosure-icon/g) ?? []).length, 3);
+  assert.equal((announcements.match(/creator-chat-announcement-disclosure-title/g) ?? []).length, 3);
+  assert.equal((announcements.match(/creator-chat-announcement-disclosure-meta/g) ?? []).length, 3);
+  assert.ok(announcements.includes('className="creator-chat-announcement-disclosure-plus"'));
+  assert.ok(css.includes('grid-template-columns: 20px minmax(0, 1fr) auto;'));
+  assert.ok(css.includes('.creator-chat-announcement-disclosure[open] .creator-chat-announcement-disclosure-plus { display: none; }'));
+  assert.ok(css.includes('.creator-chat-announcements label.creator-chat-announcement-confirm {'));
+  assert.ok(css.includes('text-transform: none;'));
+  assert.ok(!css.includes('.creator-chat-announcement-disclosure > summary::before { content: "+";'));
+  pass("Disclosure icons, titles and counts align in three columns; expanded icons and confirmation copy remain readable.");
+
   assert.ok(!announcements.includes("Email previews only — no emails sent."));
   assert.ok(!reminders.includes("Email previews only"));
   assert.ok(reminders.includes("'Preview mode'"));
