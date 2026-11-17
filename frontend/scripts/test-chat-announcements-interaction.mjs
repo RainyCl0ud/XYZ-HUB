@@ -112,16 +112,12 @@ try {
   assert.ok(css.includes("grid-template-columns: minmax(0, 1.5fr) minmax(240px, .9fr)"));
   assert.ok(css.includes(".creator-chat-announcement-workspace {"));
   assert.ok(css.includes("overflow-y: auto;"));
-  assert.ok(announcements.includes('className="creator-chat-announcement-recipient-content"'));
-  assert.ok(announcements.includes('className="creator-chat-announcement-recipient-avatar"'));
-  assert.ok(announcements.includes('className="creator-chat-announcement-recipient-info"'));
-  assert.ok(announcements.includes('className="creator-chat-announcement-recipient-indicator"'));
-  assert.ok(announcements.includes('aria-label="Private Chat copy"'));
-  assert.ok(announcements.includes('Staff included in this announcement'));
-  assert.ok(css.includes('grid-template-columns: repeat(2, minmax(0, 1fr));'));
-  assert.ok(css.includes('.creator-chat-announcement-recipient-list { grid-template-columns: minmax(0, 1fr);'));
-  assert.ok(css.includes('max-height: 288px;'));
-  assert.ok(css.includes('overscroll-behavior: contain;'));
+  assert.ok(announcements.includes('className="creator-chat-announcement-recipient-list"'));
+  assert.ok(announcements.includes('<span>{r.name}</span>'));
+  assert.ok(announcements.includes('Also receives a private Chat copy'));
+  assert.ok(!announcements.includes('creator-chat-announcement-recipient-avatar'));
+  assert.ok(!announcements.includes('creator-chat-announcement-recipient-indicator'));
+  assert.ok(css.includes('max-height: 220px;'));
   pass("Audience counts and recipient/delivery drill-downs are compact and internally scrollable.");
 
   // The footer must be outside .creator-chat-announcement-workspace. In the
@@ -144,13 +140,15 @@ try {
   assert.equal((announcements.match(/creator-chat-announcement-disclosure-icon/g) ?? []).length, 2);
   assert.equal((announcements.match(/creator-chat-announcement-disclosure-title/g) ?? []).length, 2);
   assert.equal((announcements.match(/creator-chat-announcement-disclosure-meta/g) ?? []).length, 2);
-  assert.ok(announcements.includes('className="creator-chat-announcement-disclosure-plus"'));
-  assert.ok(css.includes('grid-template-columns: 20px minmax(0, 1fr) auto;'));
-  assert.ok(css.includes('.creator-chat-announcement-disclosure[open] .creator-chat-announcement-disclosure-plus { display: none; }'));
+  assert.equal((announcements.match(/<path d="m5 7 5 5 5-5"/g) ?? []).length, 2);
+  assert.ok(!announcements.includes('creator-chat-announcement-disclosure-plus'));
+  assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) auto 18px;'));
+  assert.ok(css.includes('.creator-chat-announcement-disclosure[open] > summary .creator-chat-announcement-disclosure-icon { transform: rotate(180deg); }'));
+  assert.ok(css.includes('.creator-chat-announcements .creator-chat-announcement-disclosure > summary:focus-visible'));
+  assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
   assert.ok(css.includes('.creator-chat-announcements label.creator-chat-announcement-confirm {'));
   assert.ok(css.includes('text-transform: none;'));
-  assert.ok(!css.includes('.creator-chat-announcement-disclosure > summary::before { content: "+";'));
-  pass("Disclosure icons, titles and counts align in three columns; expanded icons and confirmation copy remain readable.");
+  pass("Chevron disclosures align label and count, rotate on expansion, and preserve keyboard accessibility.");
 
   assert.ok(!announcements.includes("Email previews only — no emails sent."));
   assert.ok(!announcements.includes("No emails will be sent during testing."));
