@@ -135,6 +135,17 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [showMembers, setShowMembers] = useState(false);
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
+  useEffect(() => {
+    if (!showMobileActions) return;
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest(".creator-chat-mobile-actions")) return;
+      setShowMobileActions(false);
+    };
+    const onEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setShowMobileActions(false); };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", onEscape);
+    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", onEscape); };
+  }, [showMobileActions]);
   const [showComposerMenu, setShowComposerMenu] = useState(false);
   const [composerFileActive, setComposerFileActive] = useState(false);
   const [composerVoiceActive, setComposerVoiceActive] = useState(false);
@@ -739,7 +750,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
           </aside>
           <div className="creator-chat-conversation" role="region" aria-label="Conversation">
             <header className="creator-chat-channel-header">
-              <button type="button" className="creator-chat-mobile creator-chat-browse-button" onClick={() => { setShowMembers(false); setShowChannels(true); }} aria-label="Browse conversations"><ChatIcon name="menu" /><span>Browse</span></button>
+              <button type="button" className="creator-chat-mobile creator-chat-browse-button" onClick={() => { setShowMobileActions(false); setShowMembers(false); setShowChannels(true); }} aria-label="Browse conversations"><ChatIcon name="menu" /><span>Browse</span></button>
               <div className={`creator-chat-title-icon ${channel?.isPrivate ? "is-private" : ""}`}><ChatIcon name={channel?.isPrivate ? "lock" : "channel"} /></div>
               <div className="creator-chat-channel-title"><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
               <div className="creator-chat-header-actions">
@@ -761,7 +772,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                   </button>}
                 </div>
                 {channel?.canManage && area && <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => openChannelSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}
-                <button type="button" className="creator-chat-members-toggle" aria-label="Conversation members" title="Conversation members" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button>
+                <button type="button" className="creator-chat-members-toggle" aria-label="Conversation members" title="Conversation members" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => { setShowMobileActions(false); setShowMembers(!showMembers); }} disabled={!transcript>><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button>
                 <div className="creator-chat-mobile-actions">
                   <button type="button" className="creator-chat-mobile-actions-toggle" aria-label="More conversation actions" aria-controls="chat-mobile-actions-menu" aria-expanded={showMobileActions} disabled={!channel} onClick={() => setShowMobileActions(open => !open)}>
                     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg>
