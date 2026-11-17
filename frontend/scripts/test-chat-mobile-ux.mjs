@@ -74,4 +74,39 @@ assert.ok(css.includes(".creator-chat-composer-bar { align-items: center; min-he
 assert.ok(css.includes(".creator-chat-composer-plus { display: flex; align-items: center; align-self: center; }"));
 pass("The composer starts as one aligned text row, grows for multiline drafts, and centers the plus/send actions.");
 
+assert.ok(page.includes('className="creator-chat-mobile-actions"'));
+assert.ok(page.includes('aria-label="More conversation actions"'));
+assert.ok(page.includes('aria-controls="chat-mobile-actions-menu"'));
+assert.ok(page.includes('aria-expanded={showMobileActions}'));
+assert.ok(page.includes('const [showMobileActions, setShowMobileActions] = useState(false)'));
+assert.ok(page.includes('event.target.closest(".creator-chat-mobile-actions")'));
+assert.ok(page.includes('event.key === "Escape"'));
+assert.ok(page.includes('Search messages</button>'));
+assert.ok(page.includes('Pinned messages</button>'));
+assert.ok(page.includes('Deleted messages</button>'));
+assert.ok(page.includes('Channel settings</button>'));
+assert.ok(css.includes('.creator-chat .creator-chat-mobile-actions-toggle {'));
+assert.ok(css.includes('.creator-chat-mobile-actions-menu {'));
+assert.ok(css.includes('.creator-chat-header-actions > .creator-chat-discover-actions,'));
+assert.ok(css.includes('white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'));
+pass("Mobile header stays on one line with accessible member shortcut and one dismissible secondary-actions menu.");
+
+assert.ok(page.includes('className="creator-chat-members-backdrop"'));
+assert.ok(page.includes('aria-label="Close members panel"'));
+assert.ok(css.includes('.creator-chat .creator-chat-members-backdrop {'));
+assert.ok(css.includes('.creator-chat .creator-chat-members.is-open {'));
+assert.ok(css.includes('bottom: 8px; width: calc(100% - 16px); max-height: none;'));
+assert.ok(page.includes('className="creator-chat-members-close"'));
+assert.ok(!page.includes('See who has access</button>'));
+assert.ok(!page.includes('>View members</button></div>'));
+assert.ok(css.includes('@media (min-width: 721px) {\n  .creator-chat-members-backdrop { display: none !important; }'));
+pass("Mobile member list is a dismissible scrollable overlay with no redundant membership links.");
+
+assert.ok(page.includes('className="creator-chat-options-chevron"'));
+assert.ok(css.includes('.creator-chat-options-toggle[aria-expanded="true"] .creator-chat-options-chevron { transform: rotate(180deg); }'));
+assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
+assert.ok(page.includes('setShowChatOptions(false); setShowAnnouncements(true);'));
+assert.ok(page.includes('setShowChatOptions(false); setShowReminders(true);'));
+pass("Chat options use a chevron disclosure while retaining permission-gated tools.");
+
 console.log(`${passed} mobile Chat UX source regression groups passed.`);
