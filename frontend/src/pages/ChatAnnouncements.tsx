@@ -122,9 +122,19 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
             <span className="creator-chat-announcement-disclosure-title">Recipients</span>
             <span className="creator-chat-announcement-disclosure-meta">{preview.staffCount} staff</span>
           </summary>
-          <ul className="creator-chat-announcement-recipient-list">
-            {preview.recipients.map((r,i) => <li key={i}><span>{r.name}</span>{r.privateCopies ? <small>Also receives a private Chat copy</small> : null}</li>)}
-          </ul>
+          <div className="creator-chat-announcement-recipient-content">
+            <p className="creator-chat-announcement-recipient-help">Staff included in this announcement</p>
+            <ul className="creator-chat-announcement-recipient-list">
+              {preview.recipients.map((r,i) => <li key={i}>
+                <span className="creator-chat-announcement-recipient-avatar" aria-hidden="true">{r.name.trim().split(/\\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase() || '?'}</span>
+                <span className="creator-chat-announcement-recipient-info">
+                  <strong>{r.name}</strong>
+                  {r.privateCopies > 0 && <small>Also receives a private Chat message</small>}
+                </span>
+                {r.privateCopies > 0 && <span className="creator-chat-announcement-recipient-indicator" aria-label="Private Chat copy" title="Private Chat copy">Chat</span>}
+              </li>)}
+            </ul>
+          </div>
         </details>
       </div>
       {!!preview.blockers.length && <div className="creator-chat-error" role="alert">
