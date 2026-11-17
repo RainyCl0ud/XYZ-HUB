@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError, apiRequest } from '../lib/api';
-type Preview = { title: string; text: string; previewToken: string; staffCount: number; creatorCount: number; privateCopyCount: number; emailMode: string; blockers: { name: string; reason: string }[]; recipients: { name: string; privateCopies: number }[] };
+type Preview = { title: string; text: string; previewToken: string; staffCount: number; creatorCount: number; privateCopyCount: number; blockers: { name: string; reason: string }[]; recipients: { name: string; privateCopies: number }[] };
 type Delivery = { personName: string; status: string; lastError: string | null; previewEmail: { to: string; subject: string; text: string } | null };
 type Announcement = { id: string; title: string; text: string; createdAt: string; authorName: string; deliveries: Delivery[] };
 type History = { id: string; title: string; createdAt: string; authorName: string };
 const time = (value: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(value));
-const statusLabel: Record<string,string> = { PENDING: 'Waiting to send', SENDING: 'Sending', SENT: 'Sent', CAPTURED: 'Not sent (test)', SKIPPED: 'Not sent', REVIEW: 'Needs review' };
+const statusLabel: Record<string,string> = { PENDING: 'Waiting to send', SENDING: 'Sending', SENT: 'Sent', CAPTURED: 'Not emailed', SKIPPED: 'Not sent', REVIEW: 'Needs review' };
 export default function ChatAnnouncements({ onClose, onPublished }: { onClose: () => void; onPublished: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), controller = useRef<AbortController | null>(null), requestId = useRef(crypto.randomUUID());
   const [title, setTitle] = useState(''), [text, setText] = useState('');
@@ -51,14 +51,6 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
     } finally { setBusy(false); }
   }
   const stage = publishedId ? "published" : preview ? "review" : "compose";
-  // Email is required by Block 2, but the Staging environment must never
-  // suggest email was sent when it only saved a test copy.
-  const emailNotice = (mode: string) =>
-    mode === "capture"
-      ? "No emails will be sent during testing. The announcement will still appear in Chat."
-      : mode === "gmail"
-        ? "Email notifications will go only to approved test addresses."
-        : "Email notifications are currently off. The announcement will still appear in Chat.";
 
   return <dialog ref={dialog} className="creator-chat-settings creator-chat-announcements"
     aria-labelledby="chat-announce-title"
@@ -102,7 +94,7 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
           <ul className="creator-chat-announcement-deliveries">{posted.deliveries.map((d,i) => <li key={i}>
             <div className="creator-chat-announcement-delivery-row"><strong>{d.personName}</strong><span>{statusLabel[d.status] ?? d.status}</span></div>
             {d.lastError && <p role="alert">{d.lastError}</p>}
-            {d.previewEmail && <details><summary>View sample email</summary><p>To: {d.previewEmail.to}</p><strong>{d.previewEmail.subject}</strong><pre>{d.previewEmail.text}</pre></details>}
+            {d.previewEmail && <details><summary>View email details</summary><p>To: {d.previewEmail.to}</p><strong>{d.previewEmail.subject}</strong><pre>{d.previewEmail.text}</pre></details>}
           </li>)}</ul>
         </details>
       </>}
@@ -134,10 +126,6 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
             {preview.recipients.map((r,i) => <li key={i}><span>{r.name}</span>{r.privateCopies ? <small>Also receives a private Chat copy</small> : null}</li>)}
           </ul>
         </details>
-        <div className="creator-chat-announcement-email-note" role="status">
-          <strong>Staff email notifications</strong>
-          <p>{emailNotice(preview.emailMode)}</p>
-        </div>
       </div>
       {!!preview.blockers.length && <div className="creator-chat-error" role="alert">
         <strong>Resolve before publishing</strong>
