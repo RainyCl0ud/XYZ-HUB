@@ -74,6 +74,8 @@ assert.ok(css.includes(".creator-chat-composer-bar { align-items: center; min-he
 assert.ok(css.includes(".creator-chat-composer-plus { display: flex; align-items: center; align-self: center; }"));
 pass("The composer starts as one aligned text row, grows for multiline drafts, and centers the plus/send actions.");
 
+assert.ok(page.includes('disabled={!transcript}><ChatIcon name="people" />'));
+assert.ok(!page.includes('disabled={!transcript}>><ChatIcon name="people" />'));
 assert.ok(page.includes('className="creator-chat-mobile-actions"'));
 assert.ok(page.includes('aria-label="More conversation actions"'));
 assert.ok(page.includes('aria-controls="chat-mobile-actions-menu"'));
