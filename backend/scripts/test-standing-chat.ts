@@ -100,6 +100,7 @@ async function main() {
     await update(chatter.id, "CHATTER", [mei, other]);
     const newStaffChat = (await listChatAreas(chatter.id)).find((a) => a.modelId === mei)!.channels.find((c) => c.isPrivate)!.id;
     assert.notEqual(newStaffChat, staffChat); assert.equal((await listChatMessages(chatter.id, newStaffChat)).messages.length, 0);
+    assert.equal((await listChatAreas(chatter.id)).find((a) => a.modelId === mei)!.channels.find((c) => c.id === newStaffChat)?.name, "Your staff chat");
     check("Returning staff receive a fresh private chat with none of the old conversation copied");
     await prisma.$transaction((tx) => syncUserStandingChats(tx, chatter.id));
     await prisma.$transaction((tx) => provisionCreatorChat(tx, mei));
@@ -116,6 +117,7 @@ async function main() {
     check("Adding Creator role and explicitly linking an existing creator preserves her existing private conversation");
     const generalChat = (await listChatAreas(general.id)).flatMap((a) => a.channels);
     assert.equal(generalChat.length, 1);
+    assert.equal(generalChat[0].name, "Your general chat");
     const generalMembers = await listChatMembers(general.id, generalChat[0].id);
     assert.ok(generalMembers.some((p) => p.id === owner.id));
     assert.ok(!generalMembers.some((p) => p.id === ops.id || p.id === developer.id || p.id === creator.id));
@@ -129,6 +131,7 @@ async function main() {
     check("General Staff private chats remain limited to that staff member and Owners");
     const accountantChat = (await listChatAreas(accountant.id)).flatMap((a) => a.channels);
     assert.equal(accountantChat.length, 1); assert.ok(accountantChat[0].isPrivate);
+    assert.equal(accountantChat[0].name, "Your accounting chat");
     assert.ok((await listChatMembers(accountant.id, accountantChat[0].id)).some((p) => p.id === ops.id));
     await denied(() => listChatMessages(accountant.id, ordinary.id));
     check("Accountant receives a separate personal chat and no creator operations channels");
