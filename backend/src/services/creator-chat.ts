@@ -305,7 +305,7 @@ export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: 
         : conversation.subjectUserId === userId
           ? `Your ${purpose.toLowerCase()}`
           : `${conversation.subjectUser?.name ?? conversation.subjectName} · ${purpose}`;
-      area.channels.push({ id: conversation.id, name, isPrivate: true, retained: false, ...access, canArchive: false });
+      area.channels.push({ id: conversation.id, name, isPrivate: true, isOwnPrivate: conversation.subjectUserId === userId, retained: false, ...access, canArchive: false });
     }
     return result.filter((area) => area.channels.length || area.canManage);
 }
