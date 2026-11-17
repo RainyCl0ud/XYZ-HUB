@@ -134,6 +134,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [showChannels, setShowChannels] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [showChatOptions, setShowChatOptions] = useState(false);
+  const [showMobileActions, setShowMobileActions] = useState(false);
   const [showComposerMenu, setShowComposerMenu] = useState(false);
   const [composerFileActive, setComposerFileActive] = useState(false);
   const [composerVoiceActive, setComposerVoiceActive] = useState(false);
@@ -192,6 +193,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   useEffect(() => { if (replyId) composer.current?.focus(); }, [replyId]);
   const area = areas.find((a) => a.channels.some((c) => c.id === selected));
   const channel = area?.channels.find((c) => c.id === selected);
+  const conversationName = `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`;
   const cleanupDownload = transcript?.cleanup?.download;
   const latestEdit = edit && transcript?.messages.find((m) => m.id === edit.id);
   const editConflict = !!(edit && latestEdit && latestEdit.version !== edit.version);
@@ -224,6 +226,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     setReply(saved?.reply ?? null); setTools(null); setDeleting(null); setNotice(saved?.text ? "Your unsent draft was kept for this conversation." : "");
     setShowMembers(false);
     setShowChatOptions(false);
+    setShowMobileActions(false);
     setShowComposerMenu(false);
     setComposerFileActive(false);
     setComposerVoiceActive(false);
@@ -689,7 +692,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
             className="creator-chat-mobile creator-chat-options-toggle"
             aria-controls="chat-page-options"
             aria-expanded={showChatOptions}
-            onClick={() => setShowChatOptions(open => !open)}>Chat options {showChatOptions ? "−" : "+"}</button>}
+            onClick={() => setShowChatOptions(open => !open)}>Chat options <svg className="creator-chat-options-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="m5 7 5 5 5-5" /></svg></button>}
           <div id="chat-page-options" className={`creator-chat-heading-actions ${showChatOptions ? "is-open" : ""}`}>
             {canAnnounce && <button type="button" onClick={() => { setShowChatOptions(false); setShowAnnouncements(true); }}>Staff announcements</button>}
             {remindersEnabled && <button type="button" onClick={() => { setShowChatOptions(false); setShowReminders(true); }}>Email reminders</button>}
@@ -759,17 +762,29 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 </div>
                 {channel?.canManage && area && <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => openChannelSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name })}><ChatIcon name="settings" /><span>Settings</span></button>}
                 <button type="button" className="creator-chat-members-toggle" aria-label="Conversation members" title="Conversation members" aria-expanded={showMembers} aria-controls="chat-members" onClick={() => setShowMembers(!showMembers)} disabled={!transcript}><ChatIcon name="people" /><span>Members</span><span className="creator-chat-member-count">{members.filter((m) => m.canView !== false).length}</span></button>
+                <div className="creator-chat-mobile-actions">
+                  <button type="button" className="creator-chat-mobile-actions-toggle" aria-label="More conversation actions" aria-controls="chat-mobile-actions-menu" aria-expanded={showMobileActions} disabled={!channel} onClick={() => setShowMobileActions(open => !open)}>
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg>
+                  </button>
+                  {showMobileActions && <div id="chat-mobile-actions-menu" className="creator-chat-mobile-actions-menu" role="group" aria-label="Conversation actions">
+                    <button type="button" disabled={!transcript} onClick={() => { setShowMobileActions(false); setTools({ kind: "search", channelId: selected, channelName: conversationName }); }}><ChatIcon name="search" />Search messages</button>
+                    <button type="button" disabled={!transcript} onClick={() => { setShowMobileActions(false); setTools({ kind: "pins", channelId: selected, channelName: conversationName }); }}><ChatIcon name="pin" />Pinned messages</button>
+                    {transcript?.canViewDeleted && <button type="button" onClick={() => { setShowMobileActions(false); setTools({ kind: "deleted", channelId: selected, channelName: conversationName }); }}><ChatIcon name="trash" />Deleted messages</button>}
+                    {channel?.canManage && area && <button type="button" onClick={() => { setShowMobileActions(false); openChannelSettings({ modelId: area.modelId, channelId: channel.id, name: channel.name }); }}><ChatIcon name="settings" />Channel settings</button>}
+                  </div>}
+                </div>
+
               </div>
             </header>
             {inlineDiscoveryOpen && <div id="chat-discovery-panel" className={`creator-chat-live-panel-anchor ${tools?.kind === "pins" ? "is-pins" : "is-search"}`}>{toolView}</div>}
-            {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation. <button type="button" onClick={() => setShowMembers(true)}>See who has access</button></span>{transcript?.quarantine && <button type="button" onClick={() => setQuarantining(transcript.quarantine!)}>{transcript.quarantine.active ? "Review / lift chat pause" : "Pause creator chats…"}</button>}</div>}
+            {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation.</span>{transcript?.quarantine && <button type="button" onClick={() => setQuarantining(transcript.quarantine!)}>{transcript.quarantine.active ? "Review / lift chat pause" : "Pause creator chats…"}</button>}</div>}
             {area?.pausedForYou && <div className="creator-chat-pause-notice" role="status"><strong>Your other chats for {area.name} are paused.</strong></div>}
             {(!!channel?.unreadCount || readError) && <div className="creator-chat-read-status"><span role="status">{readError || `${channel?.unreadCount} unread · Messages clear as you view them.`}</span>{!!channel?.unreadCount && <button type="button" disabled={markingRead || !transcript?.messages.length} title="Mark all messages read up to the latest loaded message, including earlier history." onClick={() => void markConversationRead()}>{markingRead ? "Saving…" : "Mark conversation read"}</button>}</div>}
             <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
               {!transcript ? <p role="status">Loading messages…</p> : <>
                 {viewingOlderJump && <button type="button" className="creator-chat-return-latest" onClick={jumpToLatest}>Return to latest messages</button>}
                 {transcript.hasMore && <button className="creator-chat-load-older" type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load earlier messages"}</button>}
-                {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p><button type="button" onClick={() => setShowMembers(true)}>View members</button></div>}
+                {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p></div>}
                 {transcript.messages.map((m, index) => <Fragment key={m.id}>
                   {(index === 0 || day(transcript.messages[index - 1].createdAt) !== day(m.createdAt)) && <div className="creator-chat-day"><span>{day(m.createdAt)}</span></div>}
                   <article className={`creator-chat-message ${m.deleted ? "is-deleted-message" : ""} ${m.announcement ? "is-announcement" : ""} ${!m.deleted && (m.replyTo || m.replyUnavailable) ? "has-reply" : ""} ${jumpHighlight === m.id ? "is-jump-highlight" : ""}`} data-chat-message-id={m.id}><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onReply={(message) => startReply(selected, message)} onEdit={startEdit} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => jumpToMessage(selected, messageId)} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onPreviewLoad={followLoadedPreview} /></article>
@@ -839,6 +854,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               setRefreshTick(n => n + 1);
             }}
           />}
+          {showMembers && <button type="button" className="creator-chat-members-backdrop" aria-label="Close members panel" onClick={() => setShowMembers(false)} />}
           <aside id="chat-members" className={`creator-chat-members ${showMembers ? "is-open" : ""}`} aria-label="Conversation members">
             <header>
               <h3>Members</h3>
