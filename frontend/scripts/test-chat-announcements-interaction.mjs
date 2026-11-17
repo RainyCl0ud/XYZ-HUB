@@ -85,7 +85,7 @@ try {
   const { default: ChatAnnouncements } = await vite.ssrLoadModule("/src/pages/ChatAnnouncements.tsx");
   const compose = renderToStaticMarkup(createElement(ChatAnnouncements, { onClose: noop, onPublished: noop }));
   for (const copy of ["Staff announcements", "Compose", "Review", "Published",
-    "Compose announcement", "Where it appears", "Review audience", "Title", "Message"]) {
+    "Compose announcement", "Who receives it", "Review audience", "Title", "Message"]) {
     assert.ok(compose.includes(copy), "Missing announcement workflow UI: " + copy);
   }
   assert.ok(compose.includes('aria-label="Announcement workflow"'));
@@ -131,9 +131,9 @@ try {
   assert.ok(announcements.includes('onClick={() => void publish()}'));
   pass("All stage actions render once in a footer outside the scrollable workspace; Compose submission and guarded Review actions stay wired.");
 
-  assert.equal((announcements.match(/creator-chat-announcement-disclosure-icon/g) ?? []).length, 3);
-  assert.equal((announcements.match(/creator-chat-announcement-disclosure-title/g) ?? []).length, 3);
-  assert.equal((announcements.match(/creator-chat-announcement-disclosure-meta/g) ?? []).length, 3);
+  assert.equal((announcements.match(/creator-chat-announcement-disclosure-icon/g) ?? []).length, 2);
+  assert.equal((announcements.match(/creator-chat-announcement-disclosure-title/g) ?? []).length, 2);
+  assert.equal((announcements.match(/creator-chat-announcement-disclosure-meta/g) ?? []).length, 2);
   assert.ok(announcements.includes('className="creator-chat-announcement-disclosure-plus"'));
   assert.ok(css.includes('grid-template-columns: 20px minmax(0, 1fr) auto;'));
   assert.ok(css.includes('.creator-chat-announcement-disclosure[open] .creator-chat-announcement-disclosure-plus { display: none; }'));
@@ -145,10 +145,28 @@ try {
   assert.ok(!announcements.includes("Email previews only — no emails sent."));
   assert.ok(!reminders.includes("Email previews only"));
   assert.ok(reminders.includes("'Preview mode'"));
-  assert.ok(announcements.includes('mode === "capture" ? "Preview mode"'));
-  assert.ok(announcements.includes("The email output is saved for review; delivery is not attempted in this mode."));
-  assert.ok(announcements.includes("Email delivery"));
-  pass("Redundant preview banner is removed while the actual email delivery mode remains truthful and inspectable.");
+  assert.ok(announcements.includes('const emailNotice = (mode: string) =>'));
+  assert.ok(announcements.includes("No emails will be sent during testing."));
+  assert.ok(announcements.includes("Email notifications will go only to approved test addresses."));
+  assert.ok(announcements.includes("Email notifications are currently off."));
+  assert.ok(announcements.includes('className="creator-chat-announcement-email-note"'));
+  assert.ok(announcements.includes("Staff email notifications"));
+  assert.ok(!announcements.includes("Preview mode"));
+  assert.ok(!announcements.includes("Email delivery</span>"));
+  assert.ok(css.includes(".creator-chat-announcement-email-note {"));
+  pass("Review explains email notifications in plain language without exposing technical delivery modes or falsely claiming emails were sent.");
+
+  assert.ok(service.includes("where: { key: 'updates'"));
+  assert.ok(service.includes("export function buildAnnouncementEmail"));
+  assert.ok(service.includes("!person.creatorProfile"));
+  assert.ok(service.includes("role.systemKey === 'MODEL'"));
+  assert.ok(announcements.includes("Model #Updates channels"));
+  assert.ok(announcements.includes("Active staff also receive an email when email sending is enabled."));
+  assert.ok(announcements.includes("Additional private chats"));
+  assert.ok(announcements.includes("Under the current setup, some staff receive an additional private Chat copy."));
+  assert.ok(!announcements.includes("Private Hub copies"));
+  assert.ok(css.includes("repeat(auto-fit, minmax(165px, 1fr))"));
+  pass("Staff announcements distinguish the brief-required model Updates and staff emails from the additional private Chat copy implementation.");
 
   assert.ok(page.includes('{canAnnounce && <button'));
   assert.ok(routes.includes('router.post("/announcements/preview"'));
