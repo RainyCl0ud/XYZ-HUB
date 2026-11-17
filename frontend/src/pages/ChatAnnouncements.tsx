@@ -5,7 +5,7 @@ type Delivery = { personName: string; status: string; lastError: string | null; 
 type Announcement = { id: string; title: string; text: string; createdAt: string; authorName: string; deliveries: Delivery[] };
 type History = { id: string; title: string; createdAt: string; authorName: string };
 const time = (value: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(value));
-const statusLabel: Record<string,string> = { PENDING: 'Email waiting', SENDING: 'Sending email', SENT: 'Email sent', CAPTURED: 'Preview saved', SKIPPED: 'Email skipped', REVIEW: 'Check delivery · resend paused' };
+const statusLabel: Record<string,string> = { PENDING: 'Waiting to send', SENDING: 'Sending', SENT: 'Sent', CAPTURED: 'Not sent (test)', SKIPPED: 'Not sent', REVIEW: 'Needs review' };
 export default function ChatAnnouncements({ onClose, onPublished }: { onClose: () => void; onPublished: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), controller = useRef<AbortController | null>(null), requestId = useRef(crypto.randomUUID());
   const [title, setTitle] = useState(''), [text, setText] = useState('');
@@ -51,17 +51,23 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
     } finally { setBusy(false); }
   }
   const stage = publishedId ? "published" : preview ? "review" : "compose";
-  const showDeliveryMode = (mode: string) =>
-    mode === "capture" ? "Preview mode" : mode === "gmail" ? "Approved test recipients" : "Off";
+  // Email is required by Block 2, but the Staging environment must never
+  // suggest email was sent when it only saved a test copy.
+  const emailNotice = (mode: string) =>
+    mode === "capture"
+      ? "No emails will be sent during testing. The announcement will still appear in Chat."
+      : mode === "gmail"
+        ? "Email notifications will go only to approved test addresses."
+        : "Email notifications are currently off. The announcement will still appear in Chat.";
 
   return <dialog ref={dialog} className="creator-chat-settings creator-chat-announcements"
     aria-labelledby="chat-announce-title"
     onCancel={e => { if (busy || uncertain) e.preventDefault(); else onClose(); }}>
     <header className="creator-chat-announcement-topbar">
       <div>
-        <small>MANAGEMENT / COMMUNICATIONS</small>
+        <small>STAFF COMMUNICATIONS</small>
         <h2 id="chat-announce-title">Staff announcements</h2>
-        <p>Publish an agency-wide update from one place.</p>
+        <p>Share important news with the whole team.</p>
       </div>
       <button type="button" className="creator-chat-announcement-close" disabled={busy || uncertain} onClick={onClose}>Close</button>
     </header>
@@ -77,9 +83,9 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
     {publishedId ? <section className="creator-chat-announcement-stage" aria-label="Published announcement">
       <div className="creator-chat-announcement-section-heading">
         <h3>Published announcement</h3>
-        <p role="status">Posted in Chat. Delivery activity is available below.</p>
+        <p role="status">Your announcement has been posted in Chat.</p>
       </div>
-      {!posted ? <p role="status">{busy ? 'Loading delivery activity…' : 'Delivery details are unavailable. Refresh to check this publication without posting it again.'}</p> : <>
+      {!posted ? <p role="status">{busy ? 'Checking email status…' : 'Email status is unavailable. Refresh to check again.'}</p> : <>
         <article className="creator-chat-announcement-preview-card">
           <small>POSTED · {posted.authorName} · {time(posted.createdAt)}</small>
           <h4>{posted.title}</h4>
@@ -90,28 +96,28 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
             <svg className="creator-chat-announcement-disclosure-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
               <path d="M4 10h12" /><path className="creator-chat-announcement-disclosure-plus" d="M10 4v12" />
             </svg>
-            <span className="creator-chat-announcement-disclosure-title">Delivery activity</span>
+            <span className="creator-chat-announcement-disclosure-title">Staff email status</span>
             <span className="creator-chat-announcement-disclosure-meta">{posted.deliveries.length} staff</span>
           </summary>
           <ul className="creator-chat-announcement-deliveries">{posted.deliveries.map((d,i) => <li key={i}>
             <div className="creator-chat-announcement-delivery-row"><strong>{d.personName}</strong><span>{statusLabel[d.status] ?? d.status}</span></div>
             {d.lastError && <p role="alert">{d.lastError}</p>}
-            {d.previewEmail && <details><summary>View email preview</summary><p>To: {d.previewEmail.to}</p><strong>{d.previewEmail.subject}</strong><pre>{d.previewEmail.text}</pre></details>}
+            {d.previewEmail && <details><summary>View sample email</summary><p>To: {d.previewEmail.to}</p><strong>{d.previewEmail.subject}</strong><pre>{d.previewEmail.text}</pre></details>}
           </li>)}</ul>
         </details>
       </>}
     </section> : preview ? <section className="creator-chat-announcement-stage" aria-label="Review announcement">
       <div className="creator-chat-announcement-section-heading">
-        <h3>Review before publishing</h3>
-        <p>Check the message and its audience. Publishing posts it across all eligible locations.</p>
+        <h3>Review announcement</h3>
+        <p>Check the message and who will receive it before publishing.</p>
       </div>
       <div className="creator-chat-announcement-reach" aria-label="Announcement audience">
-        <div><strong>{preview.staffCount}</strong><span>Staff</span></div>
-        <div><strong>{preview.creatorCount}</strong><span>Creator Updates channels</span></div>
-        <div><strong>{preview.privateCopyCount}</strong><span>Private Hub copies</span></div>
+        <div><strong>{preview.staffCount}</strong><span>Staff members</span></div>
+        <div><strong>{preview.creatorCount}</strong><span>Model #Updates channels</span></div>
+        {preview.privateCopyCount > 0 && <div><strong>{preview.privateCopyCount}</strong><span>Additional private chats</span></div>}
       </div>
       <article className="creator-chat-announcement-preview-card">
-        <small>MESSAGE PREVIEW</small>
+        <small>YOUR ANNOUNCEMENT</small>
         <h4>{preview.title}</h4>
         <p>{preview.text}</p>
       </article>
@@ -125,21 +131,13 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
             <span className="creator-chat-announcement-disclosure-meta">{preview.staffCount} staff</span>
           </summary>
           <ul className="creator-chat-announcement-recipient-list">
-            {preview.recipients.map((r,i) => <li key={i}><span>{r.name}</span>{r.privateCopies ? <small>Private Hub copy</small> : null}</li>)}
+            {preview.recipients.map((r,i) => <li key={i}><span>{r.name}</span>{r.privateCopies ? <small>Also receives a private Chat copy</small> : null}</li>)}
           </ul>
         </details>
-        <details className="creator-chat-announcement-disclosure">
-          <summary>
-            <svg className="creator-chat-announcement-disclosure-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-              <path d="M4 10h12" /><path className="creator-chat-announcement-disclosure-plus" d="M10 4v12" />
-            </svg>
-            <span className="creator-chat-announcement-disclosure-title">Email delivery</span>
-            <span className="creator-chat-announcement-disclosure-meta">{showDeliveryMode(preview.emailMode)}</span>
-          </summary>
-          <p>{preview.emailMode === 'capture' ? 'The email output is saved for review; delivery is not attempted in this mode.' :
-            preview.emailMode === 'gmail' ? 'Emails are limited to approved test recipients.' :
-            'Email delivery is disabled. The announcement can still be published in Chat.'}</p>
-        </details>
+        <div className="creator-chat-announcement-email-note" role="status">
+          <strong>Staff email notifications</strong>
+          <p>{emailNotice(preview.emailMode)}</p>
+        </div>
       </div>
       {!!preview.blockers.length && <div className="creator-chat-error" role="alert">
         <strong>Resolve before publishing</strong>
@@ -147,14 +145,14 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
       </div>}
       <label className="creator-chat-announcement-confirm"><input type="checkbox" checked={confirmed}
         onChange={e => setConfirmed(e.target.checked)} disabled={busy || uncertain || !!preview.blockers.length} />
-        <span>I have reviewed the announcement and its recipients.</span>
+        <span>I've checked the announcement and its recipients.</span>
       </label>
-      {uncertain && <p role="alert">Publication could not be confirmed. Check the same submission before creating another announcement.</p>}
+      {uncertain && <p role="alert">We couldn't confirm whether it was posted. Check this announcement before starting another.</p>}
     </section> : <div className="creator-chat-announcement-compose-layout">
       <section className="creator-chat-announcement-stage" aria-label="Compose announcement">
         <div className="creator-chat-announcement-section-heading">
           <h3>Compose announcement</h3>
-          <p>Write once. Review the audience before anything is posted.</p>
+          <p>Write your announcement, then check who will receive it.</p>
         </div>
         <form id="chat-announcement-compose-form" onSubmit={e => void review(e)}>
           <label htmlFor="announcement-title">Title</label>
@@ -168,9 +166,9 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
         </form>
       </section>
       <aside className="creator-chat-announcement-sidebar" aria-label="Announcement information">
-        <h3>Where it appears</h3>
-        <p>The message is published to eligible creator <strong>Updates</strong> channels, with private Hub copies where applicable.</p>
-        <p>The audience is checked again when you publish.</p>
+        <h3>Who receives it</h3>
+        <p>The announcement appears in every active model's <strong>#Updates</strong> channel. Active staff also receive an email when email sending is enabled.</p>
+        <p>Under the current setup, some staff receive an additional private Chat copy.</p>
         <div className="creator-chat-announcement-history">
           <h3>Recent announcements</h3>
           {!history.length ? <p>No announcements to display yet.</p> :
@@ -184,7 +182,7 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
     </div>
     <footer className="creator-chat-dialog-actions creator-chat-announcement-footer" aria-label="Announcement actions">
       {publishedId ? <>
-        <button type="button" disabled={busy} onClick={() => void details(publishedId)}>Refresh delivery status</button>
+        <button type="button" disabled={busy} onClick={() => void details(publishedId)}>Refresh email status</button>
         <button type="button" className="creator-chat-announcement-primary" disabled={busy || !posted}
           onClick={() => { setPublishedId(null); setPosted(null); setPreview(null); setTitle(''); setText(''); setConfirmed(false); setError(''); requestId.current = crypto.randomUUID(); }}>New announcement</button>
       </> : preview ? <>
