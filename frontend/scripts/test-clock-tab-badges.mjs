@@ -62,6 +62,18 @@ try {
   assert.ok(owner.includes('class="clock-tab-count"'));
   pass("Owner retains only Attendance Overview and Review Requests, with the count on Review.");
 
+  const teamTabs = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ["/clock?tab=team"] },
+    createElement(ClockReviewCountContext.Provider, { value: 0 },
+      createElement(ClockTabs, { mode: "staff", canReview: false, canViewTeam: true, activeTab: "team" }),
+    ),
+  ));
+  assert.ok(teamTabs.includes("Team attendance"));
+  assert.ok(teamTabs.includes('href="/clock?tab=team"'));
+  assert.ok(teamTabs.includes('aria-current="page"'));
+  assert.ok(!render(0, staff, "staff", false).includes("Team attendance"));
+  assert.ok(!owner.includes("Team attendance"));
+  pass("Team attendance is an explicitly opt-in navigation tab; Owner and ordinary staff layouts stay unchanged.");
+
   const empty = render(0, reviewer);
   assert.ok(!empty.includes('class="clock-tab-count"'));
   assert.ok(!empty.includes('class="hub-nav-action-count"'));
