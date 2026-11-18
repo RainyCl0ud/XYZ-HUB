@@ -28,7 +28,9 @@ assert.ok(server.includes('p.has("chat.channels.post_all") || grants.some((g) =>
 console.log("PASS 3: Backend most-generous grant rules remain unchanged.");
 
 assert.ok(ui.indexOf('className="creator-chat-grant-inherited"') < ui.indexOf('className="creator-chat-grant-controls"'));
-assert.ok(css.includes('flex-wrap: wrap;\n  align-items: center;'));
+const grantRowStyles = css.split(".creator-chat .creator-chat-settings-workspace .creator-chat-grant-row {").at(-1)?.split("}")[0] ?? "";
+assert.match(grantRowStyles, /flex-wrap:\\s*wrap\\s*;/);
+assert.match(grantRowStyles, /align-items:\\s*center\\s*;/);
 assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) auto;'));
 assert.ok(css.includes('min-width: min(100%, 260px);'));
 assert.ok(css.includes('.creator-chat .creator-chat-settings-workspace .creator-chat-grant-controls select {\n  width: 100%;'));
