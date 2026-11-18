@@ -11,7 +11,7 @@ const PAGE_SIZE = 20;
  * shared active creator and a strictly subordinate active role.
  * Existing Owner-only endpoint remains Owner-only for older clients.
  */
-async function readClockOverview(userId: string, before?: string, requireOwner = false) {
+async function readClockOverview(userId: string, before?: string, offShiftBefore?: string, requireOwner = false) {
   return prisma.$transaction(async (tx) => {
     const viewer = await tx.user.findUnique({
       where: { id: userId }, include: clockViewerInclude,
@@ -68,6 +68,7 @@ async function readClockOverview(userId: string, before?: string, requireOwner =
         }),
       },
     };
+    const notClockedInStaff: Prisma.UserWhereInput = { AND: [workingStaff, { clockShifts: { none: { endedAt: null } } }] };
     const openStaffShift: Prisma.ClockShiftWhereInput = {
       endedAt: null,
       user: { is: workingStaff },
@@ -84,6 +85,20 @@ async function readClockOverview(userId: string, before?: string, requireOwner =
       }
     }
 
+    let offShiftCursor: { id: string; name: string } | null = null;
+    if (offShiftBefore) {
+      offShiftCursor = await tx.user.findFirst({
+        where: { AND: [notClockedInStaff, { id: offShiftBefore }] },
+        select: { id: true, name: true },
+      });
+      if (!offShiftCursor) throw new ClockError(400, "The staff roster has changed. Refresh the overview.");
+    }
+    const offShiftFilter: Prisma.UserWhereInput = offShiftCursor ? {
+      OR: [
+        { name: { gt: offShiftCursor.name } },
+        { name: offShiftCursor.name, id: { gt: offShiftCursor.id } },
+      ],
+    } : {};
     const rows = await tx.clockShift.findMany({
       where: {
         AND: [
@@ -114,7 +129,14 @@ async function readClockOverview(userId: string, before?: string, requireOwner =
       take: PAGE_SIZE + 1,
     });
 
-    const [clockedInStaff, staffOnBreak, shiftsStartedToday, pendingReviewRequests] = await Promise.all([
+    const [offShiftRows, notClockedInCount, clockedInStaff, staffOnBreak, shiftsStartedToday, pendingReviewRequests] = await Promise.all([
+      tx.user.findMany({
+        where: { AND: [notClockedInStaff, offShiftFilter] },
+        select: { id: true, name: true, teamGroup: { select: { name: true } } },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        take: PAGE_SIZE + 1,
+      }),
+      tx.user.count({ where: notClockedInStaff }),
       tx.clockShift.count({ where: openStaffShift }),
       tx.clockBreak.count({
         where: {
@@ -137,6 +159,7 @@ async function readClockOverview(userId: string, before?: string, requireOwner =
       canReviewSummary: isOwner && clockAllowed(viewer, "clock.corrections.all") && effectiveScope === "agency",
       counts: {
         clockedInStaff,
+        notClockedInStaff: notClockedInCount,
         staffOnBreak,
         shiftsStartedToday,
         pendingReviewRequests,
@@ -151,14 +174,21 @@ async function readClockOverview(userId: string, before?: string, requireOwner =
           ? { kind: row.breaks[0].kind, startedAt: row.breaks[0].startedAt }
           : null,
       })),
+      offShiftStaff: offShiftRows.slice(0, PAGE_SIZE).map((user) => ({
+        id: user.id,
+        personName: user.name,
+        teamName: user.teamGroup?.name ?? "Unassigned",
+      })),
+      hasMoreOffShift: offShiftRows.length > PAGE_SIZE,
+      nextOffShiftBefore: offShiftRows.length > PAGE_SIZE ? offShiftRows[PAGE_SIZE - 1].id : null,
       hasMore: rows.length > PAGE_SIZE,
       nextBefore: rows.length > PAGE_SIZE ? rows[PAGE_SIZE - 1].id : null,
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 15_000 });
 }
-export function getOwnerClockOverview(userId: string, before?: string) {
-  return readClockOverview(userId, before, true);
+export function getOwnerClockOverview(userId: string, before?: string, offShiftBefore?: string) {
+  return readClockOverview(userId, before, offShiftBefore, true);
 }
-export function getAttendanceOverview(userId: string, before?: string) {
-  return readClockOverview(userId, before);
+export function getAttendanceOverview(userId: string, before?: string, offShiftBefore?: string) {
+  return readClockOverview(userId, before, offShiftBefore);
 }
