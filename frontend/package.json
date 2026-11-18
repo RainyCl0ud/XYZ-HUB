@@ -15,6 +15,7 @@
     "test:clock-correction-comparison": "node scripts/test-clock-correction-comparison.mjs",
     "test:clock-correction-ux": "node scripts/test-clock-correction-ux.mjs",
     "test:clock-owner-workspace": "node scripts/test-clock-owner-workspace.mjs",
+    "test:clock-overview-ladder": "node scripts/test-clock-overview-ladder.mjs",
     "test:clock-tab-badges": "node scripts/test-clock-tab-badges.mjs",
     "test:clock-shift-history-pagination": "node scripts/test-clock-shift-history-pagination.mjs",
     "preview": "vite preview",

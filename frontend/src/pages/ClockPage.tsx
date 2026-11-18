@@ -6,6 +6,7 @@ import { CENTRAL_TIME_ZONE } from "../lib/time";
 import ClockCorrections from "../components/ClockCorrections";
 import ClockShiftHistory, { type ClockHistoryShift as Shift } from "../components/ClockShiftHistory";
 import ClockTabs from "../components/ClockTabs";
+import OwnerClockPage from "./OwnerClockPage";
 import { useToast } from "../components/ToastProvider";
 import "./ClockPage.css";
 
@@ -24,7 +25,8 @@ const formatClockTime = (value: string) => new Intl.DateTimeFormat("en-US", { ti
 const describeError = (error: unknown) => error instanceof Error ? error.message : "Unable to update your attendance. Please try again.";
 
 export default function ClockPage() {
-  const { user } = useAuth();
+  const { user, access } = useAuth();
+  const canViewTeam = !!access?.permissions.some((key) => ["clock.overview.agency", "clock.overview.team", "clock.overview.chatters"].includes(key)) && !!access?.permissions.includes("clock.access");
   const userId = user?.id ?? null;
   const [searchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
@@ -125,14 +127,15 @@ export default function ClockPage() {
   const today = (data?.totals.todaySeconds ?? 0) + (shift?.startDay === data?.totals.dayKey ? elapsed : 0);
   const week = (data?.totals.weekSeconds ?? 0) + (shift?.startWeek === data?.totals.weekKey ? elapsed : 0);
   const online = !loadError && !!data && elapsed < 30;
-  const tab = requestedTab === "requests" || requestedTab === "history"
+  const tab = (requestedTab === "team" && canViewTeam) || requestedTab === "requests" || requestedTab === "history"
     || (requestedTab === "review" && data?.canReviewCorrections)
       ? requestedTab : "overview";
 
   return <section className="clock-page" aria-labelledby="clock-title">
     <header className="clock-page-heading"><div><p className="clock-eyebrow">YOUR ATTENDANCE</p><h1 id="clock-title">Clock &amp; Hours</h1></div><span className="clock-zone">US Central</span></header>
     {loadError && <div className="clock-error" role="alert">! {loadError} <button type="button" onClick={() => void refresh().catch((e: unknown) => setLoadError(describeError(e)))}>Retry connection</button></div>}
-    {data && <ClockTabs mode="staff" activeTab={tab} canReview={data.canReviewCorrections} />}
+    {data && <ClockTabs mode="staff" activeTab={tab} canReview={data.canReviewCorrections} canViewTeam={canViewTeam} />}
+    {data && tab === "team" && <OwnerClockPage embedded />}
     {!data ? <p role="status">{loadError ? "Your attendance could not be loaded." : "Loading your attendance…"}</p> : <>
       {tab === "overview" && <div className="clock-workspace">
       {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>! Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. Use Time corrections below if a recorded time needs changing.</p></div>}

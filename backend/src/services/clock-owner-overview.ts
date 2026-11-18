@@ -6,44 +6,69 @@ import { centralDayKey, elapsedSeconds } from "./clock-time.js";
 const PAGE_SIZE = 20;
 
 /**
- * Owner-only agency attendance snapshot.
- *
- * This endpoint is deliberately separate from /clock/me: it never reuses
- * the requester's personal shifts as a proxy for agency-wide reporting.
- * The OWNER system role is checked against current non-archived role
- * memberships on every request, in addition to the active account and
- * clock permission checks.
+ * An explicitly permitted and rechecked attendance snapshot.
+ * Role ranking never grants access by itself. Assigned views require a
+ * shared active creator and a strictly subordinate active role.
+ * Existing Owner-only endpoint remains Owner-only for older clients.
  */
-export async function getOwnerClockOverview(userId: string, before?: string) {
+async function readClockOverview(userId: string, before?: string, offShiftBefore?: string, requireOwner = false) {
   return prisma.$transaction(async (tx) => {
     const viewer = await tx.user.findUnique({
-      where: { id: userId },
-      include: clockViewerInclude,
+      where: { id: userId }, include: clockViewerInclude,
     });
-    if (!viewer || viewer.status !== "ACTIVE") {
-      throw new ClockError(401, "Please sign in again.");
-    }
-    const isOwner = viewer.roleMemberships.some(
-      (membership) => membership.role.systemKey === "OWNER",
-    );
-    if (!isOwner || !clockAllowed(viewer, "clock.self.view") || !clockAllowed(viewer, "clock.corrections.all")) {
+    if (!viewer || viewer.status !== "ACTIVE") throw new ClockError(401, "Please sign in again.");
+    const isOwner = viewer.roleMemberships.some((membership) => membership.role.systemKey === "OWNER");
+    if (requireOwner && (!isOwner || !clockAllowed(viewer, "clock.self.view") || !clockAllowed(viewer, "clock.corrections.all"))) {
       throw new ClockError(403, "Only an active Owner can view agency attendance.");
+    }
+    if (!clockAllowed(viewer, "clock.access")) throw new ClockError(403, "Attendance access is unavailable.");
+
+    const scope = clockAllowed(viewer, "clock.overview.agency") ? "agency"
+      : clockAllowed(viewer, "clock.overview.team") ? "team"
+      : clockAllowed(viewer, "clock.overview.chatters") ? "chatters" : null;
+    // Both endpoints honor the new explicit Role Settings grant.
+    // The legacy route additionally requires the active Owner role.
+    const effectiveScope = scope;
+    if (requireOwner && effectiveScope !== "agency") {
+      throw new ClockError(403, "Agency attendance permission is required.");
+    }
+    if (!effectiveScope) throw new ClockError(403, "Attendance overview permission is required.");
+    const viewerRanks = viewer.roleMemberships.map((m) => m.role.rank).filter((rank): rank is number => rank !== null);
+    const highestRank = viewerRanks.length ? Math.min(...viewerRanks) : null;
+    const assignedModels = viewer.modelAssignments.map((a) => a.modelId);
+    // No active assignment naturally yields an empty scoped result.
+    if (effectiveScope !== "agency" && highestRank === null) {
+      throw new ClockError(403, "A ranked role is required for team attendance.");
     }
 
     const now = await clockDatabaseNow(tx);
     const workingStaff: Prisma.UserWhereInput = {
       status: "ACTIVE",
-      // Exempt system roles never belong in the working-staff totals,
-      // even if an old shift record remains open.
+      ...(effectiveScope === "agency" ? {} : {
+        id: { not: userId },
+        modelAssignments: { some: { modelId: { in: assignedModels }, model: { isActive: true } } },
+      }),
       roleMemberships: {
-        none: {
-          role: {
+        // Agency/Owner totals exclude staff exempt from clocking in.
+        none: { role: {
+          archivedAt: null,
+          ...(effectiveScope === "agency"
+            ? { systemKey: { in: ["OWNER", "DEV", "MODEL"] } }
+            : { OR: [
+                { systemKey: { in: ["OWNER", "DEV", "MODEL", "OPS_MANAGER", "ACCOUNTANT", "GENERAL_STAFF"] } },
+                { rank: { lte: highestRank! } },
+              ] }),
+        } },
+        ...(effectiveScope === "agency" ? {} : {
+          some: { role: {
             archivedAt: null,
-            systemKey: { in: ["OWNER", "DEV", "MODEL"] },
-          },
-        },
+            rank: { gt: highestRank! },
+            ...(effectiveScope === "chatters" ? { systemKey: { in: ["CHATTER", "TRIAL_CHATTER"] } } : {}),
+          } },
+        }),
       },
     };
+    const notClockedInStaff: Prisma.UserWhereInput = { AND: [workingStaff, { clockShifts: { none: { endedAt: null } } }] };
     const openStaffShift: Prisma.ClockShiftWhereInput = {
       endedAt: null,
       user: { is: workingStaff },
@@ -60,6 +85,20 @@ export async function getOwnerClockOverview(userId: string, before?: string) {
       }
     }
 
+    let offShiftCursor: { id: string; name: string } | null = null;
+    if (offShiftBefore) {
+      offShiftCursor = await tx.user.findFirst({
+        where: { AND: [notClockedInStaff, { id: offShiftBefore }] },
+        select: { id: true, name: true },
+      });
+      if (!offShiftCursor) throw new ClockError(400, "The staff roster has changed. Refresh the overview.");
+    }
+    const offShiftFilter: Prisma.UserWhereInput = offShiftCursor ? {
+      OR: [
+        { name: { gt: offShiftCursor.name } },
+        { name: offShiftCursor.name, id: { gt: offShiftCursor.id } },
+      ],
+    } : {};
     const rows = await tx.clockShift.findMany({
       where: {
         AND: [
@@ -90,7 +129,14 @@ export async function getOwnerClockOverview(userId: string, before?: string) {
       take: PAGE_SIZE + 1,
     });
 
-    const [clockedInStaff, staffOnBreak, shiftsStartedToday, pendingReviewRequests] = await Promise.all([
+    const [offShiftRows, notClockedInCount, clockedInStaff, staffOnBreak, shiftsStartedToday, pendingReviewRequests] = await Promise.all([
+      tx.user.findMany({
+        where: { AND: [notClockedInStaff, offShiftFilter] },
+        select: { id: true, name: true, teamGroup: { select: { name: true } } },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        take: PAGE_SIZE + 1,
+      }),
+      tx.user.count({ where: notClockedInStaff }),
       tx.clockShift.count({ where: openStaffShift }),
       tx.clockBreak.count({
         where: {
@@ -99,19 +145,21 @@ export async function getOwnerClockOverview(userId: string, before?: string) {
         },
       }),
       tx.clockShift.count({ where: { startDay: centralDayKey(now), user: { is: workingStaff } } }),
-      tx.clockCorrection.count({
-        where: {
-          status: "PENDING",
-          OR: [{ userId: { not: userId } }, { userId: null }],
-        },
-      }),
+      isOwner && clockAllowed(viewer, "clock.corrections.all") && effectiveScope === "agency"
+        ? tx.clockCorrection.count({
+            where: { status: "PENDING", OR: [{ userId: { not: userId } }, { userId: null }] },
+          })
+        : Promise.resolve(0),
     ]);
 
     return {
       serverNow: now,
       timeZone: "America/Chicago",
+      scope: effectiveScope,
+      canReviewSummary: isOwner && clockAllowed(viewer, "clock.corrections.all") && effectiveScope === "agency",
       counts: {
         clockedInStaff,
+        notClockedInStaff: notClockedInCount,
         staffOnBreak,
         shiftsStartedToday,
         pendingReviewRequests,
@@ -126,8 +174,21 @@ export async function getOwnerClockOverview(userId: string, before?: string) {
           ? { kind: row.breaks[0].kind, startedAt: row.breaks[0].startedAt }
           : null,
       })),
+      offShiftStaff: offShiftRows.slice(0, PAGE_SIZE).map((user) => ({
+        id: user.id,
+        personName: user.name,
+        teamName: user.teamGroup?.name ?? "Unassigned",
+      })),
+      hasMoreOffShift: offShiftRows.length > PAGE_SIZE,
+      nextOffShiftBefore: offShiftRows.length > PAGE_SIZE ? offShiftRows[PAGE_SIZE - 1].id : null,
       hasMore: rows.length > PAGE_SIZE,
       nextBefore: rows.length > PAGE_SIZE ? rows[PAGE_SIZE - 1].id : null,
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 15_000 });
+}
+export function getOwnerClockOverview(userId: string, before?: string, offShiftBefore?: string) {
+  return readClockOverview(userId, before, offShiftBefore, true);
+}
+export function getAttendanceOverview(userId: string, before?: string, offShiftBefore?: string) {
+  return readClockOverview(userId, before, offShiftBefore);
 }

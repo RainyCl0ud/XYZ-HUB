@@ -4,7 +4,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js"
 import { createRateLimit } from "../middleware/rate-limit.js";
 import { ClockError, clockIn, clockOut, endBreak, getOwnClock, isClockEnabled, startBreak } from "../services/clock.js";
 import { listClockAlerts, markClockAlertRead } from "../services/clock-alerts.js";
-import { getOwnerClockOverview } from "../services/clock-owner-overview.js";
+import { getAttendanceOverview, getOwnerClockOverview } from "../services/clock-owner-overview.js";
 import { cancelClockCorrection, correctionDecisionSchema, correctionRequestSchema, getClockCorrection, listClockCorrections, requestClockCorrection, reviewClockCorrection } from "../services/clock-corrections.js";
 const router = Router();
 router.use((_req, res, next) => isClockEnabled() ? next() : res.sendStatus(404));
@@ -50,11 +50,16 @@ router.get("/alerts", run(async (req, res, userId) => {
 router.post("/alerts/:alertId/read", run(async (req, res, userId) => {
   empty.parse(req.body); res.json(await markClockAlertRead(userId, id(req, "alertId")));
 }));
+router.get("/overview", run(async (req, res, userId) => {
+  const query = z.object({ before: z.string().min(1).max(100).optional(), offShiftBefore: z.string().min(1).max(100).optional() }).strict().parse(req.query);
+  res.json(await getAttendanceOverview(userId, query.before, query.offShiftBefore));
+}));
 router.get("/owner/overview", run(async (req, res, userId) => {
   const query = z.object({
     before: z.string().min(1).max(100).optional(),
+    offShiftBefore: z.string().min(1).max(100).optional(),
   }).strict().parse(req.query);
-  res.json(await getOwnerClockOverview(userId, query.before));
+  res.json(await getOwnerClockOverview(userId, query.before, query.offShiftBefore));
 }));
 router.get("/me", run(async (req, res, userId) => {
   const before = req.query.before;

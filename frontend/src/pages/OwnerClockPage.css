@@ -1,4 +1,4 @@
-/* Owner-only operational attendance workspace. */
+/* Permission-scoped attendance workspace, including the existing Owner view. */
 .owner-attendance { max-width: 1180px; }
 .owner-attendance-toolbar,
 .owner-attendance-roster > header {
@@ -23,7 +23,7 @@
 .owner-attendance-toolbar button { flex-shrink: 0; }
 .owner-attendance-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
   margin-bottom: 28px;
 }
@@ -96,4 +96,11 @@
   .owner-attendance-toolbar, .owner-attendance-roster > header { flex-direction: column; gap: 12px; }
   .owner-attendance-roster { padding: 12px; }
   .owner-attendance-updated { white-space: normal; }
+}
+
+.owner-attendance-offshift { margin-top: 18px; }
+.owner-attendance-offshift .clock-data-table { min-width: 440px; }
+.clock-page .owner-attendance {
+  max-width: none;
+  padding: 0;
 }

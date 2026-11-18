@@ -5,6 +5,7 @@ type Props = {
   mode: "owner" | "staff";
   activeTab: string;
   canReview: boolean;
+  canViewTeam?: boolean;
 };
 
 /**
@@ -12,7 +13,7 @@ type Props = {
  * A pending personal request needs management's action, so My Requests
  * deliberately receives no notification badge.
  */
-export default function ClockTabs({ mode, activeTab, canReview }: Props) {
+export default function ClockTabs({ mode, activeTab, canReview, canViewTeam = false }: Props) {
   const pendingReviewCount = useClockReviewCount();
   const reviewCount = canReview ? pendingReviewCount : 0;
 
@@ -20,6 +21,7 @@ export default function ClockTabs({ mode, activeTab, canReview }: Props) {
     <Link to="/clock" aria-current={activeTab === "overview" ? "page" : undefined}>
       {mode === "owner" ? "Attendance overview" : "Overview"}
     </Link>
+    {mode === "staff" && canViewTeam && <Link to="/clock?tab=team" aria-current={activeTab === "team" ? "page" : undefined}>Team attendance</Link>}
     {mode === "staff" && <Link to="/clock?tab=requests" aria-current={activeTab === "requests" ? "page" : undefined}>
       My requests
     </Link>}
