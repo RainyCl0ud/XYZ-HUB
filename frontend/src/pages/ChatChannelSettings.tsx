@@ -195,7 +195,10 @@ function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option
     <form className="creator-chat-grant-row" onSubmit={(event) => {
       event.preventDefault(); onSave({ canView: value !== "none", canPost: value === "post" });
     }}>
-      <div className="creator-chat-grant-identity"><strong title={option.name}>{option.name}</strong><span>{kind}</span></div>
+      <div className="creator-chat-grant-identity">
+        <strong title={option.name}>{option.name}</strong>
+        <span>{kind}</span>
+      </div>
       <div className="creator-chat-grant-controls">
         <label className="creator-chat-sr" htmlFor={id}>{kind} access for {option.name}</label>
         <select id={id} aria-label={kind + " access for " + option.name} value={value} onChange={(event) => setValue(event.target.value)} disabled={busy}>
