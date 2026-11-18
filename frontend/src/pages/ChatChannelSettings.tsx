@@ -197,7 +197,11 @@ function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option
     }}>
       <div className="creator-chat-grant-identity">
         <strong title={option.name}>{option.name}</strong>
-        <span>{kind}</span>
+        {kind === "Member" && option.inheritedAccess ? (
+          <span className="creator-chat-grant-inherited">
+            Role access: {option.inheritedAccess.canPost ? "Post" : option.inheritedAccess.canView ? "See" : "None"}
+          </span>
+        ) : <span>{kind}</span>}
       </div>
       <div className="creator-chat-grant-controls">
         <label className="creator-chat-sr" htmlFor={id}>{kind} access for {option.name}</label>
@@ -207,11 +211,6 @@ function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option
           <option value="post">Post</option>
         </select>
         <button type="submit" disabled={busy || current === value}>Save</button>
-        {kind === "Member" && option.inheritedAccess && (
-          <span className="creator-chat-grant-inherited">
-            Role access: {option.inheritedAccess.canPost ? "Post" : option.inheritedAccess.canView ? "See" : "None"}
-          </span>
-        )}
       </div>
     </form>
   );
