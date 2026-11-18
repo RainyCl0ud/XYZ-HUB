@@ -885,7 +885,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
                   </div>
                   {m.quarantine && <ChatMemberActions target={m.quarantine} onQuarantine={setQuarantining} />}
                 </div>
-              ))}           </div>
+              ))}
+            </div>
           </aside>
         </div>
       )}
