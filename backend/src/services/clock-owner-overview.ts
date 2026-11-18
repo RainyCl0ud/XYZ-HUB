@@ -42,8 +42,8 @@ async function readClockOverview(userId: string, before?: string, requireOwner =
     const now = await clockDatabaseNow(tx);
     const workingStaff: Prisma.UserWhereInput = {
       status: "ACTIVE",
-      id: { not: userId },
       ...(effectiveScope === "agency" ? {} : {
+        id: { not: userId },
         modelAssignments: { some: { modelId: { in: assignedModels }, model: { isActive: true } } },
       }),
       roleMemberships: {
@@ -53,7 +53,7 @@ async function readClockOverview(userId: string, before?: string, requireOwner =
           ...(effectiveScope === "agency"
             ? { systemKey: { in: ["OWNER", "DEV", "MODEL"] } }
             : { OR: [
-                { systemKey: { in: ["OWNER", "DEV", "MODEL", "OPS_MANAGER"] } },
+                { systemKey: { in: ["OWNER", "DEV", "MODEL", "OPS_MANAGER", "ACCOUNTANT", "GENERAL_STAFF"] } },
                 { rank: { lte: highestRank! } },
               ] }),
         } },
