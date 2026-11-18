@@ -59,6 +59,7 @@ export async function installCreatorChatDefaults(tx: Prisma.TransactionClient) {
 
 const viewerInclude = {
   modelAssignments: true,
+  creatorProfile: { select: { id: true, isActive: true } },
   chatQuarantines: { where: { active: true } },
   roleMemberships: { where: { role: { archivedAt: null } }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } },
 } satisfies Prisma.UserInclude;
@@ -71,9 +72,22 @@ function makeViewer(user: ViewerUser) {
   // existing Owner-only access controls. Stale/custom grants cannot widen it.
   permissions.delete("chat.private.general.review");
   if (isOwner) permissions.add("chat.private.general.review");
-  return { user, permissions, isOwner, isDeveloper, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
+  // Creator-profile ownership is not a staff assignment. It grants an
+  // ordinary channel area only with explicit Chat permissions.
+  const ownCreatorId = user.roleMemberships.some(({ role }) => role.systemKey === "MODEL")
+    && user.creatorProfile?.isActive ? user.creatorProfile.id : null;
+  return { user, permissions, isOwner, isDeveloper, ownCreatorId, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
 }
 type Viewer = ReturnType<typeof makeViewer>;
+// Scoped creator ownership must not authorize staff-private conversations.
+function inOrdinaryArea(viewer: Viewer, modelId: string) {
+  return !viewer.user.chatQuarantines.some((q) => q.modelId === modelId)
+    && viewer.permissions.has("chat.access")
+    && viewer.permissions.has("chat.ordinary.access")
+    && (viewer.permissions.has("chat.areas.all")
+      || viewer.ownCreatorId === modelId
+      || viewer.user.modelAssignments.some((a) => a.modelId === modelId));
+}
 // Shared current-access decisions for announcement delivery. These helpers
 // never grant membership or revive an archived assignment episode.
 export { viewerInclude, makeViewer, loadViewer, channelInclude, channelAccess, standingInclude, standingAccess };
@@ -93,8 +107,7 @@ type Channel = Prisma.ChatChannelGetPayload<{ include: typeof channelInclude }>;
 function channelAccess(viewer: Viewer, channel: Channel) {
   const p = viewer.permissions;
   const assignment = viewer.user.modelAssignments.find((a) => a.modelId === channel.modelId);
-  const paused = viewer.user.chatQuarantines.some((q) => q.modelId === channel.modelId);
-  const inArea = !paused && p.has("chat.access") && p.has("chat.ordinary.access") && (!!assignment || p.has("chat.areas.all"));
+  const inArea = inOrdinaryArea(viewer, channel.modelId);
   const archived = !!channel.cleanedUpAt || !!channel.archivedAt || !!channel.area.archivedAt;
   // A Chatter restriction beats named or custom-role grants. A QC/Manager (or
   // equivalent explicitly configured reviewer) wins when that person has both.
@@ -268,7 +281,12 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
 export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: Viewer, retainedChannelId?: string) {
     const userId = viewer.user.id;
     const areas = await tx.chatArea.findMany({
-      where: viewer.permissions.has("chat.areas.all") ? {} : { modelId: { in: viewer.user.modelAssignments.map((a) => a.modelId) } },
+      where: viewer.permissions.has("chat.areas.all") ? {} : {
+        modelId: { in: [...new Set([
+          ...viewer.user.modelAssignments.map((a) => a.modelId),
+          ...(viewer.ownCreatorId ? [viewer.ownCreatorId] : []),
+        ])] },
+      },
       include: { model: { select: { name: true } }, channels: {
         where: retainedChannelId && viewer.isOwner ? { OR: [{ cleanedUpAt: null }, { id: retainedChannelId }] } : { cleanedUpAt: null },
         include: channelInclude, orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
@@ -281,7 +299,7 @@ export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: 
         return access.canView ? [{ id: channel.id, name: channel.name, isPrivate: false, isOwnPrivate: false, retained: !!channel.cleanedUpAt, ...access, canArchive: canArchiveChannel(viewer, channel, access.canManage) }] : [];
       });
       const pausedForYou = viewer.user.chatQuarantines.some((q) => q.modelId === area.modelId);
-      const inArea = !pausedForYou && viewer.permissions.has("chat.ordinary.access") && (viewer.permissions.has("chat.areas.all") || viewer.user.modelAssignments.some((a) => a.modelId === area.modelId));
+      const inArea = inOrdinaryArea(viewer, area.modelId);
       return { modelId: area.modelId, name: area.model.name, archived: !!area.archivedAt, pausedForYou, canManage: inArea && !area.archivedAt && viewer.permissions.has("chat.channels.manage"), channels };
     });
     const standing = await tx.chatStandingConversation.findMany({ where: { OR: [
