@@ -650,11 +650,20 @@ export async function chatGrantOptions(userId: string, channelId: string) {
     if (!channel || !access.canManage) throw new ChatError(403, "Protected chats have fixed membership; ordinary channels require channel management access.");
     const [roles, assignments] = await Promise.all([
       tx.role.findMany({ where: { archivedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-      tx.userModelAssignment.findMany({ where: { modelId: channel.modelId, user: { status: "ACTIVE", id: { not: userId } } }, select: { id: true, user: { select: { id: true, name: true } } }, orderBy: { user: { name: "asc" } } }),
+      tx.userModelAssignment.findMany({ where: { modelId: channel.modelId, user: { status: "ACTIVE", id: { not: userId } } }, select: { id: true, user: { include: viewerInclude } }, orderBy: { user: { name: "asc" } } }),
     ]);
     return {
       roles: roles.map((role) => ({ ...role, grant: channel.roleGrants.find((g) => g.roleId === role.id) ?? null })),
-      people: assignments.map((a) => ({ ...a.user, grant: channel.personGrants.find((g) => g.assignmentId === a.id) ?? null })),
+      // The Member selector edits only a named grant. Show the inherited
+      // access separately so "no named grant" is never mistaken for a denial.
+      people: assignments.map((a) => {
+        const roleAccess = channelAccess(makeViewer(a.user), { ...channel, personGrants: [] });
+        return {
+          id: a.user.id, name: a.user.name,
+          grant: channel.personGrants.find((g) => g.assignmentId === a.id) ?? null,
+          inheritedAccess: { canView: roleAccess.canView, canPost: roleAccess.canPost },
+        };
+      }),
     };
   });
 }
