@@ -24,11 +24,15 @@ type OwnerOverview = {
   timeZone: string;
   counts: {
     clockedInStaff: number;
+    notClockedInStaff: number;
     staffOnBreak: number;
     shiftsStartedToday: number;
     pendingReviewRequests: number;
   };
   activeShifts: ActiveShift[];
+  offShiftStaff: { id: string; personName: string; teamName: string }[];
+  hasMoreOffShift: boolean;
+  nextOffShiftBefore: string | null;
   hasMore: boolean;
   nextBefore: string | null;
 };
@@ -60,6 +64,8 @@ export default function OwnerClockPage({ embedded = false }: { embedded?: boolea
   const [refreshing, setRefreshing] = useState(true);
   const [cursor, setCursor] = useState<string | undefined>();
   const [cursorTrail, setCursorTrail] = useState<string[]>([]);
+  const [offShiftCursor, setOffShiftCursor] = useState<string | undefined>();
+  const [offShiftCursorTrail, setOffShiftCursorTrail] = useState<string[]>([]);
   const toast = useToast();
   const activeRequest = useRef<AbortController | null>(null);
 
@@ -72,7 +78,7 @@ export default function OwnerClockPage({ embedded = false }: { embedded?: boolea
     if (showFeedback) setRefreshing(true);
     try {
       const result = await apiRequest<OwnerOverview>(
-        `/api/clock/${embedded ? "overview" : "owner/overview"}${cursor ? `?before=${encodeURIComponent(cursor)}` : ""}`,
+        `/api/clock/${embedded ? "overview" : "owner/overview"}${cursor || offShiftCursor ? `?${new URLSearchParams({ ...(cursor ? { before: cursor } : {}), ...(offShiftCursor ? { offShiftBefore: offShiftCursor } : {}) }).toString()}` : ""}`,
         { signal: controller.signal },
       );
       if (controller.signal.aborted) return;
@@ -80,10 +86,12 @@ export default function OwnerClockPage({ embedded = false }: { embedded?: boolea
       setError("");
     } catch (cause) {
       if (controller.signal.aborted) return;
-      if (cause instanceof ApiError && cause.status === 400 && cursor) {
+      if (cause instanceof ApiError && cause.status === 400 && (cursor || offShiftCursor)) {
         // A staff member clocking out can invalidate a previous pagination cursor.
         setCursor(undefined);
         setCursorTrail([]);
+        setOffShiftCursor(undefined);
+        setOffShiftCursorTrail([]);
         return;
       }
       const message = cause instanceof Error ? cause.message : "Unable to load attendance overview.";
@@ -93,7 +101,7 @@ export default function OwnerClockPage({ embedded = false }: { embedded?: boolea
     } finally {
       if (!controller.signal.aborted && activeRequest.current === controller) setRefreshing(false);
     }
-  }, [cursor, toast, embedded]);
+  }, [cursor, offShiftCursor, toast, embedded]);
 
   useEffect(() => {
     const first = window.setTimeout(() => void load(true), 0);
@@ -148,6 +156,11 @@ export default function OwnerClockPage({ embedded = false }: { embedded?: boolea
             <span>Currently clocked in</span>
             <strong>{data.counts.clockedInStaff}</strong>
             <small>Active employee shifts</small>
+          </div>
+          <div>
+            <span>Not clocked in</span>
+            <strong>{data.counts.notClockedInStaff}</strong>
+            <small>Not a lateness indicator</small>
           </div>
           <div>
             <span>On paid break</span>
@@ -208,6 +221,41 @@ export default function OwnerClockPage({ embedded = false }: { embedded?: boolea
               <button type="button" disabled={!data.hasMore || !data.nextBefore || refreshing} onClick={() => {
                 setCursorTrail(old => [...old, cursor ?? ""]);
                 setCursor(data.nextBefore ?? undefined);
+              }}>Next</button>
+            </div>
+          </div>
+        </section>
+
+        <section className="owner-attendance-roster owner-attendance-offshift" aria-labelledby="attendance-offshift-title">
+          <header>
+            <div>
+              <h2 id="attendance-offshift-title">Not clocked in</h2>
+              <p>Eligible staff without an active shift. A person is not considered late without an assigned start time.</p>
+            </div>
+            <span className="owner-attendance-updated">{data.counts.notClockedInStaff} staff</span>
+          </header>
+          {data.offShiftStaff.length ? <div className="clock-table-scroll" role="region"
+            aria-label="Staff not currently clocked in" aria-busy={refreshing} tabIndex={0}>
+            <table className="clock-data-table">
+              <thead><tr><th scope="col">Employee</th><th scope="col">Team</th><th scope="col">Status</th></tr></thead>
+              <tbody>{data.offShiftStaff.map((person) => <tr key={person.id}>
+                <th scope="row">{person.personName}</th>
+                <td>{person.teamName}</td>
+                <td><span className="clock-status">Not clocked in</span></td>
+              </tr>)}</tbody>
+            </table>
+          </div> : <div className="clock-empty"><p>Everyone in this view is currently clocked in.</p></div>}
+          <div className="owner-attendance-pagination">
+            <span>Page {offShiftCursorTrail.length + 1}</span>
+            <div>
+              <button type="button" disabled={!offShiftCursorTrail.length || refreshing} onClick={() => {
+                const previous = offShiftCursorTrail[offShiftCursorTrail.length - 1];
+                setOffShiftCursorTrail(old => old.slice(0, -1));
+                setOffShiftCursor(previous || undefined);
+              }}>Previous</button>
+              <button type="button" disabled={!data.hasMoreOffShift || !data.nextOffShiftBefore || refreshing} onClick={() => {
+                setOffShiftCursorTrail(old => [...old, offShiftCursor ?? ""]);
+                setOffShiftCursor(data.nextOffShiftBefore ?? undefined);
               }}>Next</button>
             </div>
           </div>
