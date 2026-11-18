@@ -35,10 +35,11 @@ assert.ok(grantRowRules.some((rule) => /flex-direction:\s*column\s*;/.test(rule)
   "Narrow-screen grant rows must stack without squeezing controls");
 assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) auto;'));
 assert.ok(css.includes('min-width: min(100%, 260px);'));
-const selectRules = [...css.matchAll(/\\.creator-chat \\.creator-chat-settings-workspace \\.creator-chat-grant-controls select\\s*\\{([^}]*)\\}/g)].map((match) => match[1]);
-assert.ok(selectRules.some((rule) => /width:\\s*100%\\s*;/.test(rule) && /min-width:\\s*0\\s*;/.test(rule)),
+const selectRules = css.split(".creator-chat .creator-chat-settings-workspace .creator-chat-grant-controls select {")
+  .slice(1).map((block) => block.split("}")[0]);
+assert.ok(selectRules.some((rule) => /(?:^|\s)width:\s*100%\s*;/.test(rule) && /min-width:\s*0\s*;/.test(rule)),
   "Permission selector must have full available width without overflow");
-assert.ok(selectRules.some((rule) => /font-size:\\s*16px\\s*;/.test(rule)),
+assert.ok(selectRules.some((rule) => /font-size:\s*16px\s*;/.test(rule)),
   "Mobile selector must retain touch-friendly font sizing");
 assert.ok(css.includes('max-width: none;'));
 console.log("PASS 4: Member rows keep inherited role access beside the name and give See/Post selectors responsive full-width controls.");
