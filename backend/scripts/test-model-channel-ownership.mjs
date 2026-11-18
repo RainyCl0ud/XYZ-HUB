@@ -7,30 +7,28 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const chat = readFileSync(resolve(root, "src/services/creator-chat.ts"), "utf8");
 const permissions = readFileSync(resolve(root, "src/permissions/chat-permissions.ts"), "utf8");
 const standing = readFileSync(resolve(root, "src/services/standing-chat.ts"), "utf8");
+const integration = readFileSync(resolve(root, "scripts/test-standing-chat.ts"), "utf8");
+const announcements = readFileSync(resolve(root, "src/services/chat-announcements.ts"), "utf8");
 
-assert.ok(chat.includes("creatorProfile: { select: { id: true, isActive: true } }"));
-assert.ok(chat.includes('role.systemKey === "MODEL"'));
-assert.ok(chat.includes("user.creatorProfile?.isActive"));
-assert.ok(chat.includes("viewer.ownCreatorId === modelId"));
-assert.ok(chat.includes('viewer.permissions.has("chat.ordinary.access")'));
-assert.ok(chat.includes('viewer.permissions.has("chat.access")'));
-console.log("PASS 1: Linked active Model profile grants only its own ordinary creator area, subject to saved Chat permissions.");
-
+assert.ok(chat.includes('const isModel = user.roleMemberships.some(({ role }) => role.systemKey === "MODEL")'));
+assert.ok(chat.includes("return !viewer.isModel"));
 assert.ok(chat.includes("const inArea = inOrdinaryArea(viewer, channel.modelId);"));
 assert.ok(chat.includes("const inArea = inOrdinaryArea(viewer, area.modelId);"));
-assert.ok(chat.includes("...(viewer.ownCreatorId ? [viewer.ownCreatorId] : [])"));
-assert.ok(chat.includes('p.has("chat.channels.all") || grants.some'));
-assert.ok(chat.includes('p.has("chat.channels.post_all") || grants.some'));
-assert.ok(chat.includes('viewer.user.chatQuarantines.some((q) => q.modelId === modelId)'));
-console.log("PASS 2: Area listing and direct channel reads share scoped access; channel viewing, posting and pause restrictions remain.");
+assert.ok(chat.includes('where: viewer.isModel ? { modelId: { in: [] } }'));
+console.log("PASS 1: A Model cannot list, read or manage ordinary creator channels even when grants are enabled.");
 
-assert.ok(chat.includes('const reviewer = assigned && ((conversation.kind === "STAFF"'));
-assert.ok(chat.includes('const isSubject = viewer.user.id === conversation.subjectUserId'));
+assert.ok(chat.includes('conversation.kind === "CREATOR" && conversation.modelId === viewer.ownCreatorId && isSubject'));
+assert.ok(chat.includes("const canView = modelPrivateOnly && pauseAllows"));
+assert.ok(chat.includes("user.creatorProfile?.isActive"));
 assert.ok(standing.includes("syncCreatorStandingChat"));
-assert.ok(!permissions.match(/MODEL:\s*\[[^\]]*chat\.ordinary\.access/));
-console.log("PASS 3: Private-chat membership and Model defaults are not broadened or reset.");
-const announcements = readFileSync(resolve(root, "src/services/chat-announcements.ts"), "utf8");
-assert.ok(announcements.includes("const personInclude = viewerInclude;"));
-assert.ok(!announcements.includes("creatorProfile: { select: { id: true } }"));
-console.log("PASS 4: Announcement recipients preserve the complete shared viewer selection.");
+console.log("PASS 2: A Model can see only her own linked, active creator-private conversation.");
 
+assert.ok(integration.includes("Block 2 Model boundary"));
+assert.ok(integration.includes('"chat.areas.all", "chat.private.all"'));
+assert.ok(integration.includes("await denied(() => listChatMessages(creator.id, otherGeneral.id))"));
+assert.ok(integration.includes("await denied(() => listChatMessages(creator.id, secondOwn[0].id))"));
+assert.ok(!permissions.match(/MODEL:\\s*\\[[^\\]]*chat\\.ordinary\\.access/));
+console.log("PASS 3: Integration fixtures cover over-granted roles, cross-creator direct reads and protected-chat isolation.");
+
+assert.ok(announcements.includes("const personInclude = viewerInclude;"));
+console.log("PASS 4: Announcement viewer selection remains compatible.");
