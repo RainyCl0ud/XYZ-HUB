@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { apiRequest } from "../lib/api";
 
 type Grant = { canView: boolean; canPost: boolean };
-type Option = { id: string; name: string; grant: Grant | null };
+type Option = { id: string; name: string; grant: Grant | null; inheritedAccess?: Grant };
 type Options = { roles: Option[]; people: Option[] };
 type Props = {
   target: { modelId: string; channelId?: string; name: string; canArchive?: boolean };
@@ -154,8 +154,8 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
         <section className="creator-chat-settings-section creator-chat-settings-access" aria-labelledby="chat-settings-access-title">
           <h3 id="chat-settings-access-title">{accessCategory === "roles" ? "Role permissions" : "Member permissions"}</h3>
           <p>{accessCategory === "roles"
-            ? "Control channel access by role. Members may also have individual permission grants."
-            : "Manage individual channel access for staff assigned to this creator. Role grants still apply."}</p>
+            ? "Choose which roles can see or post. Individual member grants can add access, but never remove access given by a role."
+            : "Grant additional access to a member. Role and member grants combine, so the most generous access applies."}</p>
           <label htmlFor="chat-settings-find-access">{accessCategory === "roles" ? "Find a role" : "Find a member"}</label>
           <input id="chat-settings-find-access" type="search" value={accessQuery} onChange={(event) => setAccessQuery(event.target.value)}
             placeholder={accessCategory === "roles" ? "Search roles…" : "Search members…"} />
@@ -199,11 +199,16 @@ function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option
       <div className="creator-chat-grant-controls">
         <label className="creator-chat-sr" htmlFor={id}>{kind} access for {option.name}</label>
         <select id={id} aria-label={kind + " access for " + option.name} value={value} onChange={(event) => setValue(event.target.value)} disabled={busy}>
-          <option value="none">No access</option>
-          <option value="view">Can view</option>
-          <option value="post">Can send</option>
+          <option value="none">{kind === "Member" ? "No individual grant" : "No role grant"}</option>
+          <option value="view">See</option>
+          <option value="post">Post</option>
         </select>
         <button type="submit" disabled={busy || current === value}>Save</button>
+        {kind === "Member" && option.inheritedAccess && (
+          <span className="creator-chat-grant-inherited">
+            Role access: {option.inheritedAccess.canPost ? "Post" : option.inheritedAccess.canView ? "See" : "None"}
+          </span>
+        )}
       </div>
     </form>
   );
