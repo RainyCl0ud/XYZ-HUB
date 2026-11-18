@@ -10,7 +10,8 @@ import type { TransactionalEmail } from './email-delivery.js';
 export type AnnouncementInput = { title: string; text: string };
 type Destination = { id: string; isPrivate: boolean };
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-const personInclude = { ...viewerInclude, creatorProfile: { select: { id: true } } } satisfies Prisma.UserInclude;
+// Keep the shared viewer shape intact when resolving announcement recipients.
+const personInclude = viewerInclude;
 type Person = Prisma.UserGetPayload<{ include: typeof personInclude }>;
 const eligibleStaff = (person: Person) => person.status === 'ACTIVE' && person.roleMemberships.length > 0 && !person.creatorProfile && !person.roleMemberships.some(({ role }) => role.systemKey === 'MODEL');
 export const singleEmailAddress = (address: string) => /^[^\s<>,;@\r\n]+@[^\s<>,;@\r\n]+\.[^\s<>,;@\r\n]+$/.test(address);

@@ -55,6 +55,7 @@
     "test:profile-avatar": "tsx scripts/test-profile-avatar.ts",
     "test:creator-account": "tsx scripts/test-creator-account.ts",
     "test:creator-chat": "tsx scripts/test-creator-chat.ts",
+    "test:model-channel-ownership": "node scripts/test-model-channel-ownership.mjs",
     "test:standing-chat": "tsx scripts/test-standing-chat.ts",
     "test:chat-staging-target": "tsx scripts/test-chat-staging-target.ts",
     "test:chat-upgrade": "tsx scripts/test-chat-upgrade.ts",

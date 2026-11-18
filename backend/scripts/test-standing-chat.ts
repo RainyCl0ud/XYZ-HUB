@@ -70,6 +70,39 @@ async function main() {
     assert.equal((await listChatAreas(creator.id)).flatMap((a) => a.channels).length, 1);
     await denied(() => listChatMessages(creator.id, ordinary.id));
     check("Even an accidental staff assignment plus named grant cannot expose ordinary channels to a Creator-only account");
+    // Linked creator ownership and staff assignments are separate. Explicit
+    // Role Settings permissions permit ordinary channels only for one's own creator.
+    const secondCreator = await makeUser("second-creator", "MODEL");
+    await prisma.$transaction((tx) => ensureCreatorAccount(tx, secondCreator, [{ systemKey: "MODEL" }], other, access));
+    await prisma.userModelAssignment.deleteMany({ where: { userId: creator.id, modelId: mei } });
+    const enabledKeys = ["chat.ordinary.access", "chat.channels.all", "chat.channels.post_all"];
+    const enabled = await prisma.permission.findMany({ where: { key: { in: enabledKeys } }, select: { id: true, key: true } });
+    assert.equal(enabled.length, enabledKeys.length);
+    const temporaryGrants = await prisma.rolePermission.createManyAndReturn({
+      data: enabled.map((permission) => ({ roleId: roles.get("MODEL")!.id, permissionId: permission.id })),
+      skipDuplicates: true,
+    });
+    const otherGeneral = await prisma.chatChannel.findUniqueOrThrow({ where: { modelId_key: { modelId: other, key: "general" } } });
+    assert.equal((await channels(creator.id, mei)).length, 13);
+    assert.equal((await channels(secondCreator.id, other)).length, 13);
+    assert.equal((await channels(creator.id, other)).length, 0);
+    assert.equal((await channels(secondCreator.id, mei)).length, 0);
+    assert.equal((await listChatMessages(creator.id, ordinary.id)).canPost, true);
+    await denied(() => listChatMessages(creator.id, otherGeneral.id));
+    await denied(() => listChatMessages(secondCreator.id, ordinary.id));
+    assert.equal((await listChatAreas(creator.id)).flatMap((a) => a.channels.filter((c) => c.isPrivate)).length, 1);
+    check("Saved Model ordinary-channel permissions authorize only the linked creator, never another creator or private staff chats");
+    const ordinaryPermissionId = enabled.find((p) => p.key === "chat.ordinary.access")!.id;
+    await prisma.rolePermission.deleteMany({ where: {
+      id: { in: temporaryGrants.filter((g) => g.permissionId === ordinaryPermissionId).map((g) => g.id) },
+    } });
+    await denied(() => listChatMessages(secondCreator.id, otherGeneral.id));
+    assert.equal((await channels(secondCreator.id, other)).length, 0);
+    await prisma.rolePermission.deleteMany({ where: { id: { in: temporaryGrants.map((g) => g.id) } } });
+    assert.equal((await channels(creator.id, mei)).length, 0);
+    assert.equal((await listChatAreas(creator.id)).flatMap((a) => a.channels.filter((c) => c.isPrivate)).length, 1);
+    check("Revoking ordinary access immediately removes channel visibility without disrupting creator-private Chat");
+
     await update(manager.id, "MANAGER", [other]);
     await denied(() => listChatMessages(manager.id, creatorChat));
     await update(manager.id, "MANAGER", [mei]);
