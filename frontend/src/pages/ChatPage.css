@@ -955,12 +955,9 @@
 .creator-chat-members .creator-chat-member:hover > button.creator-chat-member-manage,
 .creator-chat-members .creator-chat-member:focus-within > button.creator-chat-member-manage,
 .creator-chat-members .creator-chat-member-manage[aria-expanded="true"] { opacity: 1; }
-.creator-chat-member-entry { border-top: 1px solid #35353b; }
-.creator-chat-member-entry > .creator-chat-member { border-top: 0; position: relative; }
-.creator-chat-member-action-menu { margin: 0 4px 10px 44px; padding: 5px; border: 1px solid #494949; background: #1b1b1b; }
-.creator-chat-member-action-menu button { width: 100%; min-height: 38px; border: 0; padding: 9px 10px; background: transparent; color: #fff; text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
-.creator-chat-member-action-menu button:hover,
-.creator-chat-member-action-menu button:focus-visible { background: #303030; outline: 1px solid #777; }
+.creator-chat-member-manage svg { display: block; width: 18px; height: 18px; }
+.creator-chat-member-action-popover { border-radius: 0; background: #141414; border-color: #555555; }
+.creator-chat-member-action-popover > button { border-radius: 0; }
 @media (hover: none) {
   .creator-chat-members .creator-chat-member > button.creator-chat-member-manage { opacity: 1; }
 }

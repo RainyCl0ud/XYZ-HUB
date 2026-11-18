@@ -14,6 +14,7 @@ import ChatAttachmentPicker, { type ChatAttachmentPickerHandle } from "./ChatAtt
 import ChatVoiceRecorder, { type ChatVoiceRecorderHandle } from "./ChatVoiceRecorder";
 import ChatModerationDialog, { type ModerationTarget } from "./ChatModerationDialog";
 import ChatQuarantineDialog, { type QuarantineControl } from "./ChatQuarantineDialog";
+import ChatMemberActions from "./ChatMemberActions";
 import { useChatReadTracking } from "./useChatReadTracking";
 import { CENTRAL_TIME_ZONE } from "../lib/central-time";
 import { loadRecentEmojis, recentEmojiStorageKey, saveRecentEmojiSelection } from "../lib/chat-reaction-emojis";
@@ -124,20 +125,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [deleting, setDeleting] = useState<ModerationTarget | null>(null);
   const [cleanupTarget, setCleanupTarget] = useState<CleanupTarget | null>(null);
   const [quarantining, setQuarantining] = useState<QuarantineControl | null>(null);
-  const [openMemberActions, setOpenMemberActions] = useState<string | null>(null);
-  useEffect(() => {
-    if (!openMemberActions) return;
-    const dismiss = (event: PointerEvent) => {
-      if (event.target instanceof Element && event.target.closest(".creator-chat-member-entry")) return;
-      setOpenMemberActions(null);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenMemberActions(null);
-    };
-    document.addEventListener("pointerdown", dismiss);
-    document.addEventListener("keydown", escape);
-    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
-  }, [openMemberActions]);
   const [notice, setNotice] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
   const [toolsRevision, setToolsRevision] = useState(0);
@@ -889,27 +876,14 @@ function ChatWorkspace({ userId }: { userId: string }) {
               {!transcript && <p className="creator-chat-members-empty">Loading members…</p>}
               {transcript && !members.length && <p className="creator-chat-members-empty">No members available.</p>}
               {members.map((m) => (
-                <div className="creator-chat-member-entry" key={m.id}>
-                  <div className="creator-chat-member">
-                    <UserAvatar name={m.name} className="creator-chat-member-avatar"
-                      src={m.avatarUpdatedAt ? `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(selected)}/members/${encodeURIComponent(m.id)}/avatar?v=${encodeURIComponent(m.avatarUpdatedAt)}` : null} />
-                    <div className="creator-chat-member-identity">
-                      <strong title={m.name}>{m.name}</strong>
-                      <span className="creator-chat-member-role" title={m.role}>{m.role}</span>
-                    </div>
-                    {m.quarantine && <button type="button" className="creator-chat-member-manage"
-                      onClick={() => setOpenMemberActions((current) => current === m.id ? null : m.id)}
-                      aria-label={`Actions for ${m.name}`} aria-expanded={openMemberActions === m.id}
-                      aria-controls={`chat-member-actions-${m.id}`} title="Member actions">•••</button>}
+                <div className="creator-chat-member" key={m.id}>
+                  <UserAvatar name={m.name} className="creator-chat-member-avatar"
+                    src={m.avatarUpdatedAt ? `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(selected)}/members/${encodeURIComponent(m.id)}/avatar?v=${encodeURIComponent(m.avatarUpdatedAt)}` : null} />
+                  <div className="creator-chat-member-identity">
+                    <strong title={m.name}>{m.name}</strong>
+                    <span className="creator-chat-member-role" title={m.role}>{m.role}</span>
                   </div>
-                  {m.quarantine && openMemberActions === m.id && (
-                    <div id={`chat-member-actions-${m.id}`} className="creator-chat-member-action-menu" role="group" aria-label={`Actions for ${m.name}`}>
-                      <button type="button" onClick={() => {
-                        setOpenMemberActions(null);
-                        setQuarantining(m.quarantine!);
-                      }}>{m.quarantine.active ? "Review / lift quarantine" : "Quarantine member…"}</button>
-                    </div>
-                  )}
+                  {m.quarantine && <ChatMemberActions target={m.quarantine} onQuarantine={setQuarantining} />}
                 </div>
               ))}
             </div>
