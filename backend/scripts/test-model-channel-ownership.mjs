@@ -29,3 +29,8 @@ assert.ok(chat.includes('const isSubject = viewer.user.id === conversation.subje
 assert.ok(standing.includes("syncCreatorStandingChat"));
 assert.ok(!permissions.match(/MODEL:\s*\[[^\]]*chat\.ordinary\.access/));
 console.log("PASS 3: Private-chat membership and Model defaults are not broadened or reset.");
+const announcements = readFileSync(resolve(root, "src/services/chat-announcements.ts"), "utf8");
+assert.ok(announcements.includes("const personInclude = viewerInclude;"));
+assert.ok(!announcements.includes("creatorProfile: { select: { id: true } }"));
+console.log("PASS 4: Announcement recipients preserve the complete shared viewer selection.");
+
