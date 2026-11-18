@@ -28,9 +28,11 @@ assert.ok(server.includes('p.has("chat.channels.post_all") || grants.some((g) =>
 console.log("PASS 3: Backend most-generous grant rules remain unchanged.");
 
 assert.ok(ui.indexOf('className="creator-chat-grant-inherited"') < ui.indexOf('className="creator-chat-grant-controls"'));
-const grantRowStyles = css.split(".creator-chat .creator-chat-settings-workspace .creator-chat-grant-row {").at(-1)?.split("}")[0] ?? "";
-assert.match(grantRowStyles, /flex-wrap:\\s*wrap\\s*;/);
-assert.match(grantRowStyles, /align-items:\\s*center\\s*;/);
+const grantRowRules = [...css.matchAll(/\.creator-chat \.creator-chat-settings-workspace \.creator-chat-grant-row\s*\{([^}]*)\}/g)].map((match) => match[1]);
+assert.ok(grantRowRules.some((rule) => /flex-wrap:\s*wrap\s*;/.test(rule) && /align-items:\s*center\s*;/.test(rule)),
+  "Desktop grant rows must wrap and center their controls");
+assert.ok(grantRowRules.some((rule) => /flex-direction:\s*column\s*;/.test(rule) && /align-items:\s*stretch\s*;/.test(rule)),
+  "Narrow-screen grant rows must stack without squeezing controls");
 assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) auto;'));
 assert.ok(css.includes('min-width: min(100%, 260px);'));
 assert.ok(css.includes('.creator-chat .creator-chat-settings-workspace .creator-chat-grant-controls select {\n  width: 100%;'));
