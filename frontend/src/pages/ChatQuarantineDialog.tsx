@@ -57,19 +57,19 @@ export default function ChatQuarantineDialog({ target, onClose, onSaved }: {
     }
   }
   return <dialog ref={dialog} className="creator-chat-settings creator-chat-quarantine" aria-labelledby="chat-quarantine-title" aria-describedby="chat-quarantine-impact" onCancel={(e) => { if (phase === "saving") e.preventDefault(); else onClose(); }}>
-    <header><h2 id="chat-quarantine-title">{desiredActive ? "Pause creator chats?" : "Lift chat pause?"}</h2><button type="button" disabled={phase === "saving"} onClick={onClose}>Close</button></header>
+    <header><h2 id="chat-quarantine-title">{desiredActive ? "Quarantine member?" : "Lift quarantine?"}</h2><button type="button" disabled={phase === "saving"} onClick={onClose}>Close</button></header>
     <p className="creator-chat-tools-context"><strong>{review?.personName ?? target.personName}</strong>{review && <> · {review.creatorName}</>}</p>
-    <p id="chat-quarantine-impact">{desiredActive ? <>Only their other chats for <strong>{review?.creatorName ?? "this creator"}</strong> will close. Their own staff–management private chat stays open.</> : <>Chats for <strong>{review?.creatorName ?? "this creator"}</strong> will follow their current assignments and permissions. Previous assignments or removed channel access will not return.</>}</p>
+    <p id="chat-quarantine-impact">{desiredActive ? <>Quarantine closes their ordinary channels for <strong>{review?.creatorName ?? "this creator"}</strong>. Their staff–management private chat stays open.</> : <>Lifting quarantine restores only chats allowed by current assignments and permissions for <strong>{review?.creatorName ?? "this creator"}</strong>. Previously removed access will not return.</>}</p>
     <p>Login, Clock &amp; Hours and other creators are unaffected. No team-wide announcement is sent.</p>
-    {review?.active && review.changedAt && <div className="creator-chat-pause-record"><strong>Currently paused</strong><p>By {review.changedByName} · {new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(review.changedAt))}</p><p>Reason: {review.reason}</p></div>}
+    {review?.active && review.changedAt && <div className="creator-chat-pause-record"><strong>Currently quarantined</strong><p>By {review.changedByName} · {new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(review.changedAt))}</p><p>Reason: {review.reason}</p></div>}
     {phase === "checking" && <p role="status">Checking current assignment, chat status and your access…</p>}
-    {phase === "already" && <p role="status">{desiredActive ? "Their chats are already paused." : "Their pause has already been lifted."} No additional change was made.</p>}
+    {phase === "already" && <p role="status">{desiredActive ? "This member is already quarantined." : "Quarantine has already been lifted."} No additional change was made.</p>}
     {error && <p className="creator-chat-error" role="alert">{error}</p>}
     {phase !== "already" && <form onSubmit={(e) => void submit(e)}>
-      <label htmlFor="chat-quarantine-reason">Reason for {desiredActive ? "pausing chats" : "lifting the pause"}</label>
+      <label htmlFor="chat-quarantine-reason">Reason for {desiredActive ? "quarantining this member" : "lifting quarantine"}</label>
       <textarea ref={input} id="chat-quarantine-reason" rows={3} required maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} disabled={phase !== "ready"} aria-describedby="chat-quarantine-help" />
       <p id="chat-quarantine-help">Recorded for management review · {reason.length.toLocaleString()} / 1,000 characters. Don’t include passwords or secrets.</p>
-      <div className="creator-chat-dialog-actions"><button type="button" disabled={phase === "saving"} onClick={onClose}>Cancel</button>{phase === "review" ? <button type="button" onClick={() => void check()}>Check current status</button> : phase !== "unavailable" && <button className="creator-chat-quarantine-confirm" type="submit" disabled={phase !== "ready" || !reason.trim()}>{phase === "saving" ? "Saving…" : desiredActive ? "! Pause these creator chats" : "Lift pause"}</button>}</div>
+      <div className="creator-chat-dialog-actions"><button type="button" disabled={phase === "saving"} onClick={onClose}>Cancel</button>{phase === "review" ? <button type="button" onClick={() => void check()}>Check current status</button> : phase !== "unavailable" && <button className="creator-chat-quarantine-confirm" type="submit" disabled={phase !== "ready" || !reason.trim()}>{phase === "saving" ? "Saving…" : desiredActive ? "Quarantine member" : "Lift quarantine"}</button>}</div>
     </form>}
     {phase === "already" && review && <div className="creator-chat-dialog-actions"><button type="button" onClick={() => onSaved(review)}>Return to chat</button></div>}
   </dialog>;
