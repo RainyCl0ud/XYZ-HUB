@@ -72,20 +72,21 @@ function makeViewer(user: ViewerUser) {
   // existing Owner-only access controls. Stale/custom grants cannot widen it.
   permissions.delete("chat.private.general.review");
   if (isOwner) permissions.add("chat.private.general.review");
-  // Creator-profile ownership is not a staff assignment. It grants an
-  // ordinary channel area only with explicit Chat permissions.
-  const ownCreatorId = user.roleMemberships.some(({ role }) => role.systemKey === "MODEL")
-    && user.creatorProfile?.isActive ? user.creatorProfile.id : null;
-  return { user, permissions, isOwner, isDeveloper, ownCreatorId, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
+  // Block 2 section 6: a Model can see only her own protected creator
+  // conversation. Saved ordinary/oversight grants never bypass this boundary.
+  const isModel = user.roleMemberships.some(({ role }) => role.systemKey === "MODEL");
+  const ownCreatorId = isModel && user.creatorProfile?.isActive ? user.creatorProfile.id : null;
+  return { user, permissions, isOwner, isDeveloper, isModel, ownCreatorId, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
 }
 type Viewer = ReturnType<typeof makeViewer>;
-// Scoped creator ownership must not authorize staff-private conversations.
+// The Model one-chat rule is a hard privacy boundary, not a default that
+// can be widened via Role Settings, direct channel IDs or named grants.
 function inOrdinaryArea(viewer: Viewer, modelId: string) {
-  return !viewer.user.chatQuarantines.some((q) => q.modelId === modelId)
+  return !viewer.isModel
+    && !viewer.user.chatQuarantines.some((q) => q.modelId === modelId)
     && viewer.permissions.has("chat.access")
     && viewer.permissions.has("chat.ordinary.access")
     && (viewer.permissions.has("chat.areas.all")
-      || viewer.ownCreatorId === modelId
       || viewer.user.modelAssignments.some((a) => a.modelId === modelId));
 }
 // Shared current-access decisions for announcement delivery. These helpers
@@ -162,7 +163,12 @@ function standingAccess(viewer: Viewer, conversation: StandingConversation) {
   // affected area. Their reviewer access to other staff/creator chats pauses too.
   const paused = viewer.user.chatQuarantines.some((q) => q.modelId === conversation.modelId);
   const pauseAllows = !paused || (conversation.kind === "STAFF" && isSubject && !archived);
-  const canView = pauseAllows && p.has("chat.access") && (archived ? oversight && p.has("chat.archives.view") : oversight || isSubject || reviewer);
+  // Even extra saved oversight permissions cannot expose another person's
+  // protected chat to a Model or produce an unintended second conversation.
+  const modelPrivateOnly = !viewer.isModel || (
+    conversation.kind === "CREATOR" && conversation.modelId === viewer.ownCreatorId && isSubject
+  );
+  const canView = modelPrivateOnly && pauseAllows && p.has("chat.access") && (archived ? oversight && p.has("chat.archives.view") : oversight || isSubject || reviewer);
   return { canView, canPost: canView && !archived && p.has("chat.messages.send"), canManage: false, archived };
 }
 function audit(tx: Prisma.TransactionClient, viewer: Viewer, action: string, targetId: string, metadata: Prisma.InputJsonObject) {
@@ -281,11 +287,8 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
 export async function accessibleChatAreas(tx: Prisma.TransactionClient, viewer: Viewer, retainedChannelId?: string) {
     const userId = viewer.user.id;
     const areas = await tx.chatArea.findMany({
-      where: viewer.permissions.has("chat.areas.all") ? {} : {
-        modelId: { in: [...new Set([
-          ...viewer.user.modelAssignments.map((a) => a.modelId),
-          ...(viewer.ownCreatorId ? [viewer.ownCreatorId] : []),
-        ])] },
+      where: viewer.isModel ? { modelId: { in: [] } } : viewer.permissions.has("chat.areas.all") ? {} : {
+        modelId: { in: viewer.user.modelAssignments.map((a) => a.modelId) },
       },
       include: { model: { select: { name: true } }, channels: {
         where: retainedChannelId && viewer.isOwner ? { OR: [{ cleanedUpAt: null }, { id: retainedChannelId }] } : { cleanedUpAt: null },
