@@ -40,11 +40,12 @@ async function main() {
     const chatter = await create("chatter", "CHATTER"), trial = await create("trial", "TRIAL_CHATTER");
     const accountant = await create("accountant", "ACCOUNTANT"), general = await create("general", "GENERAL_STAFF");
     const outside = await create("outside", "CHATTER"), otherManager = await create("other-manager", "MANAGER");
+    const offShift = await create("offshift", "CHATTER"), offShiftOutside = await create("offshift-outside", "CHATTER");
     const modelA = await prisma.agencyModel.create({ data: { name: `${prefix} A` } });
     const modelB = await prisma.agencyModel.create({ data: { name: `${prefix} B` } });
     modelIds.push(modelA.id, modelB.id);
-    await prisma.userModelAssignment.createMany({ data: [manager, qc, chatter, trial, accountant, general].map((u) => ({ userId: u.id, modelId: modelA.id })) });
-    await prisma.userModelAssignment.createMany({ data: [outside, otherManager].map((u) => ({ userId: u.id, modelId: modelB.id })) });
+    await prisma.userModelAssignment.createMany({ data: [manager, qc, chatter, trial, accountant, general, offShift].map((u) => ({ userId: u.id, modelId: modelA.id })) });
+    await prisma.userModelAssignment.createMany({ data: [outside, otherManager, offShiftOutside].map((u) => ({ userId: u.id, modelId: modelB.id })) });
     const now = new Date(Math.floor(Date.now() / 1000) * 1000);
     for (const user of [ops, manager, qc, chatter, trial, accountant, general, outside, otherManager]) {
       await prisma.clockShift.create({ data: { userId: user.id, personName: user.name, startedAt: now,
@@ -60,11 +61,14 @@ async function main() {
     const qcNames = await names(qc.id);
     assert.deepEqual(qcNames, new Set([chatter.name, trial.name]));
     assert.equal(await visible(qc.id), 2);
+    assert.deepEqual((await getAttendanceOverview(qc.id)).offShiftStaff.map((x) => x.personName), [offShift.name]);
+    assert.equal((await getAttendanceOverview(qc.id)).counts.notClockedInStaff, 1);
     pass("QC sees only assigned Chatters and Trial Chatters; no Managers, QCs, or other creators");
 
     const managerNames = await names(manager.id);
     assert.deepEqual(managerNames, new Set([qc.name, chatter.name, trial.name]));
     assert.equal(await visible(manager.id), 3);
+    assert.equal((await getAttendanceOverview(manager.id)).counts.notClockedInStaff, 1);
     pass("Manager sees lower-ranked assigned QC, Chatter and Trial Chatter without accounting or general-staff leakage");
 
     const opsNames = await names(ops.id);
@@ -73,17 +77,22 @@ async function main() {
     assert.equal(agency.scope, "agency");
     assert.equal(agency.counts.clockedInStaff, 9);
     assert.equal(await visible(ops.id), 9);
+    assert.equal((await getAttendanceOverview(ops.id)).counts.notClockedInStaff, 2);
     assert.equal((await getOwnerClockOverview(owner.id)).counts.clockedInStaff, 9);
+    assert.equal((await getAttendanceOverview(owner.id)).counts.notClockedInStaff, 2);
     pass("Owners and explicitly authorized Ops see agency-wide eligible attendance; legacy Owner endpoint stays Owner-only");
 
     const foreignShift = await prisma.clockShift.findFirstOrThrow({ where: { userId: outside.id, endedAt: null } });
     await denied(() => getAttendanceOverview(qc.id, foreignShift.id), 400);
     await denied(() => getAttendanceOverview(manager.id, foreignShift.id), 400);
+    await denied(() => getAttendanceOverview(qc.id, undefined, offShiftOutside.id), 400);
+    await denied(() => getAttendanceOverview(manager.id, undefined, offShiftOutside.id), 400);
     pass("Pagination rejects cursors from unassigned or unauthorized creators");
 
     await prisma.agencyModel.update({ where: { id: modelA.id }, data: { isActive: false } });
     assert.equal(await visible(qc.id), 0);
     assert.equal(await visible(manager.id), 0);
+    assert.equal((await getAttendanceOverview(manager.id)).counts.notClockedInStaff, 0);
     assert.equal(await visible(owner.id), 9);
     await prisma.agencyModel.update({ where: { id: modelA.id }, data: { isActive: true } });
     await prisma.userModelAssignment.deleteMany({ where: { userId: qc.id, modelId: modelA.id } });
@@ -108,6 +117,8 @@ async function main() {
 
     await prisma.user.update({ where: { id: chatter.id }, data: { status: "DEACTIVATED" } });
     assert.equal(await visible(manager.id), 2);
+    await prisma.user.update({ where: { id: offShift.id }, data: { status: "DEACTIVATED" } });
+    assert.equal((await getAttendanceOverview(manager.id)).counts.notClockedInStaff, 0);
     pass("Inactive staff are excluded without exposing historic personal attendance");
   } finally {
     await prisma.clockShift.deleteMany({ where: { userId: { in: userIds } } });
