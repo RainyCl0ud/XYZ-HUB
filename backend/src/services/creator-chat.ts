@@ -650,7 +650,7 @@ export async function chatGrantOptions(userId: string, channelId: string) {
     if (!channel || !access.canManage) throw new ChatError(403, "Protected chats have fixed membership; ordinary channels require channel management access.");
     const [roles, assignments] = await Promise.all([
       tx.role.findMany({ where: { archivedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-      tx.userModelAssignment.findMany({ where: { modelId: channel.modelId, user: { status: "ACTIVE", id: { not: userId } } }, select: { id: true, user: { select: { id: true, name: true, ...viewerInclude } } }, orderBy: { user: { name: "asc" } } }),
+      tx.userModelAssignment.findMany({ where: { modelId: channel.modelId, user: { status: "ACTIVE", id: { not: userId } } }, select: { id: true, user: { include: viewerInclude } }, orderBy: { user: { name: "asc" } } }),
     ]);
     return {
       roles: roles.map((role) => ({ ...role, grant: channel.roleGrants.find((g) => g.roleId === role.id) ?? null })),
