@@ -31,6 +31,16 @@ assert.ok(backend.includes('rank: { lte: highestRank! }'));
 assert.ok(backend.includes('effectiveScope === "chatters" ? { systemKey: { in: ["CHATTER", "TRIAL_CHATTER"] } }'));
 assert.ok(backend.includes('tx.clockShift.count({ where: openStaffShift })'));
 assert.ok(backend.includes('tx.clockBreak.count({'));
+assert.ok(backend.includes('const notClockedInStaff: Prisma.UserWhereInput'));
+assert.ok(backend.includes('clockShifts: { none: { endedAt: null } }'));
+assert.ok(backend.includes('tx.user.findMany({'));
+assert.ok(backend.includes('tx.user.count({ where: notClockedInStaff })'));
+assert.ok(backend.includes('where: { AND: [notClockedInStaff, { id: offShiftBefore }] }'));
+assert.ok(ownerPage.includes('aria-label="Staff not currently clocked in"'));
+assert.ok(ownerPage.includes('data.counts.notClockedInStaff'));
+assert.ok(ownerPage.includes('data.offShiftStaff.map('));
+assert.ok(ownerPage.includes('data.nextOffShiftBefore'));
+
 assert.ok(backend.includes('where: { AND: [openStaffShift, { id: before }] }'));
 assert.ok(route.includes('router.get("/overview"'));
 assert.ok(route.includes('router.get("/owner/overview"'));
