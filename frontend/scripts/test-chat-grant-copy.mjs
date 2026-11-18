@@ -18,6 +18,8 @@ assert.ok(ui.includes("Role access: {option.inheritedAccess.canPost"));
 assert.ok(ui.includes("Role and member grants combine"));
 assert.ok(server.includes("inheritedAccess: { canView: roleAccess.canView, canPost: roleAccess.canPost }"));
 assert.ok(server.includes("channelAccess(makeViewer(a.user), { ...channel, personGrants: [] })"));
+assert.ok(server.includes('select: { id: true, user: { include: viewerInclude } }'));
+assert.ok(!server.includes("user: { select: { id: true, name: true, ...viewerInclude } }"));
 console.log("PASS 2: Member settings show role-derived access separately from named grants.");
 
 assert.ok(server.includes('p.has("chat.channels.all") || grants.some((g) => g.canView || g.canPost)'));
