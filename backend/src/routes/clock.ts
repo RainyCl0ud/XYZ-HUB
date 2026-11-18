@@ -51,14 +51,15 @@ router.post("/alerts/:alertId/read", run(async (req, res, userId) => {
   empty.parse(req.body); res.json(await markClockAlertRead(userId, id(req, "alertId")));
 }));
 router.get("/overview", run(async (req, res, userId) => {
-  const query = z.object({ before: z.string().min(1).max(100).optional() }).strict().parse(req.query);
-  res.json(await getAttendanceOverview(userId, query.before));
+  const query = z.object({ before: z.string().min(1).max(100).optional(), offShiftBefore: z.string().min(1).max(100).optional() }).strict().parse(req.query);
+  res.json(await getAttendanceOverview(userId, query.before, query.offShiftBefore));
 }));
 router.get("/owner/overview", run(async (req, res, userId) => {
   const query = z.object({
     before: z.string().min(1).max(100).optional(),
+    offShiftBefore: z.string().min(1).max(100).optional(),
   }).strict().parse(req.query);
-  res.json(await getOwnerClockOverview(userId, query.before));
+  res.json(await getOwnerClockOverview(userId, query.before, query.offShiftBefore));
 }));
 router.get("/me", run(async (req, res, userId) => {
   const before = req.query.before;
