@@ -11,7 +11,7 @@ const css = readFileSync(resolve(root, "src/pages/ChatPage.css"), "utf8");
 assert.ok(page.includes('onClick={() => setOpenMemberActions((current) => current === m.id ? null : m.id)}'));
 assert.ok(page.includes('aria-expanded={openMemberActions === m.id}'));
 assert.ok(page.includes('className="creator-chat-member-action-menu"'));
-assert.ok(page.includes('onClick={() => {\n                        setOpenMemberActions(null);\n                        setQuarantining(m.quarantine!);'));
+assert.match(page, /onClick=\{\(\) => \{\s*setOpenMemberActions\(null\);\s*setQuarantining\(m\.quarantine!\);\s*\}\}/);
 console.log("PASS 1: Three-dot menu opens a separate accessible member action, not the quarantine confirmation.");
 
 assert.ok(page.includes('"Quarantine member…"'));
