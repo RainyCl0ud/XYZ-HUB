@@ -124,6 +124,20 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [deleting, setDeleting] = useState<ModerationTarget | null>(null);
   const [cleanupTarget, setCleanupTarget] = useState<CleanupTarget | null>(null);
   const [quarantining, setQuarantining] = useState<QuarantineControl | null>(null);
+  const [openMemberActions, setOpenMemberActions] = useState<string | null>(null);
+  useEffect(() => {
+    if (!openMemberActions) return;
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest(".creator-chat-member-entry")) return;
+      setOpenMemberActions(null);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenMemberActions(null);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
+  }, [openMemberActions]);
   const [notice, setNotice] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
   const [toolsRevision, setToolsRevision] = useState(0);
@@ -788,7 +802,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
               </div>
             </header>
             {inlineDiscoveryOpen && <div id="chat-discovery-panel" className={`creator-chat-live-panel-anchor ${tools?.kind === "pins" ? "is-pins" : "is-search"}`}>{toolView}</div>}
-            {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation.</span>{transcript?.quarantine && <button type="button" onClick={() => setQuarantining(transcript.quarantine!)}>{transcript.quarantine.active ? "Review / lift chat pause" : "Pause creator chats…"}</button>}</div>}
+            {channel?.isPrivate && <div className="creator-chat-private-notice"><ChatIcon name="lock" /><span>Private conversation.</span>{transcript?.quarantine && <button type="button" onClick={() => setQuarantining(transcript.quarantine!)}>{transcript.quarantine.active ? "Review / lift quarantine" : "Quarantine member…"}</button>}</div>}
             {area?.pausedForYou && <div className="creator-chat-pause-notice" role="status"><strong>Your other chats for {area.name} are paused.</strong></div>}
             {(!!channel?.unreadCount || readError) && <div className="creator-chat-read-status"><span role="status">{readError || `${channel?.unreadCount} unread · Messages clear as you view them.`}</span>{!!channel?.unreadCount && <button type="button" disabled={markingRead || !transcript?.messages.length} title="Mark all messages read up to the latest loaded message, including earlier history." onClick={() => void markConversationRead()}>{markingRead ? "Saving…" : "Mark conversation read"}</button>}</div>}
             <div ref={messagePane} className={`creator-chat-messages ${transcript && !transcript.messages.length ? "is-empty" : ""}`} role="log" aria-label="Messages" aria-live="polite" onScroll={() => { const pane = messagePane.current; if (pane) followMessages.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }}>
@@ -875,20 +889,29 @@ function ChatWorkspace({ userId }: { userId: string }) {
               {!transcript && <p className="creator-chat-members-empty">Loading members…</p>}
               {transcript && !members.length && <p className="creator-chat-members-empty">No members available.</p>}
               {members.map((m) => (
-                <div className="creator-chat-member" key={m.id}>
-                  <UserAvatar name={m.name} className="creator-chat-member-avatar"
-                    src={m.avatarUpdatedAt ? `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(selected)}/members/${encodeURIComponent(m.id)}/avatar?v=${encodeURIComponent(m.avatarUpdatedAt)}` : null} />
-                  <div className="creator-chat-member-identity">
-                    <strong title={m.name}>{m.name}</strong>
-                    <span className="creator-chat-member-role" title={m.role}>{m.role}</span>
+                <div className="creator-chat-member-entry" key={m.id}>
+                  <div className="creator-chat-member">
+                    <UserAvatar name={m.name} className="creator-chat-member-avatar"
+                      src={m.avatarUpdatedAt ? `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(selected)}/members/${encodeURIComponent(m.id)}/avatar?v=${encodeURIComponent(m.avatarUpdatedAt)}` : null} />
+                    <div className="creator-chat-member-identity">
+                      <strong title={m.name}>{m.name}</strong>
+                      <span className="creator-chat-member-role" title={m.role}>{m.role}</span>
+                    </div>
+                    {m.quarantine && <button type="button" className="creator-chat-member-manage"
+                      onClick={() => setOpenMemberActions((current) => current === m.id ? null : m.id)}
+                      aria-label={`Actions for ${m.name}`} aria-expanded={openMemberActions === m.id}
+                      aria-controls={`chat-member-actions-${m.id}`} title="Member actions">•••</button>}
                   </div>
-                  {m.quarantine && <button type="button" className="creator-chat-member-manage"
-                    onClick={() => setQuarantining(m.quarantine!)}
-                    aria-label={`${m.quarantine.active ? "Review or lift pause for" : "Pause creator chats for"} ${m.name}`}
-                    title="Manage chat access">•••</button>}
+                  {m.quarantine && openMemberActions === m.id && (
+                    <div id={`chat-member-actions-${m.id}`} className="creator-chat-member-action-menu" role="group" aria-label={`Actions for ${m.name}`}>
+                      <button type="button" onClick={() => {
+                        setOpenMemberActions(null);
+                        setQuarantining(m.quarantine!);
+                      }}>{m.quarantine.active ? "Review / lift quarantine" : "Quarantine member…"}</button>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              ))}            </div>
           </aside>
         </div>
       )}
@@ -901,7 +924,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       }} />}
       {deleting && <ChatModerationDialog key={deleting.message.id} target={deleting} onClose={() => setDeleting(null)} onDeleted={messageDeleted} />}
       {quarantining && <ChatQuarantineDialog key={`${quarantining.modelId}:${quarantining.userId}`} target={quarantining} onClose={() => { setQuarantining(null); setRefreshTick((n) => n + 1); }} onSaved={(result) => {
-        setQuarantining(null); setNotice(`${result.personName}: ${result.active ? "chats paused" : "chat pause lifted"} for ${result.creatorName}. ${result.active ? "Their private management chat stays open." : "Access now follows current assignments and permissions."}`);
+        setQuarantining(null); setNotice(`${result.personName}: ${result.active ? "quarantined" : "quarantine lifted"} for ${result.creatorName}. ${result.active ? "Their private management chat stays open." : "Access now follows current assignments and permissions."}`);
         setRefreshTick((n) => n + 1); void refreshAreas().catch((e: unknown) => setError(errorText(e)));
       }} />}
     </section>
