@@ -911,7 +911,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
                     </div>
                   )}
                 </div>
-              ))}            </div>
+              ))}
+            </div>
           </aside>
         </div>
       )}
