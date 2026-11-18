@@ -106,7 +106,7 @@ async function main() {
     await denied(() => getAttendanceOverview(coordinator.id));
     pass("Custom ranked roles receive only explicitly granted attendance scope, and revocation takes effect immediately");
 
-    await prisma.user.update({ where: { id: chatter.id }, data: { status: "INACTIVE" } });
+    await prisma.user.update({ where: { id: chatter.id }, data: { status: "DEACTIVATED" } });
     assert.equal(await visible(manager.id), 2);
     pass("Inactive staff are excluded without exposing historic personal attendance");
   } finally {
