@@ -1814,6 +1814,12 @@ function RoleSettingsRankPage() {
                       </label>
                     </header>
 
+                    {permissionRole.systemKey === "MODEL" && activePermissionGroupTitle === "Chat" && (
+                      <p className="role-settings-readonly-note">
+                        Models can access only their own private Creator chat. Other Chat permissions cannot open ordinary channels or other private conversations for a Model account.
+                      </p>
+                    )}
+
                     <div className="role-settings-permission-items">
                       <section className="role-settings-permission-section">
                         <div className="role-settings-permission-section-heading">
