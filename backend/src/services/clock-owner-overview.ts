@@ -26,17 +26,19 @@ async function readClockOverview(userId: string, before?: string, requireOwner =
     const scope = clockAllowed(viewer, "clock.overview.agency") ? "agency"
       : clockAllowed(viewer, "clock.overview.team") ? "team"
       : clockAllowed(viewer, "clock.overview.chatters") ? "chatters" : null;
-    // The historical Owner endpoint must remain available to an Owner even
-    // before the new permission migration is applied, never to anyone else.
-    const effectiveScope = requireOwner ? "agency" : scope;
+    // Both endpoints honor the new explicit Role Settings grant.
+    // The legacy route additionally requires the active Owner role.
+    const effectiveScope = scope;
+    if (requireOwner && effectiveScope !== "agency") {
+      throw new ClockError(403, "Agency attendance permission is required.");
+    }
     if (!effectiveScope) throw new ClockError(403, "Attendance overview permission is required.");
     const viewerRanks = viewer.roleMemberships.map((m) => m.role.rank).filter((rank): rank is number => rank !== null);
     const highestRank = viewerRanks.length ? Math.min(...viewerRanks) : null;
     const assignedModels = viewer.modelAssignments.map((a) => a.modelId);
-    if (effectiveScope !== "agency" && (highestRank === null || !assignedModels.length)) {
-      // No active creator assignment means an empty scoped overview.
-      // A missing rank cannot be used to determine subordinates.
-      if (highestRank === null) throw new ClockError(403, "A ranked role is required for team attendance.");
+    // No active assignment naturally yields an empty scoped result.
+    if (effectiveScope !== "agency" && highestRank === null) {
+      throw new ClockError(403, "A ranked role is required for team attendance.");
     }
 
     const now = await clockDatabaseNow(tx);
