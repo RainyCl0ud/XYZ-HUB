@@ -1,4 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
+import { EventEmitter } from "node:events";
 import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/access.js";
 import { createRateLimit } from "../middleware/rate-limit.js";
@@ -7,6 +8,16 @@ import { listClockAlerts, markClockAlertRead } from "../services/clock-alerts.js
 import { getAttendanceOverview, getOwnerClockOverview } from "../services/clock-owner-overview.js";
 import { cancelClockCorrection, correctionDecisionSchema, correctionRequestSchema, getClockCorrection, listClockCorrections, requestClockCorrection, reviewClockCorrection } from "../services/clock-corrections.js";
 const router = Router();
+// Only invalidation signals cross this stream. Every refresh uses the normal
+// authenticated, role-scoped overview endpoint again.
+const changes = new EventEmitter();
+changes.setMaxListeners(0);
+router.use((req, res, next) => {
+  if (req.method !== "GET") res.once("finish", () => {
+    if (res.statusCode >= 200 && res.statusCode < 300) changes.emit("changed");
+  });
+  next();
+});
 router.use((_req, res, next) => isClockEnabled() ? next() : res.sendStatus(404));
 router.use(requireAuth);
 router.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
@@ -49,6 +60,26 @@ router.get("/alerts", run(async (req, res, userId) => {
 }));
 router.post("/alerts/:alertId/read", run(async (req, res, userId) => {
   empty.parse(req.body); res.json(await markClockAlertRead(userId, id(req, "alertId")));
+}));
+const liveLimit = createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: "clock-live", getIdentity: (req) => (req as AuthenticatedRequest).userId! });
+router.get("/overview/live", liveLimit, run(async (req, res, userId) => {
+  if (req.get("Sec-Fetch-Site") === "cross-site") throw new ClockError(403, "Attendance access is unavailable.");
+  await getAttendanceOverview(userId);
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+  const notify = () => { if (!res.destroyed && !res.writableEnded) res.write("event: changed\ndata: {}\n\n"); };
+  const heartbeat = setInterval(() => res.write(": keepalive\n\n"), 15_000);
+  // Periodically reconnect through requireAuth to recheck the sign-in.
+  const expiry = setTimeout(() => res.end(), 60_000);
+  changes.on("changed", notify);
+  res.once("close", () => {
+    clearInterval(heartbeat); clearTimeout(expiry); changes.off("changed", notify);
+  });
+  notify();
 }));
 router.get("/overview", run(async (req, res, userId) => {
   const query = z.object({ before: z.string().min(1).max(100).optional(), offShiftBefore: z.string().min(1).max(100).optional() }).strict().parse(req.query);

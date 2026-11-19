@@ -63,21 +63,22 @@ function OwnStrikeHistory() {
         </section>
       ) : !history ? <p role="status">Loading your strikes…</p> : (
         <>
-          {history.records.length === 0 && <section className="content-card"><p>You have no strike records.</p></section>}
-          {history.records.map(strike => (
-            <article key={strike.id} className="content-card personal-strike">
-              <header>
-                <h2>{strike.reason}</h2>
-                <strong>{statusLabels[strike.status]}</strong>
-              </header>
-              <dl>
-                <div><dt>Issued</dt><dd><time dateTime={strike.issuedAt}>{formatCentralDateTime(strike.issuedAt)}</time></dd></div>
-                <div><dt>Expiry date</dt><dd><time dateTime={strike.expiresAt}>{formatCentralDateTime(strike.expiresAt)}</time></dd></div>
-                <div><dt>Standing when issued</dt><dd>{strike.standing}</dd></div>
-              </dl>
-              {strike.details && <p>{strike.details}</p>}
-            </article>
-          ))}
+          {history.records.length === 0 ? <section className="personal-strike-empty" aria-labelledby="strikes-empty-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m12 3 8 4v5c0 5-8 9-8 9s-8-4-8-9V7z"/><path d="m8 12 3 3 5-6"/></svg>
+            <h2 id="strikes-empty-title">No strikes on your record</h2>
+            <p>Any strikes issued to you will appear here with their reason, status and expiry date.</p>
+          </section> : <div className="personal-strike-table-scroll" role="region" aria-label="Your strike history" tabIndex={0}>
+            <table className="personal-strike-table">
+              <thead><tr><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Issued</th><th scope="col">Expires</th><th scope="col">Standing when issued</th></tr></thead>
+              <tbody>{history.records.map(strike => <tr key={strike.id}>
+                <th scope="row">{strike.reason}{strike.details && <details><summary>View details</summary><p>{strike.details}</p></details>}</th>
+                <td>{statusLabels[strike.status]}</td>
+                <td><time dateTime={strike.issuedAt}>{formatCentralDateTime(strike.issuedAt)}</time></td>
+                <td><time dateTime={strike.expiresAt}>{formatCentralDateTime(strike.expiresAt)}</time></td>
+                <td>{strike.standing}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>}
           {history.pageCount > 1 && (
             <nav className="personal-strike-pages" aria-label="Strike history pages">
               <button type="button" className="secondary-button" disabled={history.page === 1} onClick={() => loadPage(history.page - 1)}>Previous</button>

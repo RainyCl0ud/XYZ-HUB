@@ -100,7 +100,9 @@ try {
   assert.ok(tools.includes('createPortal('));
   assert.ok(tools.includes('position: "fixed"'));
   assert.ok(tools.includes('Math.min(box.right - width, window.innerWidth - width - 8)'));
-  assert.ok(tools.includes('const height = 350'));
+  assert.ok(!tools.includes('const height = 350'));
+  assert.ok(tools.includes('bottom: window.innerHeight - box.top + 6'));
+  assert.ok(tools.includes('top: box.bottom + 6'));
   assert.ok(tools.includes('pickerEmojis.map'));
   assert.ok(tools.includes('sixRecentEmojis = normalizeRecentEmojis(recentEmojis)'));
   assert.ok(tools.includes('source.addEventListener') === false);

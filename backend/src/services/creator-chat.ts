@@ -246,6 +246,19 @@ export async function cleanUpChatChannel(userId: string, channelId: string, expe
     return { cleanedUp: true };
   });
 }
+export async function listRetainedChatChannels(userId: string, before?: string) {
+  return prisma.$transaction(async tx => {
+    const viewer = await loadViewer(tx, userId);
+    if (!viewer.isOwner) throw new ChatError(403, "Only Owners can open retained channels.");
+    const rows = await tx.chatChannel.findMany({
+      where: { cleanedUpAt: { not: null }, ...(before ? { id: { lt: before } } : {}) },
+      select: { id: true, name: true, cleanedUpAt: true, area: { select: { model: { select: { name: true } } } } },
+      orderBy: { id: "desc" }, take: 21,
+    });
+    return { channels: rows.slice(0, 20).map(row => ({ id: row.id, name: row.name, workspace: row.area.model.name, cleanedUpAt: row.cleanedUpAt })),
+      nextBefore: rows.length > 20 ? rows[19].id : null };
+  });
+}
 export const CHAT_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅", "😊", "😍", "😮", "😢", "😎", "🤔", "👏", "🙌", "🔥", "💯", "🙏", "🚀", "🤝", "😭", "💀", "⭐", "✨", "👎"] as const;
 const messageInclude = {
   attachment: true,
@@ -253,7 +266,15 @@ const messageInclude = {
   reactions: { select: { emoji: true, userId: true } },
 } satisfies Prisma.ChatMessageInclude;
 type MessageRow = Prisma.ChatMessageGetPayload<{ include: typeof messageInclude }>;
-function visibleMessages(viewer: Viewer): Prisma.ChatMessageWhereInput { return viewer.isOwner ? {} : { deletedAt: null }; }
+function visibleMessages(viewer: Viewer): Prisma.ChatMessageWhereInput {
+  // Owners retain audit access. Everyone else must be an intended recipient,
+  // even when they can open a shared Updates channel or oversee a private chat.
+  return viewer.isOwner ? {} : { deletedAt: null, AND: [{ OR: [
+    { announcementKey: null },
+    { authorUserId: viewer.user.id },
+    { announcementPost: { is: { announcement: { deliveries: { some: { userId: viewer.user.id } } } } } },
+  ] }] };
+}
 function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archived: boolean) {
   if (message.deletedAt && !viewer.isOwner) throw new ChatError(404, "Message not found.");
   const active = !message.deletedAt && !message.systemEventKey && !message.announcementKey;
@@ -342,7 +363,10 @@ export async function listChatAreas(userId: string, retainedChannelId?: string) 
 
 export async function unreadWhere(tx: Prisma.TransactionClient, viewer: Viewer): Promise<Prisma.ChatMessageWhereInput> {
   const start = await tx.chatSetup.findUniqueOrThrow({ where: { id: "chat-unread-v1" } });
-  return { deletedAt: null, createdAt: { gte: start.createdAt },
+  return { ...visibleMessages(viewer), AND: [{ OR: [
+      { announcementKey: null },
+      { announcementPost: { is: { announcement: { deliveries: { some: { userId: viewer.user.id } } } } } },
+    ] }], deletedAt: null, createdAt: { gte: start.createdAt },
     OR: [{ authorUserId: null }, { authorUserId: { not: viewer.user.id } }],
     reads: { none: { userId: viewer.user.id } } };
 }
@@ -378,11 +402,11 @@ export async function markChatMessagesRead(userId: string, channelId: string, in
     if (access.archived) throw new ChatError(403, "Archived conversations have no unread messages.");
     if (ids) {
       const unique = [...new Set(ids)];
-      const visible = await tx.chatMessage.findMany({ where: { ...scope, deletedAt: null, id: { in: unique } }, select: { id: true } });
+      const visible = await tx.chatMessage.findMany({ where: { ...scope, ...visibleMessages(viewer), deletedAt: null, id: { in: unique } }, select: { id: true } });
       if (visible.length !== unique.length) throw new ChatError(404, "Message not found in this conversation. Refresh before trying again.");
       await tx.chatMessageRead.createMany({ data: visible.map((m) => ({ messageId: m.id, userId })), skipDuplicates: true });
     } else {
-      const anchor = await tx.chatMessage.findFirst({ where: { ...scope, id: input.throughMessageId!, deletedAt: null }, select: { id: true, createdAt: true } });
+      const anchor = await tx.chatMessage.findFirst({ where: { ...scope, ...visibleMessages(viewer), id: input.throughMessageId!, deletedAt: null }, select: { id: true, createdAt: true } });
       if (!anchor) throw new ChatError(404, "Read point not found. Refresh the conversation.");
       // A single INSERT SELECT sees only committed messages. An older-started
       // transaction committing later remains unread, even before this anchor.
@@ -393,6 +417,10 @@ export async function markChatMessagesRead(userId: string, channelId: string, in
       const startTime = start.createdAt.toISOString(), anchorTime = anchor.createdAt.toISOString();
       await tx.$executeRaw`INSERT INTO "ChatMessageRead" ("messageId", "userId", "readAt")
         SELECT m."id", ${userId}, clock_timestamp() AT TIME ZONE 'UTC' FROM "ChatMessage" m WHERE ${target} AND m."deletedAt" IS NULL
+        AND (m."announcementKey" IS NULL OR m."authorUserId" = ${userId} OR EXISTS (
+          SELECT 1 FROM "ChatAnnouncementPost" p JOIN "ChatAnnouncementDelivery" d ON d."announcementId" = p."announcementId"
+          WHERE p."messageId" = m."id" AND d."userId" = ${userId}
+        ))
         AND m."createdAt" >= ${startTime}::timestamp AND (m."authorUserId" IS NULL OR m."authorUserId" <> ${userId})
         AND (m."createdAt" < ${anchorTime}::timestamp OR (m."createdAt" = ${anchorTime}::timestamp AND m."id" <= ${anchor.id}))
         ON CONFLICT ("messageId", "userId") DO NOTHING`;

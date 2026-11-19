@@ -730,3 +730,17 @@
     justify-content: space-between;
   }
 }
+
+.personal-strike-empty { padding: 64px 24px; border-block: 1px solid #383838; text-align: center; }
+.personal-strike-empty svg { width: 40px; height: 40px; margin-bottom: 16px; color: #aaa; }
+.personal-strike-empty h2 { margin: 0 0 12px; font-size: 22px; }
+.personal-strike-empty p { color: #aaa; max-width: 460px; margin: auto; line-height: 1.6; }
+.personal-strike-table-scroll { overflow-x: auto; }
+.personal-strike-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+.personal-strike-table thead { border-block: 1px solid #eee; }
+.personal-strike-table th, .personal-strike-table td { padding: 18px 16px; vertical-align: top; border-bottom: 1px solid #383838; }
+.personal-strike-table thead th { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+.personal-strike-table tbody th { min-width: 220px; font-weight: 600; }
+.personal-strike-table details { margin-top: 8px; font-weight: 400; }
+.personal-strike-table summary { cursor: pointer; color: #aaa; }
+.personal-strike-table details p { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 420px; }

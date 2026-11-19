@@ -2447,3 +2447,23 @@
     font-size: 16px;
   }
 }
+
+/* Cover the entire padded scrollport so results cannot bleed above or beside the header. */
+.creator-chat .creator-chat-live-panel > header {
+  top: -16px; margin: -16px -16px 12px; padding: 16px;
+  width: calc(100% + 32px); box-sizing: border-box; z-index: 5;
+}
+.creator-chat .creator-chat-live-panel.is-pins > header {
+  top: -12px; margin: -12px -12px 12px; padding: 12px; width: calc(100% + 24px);
+}
+@media (max-width: 720px) {
+  .creator-chat .creator-chat-live-panel > header { top: -12px; margin: -12px -12px 12px; padding: 12px; width: calc(100% + 24px); }
+}
+
+.creator-chat-settings label.creator-chat-recipient-option { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; cursor: pointer; margin: 0; width: 100%; font-size: 13px; font-weight: 400; text-transform: none; letter-spacing: normal; color: #eee; }
+.creator-chat-recipient-option input[type="checkbox"] { width: 18px; height: 18px; flex: none; }
+.creator-chat-recipient-option small { margin-left: auto; }
+.creator-chat-recipient-help { line-height: 1.6; color: #bbb; }
+.creator-chat-recipient-actions { margin: 12px 0; }
+.creator-chat-recipient-editor { padding: 0 14px 14px; }
+.creator-chat-recipient-editor .creator-chat-announcement-recipient-list { padding-inline: 0; }

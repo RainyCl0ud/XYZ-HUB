@@ -5,19 +5,21 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { prisma } from '../src/lib/prisma.js';
-import { ChatError, installCreatorChatDefaults, installChatQuarantineDefaults, installChatInteractionDefaults, installChatModerationDefaults, provisionCreatorChat, setChatQuarantine, listChatMessages, sendChatMessage, editChatMessage, deleteChatMessage, setChatPin } from '../src/services/creator-chat.js';
+import { ChatError, installCreatorChatDefaults, installChatQuarantineDefaults, installChatInteractionDefaults, installChatModerationDefaults, provisionCreatorChat, setChatQuarantine, listChatMessages, sendChatMessage, editChatMessage, deleteChatMessage, setChatPin, getChatMessage, refreshChatMessages, searchChatMessages, listRetainedChatChannels } from '../src/services/creator-chat.js';
 import { installStandingChatDefaults, syncUserStandingChats } from '../src/services/standing-chat.js';
 import { announcementCapability, previewAnnouncement, publishAnnouncement, announcementDetails, installChatAnnouncementDefaults, buildAnnouncementEmail } from '../src/services/chat-announcements.js';
 import { announcementEmailMode, announcementsEnabled } from '../src/services/chat-announcement-policy.js';
 import { runAnnouncementSweep } from '../src/services/chat-announcement-worker.js';
 import { reserveMailerCapacity, MailerCapacityUnavailable } from '../src/services/mailer-capacity.js';
+import { notificationUnreadScope } from '../src/services/chat-notification-scope.js';
+import { markChatMessagesRead } from '../src/services/creator-chat.js';
 import { loadSession } from '../src/middleware/session-auth.js';
 import { createSession } from '../src/services/session.js';
 import chat from '../src/routes/chat.js';
 
 async function main() {
   const db = new URL(process.env.DATABASE_URL ?? '');
-  assert.equal(db.hostname, '127.0.0.1'); assert.equal(db.port, '55484'); assert.equal(db.pathname, '/block2_announcement_20261101_v2');
+  assert.equal(db.hostname, '127.0.0.1'); assert.ok((db.port === '55484' && db.pathname === '/block2_announcement_20261101_v2') || (db.port === '55494' && db.pathname === '/block2_ux_20261119'));
   assert.equal(process.env.NODE_ENV, 'test'); assert.ok(!process.env.RAILWAY_PROJECT_ID && !process.env.RAILWAY_ENVIRONMENT_ID);
   process.env.BLOCK2_CHAT_ENABLED = 'true'; process.env.BLOCK2_ANNOUNCEMENTS_ENABLED = 'true'; process.env.CHAT_ANNOUNCEMENT_EMAIL_MODE = 'capture'; process.env.FRONTEND_URL = 'http://localhost:4133';
   const originalFetch = globalThis.fetch; let externalCalls = 0;
@@ -87,6 +89,47 @@ async function main() {
     const own = await listChatMessages(staff.id,staffPrivate.id); assert.ok(own.messages.some(m=>m.text.includes(input.text)&&m.systemNotice)); await deny(()=>listChatMessages(staff.id,updateOne.id),404); await deny(()=>listChatMessages(ops.id,gsPrivate.id),404); await deny(()=>listChatMessages(accountant.id,updateOne.id),404);
     assert.deepEqual({users:await prisma.user.count()-1,assignments:await prisma.userModelAssignment.count(),grants:await prisma.chatRoleGrant.count(),peopleGrants:await prisma.chatPersonGrant.count(),incidents:await prisma.incident.count(),strikes:await prisma.strike.count()},base);
     pass('Concurrent/retried publication is atomic; correct protected copies appear without widening access or changing existing records');
+
+    const targetedInput = { ...input, title: 'Selected staff only', recipientIds: [manager.id, accountant.id, general.id] };
+    const targetedPreview = await previewAnnouncement(owner.id, targetedInput);
+    assert.equal(targetedPreview.staffCount, 3);
+    assert.ok(targetedPreview.availableRecipients.some(r => r.id === dev.id));
+    assert.ok(!targetedPreview.recipients.some(r => r.id === dev.id));
+    const targetedRequestId = randomUUID();
+    const targeted = await publishAnnouncement(owner.id, { ...targetedInput, requestId: targetedRequestId, previewToken: targetedPreview.previewToken });
+    const targetedPosts = await prisma.chatAnnouncementPost.findMany({ where: { announcementId: targeted.id } });
+    assert.equal(await prisma.chatAnnouncementDelivery.count({ where: { announcementId: targeted.id } }), 3);
+    assert.ok(targetedPosts.some(p => p.targetId === accountPrivate.id));
+    assert.ok(targetedPosts.some(p => p.targetId === gsPrivate.id));
+    assert.ok(!targetedPosts.some(p => p.targetId === updateTwo.id));
+    const selectedPost = targetedPosts.find(p => p.targetId === updateOne.id)!;
+    assert.ok((await listChatMessages(manager.id, updateOne.id)).messages.some(m => m.id === selectedPost.messageId));
+    assert.ok(!(await listChatMessages(dev.id, updateOne.id)).messages.some(m => m.id === selectedPost.messageId));
+    await deny(() => getChatMessage(dev.id, updateOne.id, selectedPost.messageId), 404);
+    await deny(() => markChatMessagesRead(dev.id, updateOne.id, { messageIds: [selectedPost.messageId] }), 404);
+    await deny(() => markChatMessagesRead(dev.id, updateOne.id, { throughMessageId: selectedPost.messageId }), 404);
+    assert.deepEqual((await refreshChatMessages(dev.id, updateOne.id, [selectedPost.messageId])).messages, []);
+    assert.ok(!(await searchChatMessages(dev.id, 'Selected staff only', updateOne.id)).results.some(r => r.message.id === selectedPost.messageId));
+    const excludedUnread = await prisma.$transaction(async tx => {
+      const scope = await notificationUnreadScope(tx, dev.id);
+      return tx.chatMessage.count({ where: { AND: [scope.where, { id: selectedPost.messageId }] } });
+    });
+    assert.equal(excludedUnread, 0);
+    await deny(() => publishAnnouncement(owner.id, { ...targetedInput, recipientIds: [dev.id], requestId: targetedRequestId, previewToken: targetedPreview.previewToken }), 409);
+    await deny(() => previewAnnouncement(owner.id, { ...input, recipientIds: [inactive.id] }), 409);
+    const added = await previewAnnouncement(owner.id, { ...targetedInput, recipientIds: [...targetedInput.recipientIds, dev.id] });
+    assert.equal(added.staffCount, 4);
+    assert.notEqual(added.previewToken, targetedPreview.previewToken);
+    await deny(() => publishAnnouncement(owner.id, { ...targetedInput, recipientIds: [...targetedInput.recipientIds, dev.id], requestId: randomUUID(), previewToken: targetedPreview.previewToken }), 409);
+    const privateOnly = await previewAnnouncement(owner.id, { ...input, recipientIds: [accountant.id, general.id] });
+    assert.equal(privateOnly.creatorCount, 0); assert.equal(privateOnly.privateCopyCount, 2); assert.deepEqual(privateOnly.blockers, []);
+    pass('Recipient choices constrain shared-channel reads, direct URLs, refresh, search, unread alerts, private copies and individual email deliveries; selection changes invalidate publication tokens');
+
+    const retained = await prisma.chatChannel.create({ data: { modelId: one, key: `retained-${prefix}`, name: 'Retained test channel', sortOrder: 99, archivedAt: new Date(), cleanedUpAt: new Date() } });
+    assert.ok((await listRetainedChatChannels(owner.id)).channels.some(c => c.id === retained.id));
+    await deny(() => listRetainedChatChannels(dev.id));
+    await deny(() => listRetainedChatChannels(manager.id));
+    pass('Cleaned-up channel directory is available to Owners independently of the bounded Audit event list and rejects other roles');
 
     await Promise.all([runAnnouncementSweep(),runAnnouncementSweep()]);
     const captured = await announcementDetails(owner.id,id); assert.ok(captured.deliveries.every(d=>d.status==='CAPTURED'));

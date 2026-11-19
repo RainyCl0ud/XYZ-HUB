@@ -16,7 +16,10 @@ import chatRoutes from "../src/routes/chat.js";
 
 async function main() {
   const url = new URL(process.env.DATABASE_URL ?? "");
-  assert.ok(["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) && url.port === "55484" && /^\/block2_unread_/.test(url.pathname), "Use the isolated local unread database on port 55484.");
+  assert.ok(["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) && (
+    (url.port === "55484" && /^\/block2_unread_/.test(url.pathname)) ||
+    (url.port === "55494" && url.pathname === "/block2_ux_20261119")
+  ), "Use an explicitly named isolated local unread or UX regression database.");
   assert.equal(process.env.NODE_ENV, "test");
   assert.ok(!process.env.RAILWAY_PROJECT_ID && !process.env.RAILWAY_ENVIRONMENT_ID, "Never run in Railway.");
   process.env.BLOCK2_CHAT_ENABLED = "true";

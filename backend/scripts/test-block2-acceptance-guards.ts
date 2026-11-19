@@ -60,7 +60,7 @@ async function main() {
     where: { userId: string }; select: Record<string, boolean>; skip: number; take: number;
   }) => {
     assert.deepEqual(Object.keys(where), ["userId"], "Reads must filter by the authenticated user ID.");
-    assert.equal(take, 10, "Personal strike history must remain bounded.");
+    assert.equal(take, 7, "Personal strike history must remain bounded to seven records.");
     assert.equal(select.userId, undefined, "The personal DTO must not expose an identity field.");
     queries.push({ userId: where.userId, kind: "findMany" });
     return records.filter((row) => row.userId === where.userId)
@@ -112,13 +112,13 @@ async function main() {
   const firstPage = first.payload as { records: Array<{ id: string; reason: string; userId?: string }>; page: number; pageCount: number };
   assert.equal(firstPage.page, 1);
   assert.equal(firstPage.pageCount, 2);
-  assert.equal(firstPage.records.length, 10);
+  assert.equal(firstPage.records.length, 7);
   assert.ok(firstPage.records.every((row) => row.id.startsWith("mine-") && !("userId" in row)));
   assert.ok(firstPage.records.every((row) => !row.reason.includes("Confidential")));
   const last = await invoke(access("employee-a", ["strikes.self.view"]), { page: "999" });
   const lastPage = last.payload as { records: Array<{ id: string; status: string }>; page: number };
   assert.equal(lastPage.page, 2);
-  assert.equal(lastPage.records.length, 2);
+  assert.equal(lastPage.records.length, 5);
   assert.ok(lastPage.records.some((row) => row.id === "mine-0" && row.status === "VOIDED"));
   const other = await invoke(access("employee-b", ["strikes.self.view"]), { page: "1" });
   assert.deepEqual((other.payload as { records: Array<{ id: string }> }).records.map((row) => row.id), ["another-person"]);

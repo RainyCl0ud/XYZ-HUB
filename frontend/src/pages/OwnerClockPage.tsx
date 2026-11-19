@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import ClockTabs from "../components/ClockTabs";
-import { apiRequest, ApiError } from "../lib/api";
+import { API_BASE_URL, apiRequest, ApiError } from "../lib/api";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
 import ClockCorrections from "../components/ClockCorrections";
 import { useToast } from "../components/ToastProvider";
@@ -30,7 +30,7 @@ type OwnerOverview = {
     pendingReviewRequests: number;
   };
   activeShifts: ActiveShift[];
-  offShiftStaff: { id: string; personName: string; teamName: string }[];
+  offShiftStaff: { id: string; personName: string; teamName: string; roleNames: string[] }[];
   hasMoreOffShift: boolean;
   nextOffShiftBefore: string | null;
   hasMore: boolean;
@@ -107,15 +107,24 @@ export default function OwnerClockPage({ embedded = false }: { embedded?: boolea
     const first = window.setTimeout(() => void load(true), 0);
     const poll = window.setInterval(() => {
       if (document.visibilityState === "visible") void load();
-    }, 15_000);
+    }, 5_000);
+    const live = new EventSource(`${API_BASE_URL}/api/clock/overview/live`, { withCredentials: true });
+    const refreshVisible = () => { if (document.visibilityState === "visible") void load(); };
+    live.addEventListener("changed", refreshVisible);
+    window.addEventListener("focus", refreshVisible);
+    document.addEventListener("visibilitychange", refreshVisible);
+    window.addEventListener("xyz-clock-corrections-changed", refreshVisible);
     return () => {
+      live.close();
+      window.removeEventListener("focus", refreshVisible);
+      document.removeEventListener("visibilitychange", refreshVisible);
+      window.removeEventListener("xyz-clock-corrections-changed", refreshVisible);
       activeRequest.current?.abort();
       window.clearTimeout(first);
       window.clearInterval(poll);
     };
   }, [load]);
 
-  const refresh = () => { void load(true); };
 
   return <section className="clock-page owner-attendance" aria-labelledby="clock-title">
     {!embedded && <header className="clock-page-heading">
@@ -140,9 +149,7 @@ export default function OwnerClockPage({ embedded = false }: { embedded?: boolea
         <div>
           <h2>{!embedded || data?.scope === "agency" ? "Agency overview" : data?.scope === "chatters" ? "Assigned chatters" : "Assigned team overview"}</h2>
         </div>
-        <button type="button" disabled={refreshing} onClick={refresh}>
-          {refreshing ? "Refreshing…" : "Refresh overview"}
-        </button>
+        <span className="owner-attendance-updated" role="status">Updates automatically</span>
       </div>
 
       {error && <div className="clock-error" role="alert">{error}</div>}
@@ -237,9 +244,10 @@ export default function OwnerClockPage({ embedded = false }: { embedded?: boolea
           {data.offShiftStaff.length ? <div className="clock-table-scroll" role="region"
             aria-label="Staff not currently clocked in" aria-busy={refreshing} tabIndex={0}>
             <table className="clock-data-table">
-              <thead><tr><th scope="col">Employee</th><th scope="col">Team</th><th scope="col">Status</th></tr></thead>
+              <thead><tr><th scope="col">Employee</th><th scope="col">Role</th><th scope="col">Team</th><th scope="col">Status</th></tr></thead>
               <tbody>{data.offShiftStaff.map((person) => <tr key={person.id}>
                 <th scope="row">{person.personName}</th>
+                <td>{person.roleNames.join(", ") || "Unassigned"}</td>
                 <td>{person.teamName}</td>
                 <td><span className="clock-status">Not clocked in</span></td>
               </tr>)}</tbody>
