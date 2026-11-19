@@ -1,7 +1,8 @@
+import { CHAT_EMOJI_LIBRARY } from "./chat-emoji-library";
 /** User-specific, browser-local reaction history. No global emoji frequency or
  * cross-account storage; the current authenticated ID is part of every key.
  * On devices where storage is disabled, reactions still work with defaults. */
-export const CHAT_EMOJI_OPTIONS = [
+const DEFAULT_OPTIONS = [
   ["👍", "Thumbs up"], ["❤️", "Heart"], ["😂", "Laugh"], ["🎉", "Celebrate"],
   ["👀", "Eyes"], ["✅", "Check"], ["😊", "Smile"], ["😍", "Love"],
   ["😮", "Surprised"], ["😢", "Sad"], ["😎", "Cool"], ["🤔", "Thinking"],
@@ -10,10 +11,14 @@ export const CHAT_EMOJI_OPTIONS = [
   ["💀", "Skull"], ["⭐", "Star"], ["✨", "Sparkles"], ["👎", "Thumbs down"],
 ] as const;
 
+export const CHAT_EMOJI_OPTIONS = CHAT_EMOJI_LIBRARY;
+export const CHAT_EMOJI_CATEGORIES = [...new Set(CHAT_EMOJI_LIBRARY.map(([, , category]) => category))];
 export const CHAT_RECENT_EMOJI_LIMIT = 6;
-const DEFAULT_RECENTS: string[] = CHAT_EMOJI_OPTIONS.slice(0, CHAT_RECENT_EMOJI_LIMIT).map(([emoji]) => emoji);
+const DEFAULT_RECENTS: string[] = DEFAULT_OPTIONS.slice(0, CHAT_RECENT_EMOJI_LIMIT).map(([emoji]) => emoji);
 const supported = new Set<string>(CHAT_EMOJI_OPTIONS.map(([emoji]) => emoji));
-export const emojiLabel = (emoji: string) => CHAT_EMOJI_OPTIONS.find(([value]) => value === emoji)?.[1] ?? "Reaction";
+const labels = new Map<string, string>(CHAT_EMOJI_OPTIONS.map(([emoji, label]) => [emoji, label]));
+for (const [emoji, label] of DEFAULT_OPTIONS) labels.set(emoji, label);
+export const emojiLabel = (emoji: string) => labels.get(emoji) ?? "Reaction";
 
 export function normalizeRecentEmojis(value: unknown): string[] {
   const list = Array.isArray(value) ? value : [];

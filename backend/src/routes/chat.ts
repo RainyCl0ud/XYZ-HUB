@@ -9,7 +9,7 @@ import { getChatMessage, getChatMessageContext, refreshChatMessages, searchChatM
 import { archiveChatChannel, cleanUpChatChannel, createChatChannel, renameChatChannel } from "../services/creator-chat.js";
 import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } from "../services/creator-chat.js";
 import { getChatQuarantine, setChatQuarantine } from "../services/creator-chat.js";
-import { listChatUnread, markChatMessagesRead } from "../services/creator-chat.js";
+import { listChatUnread, listChatMentions, markChatMessagesRead } from "../services/creator-chat.js";
 import { announcementCapability, previewAnnouncement, publishAnnouncement, listAnnouncements, announcementDetails } from "../services/chat-announcements.js";
 import { unreadReminderHistory } from "../services/chat-unread-reminders.js";
 import { unreadRemindersEnabled } from "../services/chat-unread-reminder-policy.js";
@@ -35,12 +35,13 @@ const writeLimit = createRateLimit({ windowMs: 60_000, max: 60, keyPrefix: "chat
 router.use((req, res, next) => req.method === "GET" ? next() : writeLimit(req, res, next));
 const textSchema = z.string().trim().min(1).max(8000);
 const channelNameSchema = z.object({ name: z.string().trim().min(1).max(80) }).strict();
-const sendSchema = z.object({ text: textSchema, clientNonce: z.string().regex(/^[\w-]{8,80}$/), replyToId: z.string().min(1).max(100).optional() }).strict();
-const reactionSchema = z.object({ emoji: z.string().min(1).max(16), active: z.boolean() }).strict();
+const mentionsSchema = z.array(z.object({ userId: z.string().min(1).max(100), start: z.number().int().min(0).max(8000), end: z.number().int().min(1).max(8000) }).strict()).max(50).optional();
+const sendSchema = z.object({ text: textSchema, mentions: mentionsSchema, clientNonce: z.string().regex(/^[\w-]{8,80}$/), replyToId: z.string().min(1).max(100).optional() }).strict();
+const reactionSchema = z.object({ emoji: z.string().min(1).max(64), active: z.boolean() }).strict();
 const pinSchema = z.object({ pinned: z.boolean(), version: z.number().int().min(0) }).strict();
 const searchSchema = z.object({ q: z.string().trim().min(2).max(120), channelId: z.string().min(1).max(100).optional(), before: z.string().min(1).max(100).optional() }).strict();
 const pageSchema = z.object({ before: z.string().min(1).max(100).optional() }).strict();
-const editSchema = z.object({ text: textSchema, version: z.number().int().min(1) }).strict();
+const editSchema = z.object({ text: textSchema, mentions: mentionsSchema, version: z.number().int().min(1) }).strict();
 const deleteSchema = z.object({ version: z.number().int().min(1), reason: z.string().trim().min(1).max(1000) }).strict();
 const grantSchema = z.object({ roleId: z.string().min(1).optional(), personId: z.string().min(1).optional(), canView: z.boolean(), canPost: z.boolean() }).strict();
 const param = (req: Request, key: string) => String(req.params[key] ?? "");
@@ -102,6 +103,7 @@ router.post("/announcements", run(async (req, res) => {
   const input = announcementSchema.extend({ requestId: z.string().uuid(), previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict().parse(req.body);
   res.status(201).json(await publishAnnouncement(user(req), input));
 }));
+router.get("/mentions", run(async (req, res) => res.json(await listChatMentions(user(req), pageSchema.parse(req.query).before))));
 router.get("/unread", run(async (req, res) => res.json(await listChatUnread(user(req)))));
 const readSchema = z.union([
   z.object({ messageIds: z.array(z.string().min(1).max(100)).min(1).max(100) }).strict(),
@@ -232,7 +234,7 @@ router.get("/channels/:channelId/members/:memberId/avatar", memberAvatarLimit, r
 router.post("/channels/:channelId/messages", run(async (req, res) => {
   const input = sendSchema.parse(req.body);
   const channelId = param(req, "channelId");
-  const message = await sendChatMessage(user(req), channelId, input.text, input.clientNonce, input.replyToId);
+  const message = await sendChatMessage(user(req), channelId, input.text, input.clientNonce, input.replyToId, input.mentions);
   publishChatChange(channelId);
   res.status(201).json({ message });
 }));
@@ -302,7 +304,7 @@ router.get("/channels/:channelId/messages/:messageId/preview", previewLimit, run
 router.patch("/channels/:channelId/messages/:messageId", run(async (req, res) => {
   const input = editSchema.parse(req.body);
   const channelId = param(req, "channelId");
-  const message = await editChatMessage(user(req), channelId, param(req, "messageId"), input.text, input.version);
+  const message = await editChatMessage(user(req), channelId, param(req, "messageId"), input.text, input.version, input.mentions);
   publishChatChange(channelId);
   res.json({ message });
 }));

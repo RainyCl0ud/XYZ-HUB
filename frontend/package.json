@@ -30,7 +30,8 @@
     "test:chat-viewport-search-ux": "node scripts/test-chat-viewport-search-ux.mjs",
     "test:chat-discord-reply-ux": "node scripts/test-chat-discord-reply-ux.mjs",
     "test:chat-jump-pins-ux": "node scripts/test-chat-jump-pins-ux.mjs",
-    "test:chat-announcements-interaction": "node scripts/test-chat-announcements-interaction.mjs"
+    "test:chat-announcements-interaction": "node scripts/test-chat-announcements-interaction.mjs",
+    "test:chat-mentions": "node scripts/test-chat-mentions.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

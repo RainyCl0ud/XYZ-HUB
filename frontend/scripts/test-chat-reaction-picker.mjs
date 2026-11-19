@@ -25,10 +25,13 @@ try {
     rememberRecentEmoji, loadRecentEmojis, saveRecentEmojiSelection, recentEmojiStorageKey,
   } = preferences;
   const options = CHAT_EMOJI_OPTIONS.map(([emoji]) => emoji);
-  const backend = await read("../backend/src/services/creator-chat.ts");
-  const match = backend.match(/export const CHAT_REACTIONS = (\[.*?\]) as const;/);
+  const backend = await read("../backend/src/services/chat-emoji-library.ts");
+  const match = backend.match(/new Set<string>\((\[.*?\])\);/);
   assert.ok(match, "Backend reaction allowlist missing");
-  assert.deepEqual(JSON.parse(match[1]), options, "Frontend emoji choices must match Backend allowlist exactly");
+  const accepted = new Set(JSON.parse(match[1]));
+  assert.ok(options.length >= 3953);
+  assert.ok(options.every(emoji => accepted.has(emoji)), "Every full-library choice must be accepted by the server");
+  assert.ok(options.includes("👩🏽‍💻") && options.includes("🇵🇭"));
   assert.equal(CHAT_RECENT_EMOJI_LIMIT, 6);
   pass("All picker choices match the server's permission-checked reaction allowlist.");
 
@@ -37,7 +40,8 @@ try {
   assert.equal(new Set(initial).size, 6);
   assert.deepEqual(normalizeRecentEmojis(["👍", "👍", "not an emoji", "🔥", "✅"]), ["👍", "🔥", "✅", "❤️", "😂", "🎉"]);
   assert.deepEqual(rememberRecentEmoji(initial, "🔥"), ["🔥", ...initial.slice(0, 5)]);
-  assert.deepEqual(rememberRecentEmoji(initial, "🤪"), initial, "Unsupported emoji must never be stored");
+  assert.equal(rememberRecentEmoji(initial, "🤪")[0], "🤪", "A library emoji beyond the old palette replaces a recent");
+  assert.deepEqual(rememberRecentEmoji(initial, "invalid"), initial);
   pass("Six recent emojis are unique, allowlisted, and replace the oldest choice in recency order.");
 
   const data = new Map();
@@ -103,7 +107,7 @@ try {
   assert.ok(!tools.includes('const height = 350'));
   assert.ok(tools.includes('bottom: window.innerHeight - box.top + 6'));
   assert.ok(tools.includes('top: box.bottom + 6'));
-  assert.ok(tools.includes('pickerEmojis.map'));
+  assert.ok(tools.includes('shownEmojis.map'));
   assert.ok(tools.includes('sixRecentEmojis = normalizeRecentEmojis(recentEmojis)'));
   assert.ok(tools.includes('source.addEventListener') === false);
   assert.ok(css.includes('position: fixed;\n  z-index: 1250;'));
@@ -111,7 +115,7 @@ try {
   assert.ok(tools.includes('? sixRecentEmojis'));
   assert.ok(tools.includes('Available emoji library'));
   assert.ok(tools.includes('Search emoji library'));
-  assert.ok(tools.includes('"Add emoji" : "Recent"'));
+  assert.ok(tools.includes('"All emojis" : "Recent"'));
   assert.ok(css.includes('creator-chat-emoji-popover-grid.is-library'));
   pass("Six personal recents remain separate from a searchable, scrollable approved emoji library.");
 

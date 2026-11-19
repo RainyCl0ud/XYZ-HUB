@@ -1,3 +1,7 @@
+import ChatMentionComposer from "./ChatMentionComposer";
+import ChatMentions from "./ChatMentions";
+import { rebaseMentions, trimmedMentionDraft, type ChatMention } from "../lib/chat-mentions";
+import { useChatMentionCount, refreshChatMentionCount } from "../components/ChatMentionCountContext";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { API_BASE_URL, ApiError, apiRequest } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
@@ -70,6 +74,9 @@ export default function ChatPage() {
 
 function ChatWorkspace({ userId }: { userId: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const mentionCount = useChatMentionCount();
+  const showMentions = searchParams.get("mentions") === "1";
+  const closeMentions = () => setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete("mentions"); return next; }, { replace: true });
   const linkedConversation = searchParams.get('conversation') ?? '';
   const retainedConversation = searchParams.get("retained") ?? "";
   const [canAnnounce, setCanAnnounce] = useState(false), [showAnnouncements, setShowAnnouncements] = useState(false);
@@ -81,7 +88,9 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const chatShellRef = useRef<HTMLDivElement>(null);
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
-  const [draft, setDraft] = useState("");
+  const [draftState, setDraftState] = useState<{ text: string; mentions: ChatMention[] }>({ text: "", mentions: [] });
+  const draft = draftState.text, draftMentions = draftState.mentions;
+  const setDraft = (text: string, mentions?: ChatMention[]) => setDraftState(previous => ({ text, mentions: mentions ?? rebaseMentions(previous.text, text, previous.mentions) }));
   const [edit, setEdit] = useState<Message | null>(null);
   const [reply, setReply] = useState<Message | null>(null);
   const [tools, setTools] = useState<ChatToolTarget | null>(null);
@@ -161,14 +170,14 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const areasRequest = useRef(0);
   const requestRef = useRef<AbortController | null>(null);
   const liveRefresh = useRef<() => void>(() => {});
-  const pendingSend = useRef<{ channelId: string; text: string; replyToId?: string; nonce: string } | null>(null);
+  const pendingSend = useRef<{ channelId: string; text: string; replyToId?: string; mentionsKey: string; nonce: string } | null>(null);
   const transcriptRef = useRef(transcript);
   const messageRevision = useRef(0);
   const draftTargets = useRef({ edit, reply });
-  const composeState = useRef({ draft, edit, reply });
-  const conversationDrafts = useRef(new Map<string, { text: string; reply: Message | null }>());
-  const beforeEdit = useRef<{ text: string; reply: Message | null }>({ text: "", reply: null });
-  useLayoutEffect(() => { composeState.current = { draft, edit, reply }; }, [draft, edit, reply]);
+  const composeState = useRef({ draft, edit, reply, mentions: draftMentions });
+  const conversationDrafts = useRef(new Map<string, { text: string; reply: Message | null; mentions: ChatMention[] }>());
+  const beforeEdit = useRef<{ text: string; reply: Message | null; mentions: ChatMention[] }>({ text: "", reply: null, mentions: [] });
+  useLayoutEffect(() => { composeState.current = { draft, edit, reply, mentions: draftMentions }; }, [draft, edit, reply, draftMentions]);
   useLayoutEffect(() => { draftTargets.current = { edit, reply }; }, [edit, reply]);
   useLayoutEffect(() => { transcriptRef.current = transcript; }, [transcript]);
   const messagePane = useRef<HTMLDivElement>(null);
@@ -205,8 +214,12 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const cleanupDownload = transcript?.cleanup?.download;
   const latestEdit = edit && transcript?.messages.find((m) => m.id === edit.id);
   const editConflict = !!(edit && latestEdit && latestEdit.version !== edit.version);
-  const unchangedEdit = !!edit && draft.trim() === edit.text;
+  const unchangedEdit = !!edit && draft.trim() === edit.text && JSON.stringify(trimmedMentionDraft(draft, draftMentions).mentions) === JSON.stringify((edit.mentions ?? []).map(({ userId, start, end }) => ({ userId, start, end })));
   const browseArea = area ?? areas[0];
+  const channelUnread = browseArea?.channels.filter(c => !c.retained && !c.isPrivate).reduce((sum,c) => sum + (c.unreadCount ?? 0), 0) ?? 0;
+  const privateUnread = browseArea?.channels.filter(c => !c.retained && c.isPrivate).reduce((sum,c) => sum + (c.unreadCount ?? 0), 0) ?? 0;
+  const filterUnread = channelFilter === "private" ? privateUnread : channelUnread;
+  const otherUnread = channelFilter === "private" ? channelUnread : privateUnread;
   const visibleChannels = browseArea?.channels.filter((c) => !c.retained &&
     (!unreadOnly || (c.unreadCount ?? 0) > 0) && (channelFilter === "private" ? c.isPrivate : !c.isPrivate)) ?? [];
   const activeChannels = visibleChannels.filter((c) => !c.archived);
@@ -223,10 +236,10 @@ function ChatWorkspace({ userId }: { userId: string }) {
     if (id === selectedRef.current) return;
     setReadError("");
     const old = composeState.current;
-    if (selectedRef.current && preserveCurrent) conversationDrafts.current.set(selectedRef.current, old.edit ? beforeEdit.current : { text: old.draft, reply: old.reply });
+    if (selectedRef.current && preserveCurrent) conversationDrafts.current.set(selectedRef.current, old.edit ? beforeEdit.current : { text: old.draft, reply: old.reply, mentions: old.mentions });
     const saved = conversationDrafts.current.get(id);
     selectedRef.current = id;
-    setSelected(id); setTranscript(null); setMembers([]); setDraft(saved?.text ?? ""); setEdit(null); setError("");
+    setSelected(id); setTranscript(null); setMembers([]); setDraft(saved?.text ?? "", saved?.mentions ?? []); setEdit(null); setError("");
     setSettings(null);
     setCleanupTarget(null);
     setQuarantining(null);
@@ -319,13 +332,13 @@ function ChatWorkspace({ userId }: { userId: string }) {
   }, [chooseChannel, userId, linkedConversation, retainedConversation, setSearchParams]);
 
   const readsSaved = useCallback((ids: string[]) => {
-    setReadError("");
+    setReadError(""); refreshChatMentionCount();
     const read = new Set(ids);
     setTranscript((old) => old ? { ...old, unreadMessageIds: old.unreadMessageIds?.filter((id) => !read.has(id)) } : old);
     void refreshAreas().catch(() => {});
   }, [refreshAreas]);
   const readFailed = useCallback(() => setReadError("Read status wasn’t saved. It will retry when messages refresh."), []);
-  const notificationsPaused = !!(loading || error || tools || deleting || cleanupTarget || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || markingRead);
+  const notificationsPaused = !!(loading || error || tools || deleting || cleanupTarget || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || showMentions || markingRead);
   useEffect(() => {
     setAlertReadingContext({ userId, conversationId: selected, paused: notificationsPaused });
     return () => setAlertReadingContext({ userId: '', conversationId: '', paused: true });
@@ -339,6 +352,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     setMarkingRead(true); setReadError("");
     try {
       await apiRequest(`/api/chat/channels/${channelId}/read`, { method: "PUT", body: JSON.stringify({ throughMessageId: anchor }), signal: requestRef.current?.signal });
+      refreshChatMentionCount();
       if (selectedRef.current !== channelId) return;
       setNotice("Marked as read."); setRefreshTick((v) => v + 1);
       await refreshAreas();
@@ -407,7 +421,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
         if (revision === messageRevision.current) {
           const edited = currentEdit && (latest.get(currentEdit.id) ?? refreshed.get(currentEdit.id));
           const parent = currentReply && (latest.get(currentReply.id) ?? refreshed.get(currentReply.id));
-          if (currentEdit && !edited?.canEdit) { setReply(beforeEdit.current.reply); setEdit(null); setDraft(beforeEdit.current.text); setNotice("That message can no longer be edited. Your unsent draft has been restored."); }
+          if (currentEdit && !edited?.canEdit) { setReply(beforeEdit.current.reply); setEdit(null); setDraft(beforeEdit.current.text, beforeEdit.current.mentions); setNotice("That message can no longer be edited. Your unsent draft has been restored."); }
           else if (currentReply && (!parent || parent.deleted)) { setReply(null); setNotice("The original message is no longer available. Your draft is kept as a normal message."); }
           else if (parent) setReply(parent);
         }
@@ -552,25 +566,25 @@ function ChatWorkspace({ userId }: { userId: string }) {
     event.preventDefault();
     if (!selected || !draft.trim() || sending || editConflict || unchangedEdit) return;
     const channelId = selected;
-    const text = draft.trim();
+    const { text, mentions } = trimmedMentionDraft(draft, draftMentions);
     setSending(true); setError("");
     try {
       let response: { message: Message };
       if (edit) {
         response = await apiRequest(`/api/chat/channels/${channelId}/messages/${edit.id}`, {
-          method: "PATCH", body: JSON.stringify({ text, version: edit.version }), signal: requestRef.current?.signal,
+          method: "PATCH", body: JSON.stringify({ text, mentions, version: edit.version }), signal: requestRef.current?.signal,
         });
       } else {
-        if (pendingSend.current?.channelId !== channelId || pendingSend.current.text !== text || pendingSend.current.replyToId !== reply?.id) {
-          pendingSend.current = { channelId, text, replyToId: reply?.id, nonce: crypto.randomUUID() };
+        if (pendingSend.current?.channelId !== channelId || pendingSend.current.text !== text || pendingSend.current.replyToId !== reply?.id || pendingSend.current.mentionsKey !== JSON.stringify(mentions)) {
+          pendingSend.current = { channelId, text, replyToId: reply?.id, mentionsKey: JSON.stringify(mentions), nonce: crypto.randomUUID() };
         }
         response = await apiRequest(`/api/chat/channels/${channelId}/messages`, {
-          method: "POST", body: JSON.stringify({ text, clientNonce: pendingSend.current.nonce, replyToId: pendingSend.current.replyToId }), signal: requestRef.current?.signal,
+          method: "POST", body: JSON.stringify({ text, mentions, clientNonce: pendingSend.current.nonce, replyToId: pendingSend.current.replyToId }), signal: requestRef.current?.signal,
         });
       }
       if (selectedRef.current !== channelId) return;
       showSentMessage(channelId, response.message);
-      setDraft(edit ? beforeEdit.current.text : ""); setReply(edit ? beforeEdit.current.reply : null); setEdit(null); pendingSend.current = null;
+      setDraft(edit ? beforeEdit.current.text : "", edit ? beforeEdit.current.mentions : []); setReply(edit ? beforeEdit.current.reply : null); setEdit(null); pendingSend.current = null;
       if (!edit) conversationDrafts.current.delete(channelId);
     } catch (e) {
       if (selectedRef.current === channelId) setError(errorText(e));
@@ -607,15 +621,15 @@ function ChatWorkspace({ userId }: { userId: string }) {
   }
   function startReply(channelId: string, message: Message) {
     if (selectedRef.current !== channelId) openConversation(channelId);
-    else if (edit) setDraft(beforeEdit.current.text);
+    else if (edit) setDraft(beforeEdit.current.text, beforeEdit.current.mentions);
     setEdit(null); setReply(message); setTools(null); setShowChannels(false); composer.current?.focus();
   }
   function startEdit(message: Message) {
-    if (!edit) beforeEdit.current = { text: draft, reply };
-    setReply(null); setEdit(message); setDraft(message.text); composer.current?.focus();
+    if (!edit) beforeEdit.current = { text: draft, reply, mentions: draftMentions };
+    setReply(null); setEdit(message); setDraft(message.text, message.mentions ?? []); composer.current?.focus();
   }
   function cancelEdit() {
-    setEdit(null); setDraft(beforeEdit.current.text); setReply(beforeEdit.current.reply); composer.current?.focus();
+    setEdit(null); setDraft(beforeEdit.current.text, beforeEdit.current.mentions); setReply(beforeEdit.current.reply); composer.current?.focus();
   }
   function messageError(e: unknown) {
     setError(errorText(e));
@@ -710,6 +724,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       {notice && <div className="creator-chat-notice" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss update" onClick={() => setNotice("")}>Dismiss</button></div>}
       {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
       {showReminders && <ChatUnreadReminders onClose={() => setShowReminders(false)} />}
+        {showMentions && <ChatMentions onClose={closeMentions} onOpen={(channelId, messageId) => { closeMentions(); jumpToMessage(channelId, messageId); }} />}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
         <div ref={chatShellRef} className={`creator-chat-shell ${showChannels ? "is-browsing" : ""} ${settings ? "is-settings" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">
@@ -722,18 +737,18 @@ function ChatWorkspace({ userId }: { userId: string }) {
               }}>{areas.map((a) => <option key={a.modelId} value={a.modelId}>{a.name}{a.archived ? " · Archived" : a.unreadCount ? ` · ${a.unreadCount} unread` : ""}</option>)}</select>
               <div className="creator-chat-browse-switcher">
                 <div className="creator-chat-filters" role="group" aria-label="Conversation type">
-                  <button type="button" aria-pressed={channelFilter === "channels"} onClick={() => { setUnreadOnly(false); setChannelFilter("channels"); }}>Channels</button>
-                  <button type="button" aria-pressed={channelFilter === "private"} onClick={() => { setUnreadOnly(false); setChannelFilter("private"); }}>Private</button>
+                  <button type="button" aria-pressed={channelFilter === "channels"} onClick={() => { setChannelFilter("channels"); }}>Channels{channelUnread > 0 && <span className="creator-chat-tab-unread" aria-label={`${channelUnread} unread channel messages`}>{channelUnread > 99 ? "99+" : channelUnread}</span>}</button>
+                  <button type="button" aria-pressed={channelFilter === "private"} onClick={() => { setChannelFilter("private"); }}>Private{privateUnread > 0 && <span className="creator-chat-tab-unread" aria-label={`${privateUnread} unread private messages`}>{privateUnread > 99 ? "99+" : privateUnread}</span>}</button>
                 </div>
               </div>
-              <button type="button" className="creator-chat-unread-filter" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(!unreadOnly)}>Unread only{browseArea?.unreadCount ? ` · ${browseArea.unreadCount}` : ""}</button>
+              <div className="creator-chat-unread-actions"><button type="button" className="creator-chat-unread-filter" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(!unreadOnly)}>Unread only{filterUnread ? ` · ${filterUnread}` : ""}</button><button type="button" className="creator-chat-mentions-open" onClick={() => setSearchParams(previous => { const next = new URLSearchParams(previous); next.set("mentions", "1"); return next; })}>Mentions{mentionCount > 0 ? ` · ${mentionCount}` : ""}</button></div>
             </div>
             <nav className="creator-chat-channel-list" aria-label={`${browseArea?.name ?? "Your"} conversations`}>
               {channelFilter === "channels" && !!activeChannels.length && <div className="creator-chat-channel-group"><h2>Channels <span>{activeChannels.length}</span></h2>{activeChannels.map(channelRow)}</div>}
               {channelFilter === "private" && !!ownPrivateChannels.length && <div className="creator-chat-channel-group"><h2>Your chats <span>{ownPrivateChannels.length}</span></h2>{ownPrivateChannels.map(channelRow)}</div>}
               {channelFilter === "private" && !!oversightPrivateChannels.length && <div className="creator-chat-channel-group"><h2>Other conversations <span>{oversightPrivateChannels.length}</span></h2>{oversightPrivateChannels.map(channelRow)}</div>}
               {!!archivedChannels.length && <div className="creator-chat-channel-group"><h2>{channelFilter === "channels" ? "Archived channels" : "Archived private chats"} <span>{archivedChannels.length}</span></h2>{archivedChannels.map(channelRow)}</div>}
-              {!visibleChannels.length && <div className="creator-chat-no-results"><p>{unreadOnly ? "No unread conversations match." : channelFilter === "channels" ? "No channels in this workspace." : "No private chats in this workspace."}</p>{unreadOnly && <button type="button" onClick={() => { setUnreadOnly(false); }}>Show all</button>}</div>}
+              {!visibleChannels.length && <div className="creator-chat-no-results"><p>{unreadOnly ? `No unread ${channelFilter === "private" ? "private chats" : "channels"}.` : channelFilter === "channels" ? "No channels in this workspace." : "No private chats in this workspace."}</p>{unreadOnly && otherUnread > 0 && <button type="button" onClick={() => setChannelFilter(channelFilter === "private" ? "channels" : "private")}>View {otherUnread} unread in {channelFilter === "private" ? "Channels" : "Private"}</button>}{unreadOnly && <button type="button" onClick={() => { setUnreadOnly(false); }}>Show all</button>}</div>}
             </nav>
             <div className="creator-chat-browse-footer">{browseArea?.canManage && channelFilter === "channels" && <button type="button" onClick={() => openChannelSettings({ modelId: browseArea.modelId, name: "" })}>+ New channel</button>}</div>
           </aside>
@@ -813,7 +828,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                     </button>}
                   </div>}
                 </div>
-                <textarea ref={composer} id="chat-message" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => {
+                <ChatMentionComposer ref={composer} id="chat-message" value={draft} mentions={draftMentions} members={members} onChange={setDraft} onKeyDown={(e) => {
                   if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229 || e.repeat) return;
                   e.preventDefault();
                   if (!sending && draft.trim() && !editConflict && !unchangedEdit) e.currentTarget.form?.requestSubmit();
@@ -827,7 +842,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 {voiceMaxSeconds > 0 && !edit && !reply && <ChatVoiceRecorder ref={voiceRecorder} key={selected} channelId={selected}
                   maxSeconds={voiceMaxSeconds} onActiveChange={setComposerVoiceActive} onSent={message => showSentMessage(selected, message)} />}
               </div>
-              <div className="creator-chat-composer-footer">{draft.length > 7500 && <small className="creator-chat-limit">{draft.length.toLocaleString()} / 8,000</small>}</div>
+              <div className="creator-chat-composer-footer"><small>Type @ to mention a member of this conversation.</small>{draft.length > 7500 && <small className="creator-chat-limit">{draft.length.toLocaleString()} / 8,000</small>}</div>
             </form> : transcript && <div className="creator-chat-readonly">
               <ChatIcon name="lock" />
               <div>

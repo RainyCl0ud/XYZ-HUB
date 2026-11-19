@@ -1,3 +1,4 @@
+import { CHAT_EMOJI_SUPPORTED } from "./chat-emoji-library.js";
 import { Prisma } from "@prisma/client";
 import { createHash, randomUUID } from "node:crypto";
 import { open, type FileHandle } from "node:fs/promises";
@@ -262,6 +263,7 @@ export async function listRetainedChatChannels(userId: string, before?: string) 
 export const CHAT_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅", "😊", "😍", "😮", "😢", "😎", "🤔", "👏", "🙌", "🔥", "💯", "🙏", "🚀", "🤝", "😭", "💀", "⭐", "✨", "👎"] as const;
 const messageInclude = {
   attachment: true,
+  mentions: { select: { userId: true, start: true, end: true }, orderBy: { start: "asc" } },
   replyTo: { select: { id: true, authorName: true, text: true, version: true, createdAt: true, deletedAt: true } },
   reactions: { select: { emoji: true, userId: true } },
 } satisfies Prisma.ChatMessageInclude;
@@ -281,6 +283,7 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
   const parent = message.replyTo && (!message.replyTo.deletedAt || viewer.isOwner) ? message.replyTo : null;
   return {
     id: message.id, authorUserId: message.authorUserId, authorName: message.authorName,
+    mentions: message.mentions.map(m => ({ ...m, mine: m.userId === viewer.user.id })),
     text: message.text, version: message.version, createdAt: message.createdAt, updatedAt: message.updatedAt,
     ...(message.attachment ? { attachment: {
       fileName: message.attachment.fileName, byteSize: message.attachment.byteSize, available: !!chatAttachmentDirectory(),
@@ -297,7 +300,7 @@ function messageDto(message: MessageRow, viewer: Viewer, canPost: boolean, archi
     pinnedAt: message.pinnedAt, pinnedByName: message.pinnedByName, pinVersion: message.pinVersion,
     canReply: active && canPost,
     canPin: active && canPost && viewer.permissions.has("chat.messages.pin"),
-    reactions: CHAT_REACTIONS.flatMap((emoji) => {
+    reactions: [...new Set(message.reactions.map(r => r.emoji))].sort().flatMap((emoji) => {
       const entries = message.reactions.filter((r) => r.emoji === emoji);
       return entries.length ? [{ emoji, count: entries.length, mine: entries.some((r) => r.userId === viewer.user.id) }] : [];
     }),
@@ -370,9 +373,9 @@ export async function unreadWhere(tx: Prisma.TransactionClient, viewer: Viewer):
     OR: [{ authorUserId: null }, { authorUserId: { not: viewer.user.id } }],
     reads: { none: { userId: viewer.user.id } } };
 }
-async function unreadCounts(tx: Prisma.TransactionClient, viewer: Viewer, areas: Awaited<ReturnType<typeof accessibleChatAreas>>) {
+async function unreadCounts(tx: Prisma.TransactionClient, viewer: Viewer, areas: Awaited<ReturnType<typeof accessibleChatAreas>>, mentionsOnly = false) {
   const active = areas.flatMap((a) => a.channels.filter((c) => !c.archived));
-  const base = await unreadWhere(tx, viewer);
+  const base: Prisma.ChatMessageWhereInput = { AND: [await unreadWhere(tx, viewer), ...(mentionsOnly ? [{ mentions: { some: { userId: viewer.user.id } } }] : [])] };
   const [channels, conversations] = await Promise.all([
     tx.chatMessage.groupBy({ by: ["channelId"], where: { AND: [base, { channelId: { in: active.filter((c) => !c.isPrivate).map((c) => c.id) } }] }, _count: { id: true }, _min: { createdAt: true } }),
     tx.chatMessage.groupBy({ by: ["conversationId"], where: { AND: [base, { conversationId: { in: active.filter((c) => c.isPrivate).map((c) => c.id) } }] }, _count: { id: true }, _min: { createdAt: true } }),
@@ -386,10 +389,51 @@ async function unreadCounts(tx: Prisma.TransactionClient, viewer: Viewer, areas:
 export async function listChatUnread(userId: string) {
   return prisma.$transaction(async (tx) => {
     const viewer = await loadViewer(tx, userId);
-    const counts = await unreadCounts(tx, viewer, await accessibleChatAreas(tx, viewer));
+    const areas = await accessibleChatAreas(tx, viewer);
+    const counts = await unreadCounts(tx, viewer, areas);
+    const mentions = await unreadCounts(tx, viewer, areas, true);
     const conversations = [...counts].map(([channelId, c]) => ({ channelId, unreadCount: c.count, oldestUnreadAt: c.oldestAt }));
-    return { totalUnread: conversations.reduce((sum, c) => sum + c.unreadCount, 0), conversations };
+    return { totalUnread: conversations.reduce((sum, c) => sum + c.unreadCount, 0), totalUnreadMentions: [...mentions.values()].reduce((sum, c) => sum + c.count, 0), conversations };
   });
+}
+
+/** Only unread mentions in currently accessible active conversations are returned. */
+export async function listChatMentions(userId: string, before?: string) {
+  return prisma.$transaction(async tx => {
+    const viewer = await loadViewer(tx, userId);
+    const areas = await accessibleChatAreas(tx, viewer);
+    const channels = areas.flatMap(a => a.channels.filter(c => !c.archived).map(c => ({ ...c, areaName: a.name })));
+    const where: Prisma.ChatMessageWhereInput = { AND: [await unreadWhere(tx, viewer), { mentions: { some: { userId } } },
+      { OR: [{ channelId: { in: channels.filter(c => !c.isPrivate).map(c => c.id) } }, { conversationId: { in: channels.filter(c => c.isPrivate).map(c => c.id) } }] }] };
+    const anchor = before ? await tx.chatMessage.findFirst({ where: { AND: [where, { id: before }] }, select: { id: true, createdAt: true } }) : null;
+    if (before && !anchor) throw new ChatError(409, "Your mentions changed. Reopen the list to refresh it.");
+    const rows = await tx.chatMessage.findMany({ where: { AND: [where, ...(anchor ? [{ OR: [
+      { createdAt: { lt: anchor.createdAt } }, { createdAt: anchor.createdAt, id: { lt: anchor.id } },
+    ] }] : [])] }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 31, include: messageInclude });
+    return { mentions: rows.slice(0, 30).map(m => {
+      const channelId = m.channelId ?? m.conversationId!;
+      const channel = channels.find(c => c.id === channelId)!;
+      return { channelId, conversationName: channel.areaName + " / " + channel.name, message: messageDto(m, viewer, channel.canPost, false) };
+    }), nextBefore: rows.length > 30 ? rows[29].id : null };
+  });
+}
+
+export type ChatMentionInput = { userId: string; start: number; end: number };
+async function validateMentions(tx: Prisma.TransactionClient, text: string, mentions: ChatMentionInput[], channel: Channel | null, conversation: StandingConversation | null) {
+  if (!Array.isArray(mentions) || mentions.length > 50) throw new ChatError(400, "Use up to 50 mentions per message.");
+  if (!mentions.length) return [];
+  const sorted = [...mentions].sort((a,b) => a.start - b.start);
+  const people = await tx.user.findMany({ where: { id: { in: [...new Set(sorted.map(m => m.userId))] } }, include: viewerInclude });
+  const byId = new Map(people.map(user => [user.id, user]));
+  let end = 0;
+  for (const mention of sorted) {
+    if (!Number.isInteger(mention.start) || !Number.isInteger(mention.end) || mention.start < end || mention.end > text.length || mention.end <= mention.start || !mention.userId) throw new ChatError(400, "Choose mentions from the conversation member list.");
+    const user = byId.get(mention.userId);
+    const access = user && user.status === "ACTIVE" ? (channel ? channelAccess(makeViewer(user), channel) : standingAccess(makeViewer(user), conversation!)) : null;
+    if (!user || !access?.canView || text.slice(mention.start, mention.end) !== "@" + user.name) throw new ChatError(400, "A mentioned person is no longer available here. Remove that mention and choose a current member.");
+    end = mention.end;
+  }
+  return sorted;
 }
 
 /** GET/search/pin/background polling never marks a read. The browser can only
@@ -502,7 +546,7 @@ export async function getChatMessageContext(userId: string, channelId: string, m
 
 type NewAttachment = { id: string; fileName: string; byteSize: number; sha256: string; voiceDurationMs: number | null };
 
-async function postChatMessage(userId: string, channelId: string, text: string, clientNonce: string, replyToId?: string, attachment?: NewAttachment) {
+async function postChatMessage(userId: string, channelId: string, text: string, clientNonce: string, replyToId?: string, attachment?: NewAttachment, mentions: ChatMentionInput[] = []) {
   const normalized = text.trim();
   if ((!normalized && !attachment) || normalized.length > 8000 || !/^[\w-]{8,80}$/.test(clientNonce)) throw new ChatError(400, "Use 1–8,000 characters and a valid message reference.");
   if (attachment && !chatAttachmentDirectory()) throw new ChatError(404, "Attachments are unavailable.");
@@ -510,15 +554,17 @@ async function postChatMessage(userId: string, channelId: string, text: string, 
     const { viewer, access, channel, conversation } = await openChannel(tx, userId, channelId, true);
     if (!access.canPost) throw new ChatError(403, "This channel is read-only for you.");
     const target = channel ? { channelId } : { conversationId: channelId };
+    const checkedMentions = await validateMentions(tx, normalized, mentions, channel, conversation);
     if (replyToId) {
       await tx.$queryRaw`SELECT "id" FROM "ChatMessage" WHERE "id" = ${replyToId} AND ("channelId" = ${channelId} OR "conversationId" = ${channelId}) FOR SHARE`;
       if (!await tx.chatMessage.findFirst({ where: { id: replyToId, ...target, deletedAt: null, systemEventKey: null, announcementKey: null }, select: { id: true } })) throw new ChatError(404, "Reply message not found in this conversation.");
     }
     const [created] = await tx.chatMessage.createManyAndReturn({ data: { ...target, authorUserId: userId, authorName: viewer.user.name, text: normalized, clientNonce, replyToId: replyToId ?? null }, skipDuplicates: true, select: { id: true } });
+    if (created && checkedMentions.length) await tx.chatMessageMention.createMany({ data: checkedMentions.map(m => ({ ...m, messageId: created.id })) });
     if (created && attachment) await tx.chatAttachment.create({ data: { ...attachment, messageId: created.id } });
     const message = await tx.chatMessage.findFirstOrThrow({ where: { ...target, authorUserId: userId, clientNonce }, include: messageInclude });
     if (message.deletedAt) throw new ChatError(409, "This message reference is no longer available. Send a new message instead.");
-    if (message.text !== normalized || message.replyToId !== (replyToId ?? null)) throw new ChatError(409, "This message reference was already used. Refresh before sending again.");
+    if (JSON.stringify(message.mentions) !== JSON.stringify(checkedMentions.map(({ userId, start, end }) => ({ userId, start, end }))) || message.text !== normalized || message.replyToId !== (replyToId ?? null)) throw new ChatError(409, "This message reference was already used. Refresh before sending again.");
     const stored = message.attachment;
     const sameAttachment = attachment
       ? stored?.sha256 === attachment.sha256 && stored.fileName === attachment.fileName
@@ -527,15 +573,15 @@ async function postChatMessage(userId: string, channelId: string, text: string, 
     if (!sameAttachment) {
       throw new ChatError(409, "This message reference was already used. Choose the file again.");
     }
-    if (created) await audit(tx, viewer, "chat.message.send", message.id, { channelId, channelName: channel?.name ?? `${conversation?.subjectName} · Private`, text: message.text, replyToId: message.replyToId,
+    if (created) await audit(tx, viewer, "chat.message.send", message.id, { channelId, channelName: channel?.name ?? `${conversation?.subjectName} · Private`, text: message.text, replyToId: message.replyToId, mentions: checkedMentions,
       ...(attachment ? { fileName: attachment.fileName, byteSize: attachment.byteSize } : {}),
     });
     return { message: messageDto(message, viewer, access.canPost, access.archived), attachmentStored: !!created && !!attachment };
   });
 }
 
-export async function sendChatMessage(userId: string, channelId: string, text: string, clientNonce: string, replyToId?: string) {
-  return (await postChatMessage(userId, channelId, text, clientNonce, replyToId)).message;
+export async function sendChatMessage(userId: string, channelId: string, text: string, clientNonce: string, replyToId?: string, mentions: ChatMentionInput[] = []) {
+  return (await postChatMessage(userId, channelId, text, clientNonce, replyToId, undefined, mentions)).message;
 }
 
 export async function assertChatAttachmentPosting(userId: string, channelId: string) {
@@ -582,21 +628,24 @@ export async function openChatAttachment(userId: string, channelId: string, mess
   }
 }
 
-export async function editChatMessage(userId: string, channelId: string, messageId: string, text: string, version: number) {
+export async function editChatMessage(userId: string, channelId: string, messageId: string, text: string, version: number, mentions: ChatMentionInput[] = []) {
   const normalized = text.trim();
   if (!normalized || normalized.length > 8000 || !Number.isInteger(version) || version < 1) throw new ChatError(400, "Use 1–8,000 characters and a valid message version.");
   return prisma.$transaction(async (tx) => {
     const { viewer, access, scope, channel, conversation } = await openChannel(tx, userId, channelId, true);
     if (!access.canPost || !viewer.permissions.has("chat.messages.edit_own")) throw new ChatError(403, "You cannot edit messages here.");
-    const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null }, include: { attachment: { select: { id: true } } } });
+    const previous = await tx.chatMessage.findFirst({ where: { id: messageId, ...scope, deletedAt: null }, include: { attachment: { select: { id: true } }, mentions: { select: { userId: true, start: true, end: true } } } });
     if (!previous) throw new ChatError(404, "Message not found.");
     if (previous.systemEventKey || previous.announcementKey) throw new ChatError(403, "Chat notices cannot be edited.");
     if (previous.attachment) throw new ChatError(403, "File messages cannot be edited.");
     if (previous.authorUserId !== userId) throw new ChatError(403, "You can only edit your own messages.");
     if (previous.version !== version) throw new ChatError(409, "This message changed. Refresh before editing again.");
+    const checkedMentions = await validateMentions(tx, normalized, mentions, channel, conversation);
     const updated = await tx.chatMessage.updateMany({ where: { id: messageId, version, ...scope, deletedAt: null }, data: { text: normalized, version: { increment: 1 } } });
     if (!updated.count) throw new ChatError(409, "This message changed. Refresh before editing again.");
-    await audit(tx, viewer, "chat.message.edit", messageId, { channelId, channelName: channel?.name ?? `${conversation?.subjectName} · Private`, before: previous.text, after: normalized, version: version + 1 });
+    await tx.chatMessageMention.deleteMany({ where: { messageId } });
+    if (checkedMentions.length) await tx.chatMessageMention.createMany({ data: checkedMentions.map(m => ({ ...m, messageId })) });
+    await audit(tx, viewer, "chat.message.edit", messageId, { channelId, channelName: channel?.name ?? `${conversation?.subjectName} · Private`, before: previous.text, after: normalized, beforeMentions: previous.mentions, mentions: checkedMentions, version: version + 1 });
     return messageDto(await tx.chatMessage.findUniqueOrThrow({ where: { id: messageId }, include: messageInclude }), viewer, true, access.archived);
   });
 }
@@ -750,7 +799,7 @@ export async function refreshChatMessages(userId: string, channelId: string, ids
 }
 
 export async function setChatReaction(userId: string, channelId: string, messageId: string, emoji: string, active: boolean) {
-  if (!(CHAT_REACTIONS as readonly string[]).includes(emoji) || typeof active !== "boolean") throw new ChatError(400, "Choose one of the supported reactions.");
+  if (!CHAT_EMOJI_SUPPORTED.has(emoji) || typeof active !== "boolean") throw new ChatError(400, "Choose one of the supported reactions.");
   return prisma.$transaction(async (tx) => {
     // The message lock serializes add/remove and pin decisions; counters and
     // transactional audit describe the state actually committed.
