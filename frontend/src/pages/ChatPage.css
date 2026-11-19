@@ -1935,7 +1935,7 @@
   }
 }
 
-/* Full searchable emoji library; only the Recent view is limited to six.
+/* Full searchable emoji library below a pinned row of six personal recents.
    The library scrolls inside its portal and never grows the message row. */
 .creator-chat-emoji-popover-grid.is-library {
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -1976,9 +1976,6 @@
 .creator-chat .creator-chat-mention-suggestions button { width: 100%; display: flex; justify-content: space-between; gap: 12px; padding: 9px; border: none; text-align: left; background: transparent; }
 .creator-chat .creator-chat-mention-suggestions button[aria-selected="true"] { background: #3b3b3b; }
 .creator-chat-mention-suggestions button span { color: #bbb; font-size: 12px; }
-.creator-chat-unread-actions { display: flex; gap: 6px; }
-.creator-chat .creator-chat-unread-actions > button { flex: 1 1 0; min-width: 0; padding: 7px 5px; font-size: 12px; white-space: nowrap; }
-.creator-chat .creator-chat-unread-actions .creator-chat-unread-filter { width: auto; }
 .creator-chat-mentions-dialog { width: min(620px, calc(100vw - 24px)); max-height: 80dvh; box-sizing: border-box; padding: 20px; border: 1px solid #666; color: #fff; background: #141414; }
 .creator-chat-mentions-dialog::backdrop { background: #000a; }
 .creator-chat-mentions-dialog > header { display: flex; justify-content: space-between; gap: 12px; position: sticky; top: -20px; background: #141414; padding: 10px 0; border-bottom: 1px solid #444; z-index: 1; }
@@ -2505,3 +2502,10 @@
 .creator-chat-recipient-actions { margin: 12px 0; }
 .creator-chat-recipient-editor { padding: 0 14px 14px; }
 .creator-chat-recipient-editor .creator-chat-announcement-recipient-list { padding-inline: 0; }
+
+/* Recents stay above the scrolling library, including while searching or paging. */
+.creator-chat-emoji-recents { flex-shrink: 0; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid #363636; }
+.creator-chat-emoji-section-label { display: block; color: #bdbdbd; font-size: 11px; line-height: 16px; margin-bottom: 2px; }
+.creator-chat-emoji-popover-grid.is-recent { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.creator-chat-emoji-popover-grid.is-recent button { height: 37px; font-size: 23px; }
+.creator-chat-emoji-popover-footer { justify-content: flex-end; }

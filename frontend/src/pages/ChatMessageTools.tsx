@@ -90,7 +90,6 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   const pickerTrigger = useRef<HTMLButtonElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerMode, setPickerMode] = useState<"recent" | "browse">("recent");
   const [emojiSearch, setEmojiSearch] = useState("");
   const [emojiCategory, setEmojiCategory] = useState("");
   const [emojiPage, setEmojiPage] = useState(0);
@@ -99,10 +98,8 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   const [pickerPosition, setPickerPosition] = useState<CSSProperties>({});
   const pickerId = useId();
   const sixRecentEmojis = normalizeRecentEmojis(recentEmojis);
-  const pickerEmojis = pickerMode === "recent"
-    ? sixRecentEmojis
-    : palette.filter(([emoji, label, category]) => (!emojiCategory || category === emojiCategory) && `${label} ${emoji}`.toLowerCase().includes(emojiSearch.trim().toLowerCase())).map(([emoji]) => emoji);
-  const shownEmojis = pickerMode === "recent" ? pickerEmojis : pickerEmojis.slice(emojiPage * 80, (emojiPage + 1) * 80);
+  const pickerEmojis = palette.filter(([emoji, label, category]) => (!emojiCategory || category === emojiCategory) && `${label} ${emoji}`.toLowerCase().includes(emojiSearch.trim().toLowerCase())).map(([emoji]) => emoji);
+  const shownEmojis = pickerEmojis.slice(emojiPage * 80, (emojiPage + 1) * 80);
   const menuButton = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const popupId = useId();
@@ -157,7 +154,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       width, maxHeight: Math.max(100, (placeBelow ? below : above) - 14), height: Math.min(440, Math.max(100, (placeBelow ? below : above) - 14)),
       ...(placeBelow ? { top: box.bottom + 6 } : { bottom: window.innerHeight - box.top + 6 }),
     });
-    setPickerMode("browse"); setEmojiSearch(""); setEmojiCategory(""); setEmojiPage(0); setReactionError("");
+    setEmojiSearch(""); setEmojiCategory(""); setEmojiPage(0); setReactionError("");
     setMenuOpen(false);
     setPickerOpen(true);
   };
@@ -233,6 +230,14 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       if (!controller.signal.aborted) setBusy(false);
     }
   }
+  const emojiButton = (emoji: string) => <button key={emoji} type="button" disabled={busy}
+    title={emojiLabel(emoji)} aria-label={emojiLabel(emoji)}
+    aria-pressed={reactions.some(r => r.emoji === emoji && r.mine)}
+    onPointerDown={event => event.preventDefault()}
+    onClick={async () => {
+      const saved = await update("reaction", { emoji, active: !reactions.some(r => r.emoji === emoji && r.mine) });
+      if (saved) setPickerOpen(false);
+    }}>{emoji}</button>;
   const attachmentPath = `${API_BASE_URL}/api/chat/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(m.id)}`;
   const voiceDuration = m.attachment?.voiceDurationMs;
   return <div className={`creator-chat-message-content ${m.deleted ? (deletedExpanded ? "is-deleted is-expanded" : "is-deleted is-collapsed") : ""}`}>
@@ -326,7 +331,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     </div></>}
     {pickerOpen && pickerHost && m.canReply && createPortal(
       <div id={pickerId} ref={pickerRef} className="creator-chat-emoji-popover"
-        style={{ ...pickerPosition, height: pickerMode === "recent" ? undefined : pickerPosition.height }} role="dialog" aria-label="Choose reaction emoji"
+        style={pickerPosition} role="dialog" aria-label="Choose reaction emoji"
         onKeyDown={(event) => {
           // Portal key events still bubble through their React owner. Escape
           // closes only the picker, never the parent Search/Pins flyout.
@@ -335,33 +340,28 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
           setPickerOpen(false); pickerTrigger.current?.focus({ preventScroll: true });
         }}>
         <header className="creator-chat-emoji-popover-heading">
-          <strong>{pickerMode === "recent" ? "Your recent emojis" : "Add emoji"}</strong>
+          <strong>Add emoji</strong>
           <button type="button" aria-label="Close emoji picker" onClick={() => setPickerOpen(false)}>×</button>
         </header>
-        {pickerMode === "browse" && <label className="creator-chat-emoji-library-search">
+        <label className="creator-chat-emoji-library-search">
           <span className="creator-chat-sr">Search emoji library</span>
           <input type="search" placeholder="Search emojis…" value={emojiSearch}
             onChange={(event) => { setEmojiSearch(event.target.value); setEmojiPage(0); }} />
-        </label>}
-        {pickerMode === "browse" && <select aria-label="Emoji category" className="creator-chat-emoji-category" value={emojiCategory} onChange={event => { setEmojiCategory(event.target.value); setEmojiPage(0); }}><option value="">All categories</option>{CHAT_EMOJI_CATEGORIES.map(category => <option key={category}>{category}</option>)}</select>}
+        </label>
+        <select aria-label="Emoji category" className="creator-chat-emoji-category" value={emojiCategory} onChange={event => { setEmojiCategory(event.target.value); setEmojiPage(0); }}><option value="">All categories</option>{CHAT_EMOJI_CATEGORIES.map(category => <option key={category}>{category}</option>)}</select>
         {reactionError && <p role="alert" className="creator-chat-reaction-error">{reactionError}</p>}
-        <div className={`creator-chat-emoji-popover-grid ${pickerMode === "browse" ? "is-library" : ""}`} role="group"
-          aria-label={pickerMode === "recent" ? "Six recent emojis" : "Available emoji library"}>
-          {shownEmojis.map((emoji) => <button key={emoji} type="button" disabled={busy}
-            title={emojiLabel(emoji)} aria-label={emojiLabel(emoji)}
-            aria-pressed={reactions.some((r) => r.emoji === emoji && r.mine)}
-            onPointerDown={event => event.preventDefault()}
-            onClick={async () => {
-              const saved = await update("reaction", { emoji, active: !reactions.some((r) => r.emoji === emoji && r.mine) });
-              if (saved) setPickerOpen(false);
-            }}>{emoji}</button>)}
+        <section className="creator-chat-emoji-recents" aria-label="Recent emojis">
+          <span className="creator-chat-emoji-section-label">Recent</span>
+          <div className="creator-chat-emoji-popover-grid is-recent" role="group" aria-label="Six recent emojis">
+            {sixRecentEmojis.map(emojiButton)}
+          </div>
+        </section>
+        <div className="creator-chat-emoji-popover-grid is-library" role="group" aria-label="Available emoji library">
+          {shownEmojis.map(emojiButton)}
           {!shownEmojis.length && <p className="creator-chat-emoji-no-results">No emojis found. Try another search.</p>}
         </div>
         <footer className="creator-chat-emoji-popover-footer">
-          <button type="button" onClick={() => {
-            setPickerMode(pickerMode === "recent" ? "browse" : "recent"); setEmojiSearch(""); setEmojiPage(0);
-          }}>{pickerMode === "recent" ? "All emojis" : "Recent"}</button>
-          {pickerMode === "browse" && <div className="creator-chat-emoji-popover-pages"><button type="button" aria-label="Previous emoji page" disabled={emojiPage === 0} onClick={() => setEmojiPage(p => p - 1)}>‹</button><span>{emojiPage + 1} / {Math.max(1, Math.ceil(pickerEmojis.length / 80))}</span><button type="button" aria-label="Next emoji page" disabled={(emojiPage + 1) * 80 >= pickerEmojis.length} onClick={() => setEmojiPage(p => p + 1)}>›</button></div>}
+          <div className="creator-chat-emoji-popover-pages"><button type="button" aria-label="Previous emoji page" disabled={emojiPage === 0} onClick={() => setEmojiPage(p => p - 1)}>‹</button><span>{emojiPage + 1} / {Math.max(1, Math.ceil(pickerEmojis.length / 80))}</span><button type="button" aria-label="Next emoji page" disabled={(emojiPage + 1) * 80 >= pickerEmojis.length} onClick={() => setEmojiPage(p => p + 1)}>›</button></div>
         </footer>
       </div>, pickerHost)}
     </>}
