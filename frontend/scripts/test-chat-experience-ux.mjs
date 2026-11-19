@@ -13,7 +13,7 @@ const [chat, css, profile, profileCss, reminders, attach, voice, notification, m
   "src/pages/ChatUnreadReminders.tsx",
   "src/pages/ChatAttachmentPicker.tsx",
   "src/pages/ChatVoiceRecorder.tsx",
-  "src/pages/ChatBrowserNotifications.tsx",
+  "src/components/AccountNotificationToggle.tsx",
   "src/pages/ChatMessageTools.tsx",
   "src/pages/ChatVoicePlayback.tsx",
   "src/components/BrowserNotificationsProvider.tsx",
@@ -75,21 +75,19 @@ pass("Composer + menu starts uploads and recording directly; compact voice contr
 
 assert.ok(!chat.includes("ChatBrowserNotifications"));
 assert.ok(!chat.includes("useBrowserNotifications"));
-assert.ok(profile.includes('lazy(() => import("./ChatBrowserNotifications"))'));
+assert.ok(!profile.includes("ChatBrowserNotifications"));
 assert.ok(profile.includes('access?.permissions.includes("chat.access")'));
-assert.ok(profile.includes('role="switch"'));
-assert.ok(profile.includes('className="account-notification-toggle"'));
-assert.ok(profile.includes('aria-checked={!!notificationControls?.enabled'));
-assert.ok(profile.includes("notificationControls.enable()"));
-assert.ok(profile.includes("notificationControls.disable()"));
-assert.ok(profile.includes("Advanced notification settings"));
-assert.ok(profile.includes("notificationSettingsOpen"));
+assert.ok(profile.includes("<AccountNotificationToggle />"));
+assert.ok(notification.includes('role="switch"'));
+assert.ok(notification.includes('className="account-notification-toggle"'));
+assert.ok(notification.includes('aria-checked={enabled}'));
+assert.ok(!profile.includes("Advanced notification settings"));
+assert.ok(!profile.includes("notificationSettingsOpen"));
 assert.ok(notification.includes("controls.enable()"));
 assert.ok(notification.includes("controls.disable"));
-assert.ok(notification.includes("BackgroundPushSettings"));
-assert.ok(notification.includes("Blocked in your browser settings"));
+assert.ok(notification.includes("blocked in this browser's site settings"));
 assert.ok(provider.includes("void releaseBackgroundPush(id)"));
-pass("My Account has a monochrome opt-in switch; Off also releases previous background push and advanced setup remains reachable.");
+pass("My Account has one notification switch with inline browser guidance; Off releases previous background push without an extra settings screen.");
 
 assert.ok(reminders.includes("Email reminder activity"));
 assert.ok(reminders.includes("'Preview mode'"));
