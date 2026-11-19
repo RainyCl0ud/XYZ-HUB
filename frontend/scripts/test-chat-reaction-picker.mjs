@@ -112,12 +112,17 @@ try {
   assert.ok(tools.includes('source.addEventListener') === false);
   assert.ok(css.includes('position: fixed;\n  z-index: 1250;'));
   assert.ok(css.includes('creator-chat-emoji-popover-grid'));
-  assert.ok(tools.includes('? sixRecentEmojis'));
+  assert.ok(tools.includes('sixRecentEmojis.map(emojiButton)'));
+  assert.ok(tools.indexOf('aria-label="Six recent emojis"') < tools.indexOf('aria-label="Available emoji library"'));
+  assert.ok(!tools.includes("pickerMode"));
+  assert.ok(!chat.includes("creator-chat-mentions-open"));
+  assert.ok(chat.includes("<ChatMentions onClose="), "Sidebar mention navigation must remain available");
   assert.ok(tools.includes('Available emoji library'));
   assert.ok(tools.includes('Search emoji library'));
-  assert.ok(tools.includes('"All emojis" : "Recent"'));
+  assert.ok(css.includes(".creator-chat-emoji-recents { flex-shrink: 0;"));
+  assert.ok(css.includes(".creator-chat-emoji-popover-grid.is-recent { grid-template-columns: repeat(6,"));
   assert.ok(css.includes('creator-chat-emoji-popover-grid.is-library'));
-  pass("Six personal recents remain separate from a searchable, scrollable approved emoji library.");
+  pass("Six personal recents stay above the searchable library without a view switch; the conversation Mentions button is removed.");
 
   assert.ok(tools.includes('document.addEventListener("pointerdown", closeOutside)'));
   assert.ok(tools.includes('document.addEventListener("keydown", closeEscape)'));

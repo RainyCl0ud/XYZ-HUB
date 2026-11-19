@@ -1,7 +1,7 @@
 import ChatMentionComposer from "./ChatMentionComposer";
 import ChatMentions from "./ChatMentions";
 import { rebaseMentions, trimmedMentionDraft, type ChatMention } from "../lib/chat-mentions";
-import { useChatMentionCount, refreshChatMentionCount } from "../components/ChatMentionCountContext";
+import { refreshChatMentionCount } from "../components/ChatMentionCountContext";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { API_BASE_URL, ApiError, apiRequest } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
@@ -74,7 +74,6 @@ export default function ChatPage() {
 
 function ChatWorkspace({ userId }: { userId: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const mentionCount = useChatMentionCount();
   const showMentions = searchParams.get("mentions") === "1";
   const closeMentions = () => setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete("mentions"); return next; }, { replace: true });
   const linkedConversation = searchParams.get('conversation') ?? '';
@@ -741,7 +740,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                   <button type="button" aria-pressed={channelFilter === "private"} onClick={() => { setChannelFilter("private"); }}>Private{privateUnread > 0 && <span className="creator-chat-tab-unread" aria-label={`${privateUnread} unread private messages`}>{privateUnread > 99 ? "99+" : privateUnread}</span>}</button>
                 </div>
               </div>
-              <div className="creator-chat-unread-actions"><button type="button" className="creator-chat-unread-filter" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(!unreadOnly)}>Unread only{filterUnread ? ` · ${filterUnread}` : ""}</button><button type="button" className="creator-chat-mentions-open" onClick={() => setSearchParams(previous => { const next = new URLSearchParams(previous); next.set("mentions", "1"); return next; })}>Mentions{mentionCount > 0 ? ` · ${mentionCount}` : ""}</button></div>
+              <button type="button" className="creator-chat-unread-filter" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(!unreadOnly)}>Unread only{filterUnread ? ` · ${filterUnread}` : ""}</button>
             </div>
             <nav className="creator-chat-channel-list" aria-label={`${browseArea?.name ?? "Your"} conversations`}>
               {channelFilter === "channels" && !!activeChannels.length && <div className="creator-chat-channel-group"><h2>Channels <span>{activeChannels.length}</span></h2>{activeChannels.map(channelRow)}</div>}
