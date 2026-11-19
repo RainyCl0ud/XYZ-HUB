@@ -87,6 +87,7 @@ model User {
 
   chatReactions ChatReaction[]
   chatMessageReads ChatMessageRead[]
+  chatMentions ChatMessageMention[]
   announcementsAuthored ChatAnnouncement[]
   announcementDeliveries ChatAnnouncementDelivery[]
   unreadReminderState ChatUnreadReminderState?
@@ -989,6 +990,7 @@ model ChatMessage {
   pinnedBy User? @relation("ChatPinnedBy", fields: [pinnedById], references: [id], onDelete: SetNull)
   reactions ChatReaction[]
   reads ChatMessageRead[]
+  mentions ChatMessageMention[]
   attachment ChatAttachment?
   deletedAt DateTime?
   deletedById String?
@@ -1095,11 +1097,17 @@ model ChatReaction {
   messageId String
   userId String
   emoji String
+  emojiEntry ChatEmoji @relation(fields: [emoji], references: [emoji], onDelete: Restrict)
   createdAt DateTime @default(now())
   message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([messageId, userId, emoji])
   @@index([userId])
+}
+
+model ChatEmoji {
+  emoji String @id
+  reactions ChatReaction[]
 }
 
 // This person's explicit reads only. Public read receipts are not exposed.
@@ -1211,4 +1219,16 @@ model ChatUnreadReminder {
   lastError String?
   @@index([userKey, createdAt])
   @@index([status, createdAt])
+}
+
+// Offsets use JavaScript UTF-16 positions in the stored plain message text.
+model ChatMessageMention {
+  messageId String
+  userId String
+  start Int
+  end Int
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([messageId, start])
+  @@index([userId, messageId])
 }
