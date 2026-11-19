@@ -38,14 +38,13 @@ assert.ok(chat.includes("oversightPrivateChannels.map(channelRow)"));
 assert.ok(chat.includes("archivedChannels.map(channelRow)"));
 pass("Channels and Private are exclusive permission-filtered views; archived items stay in their corresponding type.");
 
-assert.ok(chat.includes("const [showChannelSearch, setShowChannelSearch] = useState(false)"));
-assert.ok(chat.includes('aria-controls="chat-conversation-search"'));
-assert.ok(chat.includes('aria-expanded={showChannelSearch}'));
-assert.ok(chat.includes('{showChannelSearch && <div id="chat-conversation-search"'));
-assert.ok(chat.includes('aria-label={showChannelSearch ? "Close conversation search" : "Search conversations"}'));
-assert.ok(chat.includes('if (showChannelSearch) { setChannelSearch(""); setUnreadOnly(false); }'));
-assert.ok(chat.includes('if (showChannelSearch) channelSearchInput.current?.focus()'));
-pass("Conversation search is off by default, accessible, focused on open and cleared on close.");
+assert.ok(!chat.includes("showChannelSearch"));
+assert.ok(!chat.includes('chat-conversation-search'));
+assert.ok(!chat.includes('Search conversations'));
+assert.ok(chat.includes('className="creator-chat-unread-filter"'));
+assert.ok(chat.includes('Search messages'));
+assert.ok(chat.includes('aria-expanded={tools?.kind === "search"}'));
+pass("Conversation search stays removed while message search and the unread-only filter remain available.");
 
 assert.ok(chat.includes('e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing'));
 assert.ok(chat.includes("e.keyCode === 229 || e.repeat"));
