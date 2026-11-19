@@ -118,7 +118,10 @@ async function main() {
     await prisma.user.update({ where: { id: chatter.id }, data: { status: "DEACTIVATED" } });
     assert.equal(await visible(manager.id), 2);
     await prisma.user.update({ where: { id: offShift.id }, data: { status: "DEACTIVATED" } });
-    assert.equal((await getAttendanceOverview(manager.id)).counts.notClockedInStaff, 0);
+    const remaining = await getAttendanceOverview(manager.id);
+    assert.equal(remaining.counts.notClockedInStaff, 1);
+    assert.deepEqual(remaining.offShiftStaff.map(person => person.id), [coordinator.id]);
+    assert.deepEqual(remaining.offShiftStaff[0].roleNames, [custom.name]);
     pass("Inactive staff are excluded without exposing historic personal attendance");
   } finally {
     await prisma.clockShift.deleteMany({ where: { userId: { in: userIds } } });

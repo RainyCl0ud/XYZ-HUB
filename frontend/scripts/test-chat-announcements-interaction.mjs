@@ -171,7 +171,7 @@ try {
   assert.ok(service.includes("!person.creatorProfile"));
   assert.ok(service.includes("role.systemKey === 'MODEL'"));
   assert.ok(announcements.includes("Model #Updates channels"));
-  assert.ok(announcements.includes("Active staff also receive an email when email sending is enabled."));
+  assert.ok(announcements.includes("Only selected staff can see the Chat announcement or receive its email."));
   assert.ok(announcements.includes("Additional private chats"));
   assert.ok(announcements.includes("Under the current setup, some staff receive an additional private Chat copy."));
   assert.ok(!announcements.includes("Private Hub copies"));

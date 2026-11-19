@@ -636,3 +636,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+.audit-retained-channels p { color: var(--text-secondary); line-height: 1.6; }
+.audit-retained-scroll { overflow-x: auto; }
+.audit-retained-scroll table { width: 100%; border-collapse: collapse; text-align: left; }
+.audit-retained-scroll th, .audit-retained-scroll td { padding: 14px 12px; border-bottom: 1px solid #383838; }
+.audit-retained-scroll a { color: inherit; text-decoration: underline; }

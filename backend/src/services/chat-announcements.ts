@@ -7,7 +7,7 @@ import { announcementsEnabled, announcementEmailMode } from './chat-announcement
 import { renderBrandedTransactionalEmail } from './transactional-email-template.js';
 import type { TransactionalEmail } from './email-delivery.js';
 
-export type AnnouncementInput = { title: string; text: string };
+export type AnnouncementInput = { title: string; text: string; recipientIds?: string[] };
 type Destination = { id: string; isPrivate: boolean };
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 // Keep the shared viewer shape intact when resolving announcement recipients.
@@ -44,13 +44,15 @@ export async function announcementCapability(userId: string) {
   catch (e) { if (e instanceof ChatError && e.status === 403) return { canAnnounce: false, emailMode: 'off' }; throw e; }
 }
 
-async function audience(tx: Prisma.TransactionClient, personIds: string[]) {
+async function audience(tx: Prisma.TransactionClient, personIds: string[], selectedIds?: string[]) {
   const updates = await tx.chatChannel.findMany({ where: { key: 'updates', area: { archivedAt: null, model: { isActive: true } } }, include: channelInclude, orderBy: { id: 'asc' } });
   const people = await tx.user.findMany({ where: { id: { in: personIds }, status: 'ACTIVE' }, include: personInclude, orderBy: { id: 'asc' } });
+  const availableRecipients = people.filter(eligibleStaff).map(person => ({ id: person.id, name: person.name }));
+  if (selectedIds?.some(id => !availableRecipients.some(person => person.id === id))) throw new ChatError(409, 'Some selected staff are no longer eligible. Review the recipient list again.');
   const privateChats = await tx.chatStandingConversation.findMany({ where: { archivedAt: null, kind: { not: 'CREATOR' } }, include: standingInclude });
   const recipients: { userId: string; name: string; email: string; destinations: Destination[] }[] = [];
   const blockers: { name: string; reason: string }[] = [];
-  for (const snapshot of people.filter(eligibleStaff)) {
+  for (const snapshot of people.filter(eligibleStaff).filter(person => !selectedIds || selectedIds.includes(person.id))) {
     const person = await tx.user.findUnique({ where: { id: snapshot.id }, include: personInclude });
     if (!person || !eligibleStaff(person)) continue;
     const viewer = makeViewer(person);
@@ -70,7 +72,7 @@ async function audience(tx: Prisma.TransactionClient, personIds: string[]) {
     if (!viewer.permissions.has('chat.access') || missing || !destinations.length) blockers.push({ name: person.name, reason: 'No current permitted Hub destination for every affected creator. Check assignments/private-chat setup before publishing.' });
     recipients.push({ userId: person.id, name: person.name, email: person.email, destinations: destinations.sort((a,b) => a.id.localeCompare(b.id)) });
   }
-  return { updates, recipients, blockers };
+  return { updates: selectedIds ? updates.filter(channel => recipients.some(person => person.destinations.some(destination => destination.id === channel.id))) : updates, recipients, blockers, availableRecipients };
 }
 async function plan(tx: Prisma.TransactionClient, userId: string, input: AnnouncementInput) {
   assertEnabled();
@@ -83,16 +85,17 @@ async function plan(tx: Prisma.TransactionClient, userId: string, input: Announc
   const author = await sender(tx, userId);
   // Serialize with the existing private-conversation lifecycle synchronizer.
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(62942119)`;
-  const data = await audience(tx, personIds), normalized = normalize(input);
-  if (!data.updates.length) data.blockers.push({ name: 'Updates channels', reason: 'No active creator Updates channel is available.' });
+  const data = await audience(tx, personIds, input.recipientIds), normalized = normalize(input);
+  if (!data.updates.length && !input.recipientIds) data.blockers.push({ name: 'Updates channels', reason: 'No active creator Updates channel is available.' });
   if (!data.recipients.length) data.blockers.push({ name: 'Staff audience', reason: 'No eligible active staff are available.' });
-  const token = hash({ ...normalized, userId, emailMode: announcementEmailMode(), updates: data.updates.map(c => c.id), recipients: data.recipients, blockers: data.blockers });
+  const token = hash({ ...normalized, recipientIds: input.recipientIds ? [...new Set(input.recipientIds)].sort() : null, userId, emailMode: announcementEmailMode(), updates: data.updates.map(c => c.id), recipients: data.recipients, blockers: data.blockers });
   return { ...data, normalized, author, token };
 }
 function previewDto(p: Awaited<ReturnType<typeof plan>>) {
   return { previewToken: p.token, ...p.normalized, staffCount: p.recipients.length, creatorCount: p.updates.length,
     privateCopyCount: new Set(p.recipients.flatMap(r => r.destinations.filter(d => d.isPrivate).map(d => d.id))).size,
-    recipients: p.recipients.map(r => ({ name: r.name, privateCopies: r.destinations.filter(d => d.isPrivate).length })),
+    availableRecipients: p.availableRecipients,
+    recipients: p.recipients.map(r => ({ id: r.userId, name: r.name, privateCopies: r.destinations.filter(d => d.isPrivate).length })),
     blockers: p.blockers, emailMode: announcementEmailMode() };
 }
 export function previewAnnouncement(userId: string, input: AnnouncementInput) {
@@ -110,14 +113,14 @@ export async function publishAnnouncement(userId: string, input: AnnouncementInp
   if (!/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(input.requestId)) throw new ChatError(400, 'A valid request reference is required.');
   return publishTransaction(async tx => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'announcement:' + input.requestId}, 0))`;
-    const normalized = normalize(input), inputHash = hash(normalized);
+    const normalized = normalize(input), inputHash = hash({ ...normalized, ...(input.recipientIds ? { recipientIds: [...new Set(input.recipientIds)].sort() } : {}) });
     const existing = await tx.chatAnnouncement.findUnique({ where: { requestId: input.requestId } });
     if (existing) {
       await sender(tx, userId);
       if (existing.authorUserId !== userId || existing.inputHash !== inputHash) throw new ChatError(409, 'This request reference is already in use.');
       return { id: existing.id, replayed: true };
     }
-    const p = await plan(tx, userId, normalized);
+    const p = await plan(tx, userId, input);
     if (p.token !== input.previewToken) throw new ChatError(409, 'The audience or delivery settings changed. Review a fresh preview before publishing.');
     if (p.blockers.length) throw new ChatError(409, 'Resolve the audience warnings before publishing.');
     const announcement = await tx.chatAnnouncement.create({ data: { ...normalized, requestId: input.requestId, inputHash, authorUserId: userId, authorName: p.author.user.name } });

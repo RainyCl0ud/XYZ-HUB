@@ -1,3 +1,4 @@
+import { listRetainedChatChannels } from "../services/creator-chat.js";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { pipeline } from "node:stream/promises";
 import { z } from "zod";
@@ -53,6 +54,10 @@ const run = (action: (req: Request, res: Response) => Promise<unknown>) => async
     next(error);
   }
 };
+router.get("/retained-channels", run(async (req, res) => {
+  const query = z.object({ before: z.string().min(1).max(100).optional() }).strict().parse(req.query);
+  res.json(await listRetainedChatChannels(user(req), query.before));
+}));
 router.get("/areas", run(async (req, res) => res.json({
   areas: await listChatAreas(user(req), z.string().min(1).max(100).optional().parse(req.query.retained)),
   announcements: await announcementCapability(user(req)),
@@ -89,7 +94,7 @@ router.delete("/background-push/:deviceId", run(async (req, res) => {
   await unsubscribeBackgroundPush(sessionId(req), pushDeviceId.parse(param(req, "deviceId")));
   res.json({ success: true });
 }));
-const announcementSchema = z.object({ title: z.string().trim().min(1).max(120).regex(/^[^\r\n]+$/), text: z.string().trim().min(1).max(7800) }).strict();
+const announcementSchema = z.object({ title: z.string().trim().min(1).max(120).regex(/^[^\r\n]+$/), text: z.string().trim().min(1).max(7800), recipientIds: z.array(z.string().min(1).max(100)).min(1).max(5000).optional() }).strict();
 router.get("/announcements", run(async (req, res) => res.json({ announcements: await listAnnouncements(user(req)) })));
 router.get("/announcements/:announcementId", run(async (req, res) => res.json({ announcement: await announcementDetails(user(req), param(req, 'announcementId')) })));
 router.post("/announcements/preview", run(async (req, res) => res.json(await previewAnnouncement(user(req), announcementSchema.parse(req.body)))));

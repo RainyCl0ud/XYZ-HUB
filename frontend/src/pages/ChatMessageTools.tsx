@@ -131,18 +131,15 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
     if (pickerOpen) { setPickerOpen(false); return; }
     const box = event.currentTarget.getBoundingClientRect();
     const width = Math.min(248, Math.max(160, window.innerWidth - 16));
-    const height = 350;
     const below = window.innerHeight - box.bottom;
     const above = box.top;
-    const placeBelow = below >= height + 8 || below >= above;
-    const top = placeBelow
-      ? Math.max(8, Math.min(box.bottom + 6, window.innerHeight - height - 8))
-      : Math.max(8, box.top - height - 6);
+    const placeBelow = below >= 230 || below >= above;
     setPickerHost(event.currentTarget.closest("dialog") ?? document.body);
     setPickerPosition({
       position: "fixed",
-      top, left: Math.max(8, Math.min(box.right - width, window.innerWidth - width - 8)),
-      width, maxHeight: Math.max(130, window.innerHeight - 16),
+      left: Math.max(8, Math.min(box.right - width, window.innerWidth - width - 8)),
+      width, maxHeight: Math.max(100, (placeBelow ? below : above) - 14),
+      ...(placeBelow ? { top: box.bottom + 6 } : { bottom: window.innerHeight - box.top + 6 }),
     });
     setPickerMode("recent"); setEmojiSearch("");
     setMenuOpen(false);

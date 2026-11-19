@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError, apiRequest } from '../lib/api';
-type Preview = { title: string; text: string; previewToken: string; staffCount: number; creatorCount: number; privateCopyCount: number; blockers: { name: string; reason: string }[]; recipients: { name: string; privateCopies: number }[] };
+type Preview = { title: string; text: string; previewToken: string; staffCount: number; creatorCount: number; privateCopyCount: number; blockers: { name: string; reason: string }[]; availableRecipients: { id: string; name: string }[]; recipients: { id: string; name: string; privateCopies: number }[] };
 type Delivery = { personName: string; status: string; lastError: string | null; previewEmail: { to: string; subject: string; text: string } | null };
 type Announcement = { id: string; title: string; text: string; createdAt: string; authorName: string; deliveries: Delivery[] };
 type History = { id: string; title: string; createdAt: string; authorName: string };
@@ -9,6 +9,8 @@ const statusLabel: Record<string,string> = { PENDING: 'Waiting to send', SENDING
 export default function ChatAnnouncements({ onClose, onPublished }: { onClose: () => void; onPublished: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), controller = useRef<AbortController | null>(null), requestId = useRef(crypto.randomUUID());
   const [title, setTitle] = useState(''), [text, setText] = useState('');
+  const [recipientIds, setRecipientIds] = useState<string[] | undefined>();
+  const [recipientSearch, setRecipientSearch] = useState('');
   const [preview, setPreview] = useState<Preview | null>(null), [posted, setPosted] = useState<Announcement | null>(null);
   const [publishedId, setPublishedId] = useState<string | null>(null);
   const [history, setHistory] = useState<History[]>([]), [error, setError] = useState('');
@@ -18,12 +20,12 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
     void apiRequest<{ announcements: History[] }>('/api/chat/announcements', { signal: request.signal }).then(result => setHistory(result.announcements)).catch(() => { if (!request.signal.aborted) setError('Recent announcements could not be loaded. Close and reopen this screen to try again.'); });
     return () => { request.abort(); controller.current?.abort(); modal?.close(); };
   }, []);
-  async function review(e: FormEvent) {
-    e.preventDefault(); if (busy) return;
+  async function review(e?: FormEvent, selected = recipientIds) {
+    e?.preventDefault(); if (busy) return;
     const request = new AbortController(); controller.current = request; setBusy(true); setError('');
-    try { const result = await apiRequest<Preview>('/api/chat/announcements/preview', { method: 'POST', body: JSON.stringify({ title: title.trim(), text: text.trim() }), signal: request.signal });
+    try { const result = await apiRequest<Preview>('/api/chat/announcements/preview', { method: 'POST', body: JSON.stringify({ title: title.trim(), text: text.trim(), recipientIds: selected }), signal: request.signal });
       if (!request.signal.aborted) { setPreview(result); setConfirmed(false); requestId.current = crypto.randomUUID(); }
-    } catch (e) { if (!request.signal.aborted) setError(e instanceof Error ? e.message : 'Unable to prepare the announcement.'); }
+    } catch (e) { if (!request.signal.aborted) { setPreview(null); setConfirmed(false); setError(e instanceof Error ? e.message : 'Unable to prepare the announcement.'); } }
     finally { setBusy(false); }
   }
   async function details(id: string) {
@@ -40,7 +42,7 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
     if (!preview || busy || !confirmed || preview.blockers.length) return;
     const request = new AbortController(); controller.current = request; setBusy(true); setError('');
     try {
-      const result = await apiRequest<{ id: string }>('/api/chat/announcements', { method: 'POST', body: JSON.stringify({ title: preview.title, text: preview.text, previewToken: preview.previewToken, requestId: requestId.current }), signal: request.signal });
+      const result = await apiRequest<{ id: string }>('/api/chat/announcements', { method: 'POST', body: JSON.stringify({ title: preview.title, text: preview.text, recipientIds, previewToken: preview.previewToken, requestId: requestId.current }), signal: request.signal });
       if (request.signal.aborted) return;
       setUncertain(false); setPreview(null); setConfirmed(false); onPublished(); await details(result.id);
     } catch (e) {
@@ -49,6 +51,10 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
       else setUncertain(true);
       setError(e instanceof ApiError && e.status === 409 ? 'The audience changed. Review it again before posting.' : e instanceof Error ? e.message : 'We could not confirm publication. Check the same submission before starting another.');
     } finally { setBusy(false); }
+  }
+  function changeRecipients(ids: string[]) {
+    setRecipientIds(ids); setConfirmed(false);
+    void review(undefined, ids);
   }
   const stage = publishedId ? "published" : preview ? "review" : "compose";
 
@@ -59,7 +65,7 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
       <div>
         <small>STAFF COMMUNICATIONS</small>
         <h2 id="chat-announce-title">Staff announcements</h2>
-        <p>Share important news with the whole team.</p>
+        <p>Share important news with your team.</p>
       </div>
       <button type="button" className="creator-chat-announcement-close" disabled={busy || uncertain} onClick={onClose}>Close</button>
     </header>
@@ -124,9 +130,20 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
               <path d="m5 7 5 5 5-5" />
             </svg>
           </summary>
+          <div className="creator-chat-recipient-editor" aria-busy={busy}>
+          <p className="creator-chat-recipient-help">Choose who receives this announcement in Chat and by email. Owners retain access for audit purposes.</p>
+          <label htmlFor="announcement-recipient-search">Find a staff member</label>
+          <input id="announcement-recipient-search" type="search" value={recipientSearch} onChange={e => setRecipientSearch(e.target.value)} disabled={busy || uncertain} />
+          <div className="creator-chat-recipient-actions"><button type="button" disabled={busy || uncertain} onClick={() => changeRecipients(preview.availableRecipients.map(r => r.id))}>Select all staff</button></div>
           <ul className="creator-chat-announcement-recipient-list">
-            {preview.recipients.map((r,i) => <li key={i}><span>{r.name}</span>{r.privateCopies ? <small>Also receives a private Chat copy</small> : null}</li>)}
+            {preview.availableRecipients.filter(r => r.name.toLocaleLowerCase().includes(recipientSearch.trim().toLocaleLowerCase())).map(r => {
+              const selected = (recipientIds ?? preview.recipients.map(person => person.id)).includes(r.id);
+              const privateCopies = preview.recipients.find(person => person.id === r.id)?.privateCopies;
+              return <li key={r.id}><label className="creator-chat-recipient-option"><input type="checkbox" checked={selected} disabled={busy || uncertain || (selected && preview.staffCount === 1)} onChange={() => changeRecipients(selected ? preview.recipients.filter(person => person.id !== r.id).map(person => person.id) : [...preview.recipients.map(person => person.id), r.id])}/><span>{r.name}</span>{privateCopies ? <small>Also receives a private Chat copy</small> : null}</label></li>;
+            })}
           </ul>
+          {busy && <p role="status">Updating recipients…</p>}
+          </div>
         </details>
       </div>
       {!!preview.blockers.length && <div className="creator-chat-error" role="alert">
@@ -157,7 +174,7 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
       </section>
       <aside className="creator-chat-announcement-sidebar" aria-label="Announcement information">
         <h3>Who receives it</h3>
-        <p>The announcement appears in every active model's <strong>#Updates</strong> channel. Active staff also receive an email when email sending is enabled.</p>
+        <p>Start with all active staff, then add or remove people under <strong>Recipients</strong> when reviewing. Only selected staff can see the Chat announcement or receive its email. Owners retain audit access.</p>
         <p>Under the current setup, some staff receive an additional private Chat copy.</p>
         <div className="creator-chat-announcement-history">
           <h3>Recent announcements</h3>
@@ -174,7 +191,7 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
       {publishedId ? <>
         <button type="button" disabled={busy} onClick={() => void details(publishedId)}>Refresh email status</button>
         <button type="button" className="creator-chat-announcement-primary" disabled={busy || !posted}
-          onClick={() => { setPublishedId(null); setPosted(null); setPreview(null); setTitle(''); setText(''); setConfirmed(false); setError(''); requestId.current = crypto.randomUUID(); }}>New announcement</button>
+          onClick={() => { setPublishedId(null); setPosted(null); setPreview(null); setTitle(''); setText(''); setRecipientIds(undefined); setRecipientSearch(''); setConfirmed(false); setError(''); requestId.current = crypto.randomUUID(); }}>New announcement</button>
       </> : preview ? <>
         <button type="button" disabled={busy || uncertain} onClick={() => { setPreview(null); setConfirmed(false); setError(''); }}>Back to editing</button>
         <button type="button" className="creator-chat-announcement-primary" disabled={busy || !confirmed || !!preview.blockers.length}

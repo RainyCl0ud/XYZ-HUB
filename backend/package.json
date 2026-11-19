@@ -65,6 +65,7 @@
     "test:clock-upgrade": "tsx scripts/test-clock-upgrade.ts",
     "test:clock-alerts": "tsx scripts/test-clock-alerts.ts",
     "test:clock-overview-ladder": "tsx scripts/test-clock-overview-ladder.ts",
+    "test:clock-live": "tsx scripts/test-clock-live.ts",
     "test:clock-corrections": "tsx scripts/test-clock-corrections.ts",
     "test:clock-corrections-upgrade": "tsx scripts/test-clock-corrections-upgrade.ts",
     "test:chat-interactions": "tsx scripts/test-chat-interactions.ts",

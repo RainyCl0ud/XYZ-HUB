@@ -21,10 +21,6 @@ const statuses: Record<ClockCorrectionItem["status"], string> = {
   CANCELLED: "Cancelled",
 };
 
-function formatMaybe(value: string | null | undefined) {
-  return value ? formatCorrectionTime(value) : "Not recorded";
-}
-
 export default function ClockRequestDetailPage() {
   const { requestId } = useParams<{ requestId: string }>();
   const navigate = useNavigate();
@@ -97,7 +93,7 @@ export default function ClockRequestDetailPage() {
       <div>
         <p className="clock-eyebrow">CLOCK &amp; HOURS / REQUEST DETAILS</p>
         <h1 id="clock-request-title">{item?.kind === "MISSING_SHIFT" ? "Missed shift request" : "Time correction request"}</h1>
-        <p>Review the requested changes and the complete request record.</p>
+        <p>Review the requested changes, reason and decision history.</p>
       </div>
       <button type="button" onClick={() => navigate(returnPath)}>Back to {data?.scope === "review" ? "Review requests" : "My requests"}</button>
     </header>
@@ -132,29 +128,6 @@ export default function ClockRequestDetailPage() {
         <h3 id="request-reason-title">{data.scope === "mine" ? "Your reason" : "Employee’s reason"}</h3>
         <p>{item.reason}</p>
       </section>
-      <section className="clock-request-full-record" aria-labelledby="full-correction-record-title">
-        <h3 id="full-correction-record-title">Full recorded and requested times</h3>
-        <div className="clock-table-scroll" role="region" aria-label="Full correction snapshot" tabIndex={0}>
-          <table className="clock-data-table">
-            <thead><tr><th scope="col">Field</th><th scope="col">Recorded</th><th scope="col">Requested</th></tr></thead>
-            <tbody>
-              <tr><th scope="row">Clock in</th><td>{formatMaybe(item.before?.startedAt)}</td><td>{formatMaybe(item.proposed.startedAt)}</td></tr>
-              <tr><th scope="row">Clock out</th><td>{formatMaybe(item.before?.endedAt)}</td><td>{formatMaybe(item.proposed.endedAt)}</td></tr>
-              {(["SHORT_ONE", "SHORT_TWO", "MEAL"] as const).map(kind => {
-                const oldPause = item.before?.breaks.find(pause => pause.kind === kind);
-                const newPause = item.proposed.breaks.find(pause => pause.kind === kind);
-                if (!oldPause && !newPause) return null;
-                const label = kind === "MEAL" ? "Meal" : kind === "SHORT_ONE" ? "Short break 1" : "Short break 2";
-                return [
-                  <tr key={`${kind}-start`}><th scope="row">{label} start</th><td>{formatMaybe(oldPause?.startedAt)}</td><td>{formatMaybe(newPause?.startedAt)}</td></tr>,
-                  <tr key={`${kind}-end`}><th scope="row">{label} end</th><td>{formatMaybe(oldPause?.endedAt)}</td><td>{formatMaybe(newPause?.endedAt)}</td></tr>,
-                ];
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
       {item.stale && <div className="correction-hint" role="status">
         This request is outdated because the recorded shift changed. Cancel and submit a new correction; approval is unavailable.
       </div>}

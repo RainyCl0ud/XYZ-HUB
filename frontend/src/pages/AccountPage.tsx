@@ -382,6 +382,29 @@ function AccountPage() {
             Review your profile and current XYZ Management access.
           </p>
         </div>
+      {canManageChatNotifications && <section className="account-notification-card account-header-notifications" aria-labelledby="account-notification-title">
+        <h3 id="account-notification-title">Notification</h3>
+        <div className="account-notification-controls">
+          <button type="button" role="switch" className="account-notification-toggle"
+            aria-label="Notification" aria-checked={!!notificationControls?.enabled && notificationControls.permission === "granted"}
+            title={notificationControls?.enabled && notificationControls.permission === "granted" ? "Turn notifications off" : "Turn notifications on"}
+            disabled={!notificationControls || !notificationControls.available || !notificationControls.supported || notificationControls.permission === "denied" || notificationControls.busy}
+            onClick={() => {
+              if (!notificationControls) return;
+              if (notificationControls.enabled && notificationControls.permission === "granted") notificationControls.disable();
+              else void notificationControls.enable();
+            }}>
+            <span className="account-notification-knob" aria-hidden="true" />
+          </button>
+          <button type="button" className="account-notification-more" aria-label="Advanced notification settings"
+            title="Advanced notification settings" onClick={() => setNotificationSettingsOpen(true)}>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+          </button>
+        </div>
+        {(notificationControls?.permission === "denied" || notificationControls?.error) && <p className="account-notification-error" role="status">
+          {notificationControls?.error || "Notifications are blocked in this browser's site settings."}
+        </p>}
+      </section>}
       </header>
 
       <section className="content-card account-profile-card">
@@ -491,29 +514,6 @@ function AccountPage() {
         </div>
       </section>
 
-      {canManageChatNotifications && <section className="content-card account-notification-card" aria-labelledby="account-notification-title">
-        <h3 id="account-notification-title">Notification</h3>
-        <div className="account-notification-controls">
-          <button type="button" role="switch" className="account-notification-toggle"
-            aria-label="Notification" aria-checked={!!notificationControls?.enabled && notificationControls.permission === "granted"}
-            title={notificationControls?.enabled && notificationControls.permission === "granted" ? "Turn notifications off" : "Turn notifications on"}
-            disabled={!notificationControls || !notificationControls.available || !notificationControls.supported || notificationControls.permission === "denied" || notificationControls.busy}
-            onClick={() => {
-              if (!notificationControls) return;
-              if (notificationControls.enabled && notificationControls.permission === "granted") notificationControls.disable();
-              else void notificationControls.enable();
-            }}>
-            <span className="account-notification-knob" aria-hidden="true" />
-          </button>
-          <button type="button" className="account-notification-more" aria-label="Advanced notification settings"
-            title="Advanced notification settings" onClick={() => setNotificationSettingsOpen(true)}>
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
-          </button>
-        </div>
-        {(notificationControls?.permission === "denied" || notificationControls?.error) && <p className="account-notification-error" role="status">
-          {notificationControls?.error || "Notifications are blocked in this browser's site settings."}
-        </p>}
-      </section>}
       {canManageChatNotifications && notificationSettingsOpen && <Suspense fallback={<p role="status">Loading notification settings…</p>}><ChatBrowserNotifications onClose={() => setNotificationSettingsOpen(false)} /></Suspense>}
 
       {avatarEditorOpen && (

@@ -978,6 +978,7 @@ model ChatMessage {
   clientNonce String
   systemEventKey String? @unique
   announcementKey String? @unique
+  announcementPost ChatAnnouncementPost?
   replyToId String?
   replyTo ChatMessage? @relation("ChatReply", fields: [replyToId], references: [id], onDelete: Restrict)
   replies ChatMessage[] @relation("ChatReply")
@@ -1142,6 +1143,7 @@ model ChatAnnouncementPost {
   targetId String
   isPrivate Boolean
   messageId String @unique
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Restrict)
   announcement ChatAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   @@id([announcementId, targetId])
 }

@@ -1,3 +1,5 @@
+import AuditRetainedChannels from "./AuditRetainedChannels";
+import { useAuth } from "../auth/AuthContext";
 import {
   useNavigationFilter,
 } from "../lib/useNavigationFilter";
@@ -119,6 +121,8 @@ function AuditPartyDisplay({
 }
 
 function AuditPage() {
+  const { access } = useAuth();
+  const isOwner = access?.roles.some(role => role.systemKey === "OWNER");
   const toast =
     useToast();
 
@@ -511,6 +515,8 @@ function AuditPage() {
             : "Refresh"}
         </button>
       </header>
+
+      {isOwner && <AuditRetainedChannels />}
 
       <section className="content-card audit-toolbar">
         <input

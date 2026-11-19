@@ -132,7 +132,7 @@ async function readClockOverview(userId: string, before?: string, offShiftBefore
     const [offShiftRows, notClockedInCount, clockedInStaff, staffOnBreak, shiftsStartedToday, pendingReviewRequests] = await Promise.all([
       tx.user.findMany({
         where: { AND: [notClockedInStaff, offShiftFilter] },
-        select: { id: true, name: true, teamGroup: { select: { name: true } } },
+        select: { id: true, name: true, teamGroup: { select: { name: true } }, roleMemberships: { where: { role: { archivedAt: null } }, select: { role: { select: { name: true } } } } },
         orderBy: [{ name: "asc" }, { id: "asc" }],
         take: PAGE_SIZE + 1,
       }),
@@ -177,6 +177,7 @@ async function readClockOverview(userId: string, before?: string, offShiftBefore
       offShiftStaff: offShiftRows.slice(0, PAGE_SIZE).map((user) => ({
         id: user.id,
         personName: user.name,
+        roleNames: user.roleMemberships.map(({ role }) => role.name).sort(),
         teamName: user.teamGroup?.name ?? "Unassigned",
       })),
       hasMoreOffShift: offShiftRows.length > PAGE_SIZE,

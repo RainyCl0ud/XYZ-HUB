@@ -455,3 +455,8 @@
   .account-notification-card .account-notification-toggle,
   .account-notification-knob { transition: none; }
 }
+
+.account-page-header { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
+.account-page-header .account-header-notifications { margin: 0 0 0 auto; padding: 0; border: 0; background: transparent; display: grid; grid-template-columns: auto auto; align-items: center; gap: 12px; }
+.account-header-notifications h3 { margin: 0; font-size: 14px; }
+.account-header-notifications .account-notification-error { grid-column: 1 / -1; max-width: 300px; }

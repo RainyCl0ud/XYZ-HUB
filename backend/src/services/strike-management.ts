@@ -582,7 +582,7 @@ export function deriveStrikeStatus(
 }
 
 export async function listOwnStrikes(userId: string, requestedPage: number) {
-  const pageSize = 10;
+  const pageSize = 7;
   const where = { userId };
   return prisma.$transaction(async tx => {
     const total = await tx.strike.count({ where });
