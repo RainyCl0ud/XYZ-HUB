@@ -230,19 +230,18 @@ try {
   pass('Background push validates payloads, suppresses wrong-account/visible alerts and safely routes chat and Clock reminders');
 
   const { BrowserNotificationsContext } = await vite.ssrLoadModule('/src/components/BrowserNotificationsContext.ts');
-  const { AuthProvider } = await vite.ssrLoadModule('/src/auth/AuthContext.tsx');
-  const { default: Dialog } = await vite.ssrLoadModule('/src/pages/ChatBrowserNotifications.tsx');
-  // BackgroundPushSettings now uses useAuth; render within the same provider as the real app.
-  const render = extra => renderToStaticMarkup(createElement(AuthProvider, null,
-    createElement(BrowserNotificationsContext.Provider, { value: { available: true, supported: true, enabled: false, permission: 'default', busy: false, error: '', limitedScope: false, enable: async () => {}, disable() {}, test: async () => {}, ...extra } }, createElement(Dialog, { onClose() {} }))));
+  const { default: Toggle } = await vite.ssrLoadModule('/src/components/AccountNotificationToggle.tsx');
+  const render = extra => renderToStaticMarkup(
+    createElement(BrowserNotificationsContext.Provider, { value: { available: true, supported: true, enabled: false, permission: 'default', busy: false, error: '', limitedScope: false, enable: async () => {}, disable() {}, test: async () => {}, ...extra } }, createElement(Toggle)));
   const off = render({}), denied = render({ permission: 'denied' }), unsupported = render({ supported: false }), enabled = render({ enabled: true, permission: 'granted', limitedScope: true });
-  for (const text of ['Enable notifications', 'Browser notifications']) assert.ok(off.includes(text));
-  assert.ok(denied.includes('Blocked in your browser settings') && denied.includes('disabled=""'));
-  assert.ok(unsupported.includes('Not supported in this browser') && unsupported.includes('disabled=""'));
-  for (const text of ['Turn off', 'Show test notification']) assert.ok(enabled.includes(text));
+  assert.ok(off.includes('role="switch"') && off.includes('aria-checked="false"'));
+  assert.ok(enabled.includes('aria-checked="true"') && enabled.includes('Turn notifications off'));
+  assert.ok(denied.includes('blocked in this browser') && denied.includes('disabled=""'));
+  assert.ok(unsupported.includes('supported in this browser') && unsupported.includes('disabled=""'));
   const unavailable = render({ available: false });
   assert.ok(unavailable.includes('Notifications are unavailable right now') && unavailable.includes('disabled=""'));
-  assert.ok(enabled.includes('Applies to this account in this browser.'));
-  pass('Notification settings keep explicit opt-in, enabled, denied, unsupported and safe-action states without excessive helper text');
+  assert.ok(!enabled.includes('Show test notification') && !enabled.includes('Advanced notification settings'));
+  assert.ok(!enabled.includes('<dialog'));
+  pass('The account toggle preserves opt-in, enabled, denied, unsupported and unavailable states with inline guidance and no extra settings dialog');
   console.log(`${count} browser notification client/worker groups passed. Platform APIs simulated; no native permission granted or OS alert claimed.`);
 } finally { await vite.close(); }

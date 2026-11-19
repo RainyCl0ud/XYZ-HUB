@@ -433,13 +433,6 @@
 .account-notification-card .account-notification-toggle[aria-checked="true"] { background: #FFF; border-color: #FFF; }
 .account-notification-toggle[aria-checked="true"] .account-notification-knob { transform: translateX(28px); background: #151515; }
 .account-notification-card .account-notification-toggle:disabled { opacity: .5; cursor: not-allowed; }
-.account-notification-card .account-notification-more {
-  display: grid; place-items: center; width: 34px; height: 34px; min-height: 34px;
-  padding: 7px; border: 1px solid #444; border-radius: 6px;
-  background: #242424; color: #CCC; cursor: pointer;
-}
-.account-notification-more svg { width: 17px; height: 17px; }
-.account-notification-card .account-notification-more:hover { color: #FFF; border-color: #888; }
 .account-notification-card :is(button):focus-visible { outline: 2px solid #FFF; outline-offset: 3px; }
 .account-notification-card .account-notification-error {
   flex: 1 0 100%; margin: 0; font-size: 12px; color: var(--text-secondary);
@@ -449,7 +442,6 @@
   .account-notification-card h3 { flex: 1 1 auto; }
   .account-notification-card button { width: auto; }
   .account-notification-card .account-notification-toggle { width: 62px; }
-  .account-notification-card .account-notification-more { width: 34px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .account-notification-card .account-notification-toggle,
