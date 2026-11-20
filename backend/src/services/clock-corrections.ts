@@ -33,7 +33,7 @@ export function correctionCapabilities(viewer: ClockViewer) {
     canReviewCorrections: ["assigned", "ops", "all"].some((scope) => clockAllowed(viewer, `clock.corrections.${scope}`)),
   };
 }
-function reviewWhere(viewer: ClockViewer): Prisma.ClockCorrectionWhereInput {
+export function correctionReviewWhere(viewer: ClockViewer): Prisma.ClockCorrectionWhereInput {
   const routes: Prisma.ClockCorrectionWhereInput[] = [];
   if (clockAllowed(viewer, "clock.corrections.all")) return { OR: [{ userId: { not: viewer.id } }, { userId: null }] };
   if (clockAllowed(viewer, "clock.corrections.ops")) routes.push({ subject: {
@@ -119,7 +119,7 @@ export async function listClockCorrections(userId: string, scope: "mine" | "revi
     const viewer = await loadViewer(tx, userId);
     const capabilities = correctionCapabilities(viewer);
     if (scope === "review" && !capabilities.canReviewCorrections) throw new ClockError(403, "Your access does not allow reviewing corrections.");
-    const audience: Prisma.ClockCorrectionWhereInput = scope === "mine" ? { userId } : reviewWhere(viewer);
+    const audience: Prisma.ClockCorrectionWhereInput = scope === "mine" ? { userId } : correctionReviewWhere(viewer);
     let cursor: { submittedAt: Date; id: string } | null = null;
     if (before) {
       cursor = await tx.clockCorrection.findFirst({ where: { AND: [audience, { id: before }] }, select: { submittedAt: true, id: true } });
@@ -132,7 +132,7 @@ export async function listClockCorrections(userId: string, scope: "mine" | "revi
     return { serverNow: await clockDatabaseNow(tx), ...capabilities, requests: rows.slice(0, 20).map(dto),
       hasMore: rows.length > 20, nextBefore: rows.length > 20 ? rows[19].id : null,
       ownPendingCount: await tx.clockCorrection.count({ where: { userId, status: "PENDING" } }),
-      reviewPendingCount: capabilities.canReviewCorrections ? await tx.clockCorrection.count({ where: { AND: [reviewWhere(viewer), { status: "PENDING" }] } }) : 0,
+      reviewPendingCount: capabilities.canReviewCorrections ? await tx.clockCorrection.count({ where: { AND: [correctionReviewWhere(viewer), { status: "PENDING" }] } }) : 0,
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 15_000 });
 }

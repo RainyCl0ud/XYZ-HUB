@@ -17,7 +17,7 @@ const sources = new Map(await Promise.all(files.map(async f =>
 const page = sources.get("src/pages/ChatPage.tsx");
 const message = sources.get("src/pages/ChatMessageTools.tsx");
 const css = await readFile(resolve(root, "src/pages/ChatPage.css"), "utf8");
-const alerts = sources.get("src/components/ClockAlerts.tsx");
+const alerts = sources.get("src/components/NotificationBell.tsx");
 let passed = 0;
 const pass = text => console.log("PASS " + (++passed) + ": " + text);
 
@@ -78,7 +78,7 @@ assert.ok(message.includes('m.attachment?.available && <a href='));
 assert.ok(sources.get("src/pages/ChatModerationDialog.tsx").includes("onDeleted"));
 assert.ok(sources.get("src/pages/ChatAnnouncements.tsx").includes("preview.blockers"));
 assert.ok(sources.get("src/pages/ChatChannelCleanupDialog.tsx").includes("target.download"));
-assert.ok(alerts.includes("markRead(alert.id)"));
+assert.ok(alerts.includes("markRead(item)") && alerts.includes("Mark all as read"));
 pass("Moderation permissions, file downloads, confirmation safeguards and attendance actions remain present.");
 
 assert.ok(css.includes("@media (max-width: 720px)"));

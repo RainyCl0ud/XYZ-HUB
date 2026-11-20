@@ -48,7 +48,10 @@ async function main() {
     const channels = await prisma.chatChannel.findMany({ where: { modelId: { in: models }, key: 'general' } });
     const c1 = channels.find(c => c.modelId === models[0])!, c2 = channels.find(c => c.modelId === models[1])!;
     const privateChat = await prisma.chatStandingConversation.findFirstOrThrow({ where: { subjectUserId: staff.id, modelId: models[0], archivedAt: null } });
-    const write = async (targetId: string, n: number, authorId = owner.id, ageSeconds = 0) => {
+    // Brief 7.3: email only for messages still unread after 30 minutes. Fixtures
+    // default to already-eligible messages; fresh ones pass an explicit age.
+    const ELIGIBLE_AGE = 31 * 60;
+    const write = async (targetId: string, n: number, authorId = owner.id, ageSeconds = ELIGIBLE_AGE) => {
       const data = Array.from({ length: n }, () => ({ id: randomUUID(), ...(channels.some(c => c.id === targetId) ? { channelId: targetId } : { conversationId: targetId }), authorUserId: authorId, authorName: 'Fictional author', clientNonce: randomUUID(), text: 'SECRET message body / fan name must never appear in email', createdAt: new Date(Date.now() - ageSeconds * 1000) }));
       await prisma.chatMessage.createMany({ data }); return data.map(m => m.id);
     };
@@ -60,12 +63,15 @@ async function main() {
     process.env.BLOCK2_UNREAD_EMAIL_ENABLED = 'false'; assert.equal((await runUnreadReminderSweep()).processed, 0); process.env.BLOCK2_UNREAD_EMAIL_ENABLED = 'true';
     pass('Feature is opt-in, isolated to approved staging/local tests, and refuses production');
 
-    await write(c1.id, 9); await runUnreadReminderSweep(); assert.equal((await rows(staff.id)).length, 0);
-    await write(c2.id, 1); await Promise.all([runUnreadReminderSweep(), runUnreadReminderSweep()]);
+    const fresh = await write(c1.id, 9, owner.id, 0); await runUnreadReminderSweep(); assert.equal((await rows(staff.id)).length, 0);
+    await write(c2.id, 1, owner.id, 0); await runUnreadReminderSweep(); assert.equal((await rows(staff.id)).length, 0);
+    assert.equal((await snapshot(staff.id)).count, 10); assert.equal((await snapshot(staff.id)).due, false);
+    await prisma.chatMessage.update({ where: { id: fresh[0] }, data: { createdAt: new Date(Date.now() - 1_800_000) } });
+    await Promise.all([runUnreadReminderSweep(), runUnreadReminderSweep()]);
     assert.equal((await rows(staff.id)).length, 1); const captured = (await rows(staff.id))[0]; assert.equal(captured.status, 'CAPTURED'); assert.equal(captured.unreadCount, 10);
     const email = captured.previewEmail as unknown as TransactionalEmail;
     assert.equal(email.to, staff.email); assert.ok(email.text.includes('10 unread messages')); assert.ok(email.text.includes('/chat')); assert.ok(!JSON.stringify(email).includes('SECRET')); assert.ok(!JSON.stringify(email).includes(owner.name)); assert.equal('cc' in email, false); assert.equal('bcc' in email, false); assert.equal(externalCalls, 0);
-    pass('Nine fresh unread do not trigger; ten across creators trigger one count/link-only captured email even with concurrent workers');
+    pass('Fresh unread never trigger, even ten across creators; once the oldest is 30 minutes old, one count/link-only email covers all ten, even with concurrent workers');
 
     await runUnreadReminderSweep(); assert.equal((await rows(staff.id)).length, 1);
     await prisma.$executeRaw`UPDATE "ChatUnreadReminderState" SET "lastAttemptAt"=clock_timestamp() - INTERVAL '59 minutes 59 seconds' WHERE "userKey"=${staff.id}`;

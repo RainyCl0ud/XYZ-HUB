@@ -32,7 +32,8 @@
     "test:chat-jump-pins-ux": "node scripts/test-chat-jump-pins-ux.mjs",
     "test:chat-announcements-interaction": "node scripts/test-chat-announcements-interaction.mjs",
     "test:chat-mentions": "node scripts/test-chat-mentions.mjs",
-    "test:chat-message-grouping": "node scripts/test-chat-message-grouping.mjs"
+    "test:chat-message-grouping": "node scripts/test-chat-message-grouping.mjs",
+    "test:notification-bell": "node scripts/test-notification-bell.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

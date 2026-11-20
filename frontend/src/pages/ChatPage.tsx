@@ -1,8 +1,7 @@
 import { useToast } from "../components/ToastProvider";
 import ChatMentionComposer from "./ChatMentionComposer";
-import ChatMentions from "./ChatMentions";
 import { rebaseMentions, trimmedMentionDraft, type ChatMention } from "../lib/chat-mentions";
-import { refreshChatMentionCount } from "../components/ChatMentionCountContext";
+import { refreshHubNotifications } from "../lib/hub-notifications";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { API_BASE_URL, ApiError, apiRequest } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
@@ -77,9 +76,9 @@ export default function ChatPage() {
 function ChatWorkspace({ userId }: { userId: string }) {
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const showMentions = searchParams.get("mentions") === "1";
-  const closeMentions = () => setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete("mentions"); return next; }, { replace: true });
   const linkedConversation = searchParams.get('conversation') ?? '';
+  // Set by bell notices (mentions, announcements): open that exact message.
+  const linkedMessage = searchParams.get('message') ?? '';
   const retainedConversation = searchParams.get("retained") ?? "";
   const [canAnnounce, setCanAnnounce] = useState(false), [showAnnouncements, setShowAnnouncements] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false), [showReminders, setShowReminders] = useState(false);
@@ -316,29 +315,39 @@ function ChatWorkspace({ userId }: { userId: string }) {
       const normal = allChannels.filter(c => !c.retained);
       const restored = savedChannels.find(c => c.id === saved?.channelId);
       const linked = normal.find(c => c.id === linkedConversation);
+      // Following a link from an open, still-permitted conversation keeps
+      // that conversation's unsent draft, as switching channels by hand does.
       chooseChannel(linked?.id ?? restored?.id ?? savedChannels.find(c => !c.archived)?.id
-        ?? normal.find(c => !c.archived)?.id ?? savedChannels[0]?.id ?? normal[0]?.id ?? "", false);
+        ?? normal.find(c => !c.archived)?.id ?? savedChannels[0]?.id ?? normal[0]?.id ?? "", !!linked && permitted.has(current));
+      // The message ID is only a hint: the context API rechecks access and
+      // deletion before anything is shown, exactly as for in-Chat jumps.
+      if (linked && linkedMessage) {
+        followMessages.current = false;
+        setJumpHighlight(null);
+        setJumpTarget({ channelId: linked.id, messageId: linkedMessage });
+      } else if (linkedMessage) toast.info("That message is unavailable or you no longer have access to it.");
     }
-    if (linkedConversation || (retainedConversation && !retained)) {
+    if (linkedConversation || linkedMessage || (retainedConversation && !retained)) {
       setSearchParams(previous => {
         const next = new URLSearchParams(previous);
         next.delete("conversation");
+        next.delete("message");
         if (!retained) next.delete("retained");
         return next;
       }, { replace: true });
       if (retainedConversation && !retained) toast.info("Retained channel history is unavailable.");
     }
     setLoading(false);
-  }, [chooseChannel, userId, linkedConversation, retainedConversation, setSearchParams, toast]);
+  }, [chooseChannel, userId, linkedConversation, linkedMessage, retainedConversation, setSearchParams, toast]);
 
   const readsSaved = useCallback((ids: string[]) => {
-    setReadError(""); refreshChatMentionCount();
+    setReadError(""); refreshHubNotifications();
     const read = new Set(ids);
     setTranscript((old) => old ? { ...old, unreadMessageIds: old.unreadMessageIds?.filter((id) => !read.has(id)) } : old);
     void refreshAreas().catch(() => {});
   }, [refreshAreas]);
   const readFailed = useCallback(() => setReadError("Read status wasn’t saved. It will retry when messages refresh."), []);
-  const notificationsPaused = !!(loading || error || tools || deleting || cleanupTarget || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || showMentions || markingRead);
+  const notificationsPaused = !!(loading || error || tools || deleting || cleanupTarget || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || markingRead);
   useEffect(() => {
     setAlertReadingContext({ userId, conversationId: selected, paused: notificationsPaused });
     return () => setAlertReadingContext({ userId: '', conversationId: '', paused: true });
@@ -352,7 +361,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     setMarkingRead(true); setReadError("");
     try {
       await apiRequest(`/api/chat/channels/${channelId}/read`, { method: "PUT", body: JSON.stringify({ throughMessageId: anchor }), signal: requestRef.current?.signal });
-      refreshChatMentionCount();
+      refreshHubNotifications();
       if (selectedRef.current !== channelId) return;
       toast.success("Marked as read."); setRefreshTick((v) => v + 1);
       await refreshAreas();
@@ -724,7 +733,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
       {error && <div className="creator-chat-error" role="alert">{error}</div>}
       {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
       {showReminders && <ChatUnreadReminders onClose={() => setShowReminders(false)} />}
-        {showMentions && <ChatMentions onClose={closeMentions} onOpen={(channelId, messageId) => { closeMentions(); jumpToMessage(channelId, messageId); }} />}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
         <div ref={chatShellRef} className={`creator-chat-shell ${showChannels ? "is-browsing" : ""} ${settings ? "is-settings" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">

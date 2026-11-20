@@ -97,6 +97,8 @@ model User {
 
   clockShifts ClockShift[]
   clockAlertReads ClockAlertRead[]
+  hubNotificationReads HubNotificationRead[]
+  hubNotificationState HubNotificationState?
   clockCorrections ClockCorrection[] @relation("ClockCorrectionSubject")
   clockCorrectionReviews ClockCorrection[] @relation("ClockCorrectionReviewer")
 
@@ -1231,4 +1233,23 @@ model ChatMessageMention {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([messageId, start])
   @@index([userId, messageId])
+}
+
+// Header bell inbox. Notices are derived live from their source records
+// (mentions, announcements, attendance alerts, corrections), so access is
+// always rechecked. Only each person's read state is stored here.
+model HubNotificationRead {
+  userId String
+  key String
+  occurredAt DateTime @db.Timestamptz(3)
+  readAt DateTime @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([userId, key])
+}
+
+model HubNotificationState {
+  userId String @id
+  readAllBefore DateTime @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

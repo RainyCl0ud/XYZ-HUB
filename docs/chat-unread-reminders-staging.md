@@ -1,7 +1,8 @@
 # Unread email reminders: staging review
 
-Unread reminders become due at ten currently eligible unread messages across
-chats, or when an eligible message reaches thirty minutes unread. A durable
+Unread reminders become due when an eligible message reaches thirty minutes
+unread (brief 7.3). The number of unread messages alone never triggers an email;
+the earlier ten-message trigger was removed on 21 November 2026. A durable
 per-person throttle permits at most one attempt per rolling hour, across all
 creators, replicas and worker restarts. The fifteen-second sweep means a newly
 crossed threshold is considered on the next successful sweep, subject to sender
@@ -48,16 +49,16 @@ testing may therefore produce an initial preview for already-unread test chats.
 1. Open an assigned QC/Chatter test account in one browser and an Owner test
    account in another. Leave the recipient on General; send into a different,
    permitted channel so the messages remain unread.
-2. Starting with no eligible unread messages, send nine messages. The badge
-   increases, but Email reminders should have no new preview yet.
-3. Send the tenth. Within the next successful sweep, open Email reminders and
-   refresh status. Expand the individual preview: one recipient, count and Hub
-   link only, with "no email sent" shown.
+2. Starting with no eligible unread messages, send ten or more messages. The
+   badge increases, but Email reminders should have no new preview yet.
+3. Leave them unread for thirty minutes. Within the next successful sweep, open
+   Email reminders and refresh status. Expand the individual preview: one
+   recipient, count and Hub link only, with "no email sent" shown.
 4. Send into another creator/channel during that hour. Confirm no second preview
    appears for the same recipient. Reading a chat must update its count normally.
-5. After the hourly limit has elapsed, use fewer than ten fresh unread messages
-   and leave one unread for thirty minutes. A preview should appear on a sweep
-   once the age threshold is met. Do not change database timestamps for this QA.
+5. After the hourly limit has elapsed, leave a single message unread for thirty
+   minutes. A preview should appear on a sweep once the age threshold is met.
+   Do not change database timestamps for this QA.
 6. Check an Owner/Ops/Developer test account: ordinary oversight channels show
    badges but do not count toward reminders unless explicitly added by name.
    Their permitted standing private chats do count. Do not add yourself or grant

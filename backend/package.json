@@ -84,6 +84,7 @@
     "test:block2-acceptance-guards": "tsx scripts/test-block2-acceptance-guards.ts",
     "test:chat-live-events": "tsx scripts/test-chat-live-events.ts",
     "test:chat-mentions": "tsx scripts/test-chat-mentions.ts",
+    "test:hub-notifications": "tsx scripts/test-hub-notifications.ts",
     "test:chat-mentions-upgrade": "tsx scripts/test-chat-mentions-upgrade.ts"
   },
   "keywords": [],

@@ -1,4 +1,3 @@
-import { useChatMentionCount } from "./ChatMentionCountContext";
 import {
   Link,
   useLocation,
@@ -239,9 +238,6 @@ function NavigationLink({
     </Link>
   );
 
-  if (item.id === "chat" && item.actionCount) return <div className="hub-nav-notifiable">
-    {link}<Link to="/chat?mentions=1" className="hub-nav-action-count" title={item.actionCount + " unread messages mention you"} aria-label={"Open " + item.actionCount + " unread mentions"}>{item.actionCount > 99 ? "99+" : item.actionCount}</Link>
-  </div>;
   if (item.id !== "clock" || !item.actionCount) return link;
   return <div className="hub-nav-notifiable">
     {link}
@@ -482,7 +478,6 @@ export default function SidebarNavigation({
       access
     );
   const reviewCount = useClockReviewCount();
-  const mentionCount = useChatMentionCount();
   const canReviewCorrections = hasPortalPermission(access, "clock.self.view")
     && ["clock.corrections.assigned", "clock.corrections.ops", "clock.corrections.all"]
       .some(permission => hasPortalPermission(access, permission));
@@ -544,7 +539,7 @@ export default function SidebarNavigation({
     [];
 
   if (import.meta.env.VITE_BLOCK2_CHAT_ENABLED === "true" && hasPortalPermission(access, "chat.access")) {
-    agency.push({ id: "chat", label: "Chat", to: "/chat", actionCount: mentionCount });
+    agency.push({ id: "chat", label: "Chat", to: "/chat" });
   }
   if (import.meta.env.VITE_BLOCK2_CLOCK_ENABLED === "true" && hasPortalPermission(access, "clock.self.view")) {
     agency.push({ id: "clock", label: "Clock & Hours", to: "/clock", actionCount: canReviewCorrections ? reviewCount : 0 });
