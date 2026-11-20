@@ -57,7 +57,7 @@ try {
 
   const audit = await read("src/pages/AuditPage.tsx"), delivery = await read("src/pages/AuditEmailDelivery.tsx");
   assert.ok(audit.includes("{isOwner && import.meta.env.VITE_BLOCK2_CHAT_ENABLED === \"true\" && <AuditEmailDelivery />}"), "Email delivery is an Owner section of the Audit Log");
-  assert.ok(delivery.includes("/api/chat/email-delivery/resolve") && delivery.includes("refreshHubNotifications()") && delivery.includes('location.hash === "#email-delivery"'));
+  assert.ok(delivery.includes("/api/chat/email-delivery/resolve") && delivery.includes("refreshHubNotifications()") && delivery.includes('location.hash !== "#email-delivery"') && delivery.includes("scrolledFor.current === location.key"), "Scrolls once per visit, not on every refresh");
   assert.ok(!chat.includes("Email reminder") && !chat.includes("canViewLog"));
   assert.equal(lib.notificationHref({ type: "email-delivery" }), "/audit#email-delivery");
   await assert.rejects(read("src/pages/ChatUnreadReminders.tsx"), "The Chat-menu reminder log is removed");

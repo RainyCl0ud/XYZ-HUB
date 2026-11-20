@@ -18,12 +18,15 @@ export async function runUnreadReminderSweep(test?: LocalTest) {
   if (test && (process.env.NODE_ENV !== 'test' || process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_ENVIRONMENT_ID || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(process.env.DATABASE_URL ?? '').hostname))) throw new Error('Test transports are restricted to local fictional tests.');
   // Provider outcomes after a crash are unknown. Hold this person's reminders
   // for review instead of retrying and potentially sending the same mail twice.
-  const stuck = await prisma.$queryRaw<{ id: string; userId: string | null; unreadCount: number }[]>`UPDATE "ChatUnreadReminder" SET "status"='REVIEW', "lastError"='Delivery outcome is uncertain; further reminders are paused for review.'
-    WHERE "status"='SENDING' AND "createdAt" < clock_timestamp() - INTERVAL '10 minutes' RETURNING "id", "userId", "unreadCount"`;
-  for (const row of stuck) {
-    const person = row.userId ? await prisma.user.findUnique({ where: { id: row.userId }, select: { name: true } }) : null;
-    await prisma.auditEvent.create({ data: reminderEmailAudit(row.id, person?.name ?? 'Deleted account', row.unreadCount, 'Needs review', new Date()) });
-  }
+  // The pause and its audit record commit together, so neither is ever lost.
+  await prisma.$transaction(async tx => {
+    const stuck = await tx.$queryRaw<{ id: string; userId: string | null; unreadCount: number; reviewAt: Date }[]>`UPDATE "ChatUnreadReminder" SET "status"='REVIEW', "reviewAt"=clock_timestamp(), "lastError"='Delivery outcome is uncertain; further reminders are paused for review.'
+      WHERE "status"='SENDING' AND "createdAt" < clock_timestamp() - INTERVAL '10 minutes' RETURNING "id", "userId", "unreadCount", "reviewAt"`;
+    for (const row of stuck) {
+      const person = row.userId ? await tx.user.findUnique({ where: { id: row.userId }, select: { name: true } }) : null;
+      await tx.auditEvent.create({ data: reminderEmailAudit(row.id, person?.name ?? 'Deleted account', row.unreadCount, 'Needs review', row.reviewAt) });
+    }
+  }, { timeout: 15_000 });
   let processed = 0, cursor: string | undefined;
   for (;;) {
     const people = await prisma.user.findMany({ where: { status: 'ACTIVE' }, orderBy: { id: 'asc' }, take: 50, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), select: { id: true } });
@@ -97,7 +100,7 @@ export async function runUnreadReminderSweep(test?: LocalTest) {
         const capacity = error instanceof MailerCapacityUnavailable, changed = error instanceof RecipientChanged;
         await prisma.$transaction(async tx => {
           // A zero-send skip never consumes the person's one-hour allowance.
-          const paused = await tx.chatUnreadReminder.updateMany({ where: { id: delivery.id, status: 'SENDING' }, data: { status: capacity || changed ? 'SKIPPED' : 'REVIEW', completedAt: new Date(),
+          const paused = await tx.chatUnreadReminder.updateMany({ where: { id: delivery.id, status: 'SENDING' }, data: { status: capacity || changed ? 'SKIPPED' : 'REVIEW', completedAt: new Date(), ...(capacity || changed ? {} : { reviewAt: new Date() }),
             lastError: capacity ? 'Sender capacity is reserved for sign-in and account recovery. Reminder deferred.' : changed ? 'Recipient eligibility or unread state changed before sending.' : 'Delivery outcome could not be confirmed; further reminders are paused for review.' } });
           if (paused.count && !capacity && !changed) {
             const row = await tx.chatUnreadReminder.findUnique({ where: { id: delivery.id }, select: { unreadCount: true, recipient: { select: { name: true } } } });

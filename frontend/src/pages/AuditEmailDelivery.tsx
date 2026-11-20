@@ -8,7 +8,7 @@ import { useToast } from "../components/ToastProvider";
 type Status = "OFF" | "PREVIEW" | "NOT_CONFIGURED" | "SENDING" | "NEAR_LIMIT" | "PAUSED_HOUR" | "PAUSED_TODAY";
 type Usage = { usedToday: number; allowanceToday: number; dailyLimit: number; usedHour: number; allowanceHour: number };
 type Attention = { type: "reminder" | "announcement"; id: string; personName: string; at: string; detail: string; title: string | null };
-type Overview = { status: Status; usage: Usage | null; attention: Attention[] };
+type Overview = { status: Status; usage: Usage | null; attention: Attention[]; attentionTotal: number };
 
 // Problems lead with "!", per the XYZ web kit; normal states stay quiet.
 const STATUS: Record<Status, { problem: boolean; title: string; detail: string }> = {
@@ -47,10 +47,15 @@ export default function AuditEmailDelivery() {
     const initial = window.setTimeout(() => void load(), 0);
     return () => { window.clearTimeout(initial); request.current?.abort(); };
   }, [load]);
-  // Bell notices link to #email-delivery; bring the section into view once loaded.
+  // Bell notices link to #email-delivery. Scroll and move focus once per
+  // visit (each bell click is a new history entry), not on every refresh.
+  const scrolledFor = useRef<string | null>(null);
   useEffect(() => {
-    if (data && location.hash === "#email-delivery") section.current?.scrollIntoView({ block: "start" });
-  }, [data, location.hash]);
+    if (!data || location.hash !== "#email-delivery" || scrolledFor.current === location.key) return;
+    scrolledFor.current = location.key;
+    section.current?.scrollIntoView({ block: "start" });
+    section.current?.focus({ preventScroll: true });
+  }, [data, location.hash, location.key]);
 
   async function resolve(item: Attention) {
     if (busy) return;
@@ -62,6 +67,8 @@ export default function AuditEmailDelivery() {
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "That delivery couldn’t be updated.");
+      // Another Owner may already have handled it: show the current list.
+      await load();
     } finally { setBusy(null); }
   }
 
@@ -79,9 +86,9 @@ export default function AuditEmailDelivery() {
         <p>{state!.detail}</p>
         {data.usage && <p>{data.usage.usedToday} of {data.usage.allowanceToday} emails used in the last 24 hours. Google allows about {data.usage.dailyLimit} a day; the rest is kept for sign-in codes.</p>}
       </div>
-      <h4>Needs attention{data.attention.length ? ` · ${data.attention.length}` : ""}</h4>
+      <h4>Needs attention{data.attentionTotal ? ` · ${data.attentionTotal}` : ""}</h4>
       {!data.attention.length ? <p className="audit-email-quiet">Nothing needs attention.</p> : <>
-        <p className="audit-email-quiet">Gmail didn’t confirm these emails. Check the person’s inbox first, so nobody gets the same email twice.</p>
+        <p className="audit-email-quiet">Gmail didn’t confirm these emails. Check the person’s inbox first, so nobody gets the same email twice.{data.attentionTotal > data.attention.length ? ` Showing the ${data.attention.length} most recent.` : ""}</p>
         <ul className="audit-email-attention">{data.attention.map((item) => <li key={item.type + item.id}>
           <div>
             <strong>{item.personName} · {item.type === "reminder" ? "reminders paused" : "announcement email unconfirmed"}</strong>

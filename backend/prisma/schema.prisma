@@ -1174,6 +1174,8 @@ model ChatAnnouncementDelivery {
   lastError String?
   reviewResolvedAt DateTime? @db.Timestamptz(3)
   reviewResolvedByName String?
+  // When the delivery became paused (REVIEW); dates its Owner bell notice.
+  reviewAt DateTime? @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   announcement ChatAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   recipient User? @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1224,6 +1226,8 @@ model ChatUnreadReminder {
   // An Owner who checked the inbox can clear a paused (REVIEW) delivery.
   reviewResolvedAt DateTime? @db.Timestamptz(3)
   reviewResolvedByName String?
+  // When the delivery became paused (REVIEW); dates its Owner bell notice.
+  reviewAt DateTime? @db.Timestamptz(3)
   @@index([userKey, createdAt])
   @@index([status, createdAt])
   @@index([createdAt, id])
@@ -1258,4 +1262,13 @@ model HubNotificationState {
   readAllBefore DateTime @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One row per period in which chat email was at or near the shared daily
+// sending limit. Gives the Owner bell notice a fixed date and one key.
+model EmailLimitWarning {
+  id String @id @default(cuid())
+  startedAt DateTime @db.Timestamptz(3)
+  endedAt DateTime? @db.Timestamptz(3)
+  @@index([startedAt])
 }

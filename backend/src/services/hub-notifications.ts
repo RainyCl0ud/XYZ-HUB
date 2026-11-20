@@ -5,7 +5,6 @@ import { alertInclude, clockAlertAudience, describeClockAlert } from "./clock-al
 import { correctionCapabilities, correctionReviewWhere } from "./clock-corrections.js";
 import { clockAllowed, clockViewerInclude, type ClockViewer } from "./clock-policy.js";
 import { isClockEnabled } from "./clock.js";
-import { centralDayKey } from "./clock-time.js";
 import { emailCapacityState } from "./chat-email-health.js";
 
 /*
@@ -204,15 +203,11 @@ function decidedWhere(ctx: Context, query: Query): Prisma.ClockCorrectionWhereIn
   ] };
 }
 
-/* Owner-only Chat email problems. A paused delivery stays in history once
- * resolved (as read); the daily-limit warning exists only while it applies. */
+/* Owner-only Chat email problems. A paused delivery is dated by when it was
+ * paused (reviewAt), so a pause that happens after "Mark all as read" still
+ * arrives unread; it stays in history once resolved. Each near-limit period
+ * (EmailLimitWarning) is one notice with a fixed start time. */
 const emailIds = (ctx: Context, type: string) => explicitIds(ctx, "email").filter((id) => id.startsWith(type + "-")).map((id) => id.slice(type.length + 1));
-const matchesTime = (at: Date, time?: Prisma.DateTimeFilter) => {
-  if (!time) return true;
-  const value = at.getTime();
-  const lt = time.lt instanceof Date ? time.lt.getTime() : null, eq = time.equals instanceof Date ? time.equals.getTime() : null;
-  return (lt === null || value < lt) && (eq === null || value === eq);
-};
 const emailTarget: NotificationTarget = { type: "email-delivery" };
 const emailSource: Source = {
   prefix: "email",
@@ -224,13 +219,14 @@ const emailSource: Source = {
     const entries: Entry[] = [];
     if (!type || type === "reminder") {
       const rows = await ctx.tx.chatUnreadReminder.findMany({ where: { AND: [
-        { status: "REVIEW" }, ...(id ? [{ id }] : []), ...(query.time ? [{ createdAt: query.time }] : []),
-        ...(query.unread ? [{ reviewResolvedAt: null, createdAt: after(ctx), id: { notIn: emailIds(ctx, "reminder") } }] : []),
-      ] }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: query.take,
-      select: { id: true, createdAt: true, reviewResolvedAt: true, reviewResolvedByName: true, recipient: { select: { name: true } } } });
+        { status: "REVIEW", reviewAt: { not: null } }, ...(id ? [{ id }] : []), ...(query.time ? [{ reviewAt: query.time }] : []),
+        ...(query.unread ? [{ reviewResolvedAt: null, reviewAt: after(ctx), id: { notIn: emailIds(ctx, "reminder") } }] : []),
+      ] }, orderBy: [{ reviewAt: "desc" }, { id: "desc" }], take: query.take,
+      select: { id: true, reviewAt: true, reviewResolvedAt: true, reviewResolvedByName: true, recipient: { select: { name: true } } } });
       for (const r of rows) {
+        if (!r.reviewAt) continue;
         const key = `email:reminder-${r.id}`;
-        entries.push(notice(key, "EMAIL_REVIEW", r.createdAt, !!r.reviewResolvedAt || ctx.explicit.has(key) || readByWatermark(ctx, r.createdAt),
+        entries.push(notice(key, "EMAIL_REVIEW", r.reviewAt, !!r.reviewResolvedAt || ctx.explicit.has(key) || readByWatermark(ctx, r.reviewAt),
           `Reminder emails paused for ${r.recipient?.name ?? "a deleted account"}`,
           r.reviewResolvedAt ? `Resumed by ${r.reviewResolvedByName ?? "an Owner"}` : "Gmail didn’t confirm a reminder. Check their inbox, then resume reminders.",
           "Email delivery", emailTarget));
@@ -238,31 +234,34 @@ const emailSource: Source = {
     }
     if (!type || type === "announcement") {
       const rows = await ctx.tx.chatAnnouncementDelivery.findMany({ where: { AND: [
-        { status: "REVIEW", attemptedAt: { not: null } }, ...(id ? [{ id }] : []), ...(query.time ? [{ attemptedAt: query.time }] : []),
-        ...(query.unread ? [{ reviewResolvedAt: null, attemptedAt: after(ctx), id: { notIn: emailIds(ctx, "announcement") } }] : []),
-      ] }, orderBy: [{ attemptedAt: "desc" }, { id: "desc" }], take: query.take,
-      select: { id: true, personName: true, attemptedAt: true, reviewResolvedAt: true, reviewResolvedByName: true, announcement: { select: { title: true } } } });
+        { status: "REVIEW", reviewAt: { not: null } }, ...(id ? [{ id }] : []), ...(query.time ? [{ reviewAt: query.time }] : []),
+        ...(query.unread ? [{ reviewResolvedAt: null, reviewAt: after(ctx), id: { notIn: emailIds(ctx, "announcement") } }] : []),
+      ] }, orderBy: [{ reviewAt: "desc" }, { id: "desc" }], take: query.take,
+      select: { id: true, personName: true, reviewAt: true, reviewResolvedAt: true, reviewResolvedByName: true, announcement: { select: { title: true } } } });
       for (const a of rows) {
-        if (!a.attemptedAt) continue;
+        if (!a.reviewAt) continue;
         const key = `email:announcement-${a.id}`;
-        entries.push(notice(key, "EMAIL_REVIEW", a.attemptedAt, !!a.reviewResolvedAt || ctx.explicit.has(key) || readByWatermark(ctx, a.attemptedAt),
+        entries.push(notice(key, "EMAIL_REVIEW", a.reviewAt, !!a.reviewResolvedAt || ctx.explicit.has(key) || readByWatermark(ctx, a.reviewAt),
           `Announcement email unconfirmed for ${a.personName}`,
           a.reviewResolvedAt ? `Marked handled by ${a.reviewResolvedByName ?? "an Owner"}` : `“${a.announcement.title}”. Check their inbox before sending anything again.`,
           "Email delivery", emailTarget));
       }
     }
     if (!type || type === "limit") {
+      // Opens or closes the current warning period before listing periods.
       const state = await emailCapacityState(ctx.tx);
-      if (state.crossedAt && state.usage && state.nearDaily) {
-        const day = centralDayKey(state.crossedAt).replace(/-/g, "");
-        const key = `email:limit-${day}`;
-        const read = ctx.explicit.has(key) || readByWatermark(ctx, state.crossedAt);
-        if ((!id || id === day) && matchesTime(state.crossedAt, query.time) && !(query.unread && read)) {
-          entries.push(notice(key, "EMAIL_LIMIT", state.crossedAt, read,
-            state.status === "PAUSED_TODAY" ? "Chat emails paused for today" : "Daily email limit nearly reached",
-            `${state.usage.usedToday} of ${state.usage.allowanceToday} emails used in the last 24 hours. Sign-in codes are still sent.`,
-            "Email delivery", emailTarget));
-        }
+      const rows = await ctx.tx.emailLimitWarning.findMany({ where: { AND: [
+        ...(id ? [{ id }] : []), ...(query.time ? [{ startedAt: query.time }] : []),
+        ...(query.unread ? [{ endedAt: null, startedAt: after(ctx), id: { notIn: emailIds(ctx, "limit") } }] : []),
+      ] }, orderBy: [{ startedAt: "desc" }, { id: "desc" }], take: query.take });
+      for (const w of rows) {
+        const key = `email:limit-${w.id}`;
+        const current = !w.endedAt && state.usage;
+        entries.push(notice(key, "EMAIL_LIMIT", w.startedAt, !!w.endedAt || ctx.explicit.has(key) || readByWatermark(ctx, w.startedAt),
+          current && state.status === "PAUSED_TODAY" ? "Chat emails paused for today" : "Daily email limit nearly reached",
+          current ? `${state.usage!.usedToday} of ${state.usage!.allowanceToday} emails used in the last 24 hours. Sign-in codes are still sent.`
+            : "Chat email went back under the daily limit. Sign-in codes were never affected.",
+          "Email delivery", emailTarget));
       }
     }
     entries.sort((a, b) => b.at.getTime() - a.at.getTime() || (a.key < b.key ? 1 : -1));

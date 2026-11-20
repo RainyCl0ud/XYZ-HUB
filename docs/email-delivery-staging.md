@@ -18,7 +18,7 @@ A list of every reminder with its preview was a testing aid, not something an Ow
 - **Audit Log records** every reminder email ("Unread reminder email": recipient, unread count, outcome Preview saved / Email sent / Needs review, no content) and every resolve action ("Paused email delivery resolved", with who did it). Announcement emails keep their per-recipient status in Staff announcements, so they are not copied into the Audit Log.
 - The Chat options **Email reminder log** and its endpoint are removed.
 
-Migration `20261121030000_email_delivery_review` adds two nullable columns (who resolved a paused delivery, and when) to the reminder and announcement delivery tables. No feature flag, delivery mode or Railway setting changes. Staging stays in preview mode, so no chat email is sent and the daily-limit states can't occur there yet.
+Two additive migrations. `20261121030000_email_delivery_review` records who resolved a paused delivery and when. `20261121040000_email_review_time` records when a delivery was paused, which dates its bell notice so a pause after "Mark all as read" still arrives unread. It also adds `EmailLimitWarning`, one row per near-limit period, so the limit notice keeps a fixed date and appears once per period, not once per check or per day. No feature flag, delivery mode or Railway setting changes. Staging stays in preview mode, so no chat email is sent and the daily-limit states can't occur there yet.
 
 ## Verification (local, loopback PostgreSQL in UTC with fictional data)
 

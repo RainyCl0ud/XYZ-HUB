@@ -14,7 +14,7 @@ export async function runAnnouncementSweep(testTransport?: TestTransport) {
   // A crashed worker may have submitted an email. Never retry an uncertain
   // provider attempt automatically: Gmail send has no idempotency parameter.
   await prisma.chatAnnouncementDelivery.updateMany({ where: { status: 'SENDING', attemptedAt: { lt: new Date(Date.now()-600000) } },
-    data: { status: 'REVIEW', lastError: 'Delivery outcome is uncertain. Review before taking any further action.' } });
+    data: { status: 'REVIEW', reviewAt: new Date(), lastError: 'Delivery outcome is uncertain. Review before taking any further action.' } });
   const candidates = await prisma.chatAnnouncementDelivery.findMany({ where: { status: 'PENDING', updatedAt: { lte: new Date() } }, take: 25, orderBy: { updatedAt: 'asc' }, select: { id: true } });
   let processed = 0;
   for (const candidate of candidates) {
@@ -53,6 +53,7 @@ export async function runAnnouncementSweep(testTransport?: TestTransport) {
       const capacity = e instanceof MailerCapacityUnavailable;
       await prisma.chatAnnouncementDelivery.updateMany({ where: { id: item.id, status: 'SENDING', attemptId: attempt }, data: {
         status: capacity ? 'PENDING' : e instanceof RecipientChanged ? 'SKIPPED' : 'REVIEW', updatedAt: capacity ? new Date(Date.now()+60000) : new Date(),
+        ...(capacity || e instanceof RecipientChanged ? {} : { reviewAt: new Date() }),
         lastError: capacity ? e.message : e instanceof RecipientChanged ? 'Recipient access or email changed before sending.' : 'Email delivery could not be confirmed. Automatic resend is paused to prevent duplicates.',
       } });
     }
