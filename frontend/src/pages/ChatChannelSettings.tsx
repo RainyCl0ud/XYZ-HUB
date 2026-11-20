@@ -154,8 +154,8 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
         <section className="creator-chat-settings-section creator-chat-settings-access" aria-labelledby="chat-settings-access-title">
           <h3 id="chat-settings-access-title">{accessCategory === "roles" ? "Role permissions" : "Member permissions"}</h3>
           <p>{accessCategory === "roles"
-            ? "Choose which roles can see or post. Individual member grants can add access, but never remove access given by a role."
-            : "Grant additional access to a member. Role and member grants combine, so the most generous access applies."}</p>
+            ? "Choose which roles can see or post. Only roles ranked below yours are listed. Individual member grants can add access, but never remove access given by a role."
+            : "Grant additional access to a member. Only members whose roles are all ranked below yours are listed. Role and member grants combine, so the most generous access applies."}</p>
           <label htmlFor="chat-settings-find-access">{accessCategory === "roles" ? "Find a role" : "Find a member"}</label>
           <input id="chat-settings-find-access" type="search" value={accessQuery} onChange={(event) => setAccessQuery(event.target.value)}
             placeholder={accessCategory === "roles" ? "Search roles…" : "Search members…"} />

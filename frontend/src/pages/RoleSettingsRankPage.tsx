@@ -51,6 +51,8 @@ type ManagedRole = {
   archivedAt: string | null;
   isArchived: boolean;
   affectedUserCount: number;
+  /* Set by the server: false when this role is at or above your rank, or one you hold. */
+  canManage?: boolean;
   permissions: Permission[];
   createdAt: string;
   updatedAt: string;
@@ -406,6 +408,26 @@ function RoleSettingsRankPage() {
       (role) =>
         role.id === permissionRoleId
     ) ?? null;
+
+  /*
+   * Role managers may only change roles ranked below their own and
+   * never a role they hold. Older API responses omit canManage, so
+   * treat a missing value as editable; the server re-checks either way.
+   */
+  function canEditRole(
+    role: ManagedRole | null
+  ) {
+    return (
+      canManageRoleSettings &&
+      role !== null &&
+      role.canManage !== false
+    );
+  }
+
+  const permissionRoleEditable =
+    canEditRole(
+      permissionRole
+    );
   const archiveRole =
     roles.find(
       (role) =>
@@ -594,7 +616,9 @@ function RoleSettingsRankPage() {
     role: ManagedRole
   ) {
     if (
-      !canManageRoleSettings
+      !canEditRole(
+        role
+      )
     ) {
       return;
     }
@@ -823,7 +847,7 @@ function RoleSettingsRankPage() {
       boolean
   ) {
     if (
-      !canManageRoleSettings
+      !permissionRoleEditable
     ) {
       return;
     }
@@ -870,7 +894,7 @@ function RoleSettingsRankPage() {
       boolean
   ) {
     if (
-      !canManageRoleSettings
+      !permissionRoleEditable
     ) {
       return;
     }
@@ -949,7 +973,7 @@ function RoleSettingsRankPage() {
       );
 
     const blocked =
-      !canManageRoleSettings ||
+      !permissionRoleEditable ||
       Boolean(permissionRole?.isArchived) ||
       missingRequirements.length >
         0;
@@ -1414,12 +1438,12 @@ function RoleSettingsRankPage() {
                             openPermissions(role);
                           }}
                         >
-                          {canManageRoleSettings
+                          {canEditRole(role)
                             ? "Set permissions"
                             : "View permissions"}
                         </button>
 
-                        {canManageRoleSettings && (
+                        {canEditRole(role) && (
                           <button
                             type="button"
                             className="role-settings-link-button"
@@ -1788,6 +1812,10 @@ function RoleSettingsRankPage() {
                           <p className="role-settings-readonly-note">
                             You have read-only access to Role Settings.
                           </p>
+                        ) : !permissionRoleEditable ? (
+                          <p className="role-settings-readonly-note">
+                            You can only change roles ranked below your own, and never a role you hold.
+                          </p>
                         ) : null}
                       </div>
 
@@ -1798,7 +1826,7 @@ function RoleSettingsRankPage() {
                             activePermissionAllSelected
                           }
                           disabled={
-                            !canManageRoleSettings ||
+                            !permissionRoleEditable ||
                             Boolean(permissionRole?.isArchived)
                           }
                           onChange={(event) =>
@@ -1885,7 +1913,7 @@ function RoleSettingsRankPage() {
               >
                 Cancel
               </button>
-              {canManageRoleSettings && !permissionRole.isArchived ? (
+              {permissionRoleEditable && !permissionRole.isArchived ? (
                 <button
                   type="button"
                   className="primary-button"
