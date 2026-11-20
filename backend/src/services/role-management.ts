@@ -7,6 +7,7 @@ import {
 } from "../lib/prisma.js";
 
 import {
+  canManageRoleTarget,
   hasPermission,
   isOwner,
   type AccessContext,
@@ -42,6 +43,7 @@ export class RoleManagementError
   extends Error {
   code:
     | "ROLE_MANAGEMENT_REQUIRED"
+    | "ROLE_AUTHORITY_REQUIRED"
     | "OWNER_REQUIRED"
     | "ROLE_NOT_FOUND"
     | "ROLE_NAME_IN_USE"
@@ -101,6 +103,77 @@ function requireRoleManagement(
     throw new RoleManagementError(
       "ROLE_MANAGEMENT_REQUIRED",
       "You do not have permission to manage roles."
+    );
+  }
+}
+
+/*
+ * Role Settings follows the same chain of command as Employee
+ * Management: outside Owners, a role manager may only configure
+ * roles ranked strictly below their own highest rank, never a
+ * protected system role, and never a role they currently hold
+ * (which would let them widen their own access).
+ */
+function canConfigureRole(
+  access:
+    AccessContext,
+  role:
+    {
+      id: string;
+      systemKey: string | null;
+      rank: number | null;
+    }
+) {
+  if (
+    role.systemKey ===
+    "OWNER"
+  ) {
+    return false;
+  }
+
+  if (
+    isOwner(
+      access
+    )
+  ) {
+    return true;
+  }
+
+  return (
+    canManageRoleTarget(
+      access,
+      role
+    ) &&
+    !access.roles.some(
+      (heldRole) =>
+        heldRole.id ===
+        role.id
+    )
+  );
+}
+
+function requireRankBelowEditor(
+  access:
+    AccessContext,
+  rank:
+    number | null
+) {
+  if (
+    isOwner(
+      access
+    )
+  ) {
+    return;
+  }
+
+  if (
+    rank === null ||
+    access.highestRank === null ||
+    rank <= access.highestRank
+  ) {
+    throw new RoleManagementError(
+      "ROLE_AUTHORITY_REQUIRED",
+      "You can only place roles below your own authority rank."
     );
   }
 }
@@ -485,9 +558,25 @@ type RoleWithBuilderData = {
 
 function serializeRole(
   role:
-    RoleWithBuilderData
+    RoleWithBuilderData,
+  access:
+    AccessContext
 ) {
   return {
+    /*
+     * Lets Role Settings show edit controls only where the
+     * server will accept them. The server still re-checks.
+     */
+    canManage:
+      hasPermission(
+        access,
+        "roles.manage"
+      ) &&
+      canConfigureRole(
+        access,
+        role
+      ),
+
     id:
       role.id,
 
@@ -649,7 +738,8 @@ export async function getRoleBuilderData(
           role
         ) =>
           serializeRole(
-            role
+            role,
+            access
           )
       ),
 
@@ -689,6 +779,11 @@ export async function createRole(
       isSystem:
         false,
     },
+    input.rank
+  );
+
+  requireRankBelowEditor(
+    access,
     input.rank
   );
 
@@ -738,7 +833,8 @@ export async function createRole(
     });
 
   return serializeRole(
-    role
+    role,
+    access
   );
 }
 
@@ -771,6 +867,9 @@ export async function updateRole(
         isSystem:
           true,
 
+        rank:
+          true,
+
         archivedAt:
           true,
       },
@@ -796,6 +895,18 @@ export async function updateRole(
   }
 
   if (
+    !canConfigureRole(
+      access,
+      existingRole
+    )
+  ) {
+    throw new RoleManagementError(
+      "ROLE_AUTHORITY_REQUIRED",
+      "You can only change roles ranked below your own, and never a role you hold."
+    );
+  }
+
+  if (
     existingRole.archivedAt
   ) {
     throw new RoleManagementError(
@@ -816,6 +927,11 @@ export async function updateRole(
 
   validateRank(
     existingRole,
+    input.rank
+  );
+
+  requireRankBelowEditor(
+    access,
     input.rank
   );
 
@@ -885,7 +1001,8 @@ export async function updateRole(
   });
 
   return serializeRole(
-    role
+    role,
+    access
   );
 }
 
@@ -994,7 +1111,8 @@ export async function archiveRole(
   });
 
   return serializeRole(
-    archived
+    archived,
+    access
   );
 }
 
@@ -1093,6 +1211,7 @@ export async function reactivateRole(
   });
 
   return serializeRole(
-    reactivated
+    reactivated,
+    access
   );
 }

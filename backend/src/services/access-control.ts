@@ -440,6 +440,21 @@ export function canAssignInviteModel(
   );
 }
 
+/*
+ * Protected system roles remain manageable only by Owner,
+ * wherever authority over a role is decided (People,
+ * Role Settings and Chat channel grants).
+ */
+export const OWNER_ONLY_ROLE_KEYS: ReadonlySet<string> =
+  new Set([
+    "OWNER",
+    "OPS_MANAGER",
+    "DEV",
+    "ACCOUNTANT",
+    "MODEL",
+    "GENERAL_STAFF",
+  ]);
+
 export function canManageRoleTarget(
   access: AccessContext,
   targetRole: {
@@ -448,25 +463,13 @@ export function canManageRoleTarget(
   }
 ): boolean {
   /*
-   * Protected system roles remain manageable only by Owner.
-   *
    * Ordinary ranked roles follow the existing authority chain.
    * This helper deliberately contains no action permission check:
    * callers must first prove the specific action being performed.
    */
-  const ownerOnlyRoles =
-    new Set([
-      "OWNER",
-      "OPS_MANAGER",
-      "DEV",
-      "ACCOUNTANT",
-      "MODEL",
-      "GENERAL_STAFF",
-    ]);
-
   if (
     targetRole.systemKey &&
-    ownerOnlyRoles.has(
+    OWNER_ONLY_ROLE_KEYS.has(
       targetRole.systemKey
     )
   ) {
