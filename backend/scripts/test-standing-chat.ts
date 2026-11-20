@@ -85,6 +85,7 @@ async function main() {
     });
     const otherGeneral = await prisma.chatChannel.findUniqueOrThrow({ where: { modelId_key: { modelId: other, key: "general" } } });
     const privateChats = (userId: string) => listChatAreas(userId).then((areas) => areas.flatMap((area) => area.channels));
+    const channels = (userId: string, modelId: string) => listChatAreas(userId).then((areas) => areas.find((area) => area.modelId === modelId)?.channels.filter((channel) => !channel.isPrivate) ?? []);
     const own = await privateChats(creator.id);
     const secondOwn = await privateChats(secondCreator.id);
     assert.equal(own.length, 1); assert.equal(own[0].id, creatorChat); assert.equal(own[0].isPrivate, true);
