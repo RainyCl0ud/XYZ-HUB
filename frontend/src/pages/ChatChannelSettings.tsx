@@ -154,7 +154,7 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
         <section className="creator-chat-settings-section creator-chat-settings-access" aria-labelledby="chat-settings-access-title">
           <h3 id="chat-settings-access-title">{accessCategory === "roles" ? "Role permissions" : "Member permissions"}</h3>
           <p>{accessCategory === "roles"
-            ? "Choose which roles can see or post. Site-wide role access also applies here and cannot be removed in channel settings. Individual member grants can add access."
+            ? "Choose which roles can see or post. Individual member grants can add access, but never remove access given by a role."
             : "Grant additional access to a member. Role and member grants combine, so the most generous access applies."}</p>
           <label htmlFor="chat-settings-find-access">{accessCategory === "roles" ? "Find a role" : "Find a member"}</label>
           <input id="chat-settings-find-access" type="search" value={accessQuery} onChange={(event) => setAccessQuery(event.target.value)}
@@ -202,18 +202,16 @@ function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option
           <span className="creator-chat-grant-inherited">
             Role access: {option.inheritedAccess.canPost ? "Post" : option.inheritedAccess.canView ? "See" : "None"}
           </span>
-        ) : siteWide?.canView ? <span className="creator-chat-grant-inherited">{siteWide.canPost ? "Site-wide role access" : "Site-wide role access: Can see"}</span> : <span>{kind}</span>}
+        ) : <span>{kind}</span>}
       </div>
       <div className="creator-chat-grant-controls">
-        {siteWide?.canPost ? <span className="creator-chat-grant-inherited" aria-label={kind + " access for " + option.name}>Can post</span> : <>
         <label className="creator-chat-sr" htmlFor={id}>{kind} access for {option.name}</label>
-        <select id={id} aria-label={kind + " access for " + option.name} value={value} onChange={(event) => setValue(event.target.value)} disabled={busy}>
+        <select id={id} aria-label={kind + " access for " + option.name} value={value} onChange={(event) => setValue(event.target.value)} disabled={busy || siteWide?.canPost}>
           <option value="none" disabled={siteWide?.canView}>{kind === "Member" ? "No individual grant" : "No role grant"}</option>
           <option value="view">See</option>
           <option value="post">Post</option>
         </select>
-        <button type="submit" disabled={busy || current === value}>Save</button>
-        </>}
+        <button type="submit" disabled={busy || siteWide?.canPost || current === value}>Save</button>
       </div>
     </form>
   );
