@@ -2,6 +2,17 @@
  * transcript storage. Notification links stay within the Hub. */
 const prefix = 'xyz-chat-alert:';
 const pushPrefix = 'xyz-hub-push:';
+const noticePrefix = 'xyz-hub-notice:';
+// Bell notices that may reach the device. Fixed wording, never names or text.
+const noticeCopy = {
+  BREAK_REMINDER: ['XYZ Hub · Paid break reminder', 'Your paid break is past its planned length. Open Clock & Hours to check it.'],
+  BREAK_LIMIT: ['XYZ Hub · Attendance alert', 'A paid break ended automatically. Open the Hub for details.'],
+  OPEN_SHIFT: ['XYZ Hub · Attendance alert', 'A shift has been open for 14 hours. Open the Hub for details.'],
+  CORRECTION_REVIEW: ['XYZ Hub · Correction to review', 'A clock correction is waiting for your review.'],
+  CORRECTION_DECIDED: ['XYZ Hub · Correction reviewed', 'Your clock correction has been reviewed.'],
+};
+const validNoticeKey = value => typeof value === 'string' && /^(alert|correction-review|correction-decided):[A-Za-z0-9_-]{1,100}$/.test(value);
+const validNoticePath = value => value === '/clock' || (typeof value === 'string' && /^\/clock\/requests\/[A-Za-z0-9_-]{1,100}$/.test(value));
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(value);
 const validPreference = value => value && typeof value.since === 'string' && Number.isFinite(Date.parse(value.since)) && typeof value.generation === 'string' && value.generation.length > 7 && value.generation.length <= 100;
 self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
@@ -21,7 +32,23 @@ async function handle(event) {
   if (!event.source || !('url' in event.source) || new URL(event.source.url).origin !== self.location.origin) return;
   if (input?.type === 'xyz-chat-alert-clear') {
     const current = await self.registration.getNotifications();
-    current.filter(n => n.tag.startsWith(pushPrefix) || (n.tag.startsWith(prefix) && (!input.userId || n.data?.userId === input.userId))).forEach(n => n.close());
+    current.filter(n => n.tag.startsWith(pushPrefix) || ((n.tag.startsWith(prefix) || n.tag.startsWith(noticePrefix)) && (!input.userId || n.data?.userId === input.userId))).forEach(n => n.close());
+    return;
+  }
+  if (input?.type === 'xyz-hub-notice-offer') {
+    if (!validId(input.userId) || !validPreference(input.preference) || !Array.isArray(input.notices) || !input.notices.length || input.notices.length > 10 ||
+        input.notices.some(n => !validNoticeKey(n?.key) || !Object.hasOwn(noticeCopy, n.kind) || !validNoticePath(n.path))) throw Error('Invalid notice.');
+    const open = await windows();
+    const answers = (await Promise.all(open.map(client => ask(client, [])))).filter(Boolean);
+    const sender = answers.find(a => a.clientId === event.source.id);
+    if (!sender || sender.userId !== input.userId || !sender.enabled || sender.generation !== input.preference.generation) return;
+    // A focused Hub tab already shows the notice in its bell and toast.
+    if (answers.some(a => a.focused)) return;
+    for (const notice of input.notices) {
+      const [title, body] = noticeCopy[notice.kind];
+      await self.registration.showNotification(title, { body, tag: noticePrefix + input.userId + ':' + notice.key,
+        data: { kind: 'xyz-hub-notice', userId: input.userId, path: notice.path } });
+    }
     return;
   }
   if (input?.type !== 'xyz-chat-alert-offer' || !validId(input.userId) || !validPreference(input.preference) || !Array.isArray(input.messages) || input.messages.length > 50 || input.messages.some(m => !validId(m.id) || !validId(m.conversationId))) throw Error('Invalid alert.');
@@ -80,6 +107,25 @@ self.addEventListener('push', event => {
   })());
 });
 self.addEventListener('notificationclick', event => {
+  if (event.notification.data?.kind === 'xyz-hub-notice') {
+    const data = event.notification.data;
+    event.notification.close();
+    event.waitUntil((async () => {
+      const open = await windows();
+      const path = validNoticePath(data.path) ? data.path : '/clock';
+      const existing = open[0];
+      try {
+        const client = existing && await existing.focus();
+        if (client) {
+          // Only the same signed-in person is taken to the notice's page.
+          const active = await ask(client, []);
+          if (await client.navigate(active?.userId === data.userId ? path : '/')) return;
+        }
+      } catch { /* The tab closed. */ }
+      await self.clients.openWindow(existing ? '/' : path);
+    })());
+    return;
+  }
   if (event.notification.data?.kind === 'xyz-hub-push') {
     const data = event.notification.data;
     event.notification.close();

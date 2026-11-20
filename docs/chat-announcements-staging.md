@@ -121,5 +121,5 @@ need removal of these additive tables/column.
   invalid-link fallback, refresh and 390px mobile review. No external provider.
 
 Railway staging deployment, user acceptance and actual test-mail delivery remain
-separate release steps. Unread emails (10 unread or 30 minutes, at most one per
+separate release steps. Unread emails (after 30 minutes unread, at most one per
 person per rolling hour) are the next implementation milestone.

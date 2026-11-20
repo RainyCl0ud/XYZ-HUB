@@ -4,7 +4,8 @@ import { useAuth } from '../auth/AuthContext';
 import { apiRequest, ApiError } from '../lib/api';
 import { BrowserNotificationsContext } from './BrowserNotificationsContext';
 import { browserPushSubscription, loadPushSettings, pushDeviceKey, readPushDevice, releaseBackgroundPush } from '../lib/background-push';
-import { ALERT_PREFERENCE_PREFIX, alertWorker, preferenceKey, readAlertPreference, resetAlertHistory, samePreference, processBrowserAlertBatch, tellAlertWorker, visibleAlertMessages, type AlertFeed } from '../lib/browser-alerts';
+import { ALERT_PREFERENCE_PREFIX, alertWorker, claimHubNotices, preferenceKey, readAlertPreference, resetAlertHistory, samePreference, processBrowserAlertBatch, tellAlertWorker, unclaimedHubNotices, visibleAlertMessages, type AlertFeed } from '../lib/browser-alerts';
+import { DEVICE_NOTICE_KINDS, notificationHref, type HubNotification } from '../lib/hub-notifications';
 
 const supported = () => typeof window !== 'undefined' && window.isSecureContext && 'Notification' in window && 'serviceWorker' in navigator && 'locks' in navigator && typeof MessageChannel !== 'undefined';
 const changed = () => window.dispatchEvent(new Event('xyz-browser-alert-change'));
@@ -20,6 +21,8 @@ export default function BrowserNotificationsProvider({ children }: { children: R
   const [available, setAvailable] = useState(false), [enabled, setEnabled] = useState(false), [busy, setBusy] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('unsupported');
   const [error, setError] = useState(''), [limitedScope, setLimitedScope] = useState(false);
+  // Background push already carries the paid-break reminder; avoid a duplicate.
+  const pushActive = useRef(false);
   const clear = useCallback((userId?: string) => {
     if (!('serviceWorker' in navigator)) return;
     void navigator.serviceWorker.getRegistration('/').then(reg => {
@@ -76,6 +79,7 @@ export default function BrowserNotificationsProvider({ children }: { children: R
           const device = readPushDevice();
           if (device?.userId === id && await browserPushSubscription() &&
               (await loadPushSettings(device.id, controller.signal)).active) {
+            pushActive.current = true;
             if (!showedPushAvailability) {
               const status = await apiRequest<AlertFeed>('/api/chat/browser-notifications', { signal: controller.signal });
               if (!stopped && identity.current === id && status.userId === id) {
@@ -87,6 +91,7 @@ export default function BrowserNotificationsProvider({ children }: { children: R
             return;
           }
           showedPushAvailability = false;
+          pushActive.current = false;
           await processBrowserAlertBatch({ store: localStorage, userId: id, preference: pref,
             request: (path, ids) => apiRequest<AlertFeed>(path, { ...(ids ? { method: 'POST', body: JSON.stringify({ after: pref.since, ids }) } : {}), signal: controller.signal }),
             isCurrent: () => !stopped && identity.current === id && Notification.permission === 'granted',
@@ -136,5 +141,28 @@ export default function BrowserNotificationsProvider({ children }: { children: R
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to display the test notification.'); }
     finally { setBusy(false); }
   }, [id]);
-  return <BrowserNotificationsContext.Provider value={{ available, supported: supported(), enabled, permission, busy, error, limitedScope, enable, disable, test }}>{children}</BrowserNotificationsContext.Provider>;
+  // Bell notices that may reach the device: attendance and correction kinds
+  // only, never message text. One tab claims each notice before display.
+  const offerHubNotices = useCallback(async (notices: HubNotification[]) => {
+    if (!id || !notices.length || !supported() || Notification.permission !== 'granted') return;
+    let pref; try { pref = readAlertPreference(localStorage, id); } catch { return; }
+    if (!pref) return;
+    const since = Date.parse(pref.since);
+    const candidates = notices.filter(n => !n.read && DEVICE_NOTICE_KINDS.has(n.kind) && Date.parse(n.occurredAt) >= since
+      && !(pushActive.current && n.kind === 'BREAK_REMINDER') && notificationHref(n.target)).slice(0, 10);
+    if (!candidates.length) return;
+    try {
+      await navigator.locks.request('xyz-hub-device-notices-v1', { ifAvailable: true }, async lock => {
+        if (!lock || identity.current !== id || !samePreference(pref, readAlertPreference(localStorage, id))) return;
+        const fresh = new Set(unclaimedHubNotices(localStorage, id, candidates.map(n => n.key)));
+        if (!fresh.size) return;
+        const worker = await alertWorker();
+        if (identity.current !== id || !samePreference(pref, readAlertPreference(localStorage, id))) return;
+        claimHubNotices(localStorage, id, [...fresh]);
+        await tellAlertWorker(worker, { type: 'xyz-hub-notice-offer', userId: id, preference: pref,
+          notices: candidates.filter(n => fresh.has(n.key)).map(n => ({ key: n.key, kind: n.kind, path: notificationHref(n.target) })) });
+      });
+    } catch { /* Device alerts are best effort; the bell still lists the notice. */ }
+  }, [id]);
+  return <BrowserNotificationsContext.Provider value={{ available, supported: supported(), enabled, permission, busy, error, limitedScope, enable, disable, test, offerHubNotices }}>{children}</BrowserNotificationsContext.Provider>;
 }

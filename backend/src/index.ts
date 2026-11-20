@@ -58,6 +58,7 @@ import strikeReasonRoutes from "./routes/strike-reasons.js";
 import liveRoutes from "./routes/live.js";
 import chatRoutes from "./routes/chat.js";
 import clockRoutes from "./routes/clock.js";
+import notificationRoutes from "./routes/notifications.js";
 import { startClockWorker } from "./services/clock-worker.js";
 import { startAnnouncementWorker } from "./services/chat-announcement-worker.js";
 import { startUnreadReminderWorker } from "./services/chat-unread-reminder-worker.js";
@@ -233,6 +234,7 @@ app.use(
 );
 app.use("/api/chat", chatRoutes);
 app.use("/api/clock", clockRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use(
   "/api/audit",

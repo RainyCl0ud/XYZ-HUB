@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-const vite = await createServer({ configFile: false, root: new URL("..", import.meta.url).pathname.replace(/^\/(.:\/)/, "$1"), server: { middlewareMode: true, hmr: false }, optimizeDeps: { noDiscovery: true }, logLevel: "error" });
+const vite = await createServer({ configFile: false, root: fileURLToPath(new URL("..", import.meta.url)), server: { middlewareMode: true, hmr: false }, optimizeDeps: { noDiscovery: true }, logLevel: "error" });
 try {
   const { rebaseMentions, trimmedMentionDraft } = await vite.ssrLoadModule("/src/lib/chat-mentions.ts");
   const m = { userId: "member-1", start: 3, end: 7 };

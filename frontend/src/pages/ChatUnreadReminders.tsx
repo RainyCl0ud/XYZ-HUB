@@ -37,7 +37,7 @@ export default function ChatUnreadReminders({ onClose }: { onClose: () => void }
       </div>
       <details className="creator-chat-reminder-policy">
         <summary>How email reminders work</summary>
-        <p>A reminder becomes eligible at 10 unread messages or when one has been unread for 30 minutes. Only one email reminder is allowed per person per hour.</p>
+        <p>A reminder becomes eligible once a message has been unread for 30 minutes. Only one email reminder is allowed per person per hour.</p>
         <p>Reminder emails include a link to your messages.</p>
       </details>
       <h3>Recent reminder activity</h3>

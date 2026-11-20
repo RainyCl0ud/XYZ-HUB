@@ -4,7 +4,7 @@ import { BREAKS, ClockError, clockAllowed, clockDatabaseNow, clockViewerInclude,
 import { CLOCK_PERMISSION_DEFINITIONS, CLOCK_ROLE_DEFAULTS } from "../permissions/clock-permissions.js";
 
 type Shift = Prisma.ClockShiftGetPayload<{ include: { breaks: true } }>;
-const alertInclude = { shift: { include: { breaks: true } } } satisfies Prisma.ClockAlertInclude;
+export const alertInclude = { shift: { include: { breaks: true } } } satisfies Prisma.ClockAlertInclude;
 type Alert = Prisma.ClockAlertGetPayload<{ include: typeof alertInclude }>;
 
 async function recordAlert(tx: Prisma.TransactionClient, shift: Shift, now: Date, kind: ClockAlertKind, due: Date, pause?: Shift["breaks"][number]) {
@@ -41,7 +41,7 @@ export async function reconcileClockShift(tx: Prisma.TransactionClient, shift: S
   if (now >= longShift) await recordAlert(tx, shift, now, "OPEN_SHIFT", longShift);
 }
 
-function audience(viewer: ClockViewer): Prisma.ClockAlertWhereInput {
+export function clockAlertAudience(viewer: ClockViewer): Prisma.ClockAlertWhereInput {
   const own: Prisma.ClockAlertWhereInput[] = clockAllowed(viewer, "clock.self.view") ? [{ shift: { userId: viewer.id } }] : [];
   const managementKinds: ClockAlertKind[] = ["BREAK_LIMIT", "OPEN_SHIFT"];
   if (clockAllowed(viewer, "clock.alerts.all")) own.push({ kind: { in: managementKinds } });
@@ -60,10 +60,10 @@ async function withAudience<T>(userId: string, fn: (tx: Prisma.TransactionClient
     const viewer = await tx.user.findUnique({ where: { id: userId }, include: clockViewerInclude });
     if (!viewer || viewer.status !== "ACTIVE") throw new ClockError(401, "Please sign in again.");
     if (!clockAllowed(viewer, "clock.access") || !["clock.self.view", "clock.alerts.team", "clock.alerts.all"].some((p) => clockAllowed(viewer, p))) throw new ClockError(403, "Attendance alerts are not available for your current access.");
-    return fn(tx, viewer, await clockDatabaseNow(tx), audience(viewer));
+    return fn(tx, viewer, await clockDatabaseNow(tx), clockAlertAudience(viewer));
   }, { isolationLevel: write ? Prisma.TransactionIsolationLevel.ReadCommitted : Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 10_000 });
 }
-function describe(alert: Alert, viewerId: string) {
+export function describeClockAlert(alert: Alert, viewerId: string) {
   const own = alert.shift.userId === viewerId;
   const pause = alert.shift.breaks.find((b) => b.id === alert.breakId);
   const label = alert.breakKind ? BREAKS[alert.breakKind].label : "Shift";
@@ -87,7 +87,7 @@ export function listClockAlerts(userId: string, filter: "unread" | "all" = "unre
       include: { ...alertInclude, reads: { where: { userId }, select: { readAt: true } } }, orderBy: [{ occurredAt: "desc" }, { id: "desc" }], take: 21 });
     return { serverNow: now, unreadCount: await tx.clockAlert.count({ where: { AND: [allowed, unread] } }),
       canReviewStaff: clockAllowed(viewer, "clock.alerts.all") || clockAllowed(viewer, "clock.alerts.team"),
-      alerts: rows.slice(0, 20).map((a) => ({ ...describe(a, userId), readAt: a.reads[0]?.readAt ?? null })), hasMore: rows.length > 20, nextBefore: rows.length > 20 ? rows[19].id : null };
+      alerts: rows.slice(0, 20).map((a) => ({ ...describeClockAlert(a, userId), readAt: a.reads[0]?.readAt ?? null })), hasMore: rows.length > 20, nextBefore: rows.length > 20 ? rows[19].id : null };
   });
 }
 export function markClockAlertRead(userId: string, alertId: string) {

@@ -1,4 +1,3 @@
-import ChatMentionCountProvider from "./components/ChatMentionCountProvider";
 import {
   StrictMode,
 } from "react";
@@ -40,7 +39,7 @@ createRoot(
       <ToastProvider>
         <AuthProvider>
           <ClockReviewCountProvider>
-            <ChatMentionCountProvider><BrowserNotificationsProvider><App /></BrowserNotificationsProvider></ChatMentionCountProvider>
+            <BrowserNotificationsProvider><App /></BrowserNotificationsProvider>
           </ClockReviewCountProvider>
         </AuthProvider>
       </ToastProvider>

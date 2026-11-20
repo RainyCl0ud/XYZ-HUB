@@ -27,7 +27,7 @@ export async function reminderSnapshot(tx: Prisma.TransactionClient, userId: str
   const aggregate = await tx.chatMessage.aggregate({ where, _count: { id: true }, _min: { createdAt: true } });
   const now = await reminderClock(tx);
   const count = aggregate._count.id, oldestAt = aggregate._min.createdAt;
-  return { person: viewer.user, count, oldestAt, now, limited, due: count >= 10 || !!oldestAt && oldestAt.getTime() <= now.getTime() - REMINDER_AGE_MS };
+  return { person: viewer.user, count, oldestAt, now, limited, due: !!oldestAt && oldestAt.getTime() <= now.getTime() - REMINDER_AGE_MS };
 }
 
 export function buildUnreadReminderEmail(address: string, count: number): TransactionalEmail {

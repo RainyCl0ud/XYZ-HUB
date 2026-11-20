@@ -118,7 +118,7 @@ try {
   assert.ok(tools.indexOf('aria-label="Six recent emojis"') < tools.indexOf('aria-label="Available emoji library"'));
   assert.ok(!tools.includes("pickerMode"));
   assert.ok(!chat.includes("creator-chat-mentions-open"));
-  assert.ok(chat.includes("<ChatMentions onClose="), "Sidebar mention navigation must remain available");
+  assert.ok(chat.includes("searchParams.get('message')") && !chat.includes("<ChatMentions"), "Bell mention links open the exact message; the separate Mentions list is retired");
   assert.ok(tools.includes('Available emoji library'));
   assert.ok(tools.includes('Search emoji library'));
   assert.ok(css.includes(".creator-chat-emoji-recents { flex-shrink: 0;"));

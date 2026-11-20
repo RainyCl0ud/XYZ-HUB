@@ -229,10 +229,31 @@ try {
   assert.equal(navigated.at(-1), '/chat', 'A switched account may only reach the safe Chat entry.');
   pass('Background push validates payloads, suppresses wrong-account/visible alerts and safely routes chat and Clock reminders');
 
+  // Bell notices (attendance and corrections) offered by an open tab.
+  const notice = async (data = {}, from = sender) => { let work, reply; handlers.get('message')({ source: from, data: { type: 'xyz-hub-notice-offer', userId: 'staff', preference,
+    notices: [{ key: 'alert:alert1', kind: 'BREAK_REMINDER', path: '/clock' }], ...data }, ports: [{ postMessage: r => { reply = r; } }], waitUntil: p => { work = p; } }); await work; return reply; };
+  const beforeNotices = shown.length;
+  windows = [sender, client('focused-hub', { ...senderAnswer, focused: true })];
+  await notice(); assert.equal(shown.length, beforeNotices, 'A focused Hub tab already shows the notice in the bell.');
+  windows = [sender];
+  await notice({ preference: { ...preference, generation: 'stale-generation' } }); assert.equal(shown.length, beforeNotices);
+  assert.equal((await notice({ notices: [{ key: 'mention:message1', kind: 'MENTION', path: '/chat' }] }))?.ok, false, 'Chat notices never use this path.');
+  assert.equal((await notice({ notices: [{ key: 'alert:alert1', kind: 'BREAK_REMINDER', path: 'https://external.example/clock' }] }))?.ok, false);
+  assert.equal((await notice({ notices: [{ key: 'alert:alert1', kind: 'BREAK_REMINDER', path: '/clock/requests/../../admin' }] }))?.ok, false);
+  assert.equal(shown.length, beforeNotices, 'Invalid notices must not display anything.');
+  assert.equal((await notice({ notices: [{ key: 'alert:alert1', kind: 'BREAK_REMINDER', path: '/clock' }, { key: 'correction-decided:req1', kind: 'CORRECTION_DECIDED', path: '/clock/requests/req1' }] }))?.ok, true);
+  const [breakNotice, correctionNotice] = shown.slice(beforeNotices);
+  assert.equal(breakNotice.title, 'XYZ Hub · Paid break reminder'); assert.equal(breakNotice.options.tag, 'xyz-hub-notice:staff:alert:alert1');
+  assert.equal(correctionNotice.title, 'XYZ Hub · Correction reviewed'); assert.ok(!JSON.stringify(correctionNotice).includes('Reviewed by'));
+  await click(correctionNotice.options.data); assert.equal(navigated.at(-1), '/clock/requests/req1');
+  windows = [client('other-account', { ...senderAnswer, userId: 'owner' })];
+  await click(correctionNotice.options.data); assert.equal(navigated.at(-1), '/', 'A switched account only reaches the Hub home.');
+  pass('Bell notices reach the device only from an unfocused Hub, with fixed wording, attendance/correction kinds and in-Hub links only');
+
   const { BrowserNotificationsContext } = await vite.ssrLoadModule('/src/components/BrowserNotificationsContext.ts');
   const { default: Toggle } = await vite.ssrLoadModule('/src/components/AccountNotificationToggle.tsx');
   const render = extra => renderToStaticMarkup(
-    createElement(BrowserNotificationsContext.Provider, { value: { available: true, supported: true, enabled: false, permission: 'default', busy: false, error: '', limitedScope: false, enable: async () => {}, disable() {}, test: async () => {}, ...extra } }, createElement(Toggle)));
+    createElement(BrowserNotificationsContext.Provider, { value: { available: true, supported: true, enabled: false, permission: 'default', busy: false, error: '', limitedScope: false, enable: async () => {}, disable() {}, test: async () => {}, offerHubNotices: async () => {}, ...extra } }, createElement(Toggle)));
   const off = render({}), denied = render({ permission: 'denied' }), unsupported = render({ supported: false }), enabled = render({ enabled: true, permission: 'granted', limitedScope: true });
   assert.ok(off.includes('role="switch"') && off.includes('aria-checked="false"'));
   assert.ok(enabled.includes('aria-checked="true"') && enabled.includes('Turn notifications off'));

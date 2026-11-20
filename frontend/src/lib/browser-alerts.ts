@@ -114,3 +114,25 @@ export function tellAlertWorker(worker: ServiceWorker, message: Record<string, u
     catch (error) { clearTimeout(timer); channel.port1.close(); reject(error); }
   });
 }
+
+// Bell notices (attendance and corrections) use their own ledger keyed by
+// notice key. Claiming before display means a crash never replays an alert.
+const noticeLedgerKey = (userId: string) => `xyz_hub_notice_seen_v1:${userId}`;
+function readNoticeLedger(store: Storage, userId: string): Record<string, number> {
+  const saved = store.getItem(noticeLedgerKey(userId));
+  const seen = saved ? JSON.parse(saved) : {};
+  if (!seen || typeof seen !== 'object' || Array.isArray(seen)) throw Error('Notification history is unavailable.');
+  return seen;
+}
+export function unclaimedHubNotices(store: Storage, userId: string, keys: string[]) {
+  const seen = readNoticeLedger(store, userId);
+  return keys.filter(key => !Object.hasOwn(seen, key));
+}
+export function claimHubNotices(store: Storage, userId: string, keys: string[]) {
+  const now = Date.now();
+  const kept = Object.entries(readNoticeLedger(store, userId)).filter(([, at]) => typeof at === 'number' && at >= now - 7 * 24 * 3600_000);
+  for (const key of keys) kept.push([key, now]);
+  const encoded = JSON.stringify(Object.fromEntries(kept.slice(-500)));
+  store.setItem(noticeLedgerKey(userId), encoded);
+  if (store.getItem(noticeLedgerKey(userId)) !== encoded) throw Error('Notification history could not be saved.');
+}

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-const vite = await createServer({ configFile: false, root: new URL("..", import.meta.url).pathname.replace(/^\/(.:\/)/, "$1"), server: { middlewareMode: true, hmr: false }, optimizeDeps: { noDiscovery: true }, logLevel: "error" });
+const vite = await createServer({ configFile: false, root: fileURLToPath(new URL("..", import.meta.url)), server: { middlewareMode: true, hmr: false }, optimizeDeps: { noDiscovery: true }, logLevel: "error" });
 try {
   const { isMessageContinuation: groups } = await vite.ssrLoadModule("/src/lib/chat-message-grouping.ts");
   const base = { id: "one", authorUserId: "person-1", authorName: "Jordan", createdAt: "2026-11-20T15:00:00Z", updatedAt: "2026-11-20T15:00:00Z", text: "First message", version: 1, canReply: true, canEdit: true, canPin: true, reactions: [], replyTo: null, pinnedAt: null, pinnedByName: null, pinVersion: 0 };
