@@ -1,3 +1,4 @@
+import { useToast } from "../components/ToastProvider";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { apiRequest } from "../lib/api";
 
@@ -11,12 +12,12 @@ type Props = {
   onArchived: () => void;
 };
 export default function ChatChannelSettings({ target, onClose, onSaved, onArchived }: Props) {
+  const toast = useToast();
   const workspace = useRef<HTMLElement>(null);
   const [name, setName] = useState(target.name);
   const [options, setOptions] = useState<Options | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "access">("details");
   const [accessQuery, setAccessQuery] = useState("");
@@ -32,32 +33,32 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
     return () => controller.abort();
   }, [target.channelId]);
   async function saveName(e: FormEvent) {
-    e.preventDefault(); setBusy(true); setError(""); setNotice("");
+    e.preventDefault(); setBusy(true); setError("");
     try {
       if (target.channelId) {
         await apiRequest(`/api/chat/channels/${target.channelId}`, { method: "PATCH", body: JSON.stringify({ name }) });
-        await onSaved(); setNotice("Channel name saved.");
+        await onSaved(); toast.success("Channel name saved.");
       } else {
         const result = await apiRequest<{ channel: { id: string } }>(`/api/chat/areas/${target.modelId}/channels`, { method: "POST", body: JSON.stringify({ name }) });
-        await onSaved(result.channel.id); onClose();
+        await onSaved(result.channel.id); toast.success("Channel created."); onClose();
       }
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to save the channel."); }
     finally { setBusy(false); }
   }
   async function saveGrant(kind: "roles" | "people", option: Option, grant: Grant) {
-    setBusy(true); setError(""); setNotice("");
+    setBusy(true); setError("");
     try {
       await apiRequest(`/api/chat/channels/${target.channelId}/grants`, { method: "PUT", body: JSON.stringify({
         ...(kind === "roles" ? { roleId: option.id } : { personId: option.id }), ...grant,
       }) });
       setOptions(await apiRequest<Options>(`/api/chat/channels/${target.channelId}/grants`));
-      await onSaved(); setNotice(`Access saved for ${option.name}.`);
+      await onSaved(); toast.success(`Access saved for ${option.name}.`);
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to save channel access."); }
     finally { setBusy(false); }
   }
   async function archive() {
     if (!target.channelId || !confirmArchive || busy) return;
-    setBusy(true); setError(""); setNotice("");
+    setBusy(true); setError("");
     try {
       await apiRequest(`/api/chat/channels/${target.channelId}/archive`, { method: "PUT", body: JSON.stringify({ name: target.name }) });
       onArchived();
@@ -112,7 +113,6 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
         )}
         <div className="creator-chat-settings-main">
           {error && <p className="creator-chat-error" role="alert">{error}</p>}
-          {notice && <p className="creator-chat-settings-success" role="status">{notice}</p>}
       {(!target.channelId || activeTab === "details") && (
         <div className="creator-chat-settings-section-stack">
           <section className="creator-chat-settings-section creator-chat-settings-details" aria-label="Channel name">

@@ -1,3 +1,4 @@
+import ToastViewport from "./ToastViewport";
 import {
   createContext,
   useCallback,
@@ -395,11 +396,7 @@ function ToastProvider({
     >
       {children}
 
-      <div
-        className="toast-region"
-        aria-live="polite"
-        aria-relevant="additions"
-      >
+      <ToastViewport active={toasts.length > 0}>
         {toasts.map(
           (toast) => (
             <div
@@ -448,7 +445,7 @@ function ToastProvider({
             </div>
           )
         )}
-      </div>
+      </ToastViewport>
     </ToastContext.Provider>
   );
 }

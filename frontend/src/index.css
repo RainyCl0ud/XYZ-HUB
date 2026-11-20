@@ -2633,6 +2633,14 @@ body {
    TOAST NOTIFICATIONS
    ========================================================= */
 
+.toast-region:where([popover]) {
+  inset: auto; margin: 0; padding: 0; border: 0; height: auto;
+  max-width: none; max-height: calc(100dvh - 44px);
+  background: transparent; color: inherit; overflow: visible;
+}
+.toast-region[popover]:not(:popover-open) { display: none; }
+.toast-region::backdrop { background: transparent; pointer-events: none; }
+
 .toast-region {
   position: fixed;
   z-index: 500;
@@ -2760,7 +2768,7 @@ body {
   padding-top: 1px;
 }
 
-.toast-title {
+.toast-region .toast .toast-title {
   display: block;
 
   margin: 0;
@@ -2772,7 +2780,7 @@ body {
   font-weight: 700;
 }
 
-.toast-message {
+.toast-region .toast .toast-message {
   margin: 4px 0 0;
 
   color: var(--text-secondary);
@@ -2783,7 +2791,7 @@ body {
   overflow-wrap: anywhere;
 }
 
-.toast-close {
+.toast-region .toast .toast-close {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2807,7 +2815,7 @@ body {
     border-color 120ms ease;
 }
 
-.toast-close:hover {
+.toast-region .toast .toast-close:hover {
   border-color: var(--border);
 
   background: var(--surface-hover);

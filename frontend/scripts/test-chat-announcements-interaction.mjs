@@ -27,6 +27,8 @@ const vite = await createServer({
 });
 try {
   const { ChatMessageContent } = await vite.ssrLoadModule("/src/pages/ChatMessageTools.tsx");
+  const { ToastProvider } = await vite.ssrLoadModule("/src/components/ToastProvider.tsx");
+  const renderToast = element => renderToStaticMarkup(createElement(ToastProvider, null, element));
   const noop = () => {};
   const normalMessage = {
     id: "hover-message", authorName: "Reviewer", text: "Hello team!",
@@ -34,7 +36,7 @@ try {
     canEdit: true, canReply: true, canPin: true, pinVersion: 1,
     pinnedAt: null, pinnedByName: null, reactions: [], replyTo: null,
   };
-  const renderMessage = (m) => renderToStaticMarkup(createElement(ChatMessageContent, {
+  const renderMessage = (m) => renderToast(createElement(ChatMessageContent, {
     message: m, channelId: "test-channel", onReply: noop, onEdit: noop,
     onChanged: noop, onOpen: noop, onError: noop,
   }));
@@ -83,7 +85,7 @@ try {
   pass("Published staff announcements display structured titles/bodies without turning ordinary messages into announcement cards.");
 
   const { default: ChatAnnouncements } = await vite.ssrLoadModule("/src/pages/ChatAnnouncements.tsx");
-  const compose = renderToStaticMarkup(createElement(ChatAnnouncements, { onClose: noop, onPublished: noop }));
+  const compose = renderToast(createElement(ChatAnnouncements, { onClose: noop, onPublished: noop }));
   for (const copy of ["Staff announcements", "Compose", "Review", "Published",
     "Compose announcement", "Who receives it", "Review audience", "Title", "Message"]) {
     assert.ok(compose.includes(copy), "Missing announcement workflow UI: " + copy);

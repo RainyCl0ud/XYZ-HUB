@@ -1,3 +1,4 @@
+import { useToast } from "./ToastProvider";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { apiRequest, ApiError } from '../lib/api';
@@ -8,6 +9,7 @@ import { ALERT_PREFERENCE_PREFIX, alertWorker, preferenceKey, readAlertPreferenc
 const supported = () => typeof window !== 'undefined' && window.isSecureContext && 'Notification' in window && 'serviceWorker' in navigator && 'locks' in navigator && typeof MessageChannel !== 'undefined';
 const changed = () => window.dispatchEvent(new Event('xyz-browser-alert-change'));
 export default function BrowserNotificationsProvider({ children }: { children: ReactNode }) {
+  const toast = useToast();
   const { user } = useAuth(), id = user?.id ?? '';
   const identity = useRef(id);
   useLayoutEffect(() => { identity.current = id; return () => { identity.current = ''; }; }, [id]);
@@ -25,15 +27,18 @@ export default function BrowserNotificationsProvider({ children }: { children: R
     }).catch(() => {});
   }, []);
   const disable = useCallback(() => {
+    let stored = true;
     try { localStorage.removeItem(preferenceKey(id)); resetAlertHistory(localStorage, id); setError(''); }
-    catch { setError('Browser storage is unavailable. Block notifications in your browser settings to stop them.'); }
+    catch { stored = false; setError('Browser storage is unavailable. Block notifications in your browser settings to stop them.'); }
     setEnabled(false); clear(id); changed();
     // One-click Off must also stop this browser's previously opted-in
     // background push subscription, not only foreground pop-ups.
-    void releaseBackgroundPush(id).catch(() => {
+    void releaseBackgroundPush(id).then(() => {
+      if (stored && identity.current === id) toast.success("Browser notifications turned off.");
+    }).catch(() => {
       setError("Open-tab notifications are off, but background push could not be disabled. Check advanced settings.");
     });
-  }, [id, clear]);
+  }, [id, clear, toast]);
   useEffect(() => {
     let stopped = false, running = false, timer: ReturnType<typeof setTimeout>;
     let showedPushAvailability = false;
@@ -116,10 +121,10 @@ export default function BrowserNotificationsProvider({ children }: { children: R
       const pref = { since: status.serverTime, generation: crypto.randomUUID() };
       resetAlertHistory(localStorage, id); localStorage.setItem(preferenceKey(id), JSON.stringify(pref));
       if (!samePreference(pref, readAlertPreference(localStorage, id))) throw Error('Your notification choice could not be saved.');
-      setEnabled(true); changed();
+      setEnabled(true); changed(); toast.success("Browser notifications turned on.");
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to enable browser notifications.'); }
     finally { setBusy(false); }
-  }, [id]);
+  }, [id, toast]);
   const test = useCallback(async () => {
     setBusy(true); setError('');
     try {

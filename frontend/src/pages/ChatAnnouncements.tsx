@@ -1,3 +1,4 @@
+import { useToast } from "../components/ToastProvider";
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError, apiRequest } from '../lib/api';
 type Preview = { title: string; text: string; previewToken: string; staffCount: number; creatorCount: number; privateCopyCount: number; blockers: { name: string; reason: string }[]; availableRecipients: { id: string; name: string }[]; recipients: { id: string; name: string; privateCopies: number }[] };
@@ -7,6 +8,7 @@ type History = { id: string; title: string; createdAt: string; authorName: strin
 const time = (value: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(value));
 const statusLabel: Record<string,string> = { PENDING: 'Waiting to send', SENDING: 'Sending', SENT: 'Sent', CAPTURED: 'Not emailed', SKIPPED: 'Not sent', REVIEW: 'Needs review' };
 export default function ChatAnnouncements({ onClose, onPublished }: { onClose: () => void; onPublished: () => void }) {
+  const toast = useToast();
   const dialog = useRef<HTMLDialogElement>(null), controller = useRef<AbortController | null>(null), requestId = useRef(crypto.randomUUID());
   const [title, setTitle] = useState(''), [text, setText] = useState('');
   const [recipientIds, setRecipientIds] = useState<string[] | undefined>();
@@ -44,7 +46,7 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
     try {
       const result = await apiRequest<{ id: string }>('/api/chat/announcements', { method: 'POST', body: JSON.stringify({ title: preview.title, text: preview.text, recipientIds, previewToken: preview.previewToken, requestId: requestId.current }), signal: request.signal });
       if (request.signal.aborted) return;
-      setUncertain(false); setPreview(null); setConfirmed(false); onPublished(); await details(result.id);
+      setUncertain(false); setPreview(null); setConfirmed(false); toast.success("Announcement published in Chat."); onPublished(); await details(result.id);
     } catch (e) {
       if (request.signal.aborted) return;
       if (e instanceof ApiError && [400,401,403,404,409].includes(e.status)) { setUncertain(false); setPreview(null); setConfirmed(false); }
@@ -81,7 +83,6 @@ export default function ChatAnnouncements({ onClose, onPublished }: { onClose: (
     {publishedId ? <section className="creator-chat-announcement-stage" aria-label="Published announcement">
       <div className="creator-chat-announcement-section-heading">
         <h3>Published announcement</h3>
-        <p role="status">Your announcement has been posted in Chat.</p>
       </div>
       {!posted ? <p role="status">{busy ? 'Checking email status…' : 'Email status is unavailable. Refresh to check again.'}</p> : <>
         <article className="creator-chat-announcement-preview-card">

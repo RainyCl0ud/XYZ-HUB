@@ -1,3 +1,4 @@
+import { useToast } from "../components/ToastProvider";
 import {
   useEffect,
   useState,
@@ -38,6 +39,7 @@ function getTokenFromFragment() {
 }
 
 function ResetPasswordPage() {
+  const toast = useToast();
   const [
     token,
   ] =
@@ -205,6 +207,7 @@ function ResetPasswordPage() {
         window.location.pathname
       );
 
+      toast.success("Password updated. You can sign in with your new password.");
       setCompleted(
         true
       );
@@ -283,9 +286,7 @@ function ResetPasswordPage() {
           </Link>
         }
       >
-        <div className="auth-message auth-message-success">
-          Your new password is ready to use.
-        </div>
+        <p>Continue below to sign in.</p>
       </AuthShell>
     );
   }

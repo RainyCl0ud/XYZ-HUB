@@ -87,13 +87,12 @@ assert.ok(css.includes(".creator-chat-pin-excerpt {"));
 assert.ok(css.includes("max-height: 172px;"));
 pass("Pinned cards show compact excerpts, Jump controls and guarded two-step removal with internal scrolling.");
 
-assert.ok(tools.includes('pickerMode === "recent"'));
-assert.ok(tools.includes('? sixRecentEmojis'));
+assert.ok(tools.includes('className="creator-chat-emoji-recents"'));
+assert.ok(tools.includes('sixRecentEmojis.map(emojiButton)'));
 assert.ok(tools.includes('Available emoji library'));
 assert.ok(tools.includes('Search emoji library'));
-assert.ok(tools.includes('>Add emoji') === false);
-assert.ok(tools.includes('"Add emoji" : "Recent"'));
-assert.ok(tools.includes("palette.filter(([emoji, label])"));
+assert.ok(!tools.includes('pickerMode'));
+assert.ok(tools.includes("palette.filter(([emoji, label, category])"));
 assert.ok(css.includes("creator-chat-emoji-popover-grid.is-library"));
 assert.ok(reactions.includes("CHAT_RECENT_EMOJI_LIMIT = 6"));
 pass("Add emoji opens a searchable approved library while the six account-specific recents stay intact.");
@@ -101,7 +100,7 @@ pass("Add emoji opens a searchable approved library while the six account-specif
 assert.ok(tools.includes("const [unpinBusy, setUnpinBusy] = useState(false)"));
 assert.ok(tools.includes('changed(target.channelId, response.message)'));
 assert.ok(tools.includes("setPins((old) => old.map"));
-assert.ok(page.includes("setTools(null); setToolsNotice(\"\");"));
+assert.ok(page.includes("setTools(null);"));
 pass("Pinned-message updates keep the existing mutation/refresh infrastructure and do not touch permissions.");
 
 console.log(passed + " Chat reply jump, global clock, Search, Pins and emoji library regression groups passed.");

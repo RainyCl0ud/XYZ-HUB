@@ -77,6 +77,8 @@ try {
   else globalThis.window = previousWindow;
 
   const { ChatMessageContent } = await vite.ssrLoadModule("/src/pages/ChatMessageTools.tsx");
+  const { ToastProvider } = await vite.ssrLoadModule("/src/components/ToastProvider.tsx");
+  const renderToast = element => renderToStaticMarkup(createElement(ToastProvider, null, element));
   const message = {
     id: "message-1", authorName: "Test member", text: "Hello there", version: 1,
     createdAt: "2026-11-15T12:00:00.000Z", updatedAt: "2026-11-15T12:00:00.000Z",
@@ -84,7 +86,7 @@ try {
     reactions: [], replyTo: null,
   };
   const noop = () => {};
-  const markup = renderToStaticMarkup(createElement(ChatMessageContent, {
+  const markup = renderToast(createElement(ChatMessageContent, {
     message, channelId: "fictional-channel", recentEmojis: accountARecent,
     onReply: noop, onEdit: noop, onChanged: noop, onOpen: noop, onError: noop,
     onReactionSelected: noop,

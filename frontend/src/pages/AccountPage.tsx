@@ -1,3 +1,4 @@
+import { useToast } from "../components/ToastProvider";
 import {
   useEffect,
   useRef,
@@ -55,6 +56,7 @@ function formatCentralDateTime(
 }
 
 function AccountPage() {
+  const toast = useToast();
   const {
     user,
     access,
@@ -293,6 +295,7 @@ function AccountPage() {
       closeAvatarEditor(
         true
       );
+      toast.success("Profile picture updated.");
     } catch (error) {
       setAvatarError(
         error instanceof
@@ -346,6 +349,7 @@ function AccountPage() {
       closeAvatarEditor(
         true
       );
+      toast.success("Profile picture removed.");
     } catch (error) {
       setAvatarError(
         error instanceof
