@@ -14,7 +14,7 @@ assert.ok(page.includes('className="creator-chat-mobile creator-chat-options-tog
 assert.ok(page.includes('aria-controls="chat-page-options"'));
 assert.ok(page.includes('aria-expanded={showChatOptions}'));
 assert.ok(page.includes('className={`creator-chat-heading-actions ${showChatOptions ? "is-open" : ""}`}'));
-for (const label of ["Staff announcements", "Email reminders"]) {
+for (const label of ["Staff announcements", "Email reminder log"]) {
   assert.ok(page.includes(label));
 }
 assert.ok(!page.includes("Browser notifications"), "Browser notification settings live under My Account, not Chat.");

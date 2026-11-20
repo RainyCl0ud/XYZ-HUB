@@ -20,8 +20,11 @@ capacity. Unread totals are recalculated immediately before delivery.
   areas are excluded. Reactions, edits and pins add no unread message.
 - Each email has one To address, an unread count and a generic Hub link. No
   message text, quotes, fan names, files, channel names or staff directory.
-- Chat -> Email reminders shows only the signed-in person's eligible count,
-  recent reminder status and captured previews. Viewing/refreshing never sends.
+- Staff have no reminder screen; the email simply arrives. Owners use Chat ->
+  Email reminder log to see recent reminders for every staff member (status,
+  count, time and the stored preview). Viewing/refreshing never sends.
+- Staff announcement posts never count toward a reminder: each announcement
+  already sends its own email (brief 6.1) and appears in the header bell.
 - Reminder messages do not create Chat messages, alter reads, or grant access.
 
 ## Proposed first release: capture only
@@ -50,10 +53,10 @@ testing may therefore produce an initial preview for already-unread test chats.
    account in another. Leave the recipient on General; send into a different,
    permitted channel so the messages remain unread.
 2. Starting with no eligible unread messages, send ten or more messages. The
-   badge increases, but Email reminders should have no new preview yet.
+   badge increases, but the Owner's Email reminder log shows no new entry yet.
 3. Leave them unread for thirty minutes. Within the next successful sweep, open
-   Email reminders and refresh status. Expand the individual preview: one
-   recipient, count and Hub link only, with "no email sent" shown.
+   Chat -> Email reminder log as the Owner and refresh. Expand the recipient's
+   preview: one recipient, count and Hub link only, with "no email sent" shown.
 4. Send into another creator/channel during that hour. Confirm no second preview
    appears for the same recipient. Reading a chat must update its count normally.
 5. After the hourly limit has elapsed, leave a single message unread for thirty

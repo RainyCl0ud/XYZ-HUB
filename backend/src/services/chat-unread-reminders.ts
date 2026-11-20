@@ -24,7 +24,9 @@ export async function lockReminderPerson(tx: Prisma.TransactionClient, userId: s
  * role exception. A role grant or all-channel oversight is not a named add. */
 export async function reminderSnapshot(tx: Prisma.TransactionClient, userId: string) {
   const { viewer, limited, where } = await notificationUnreadScope(tx, userId);
-  const aggregate = await tx.chatMessage.aggregate({ where, _count: { id: true }, _min: { createdAt: true } });
+  // A staff announcement already sends its own email (brief 6.1) and appears
+  // in the header bell, so its posts never count toward an unread reminder.
+  const aggregate = await tx.chatMessage.aggregate({ where: { AND: [where, { announcementKey: null }] }, _count: { id: true }, _min: { createdAt: true } });
   const now = await reminderClock(tx);
   const count = aggregate._count.id, oldestAt = aggregate._min.createdAt;
   return { person: viewer.user, count, oldestAt, now, limited, due: !!oldestAt && oldestAt.getTime() <= now.getTime() - REMINDER_AGE_MS };
@@ -51,5 +53,45 @@ export async function unreadReminderHistory(userId: string) {
     return { emailMode: unreadReminderEmailMode(), eligibleUnread: current.count, limitedScope: current.limited,
       oldestUnreadAt: current.oldestAt, nextReminderAfter: state?.lastAttemptAt ? new Date(state.lastAttemptAt.getTime() + REMINDER_HOUR_MS) : null,
       deliveries };
+  });
+}
+
+/** Owners only: whether the Chat menu offers the email reminder log. Chat
+ * calls /areas on every refresh, so this is one plain query, not a viewer
+ * transaction; the log endpoint itself rechecks access in full. */
+export async function canViewUnreadReminderLog(userId: string) {
+  if (!unreadRemindersEnabled()) return false;
+  return (await prisma.user.count({ where: { id: userId, status: 'ACTIVE', roleMemberships: { some: { role: { systemKey: 'OWNER', archivedAt: null } } } } })) > 0;
+}
+
+type StoredPreview = { to?: unknown; subject?: unknown; text?: unknown } | null;
+/** Only what the log shows: never the HTML body, and no address once the
+ * account has been deleted. */
+function previewForLog(value: Prisma.JsonValue | null, recipientExists: boolean) {
+  const stored = (value && typeof value === 'object' && !Array.isArray(value) ? value : null) as StoredPreview;
+  if (!stored) return null;
+  return { to: recipientExists && typeof stored.to === 'string' ? stored.to : 'Address removed with the account',
+    subject: typeof stored.subject === 'string' ? stored.subject : '', text: typeof stored.text === 'string' ? stored.text : '' };
+}
+
+/** Owner-only delivery log across all staff: status, count, time and the
+ * stored count/link-only preview. Staff no longer see a reminder screen;
+ * their reminder simply arrives by email after 30 minutes unread. */
+export async function unreadReminderLog(userId: string, before?: string) {
+  if (!unreadRemindersEnabled()) throw new ChatError(404, 'Email reminders are not available.');
+  return prisma.$transaction(async tx => {
+    if (!(await loadViewer(tx, userId)).isOwner) throw new ChatError(403, 'Only Owners can view the email reminder log.');
+    const anchor = before ? await tx.chatUnreadReminder.findUnique({ where: { id: before }, select: { id: true, createdAt: true } }) : null;
+    if (before && !anchor) throw new ChatError(400, 'The reminder log changed. Reopen it to refresh.');
+    const rows = await tx.chatUnreadReminder.findMany({
+      where: anchor ? { OR: [{ createdAt: { lt: anchor.createdAt } }, { createdAt: anchor.createdAt, id: { lt: anchor.id } }] } : {},
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 21,
+      select: { id: true, status: true, unreadCount: true, createdAt: true, completedAt: true, previewEmail: true, lastError: true, recipient: { select: { name: true } } },
+    });
+    return {
+      emailMode: unreadReminderEmailMode(),
+      deliveries: rows.slice(0, 20).map(({ recipient, previewEmail, ...row }) => ({ ...row, personName: recipient?.name ?? 'Deleted account', previewEmail: previewForLog(previewEmail, !!recipient) })),
+      nextBefore: rows.length > 20 ? rows[19].id : null,
+    };
   });
 }
