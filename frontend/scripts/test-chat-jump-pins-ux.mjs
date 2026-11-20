@@ -51,8 +51,10 @@ pass("Quoted messages and discovered messages route through the same real transc
 assert.ok(page.includes('pane.scrollTo({ top: Math.max(0, desiredTop)'));
 assert.ok(page.includes('setJumpHighlight(destinationId)'));
 assert.ok(page.includes('setJumpTarget(null)'));
-assert.ok(page.includes('className={\`creator-chat-message'));
-assert.ok(page.includes('jumpHighlight === m.id ? "is-jump-highlight" : ""'));
+const transcriptRow = await read("frontend/src/pages/ChatTranscriptMessage.tsx");
+assert.ok(transcriptRow.includes('className={\`creator-chat-message'));
+assert.ok(page.includes('highlighted={jumpHighlight === m.id}'));
+assert.ok(transcriptRow.includes('highlighted ? "is-jump-highlight" : ""'));
 assert.ok(css.includes("@keyframes creator-chat-target-highlight"));
 assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"));
 pass("Jump scrolls only the message pane, centers the target and briefly highlights its row.");

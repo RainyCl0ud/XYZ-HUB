@@ -1,0 +1,42 @@
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
+const require = createRequire(import.meta.url), { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
+const origin = process.env.HUB_TEST_ORIGIN || "http://127.0.0.1:4198";
+assert.equal(new URL(origin).hostname, "127.0.0.1", "Use only the isolated local fixture");
+const output = resolve(process.env.HUB_TEST_OUTPUT || "../../outputs/chat-message-grouping"); await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ channel: "chrome", headless: true });
+const page = await browser.newPage({ viewport: { width: 1100, height: 1000 } });
+await page.route(origin + "/grouping-ui", async route => { const response = await route.fetch(), html = await response.text(); assert.ok(html.includes("/src/main.tsx")); return route.fulfill({ response, body: html.replace("/src/main.tsx", "/scripts/fixtures/chat-message-grouping.tsx") }); });
+const row = id => page.locator(`[data-chat-message-id="${id}"]`);
+try {
+  await page.goto(origin + "/grouping-ui"); await row("m9").waitFor();
+  assert.equal(await page.locator(".is-grouped").count(), 3); assert.equal(await page.locator(".creator-chat-avatar").count(), 6);
+  for (const id of ["m2", "m3", "m9"]) assert.equal(await row(id).locator("header").count(), 0);
+  for (const id of ["m1", "m4", "m5", "m6", "m7", "m8"]) assert.equal(await row(id).locator("header").count(), 1);
+  assert.equal(await row("m3").getByText("Edited", { exact: true }).count(), 1);
+  const firstText = await row("m1").locator("p").boundingBox(), secondText = await row("m2").locator("p").boundingBox(); assert.equal(firstText.x, secondText.x);
+  assert.ok(secondText.y - (firstText.y + firstText.height) <= 10, "Follow-ups use tight spacing");
+  await row("m2").hover(); assert.equal(await row("m2").locator(".creator-chat-group-time").evaluate(n => getComputedStyle(n).opacity), "1");
+  await row("m2").getByRole("button", { name: "Reply to message", exact: true }).click(); await page.getByText("Reply m2", { exact: true }).waitFor();
+  await row("m3").hover(); await row("m3").getByRole("button", { name: "Edit message", exact: true }).click(); await page.getByText("Edit m3", { exact: true }).waitFor();
+  await row("m2").hover(); await row("m2").getByRole("button", { name: "More actions for message by Jordan", exact: true }).click();
+  const menu = page.getByRole("group", { name: "Message actions", exact: true }); await menu.waitFor(); assert.equal(await menu.locator('time[datetime="2026-11-20T15:01:00Z"]').count(), 1);
+  await page.keyboard.press("Escape"); await page.getByRole("heading", { name: "Conversation", exact: true }).click(); await page.screenshot({ path: output + "/desktop.png", animations: "disabled" });
+  console.log("PASS: desktop headers, spacing, edited labels, file rows and per-message reply/edit/timestamp actions remain correct.");
+  await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ reducedMotion: "reduce" });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await row("m2").locator(".creator-chat-group-time").focus(); assert.equal(await row("m2").locator(".creator-chat-group-time").getAttribute("tabindex"), "0");
+  await page.screenshot({ path: output + "/mobile.png", animations: "disabled" });
+  const touch = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const phone = await touch.newPage();
+  await phone.route(origin + "/grouping-ui", async route => { const response = await route.fetch(), html = await response.text(); return route.fulfill({ response, body: html.replace("/src/main.tsx", "/scripts/fixtures/chat-message-grouping.tsx") }); });
+  await phone.goto(origin + "/grouping-ui"); const mobileRow = phone.locator('[data-chat-message-id="m2"]'); await mobileRow.waitFor();
+  assert.equal(await mobileRow.locator(".creator-chat-group-time").evaluate(n => getComputedStyle(n).opacity), "1");
+  await mobileRow.getByRole("button", { name: "Message actions for Jordan", exact: true }).tap();
+  await mobileRow.getByRole("button", { name: "More actions for message by Jordan", exact: true }).tap();
+  await phone.getByRole("group", { name: "Message actions", exact: true }).waitFor(); assert.equal(await phone.locator('.creator-chat-action-time[datetime="2026-11-20T15:01:00Z"]').count(), 1);
+  await touch.close(); console.log("PASS: mobile layout, keyboard timestamp access and touch message details work without horizontal overflow.");
+} catch (error) { await page.screenshot({ path: output + "/failure.png", fullPage: true }); throw error; }
+finally { await browser.close(); }

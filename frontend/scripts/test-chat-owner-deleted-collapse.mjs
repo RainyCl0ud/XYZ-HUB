@@ -75,15 +75,18 @@ try {
   assert.ok(source.includes('onClick={() => setDeletedExpanded((open) => !open)}'));
   assert.ok(source.includes('{(!m.deleted || deletedExpanded) && <>'));
   assert.ok(source.includes('className="creator-chat-deleted-author"'));
-  assert.ok(source.includes('{!m.deleted && <header>'));
+  assert.ok(source.includes('{!m.deleted && !compact && <header>'));
   assert.ok(!source.includes('Deleted by {m.deleted.by}'));
   assert.ok(!source.includes('Reason: {m.deleted.reason}'));
   assert.ok(!source.includes('Deleted · Owner view</strong>'));
   assert.ok(source.includes('m.canViewHistory && onHistory'));
   pass("Expanding keeps original content and Owner history, without repeating the author or deletion metadata.");
 
-  assert.ok(page.includes('m.deleted ? "is-deleted-message" : ""'));
-  assert.ok(page.includes('<div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent'));
+  const rowSource = await read("src/pages/ChatTranscriptMessage.tsx");
+  assert.ok(page.includes('<ChatTranscriptMessage'));
+  assert.ok(rowSource.includes('m.deleted ? "is-deleted-message" : ""'));
+  assert.ok(rowSource.includes('<div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div>'));
+  assert.ok(rowSource.includes('<ChatMessageContent'));
   assert.ok(css.includes('.creator-chat .creator-chat-message.is-deleted-message {'));
   assert.ok(css.includes('margin-bottom: 10px;'));
   assert.ok(css.includes('.creator-chat .creator-chat-deleted-toggle {'));
