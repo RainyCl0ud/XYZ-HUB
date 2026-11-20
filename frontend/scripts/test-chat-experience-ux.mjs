@@ -10,7 +10,7 @@ const [chat, css, profile, profileCss, reminders, attach, voice, notification, m
   "src/pages/ChatPage.css",
   "src/pages/AccountPage.tsx",
   "src/pages/AccountPage.css",
-  "src/pages/ChatUnreadReminders.tsx",
+  "src/pages/AuditEmailDelivery.tsx",
   "src/pages/ChatAttachmentPicker.tsx",
   "src/pages/ChatVoiceRecorder.tsx",
   "src/components/AccountNotificationToggle.tsx",
@@ -89,15 +89,13 @@ assert.ok(notification.includes("blocked in this browser's site settings"));
 assert.ok(provider.includes("void releaseBackgroundPush(id)"));
 pass("My Account has one notification switch with inline browser guidance; Off releases previous background push without an extra settings screen.");
 
-assert.ok(reminders.includes("Email reminder log"));
-assert.ok(reminders.includes("'Preview mode · no emails are sent'"));
-assert.ok(reminders.includes("How email reminders work"));
-assert.ok(reminders.includes("unread for 30 minutes, at most once an hour"));
-assert.ok(reminders.includes("Staff announcements don’t count"));
-assert.ok(reminders.includes("Emails show only the number of unread messages and a link to the Hub."));
-assert.ok(reminders.includes("Recent reminders") && reminders.includes("d.personName"));
-assert.ok(!reminders.includes("not a personal email on/off switch"));
-pass("The Owner reminder log explains the schedule, capture mode and privacy, with each person's delivery history and no false on/off switch.");
+assert.ok(reminders.includes('id="email-delivery"') && reminders.includes(">Email delivery</h3>"));
+assert.ok(reminders.includes('title: "Preview mode"') && reminders.includes("Daily email limit nearly reached") && reminders.includes("Sign-in codes are still sent."));
+assert.ok(reminders.includes("Needs attention") && reminders.includes('"Resume reminders"') && reminders.includes('"Mark handled"'));
+assert.ok(reminders.includes("Check the person’s inbox first, so nobody gets the same email twice."));
+assert.ok(reminders.includes("with no message content") && !reminders.includes("previewEmail"));
+assert.ok(!chat.includes("Email reminder") && !chat.includes("ChatUnreadReminders"), "Chat no longer has an email reminder screen");
+pass("Owner email delivery leads with problems: status, daily-limit warning, paused deliveries with resume actions, and no per-email previews.");
 
 assert.ok(css.includes(".creator-chat-browse-switcher"));
 assert.ok(css.includes(".creator-chat-search-panel"));
@@ -105,13 +103,12 @@ assert.ok(css.includes(".creator-chat-composer-bar"));
 assert.ok(css.includes(".creator-chat-composer-menu"));
 assert.ok(css.includes(".creator-chat-voice-player"));
 assert.ok(css.includes(".creator-chat-action-popover"));
-assert.ok(css.includes(".creator-chat-reminder-summary"));
 assert.ok(css.includes("@media (max-width: 720px)"));
 assert.ok(profileCss.includes(".account-notification-card"));
 assert.ok(profileCss.includes(".account-notification-knob"));
 assert.ok(profileCss.includes('.account-notification-toggle[aria-checked="true"]'));
 assert.ok(profileCss.includes("@media (max-width: 720px)"));
-pass("Responsive conversation, composer, reminders and profile controls retain mobile layout rules.");
+pass("Responsive conversation, composer and profile controls retain mobile layout rules.");
 
 assert.ok(message.includes('className="creator-chat-action-menu"'));
 assert.ok(message.includes("createPortal("));

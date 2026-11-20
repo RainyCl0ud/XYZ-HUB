@@ -1,4 +1,5 @@
 import AuditRetainedChannels from "./AuditRetainedChannels";
+import AuditEmailDelivery from "./AuditEmailDelivery";
 import { useAuth } from "../auth/AuthContext";
 import {
   useNavigationFilter,
@@ -516,6 +517,7 @@ function AuditPage() {
         </button>
       </header>
 
+      {isOwner && import.meta.env.VITE_BLOCK2_CHAT_ENABLED === "true" && <AuditEmailDelivery />}
       {isOwner && <AuditRetainedChannels />}
 
       <section className="content-card audit-toolbar">

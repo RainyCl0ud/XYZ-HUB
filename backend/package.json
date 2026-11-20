@@ -85,6 +85,7 @@
     "test:chat-live-events": "tsx scripts/test-chat-live-events.ts",
     "test:chat-mentions": "tsx scripts/test-chat-mentions.ts",
     "test:hub-notifications": "tsx scripts/test-hub-notifications.ts",
+    "test:email-delivery": "tsx scripts/test-email-delivery.ts",
     "test:chat-mentions-upgrade": "tsx scripts/test-chat-mentions-upgrade.ts"
   },
   "keywords": [],

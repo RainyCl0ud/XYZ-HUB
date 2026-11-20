@@ -14,14 +14,14 @@ const [page, css, tools, layout] = await Promise.all([
 let passed = 0;
 const pass = (name) => console.log(`PASS ${++passed}: ${name}`);
 
-assert.ok(page.includes("Staff announcements") && page.includes("Email reminder log"));
+assert.ok(page.includes("Staff announcements") && !page.includes("Email reminder"));
 assert.ok(page.includes('className={`creator-chat-heading-actions ${showChatOptions ? "is-open" : ""}`}'));
 assert.ok(css.includes("@media (min-width: 721px)"));
 assert.ok(css.includes(".creator-chat .creator-chat-heading-actions {"));
 assert.ok(css.includes("flex-direction: row;"));
 assert.ok(css.includes("flex-wrap: nowrap;"));
 assert.ok(css.includes("white-space: nowrap;"));
-pass("Staff announcements and the Email reminder log share a single desktop row.");
+pass("Chat options keep Staff announcements on a single desktop row.");
 
 assert.ok(layout.includes("--portal-footer-height: 58px;"));
 assert.ok(layout.includes(".portal-shell .main-content {"));

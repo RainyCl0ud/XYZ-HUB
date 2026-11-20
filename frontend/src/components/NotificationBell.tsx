@@ -18,6 +18,7 @@ function KindIcon({ kind }: { kind: HubNotification["kind"] }) {
   const path = kind === "MENTION" ? "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm4-4v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1"
     : kind === "ANNOUNCEMENT" ? "M4 10v4h3l6 4V6L7 10H4Zm13-1a4 4 0 0 1 0 6"
     : kind === "CORRECTION_REVIEW" || kind === "CORRECTION_DECIDED" ? "M7 3h7l5 5v13H7V3Zm7 0v5h5M10 14l2 2 4-4"
+    : kind === "EMAIL_REVIEW" || kind === "EMAIL_LIMIT" ? "M3 6h18v12H3V6Zm0 0 9 7 9-7"
     : "M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z";
   return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>;
 }

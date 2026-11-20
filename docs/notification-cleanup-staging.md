@@ -1,6 +1,8 @@
 # Notification cleanup after the header bell
 
-Staging candidate, 21 November 2026. Production is outside this release. Follows `docs/hub-notification-bell.md`.
+Released to Staging on 21 November 2026 (PR #142). Production is outside this release. Follows `docs/hub-notification-bell.md`.
+
+**Superseded:** the Chat → Email reminder log described below was replaced the same day by the Owner **Email delivery** section of the Audit Log. See `docs/email-delivery-staging.md`.
 
 ## What changes
 

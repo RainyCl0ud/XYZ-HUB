@@ -215,6 +215,8 @@ function actionLabel(
     "chat.channel.grant": "Chat channel access updated",
     "chat.private.create": "Private chat created",
     "chat.private.archive": "Private chat archived",
+    "chat.unread_reminder.email": "Unread reminder email",
+    "chat.email.review_resolve": "Paused email delivery resolved",
     "clock.correction.request": "Attendance correction requested",
     "clock.correction.approve": "Attendance correction approved",
     "clock.correction.reject": "Attendance correction rejected",
@@ -816,6 +818,18 @@ function buildChanges(
     if (event.action === "chat.message.edit") pushChange(changes, "Message text", asString(metadata?.before), asString(metadata?.after));
     if (event.action === "chat.channel.rename") pushChange(changes, "Channel name", asString(metadata?.before), asString(metadata?.after));
     if (event.action === "chat.private.archive") pushChange(changes, "Archive reason", null, asString(metadata?.reason));
+    if (event.action === "chat.unread_reminder.email") {
+      // Recipient, count and outcome only: reminder emails carry no message content.
+      pushChange(changes, "Recipient", null, asString(metadata?.personName));
+      const unread = asNumber(metadata?.unreadCount);
+      pushChange(changes, "Unread messages", null, unread === null ? null : String(unread));
+      pushChange(changes, "Outcome", null, asString(metadata?.outcome));
+    }
+    if (event.action === "chat.email.review_resolve") {
+      pushChange(changes, "Email", null, asString(metadata?.kind));
+      pushChange(changes, "Recipient", null, asString(metadata?.personName));
+      pushChange(changes, "Announcement", null, asString(metadata?.title));
+    }
     if (event.action === "chat.channel.grant") {
       const describe = (value: unknown) => { const grant = asRecord(value); return grant?.canPost ? "See and post" : grant?.canView ? "See only" : "No direct grant"; };
       pushChange(changes, asString(metadata?.recipientName) ?? "Channel access", describe(metadata?.beforeGrant), describe(metadata?.afterGrant));

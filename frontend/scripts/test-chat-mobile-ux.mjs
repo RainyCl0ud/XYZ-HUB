@@ -14,7 +14,8 @@ assert.ok(page.includes('className="creator-chat-mobile creator-chat-options-tog
 assert.ok(page.includes('aria-controls="chat-page-options"'));
 assert.ok(page.includes('aria-expanded={showChatOptions}'));
 assert.ok(page.includes('className={`creator-chat-heading-actions ${showChatOptions ? "is-open" : ""}`}'));
-for (const label of ["Staff announcements", "Email reminder log"]) {
+assert.ok(!page.includes("Email reminder"), "Email delivery moved to the Owner Audit Log");
+for (const label of ["Staff announcements"]) {
   assert.ok(page.includes(label));
 }
 assert.ok(!page.includes("Browser notifications"), "Browser notification settings live under My Account, not Chat.");
@@ -108,7 +109,7 @@ assert.ok(page.includes('className="creator-chat-options-chevron"'));
 assert.ok(css.includes('.creator-chat-options-toggle[aria-expanded="true"] .creator-chat-options-chevron { transform: rotate(180deg); }'));
 assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
 assert.ok(page.includes('setShowChatOptions(false); setShowAnnouncements(true);'));
-assert.ok(page.includes('setShowChatOptions(false); setShowReminders(true);'));
+assert.ok(!page.includes('setShowReminders'), "Email delivery is no longer a Chat option");
 pass("Chat options use a chevron disclosure while retaining permission-gated tools.");
 
 console.log(`${passed} mobile Chat UX source regression groups passed.`);
