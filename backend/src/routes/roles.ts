@@ -103,6 +103,7 @@ function handleRoleError(
     error.code
   ) {
     case "ROLE_MANAGEMENT_REQUIRED":
+    case "ROLE_AUTHORITY_REQUIRED":
     case "OWNER_REQUIRED":
       res.status(403).json({
         error:

@@ -117,7 +117,8 @@ async function main() {
       const choices = await chatGrantOptions(actor.id, top.id);
       assert.ok(!choices.roles.some((r) => r.id === roles.get("OWNER")!.id));
       assert.ok(!choices.people.some((p) => p.id === otherOwner.id));
-      assert.ok(choices.roles.some((r) => r.id === custom.id), "Custom roles with no system key remain editable");
+      // The rank-2 custom role is editable by Owners but sits above a Manager (rank 3).
+      assert.equal(choices.roles.some((r) => r.id === custom.id), actor === owner, "Custom roles follow the rank chain");
       assert.ok(choices.people.some((p) => p.id === chatter.id), "Ordinary assigned members remain editable");
       for (const allow of [false, true]) {
         await expect(() => setChatGrant(actor.id, top.id, { roleId: roles.get("OWNER")!.id, canView: allow, canPost: allow }), 403);
@@ -139,6 +140,40 @@ async function main() {
       assert.equal((await fetch(grantEndpoint, { method: "PUT", headers: ownerHeaders, body: JSON.stringify({ ...target, canView: true, canPost: true }) })).status, 403);
     }
     check("Owner role and multi-role owners are absent from editable options; direct service/HTTP grants cannot change their automatic access");
+    // Chain of command: outside Owners, grants are limited to roles strictly below
+    // the editor's rank (never protected roles or a role they hold) and to people
+    // whose every role is below the editor.
+    const junior = await prisma.role.create({ data: { name: `${prefix} junior`, dataScope: "SELF", rank: 7 } }); customRoles.push(junior.id);
+    const peerManager = await makeUser("peer-manager", ["MANAGER"]); await assign(peerManager.id, mei);
+    const managerChatter = await makeUser("manager-chatter", ["MANAGER", "CHATTER"]); await assign(managerChatter.id, mei);
+    const roleIds = (choices: { roles: { id: string }[] }) => new Set(choices.roles.map((r) => r.id));
+    const managerChoices = await chatGrantOptions(manager.id, top.id);
+    for (const key of ["QC", "CHATTER", "TRIAL_CHATTER"]) assert.ok(roleIds(managerChoices).has(roles.get(key)!.id), `${key} is below Manager`);
+    assert.ok(roleIds(managerChoices).has(junior.id), "A custom role ranked below Manager is editable");
+    for (const key of ["MANAGER", "OPS_MANAGER", "DEV", "ACCOUNTANT", "MODEL", "GENERAL_STAFF"]) assert.ok(!roleIds(managerChoices).has(roles.get(key)!.id), `${key} is not editable by a Manager`);
+    assert.ok(!managerChoices.people.some((p) => p.id === peerManager.id || p.id === managerChatter.id || p.id === accountant.id), "Peers and protected roles are hidden");
+    assert.ok(managerChoices.people.some((p) => p.id === trial.id), "Lower-ranked members stay editable");
+    const opsChoices = await chatGrantOptions(ops.id, top.id);
+    assert.ok(roleIds(opsChoices).has(roles.get("MANAGER")!.id) && !roleIds(opsChoices).has(roles.get("OPS_MANAGER")!.id) && !roleIds(opsChoices).has(custom.id));
+    assert.ok(opsChoices.people.some((p) => p.id === peerManager.id) && !opsChoices.people.some((p) => p.id === accountant.id || p.id === customUser.id));
+    assert.ok(!roleIds(await chatGrantOptions(managerChatter.id, top.id)).has(roles.get("CHATTER")!.id), "A role the editor holds is never editable");
+    const hierarchyAuditCount = await prisma.auditEvent.count({ where: { action: "chat.channel.grant", targetId: top.id } });
+    const managerRoleGrant = await prisma.chatRoleGrant.findUnique({ where: { channelId_roleId: { channelId: top.id, roleId: roles.get("MANAGER")!.id } } });
+    for (const roleKey of ["MANAGER", "OPS_MANAGER", "DEV"]) await expect(() => setChatGrant(manager.id, top.id, { roleId: roles.get(roleKey)!.id, canView: true, canPost: false }), 403);
+    await expect(() => setChatGrant(manager.id, top.id, { roleId: custom.id, canView: true, canPost: true }), 403);
+    await expect(() => setChatGrant(managerChatter.id, top.id, { roleId: roles.get("CHATTER")!.id, canView: true, canPost: true }), 403);
+    for (const person of [peerManager, managerChatter, accountant]) await expect(() => setChatGrant(manager.id, top.id, { personId: person.id, canView: true, canPost: true }), 403);
+    await expect(() => setChatGrant(ops.id, top.id, { roleId: roles.get("OPS_MANAGER")!.id, canView: true, canPost: true }), 403);
+    assert.deepEqual(await prisma.chatRoleGrant.findUnique({ where: { channelId_roleId: { channelId: top.id, roleId: roles.get("MANAGER")!.id } } }), managerRoleGrant);
+    assert.equal(await prisma.auditEvent.count({ where: { action: "chat.channel.grant", targetId: top.id } }), hierarchyAuditCount);
+    const managerSession = await createSession({ userId: manager.id, expiresAt: new Date(Date.now() + 60_000) });
+    const managerHeaders = { Cookie: `xyz_session=${managerSession.token}`, "Content-Type": "application/json" };
+    assert.equal((await fetch(grantEndpoint, { method: "PUT", headers: managerHeaders, body: JSON.stringify({ roleId: roles.get("MANAGER")!.id, canView: true, canPost: false }) })).status, 403);
+    await setChatGrant(manager.id, top.id, { roleId: roles.get("QC")!.id, canView: true, canPost: true });
+    await setChatGrant(manager.id, top.id, { roleId: junior.id, canView: false, canPost: false });
+    await setChatGrant(manager.id, top.id, { personId: trial.id, canView: true, canPost: false });
+    await setChatGrant(ops.id, top.id, { roleId: roles.get("MANAGER")!.id, canView: true, canPost: true });
+    check("Channel grants follow the chain of command: only roles and members ranked below the editor, never peers, protected roles or held roles");
     const sent = await sendChatMessage(chatter.id, general.id, "Original full message", "message-reference-1");
     const retry = await sendChatMessage(chatter.id, general.id, "Original full message", "message-reference-1");
     assert.equal(sent.id, retry.id);

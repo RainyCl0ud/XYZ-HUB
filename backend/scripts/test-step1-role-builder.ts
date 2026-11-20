@@ -164,6 +164,10 @@ async function main() {
     string | null =
     null;
 
+  let delegatedRoleId:
+    string | null =
+    null;
+
   try {
     const ownerAccess =
       await getAccessContext(
@@ -686,11 +690,222 @@ async function main() {
       "✓ reactivation restores the retained role assignment and permissions"
     );
 
+    /*
+     * Chain of command: a delegated role manager (here a Manager,
+     * rank 3, given roles.manage in memory only) may configure
+     * roles strictly below rank 3, never protected system roles,
+     * and never a role they hold.
+     */
+    const delegatedAccess = {
+      ...managerAccess,
+      permissions:
+        new Set([
+          ...managerAccess.permissions,
+          "roles.access",
+          "roles.manage",
+        ]),
+    };
+
+    const systemRoles =
+      new Map(
+        (
+          await prisma.role.findMany({
+            where: {
+              systemKey: {
+                not: null,
+              },
+            },
+          })
+        ).map(
+          (role) => [
+            role.systemKey!,
+            role,
+          ]
+        )
+      );
+
+    const delegatedBuilder =
+      await getRoleBuilderData(
+        delegatedAccess
+      );
+
+    const editable = (
+      key: string
+    ) =>
+      delegatedBuilder.roles.find(
+        (role) =>
+          role.systemKey === key
+      )?.canManage;
+
+    assert.equal(editable("MANAGER"), false, "own role");
+    assert.equal(editable("OPS_MANAGER"), false, "higher rank");
+    assert.equal(editable("DEV"), false, "protected unranked");
+    assert.equal(editable("ACCOUNTANT"), false, "protected unranked");
+    assert.equal(editable("QC"), true, "lower rank");
+    assert.equal(editable("CHATTER"), true, "lower rank");
+    assert.equal(
+      (await getRoleBuilderData(ownerAccess)).roles.every(
+        (role) => role.canManage
+      ),
+      true,
+      "Owners can configure every listed role"
+    );
+
+    console.log(
+      "✓ Role Settings marks only lower-ranked, unheld roles as editable"
+    );
+
+    const managerPermissionsBefore =
+      await prisma.rolePermission.count({
+        where: {
+          roleId:
+            managerRole.id,
+        },
+      });
+
+    for (const key of [
+      "MANAGER",
+      "OPS_MANAGER",
+      "DEV",
+    ]) {
+      const role =
+        systemRoles.get(key)!;
+
+      await expectRoleError(
+        () =>
+          updateRole(
+            role.id,
+            {
+              name:
+                role.name,
+              description:
+                role.description,
+              rank:
+                role.rank,
+              dataScope:
+                role.dataScope,
+              permissionIds: [],
+            },
+            delegatedAccess
+          ),
+        "ROLE_AUTHORITY_REQUIRED"
+      );
+    }
+
+    assert.equal(
+      await prisma.rolePermission.count({
+        where: {
+          roleId:
+            managerRole.id,
+        },
+      }),
+      managerPermissionsBefore,
+      "A rejected edit must not touch the Manager role"
+    );
+
+    for (const rank of [
+      2,
+      3,
+    ]) {
+      await expectRoleError(
+        () =>
+          createRole(
+            {
+              name:
+                `Too Senior Role ${rank} ${suffix}`,
+              rank,
+              dataScope:
+                RoleDataScope.SELF,
+              permissionIds: [],
+            },
+            delegatedAccess
+          ),
+        "ROLE_AUTHORITY_REQUIRED"
+      );
+    }
+
+    const juniorRole =
+      await createRole(
+        {
+          name:
+            `Delegated Junior Role ${suffix}`,
+          rank:
+            50,
+          dataScope:
+            RoleDataScope.SELF,
+          permissionIds: [],
+        },
+        delegatedAccess
+      );
+
+    delegatedRoleId =
+      juniorRole.id;
+
+    assert.equal(
+      juniorRole.canManage,
+      true
+    );
+
+    await expectRoleError(
+      () =>
+        updateRole(
+          juniorRole.id,
+          {
+            name:
+              juniorRole.name,
+            rank:
+              3,
+            dataScope:
+              RoleDataScope.SELF,
+            permissionIds: [],
+          },
+          delegatedAccess
+        ),
+      "ROLE_AUTHORITY_REQUIRED"
+    );
+
+    const movedDown =
+      await updateRole(
+        juniorRole.id,
+        {
+          name:
+            juniorRole.name,
+          rank:
+            60,
+          dataScope:
+            RoleDataScope.SELF,
+          permissionIds: [],
+        },
+        delegatedAccess
+      );
+
+    assert.equal(
+      movedDown.rank,
+      60
+    );
+
+    console.log(
+      "✓ delegated role managers cannot create, edit or promote roles at or above their own rank"
+    );
+
     console.log("");
     console.log(
       "All Step 1 Role Builder tests passed."
     );
   } finally {
+    if (
+      delegatedRoleId
+    ) {
+      await prisma.role.deleteMany({
+        where: {
+          id:
+            delegatedRoleId,
+          isSystem:
+            false,
+        },
+      });
+    }
+
     if (
       holderId
     ) {

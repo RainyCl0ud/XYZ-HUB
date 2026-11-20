@@ -8,6 +8,7 @@ import { CHAT_ROLE_DEFAULTS, CHAT_PERMISSION_DEFINITIONS } from "../permissions/
 import { syncCreatorStandingChat, syncUserStandingChats } from "./standing-chat.js";
 import { canPreviewChatImage, chatAttachmentDirectory } from "./chat-attachment-policy.js";
 import { chatChannelArchiveEnabled, chatChannelCleanupEnabled, chatChannelExportEnabled } from "./chat-archive-policy.js";
+import { getHighestRank, OWNER_ONLY_ROLE_KEYS } from "./access-control.js";
 
 export const isCreatorChatEnabled = () => process.env.BLOCK2_CHAT_ENABLED === "true";
 export class ChatError extends Error {
@@ -80,6 +81,27 @@ function makeViewer(user: ViewerUser) {
   return { user, permissions, isOwner, isDeveloper, isModel, ownCreatorId, roleIds: new Set(user.roleMemberships.map(({ role }) => role.id)) };
 }
 type Viewer = ReturnType<typeof makeViewer>;
+// Channel grants follow the management chain of command. Owners keep full
+// control (except over Owner access, which is automatic). Everyone else may
+// only change access for roles ranked strictly below their own highest rank,
+// never for protected system roles, never for a role they hold themselves,
+// and named grants only for people whose every role is ranked below theirs.
+type GrantRole = { id: string; systemKey: string | null; rank: number | null };
+function roleRankedBelowViewer(viewer: Viewer, role: GrantRole) {
+  if (role.systemKey && OWNER_ONLY_ROLE_KEYS.has(role.systemKey)) return false;
+  const viewerRank = getHighestRank(viewer.user.roleMemberships.map(({ role: held }) => held));
+  return viewerRank !== null && role.rank !== null && role.rank > viewerRank;
+}
+function canGrantToRole(viewer: Viewer, role: GrantRole) {
+  if (role.systemKey === "OWNER") return false;
+  if (viewer.isOwner) return true;
+  return !viewer.roleIds.has(role.id) && roleRankedBelowViewer(viewer, role);
+}
+function canGrantToPerson(viewer: Viewer, roles: readonly GrantRole[]) {
+  if (roles.some((role) => role.systemKey === "OWNER")) return false;
+  if (viewer.isOwner) return true;
+  return roles.length > 0 && roles.every((role) => roleRankedBelowViewer(viewer, role));
+}
 // The Model one-chat rule is a hard privacy boundary, not a default that
 // can be widened via Role Settings, direct channel IDs or named grants.
 function inOrdinaryArea(viewer: Viewer, modelId: string) {
@@ -707,14 +729,16 @@ export async function setChatGrant(userId: string, channelId: string, input: { r
       const role = await tx.role.findFirst({ where: { id: input.roleId, archivedAt: null } });
       if (!role) throw new ChatError(404, "Role not found.");
       if (role.systemKey === "OWNER") throw new ChatError(403, "Owner access is automatic and cannot be changed through channel grants.");
+      if (!canGrantToRole(viewer, role)) throw new ChatError(403, "You can only change channel access for roles ranked below your own.");
       beforeGrant = await tx.chatRoleGrant.findUnique({ where: { channelId_roleId: { channelId, roleId: role.id } } });
       recipientName = role.name;
       await tx.chatRoleGrant.upsert({ where: { channelId_roleId: { channelId, roleId: role.id } }, create: { channelId, roleId: role.id, ...data }, update: data });
     } else {
       if (input.personId === userId) throw new ChatError(403, "You cannot add yourself to a channel.");
-      const assignment = await tx.userModelAssignment.findFirst({ where: { userId: input.personId, modelId: channel.modelId, user: { status: "ACTIVE" } }, include: { user: { select: { name: true, roleMemberships: { where: { role: { archivedAt: null } }, select: { role: { select: { systemKey: true } } } } } } } });
+      const assignment = await tx.userModelAssignment.findFirst({ where: { userId: input.personId, modelId: channel.modelId, user: { status: "ACTIVE" } }, include: { user: { select: { name: true, roleMemberships: { where: { role: { archivedAt: null } }, select: { role: { select: { id: true, systemKey: true, rank: true } } } } } } } });
       if (!assignment) throw new ChatError(404, "That person is not currently assigned to this creator.");
       if (assignment.user.roleMemberships.some(({ role }) => role.systemKey === "OWNER")) throw new ChatError(403, "Owner access is automatic and cannot be changed through channel grants.");
+      if (!canGrantToPerson(viewer, assignment.user.roleMemberships.map(({ role }) => role))) throw new ChatError(403, "You can only change channel access for people whose roles are all ranked below yours.");
       beforeGrant = await tx.chatPersonGrant.findUnique({ where: { channelId_assignmentId: { channelId, assignmentId: assignment.id } } });
       recipientName = assignment.user.name;
       await tx.chatPersonGrant.upsert({ where: { channelId_assignmentId: { channelId, assignmentId: assignment.id } }, create: { channelId, assignmentId: assignment.id, ...data }, update: data });
@@ -725,16 +749,19 @@ export async function setChatGrant(userId: string, channelId: string, input: { r
 
 export async function chatGrantOptions(userId: string, channelId: string) {
   return prisma.$transaction(async (tx) => {
-    const { channel, access } = await openChannel(tx, userId, channelId);
+    const { viewer, channel, access } = await openChannel(tx, userId, channelId);
     if (!channel || !access.canManage) throw new ChatError(403, "Protected chats have fixed membership; ordinary channels require channel management access.");
-    const [roles, assignments] = await Promise.all([
+    const [allRoles, allAssignments] = await Promise.all([
       // Owners have built-in oversight, never an editable role or member grant.
       // Include custom roles whose systemKey is null as well as other system roles.
-      tx.role.findMany({ where: { archivedAt: null, OR: [{ systemKey: null }, { systemKey: { not: "OWNER" } }] }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+      tx.role.findMany({ where: { archivedAt: null, OR: [{ systemKey: null }, { systemKey: { not: "OWNER" } }] }, select: { id: true, name: true, systemKey: true, rank: true }, orderBy: { name: "asc" } }),
       tx.userModelAssignment.findMany({ where: { modelId: channel.modelId, user: { status: "ACTIVE", id: { not: userId }, roleMemberships: { none: { role: { systemKey: "OWNER", archivedAt: null } } } } }, select: { id: true, user: { include: viewerInclude } }, orderBy: { user: { name: "asc" } } }),
     ]);
+    // Offer only what setChatGrant will accept for this manager.
+    const roles = allRoles.filter((role) => canGrantToRole(viewer, role));
+    const assignments = allAssignments.filter((a) => canGrantToPerson(viewer, a.user.roleMemberships.map(({ role }) => role)));
     return {
-      roles: roles.map((role) => ({ ...role, grant: channel.roleGrants.find((g) => g.roleId === role.id) ?? null })),
+      roles: roles.map(({ id, name }) => ({ id, name, grant: channel.roleGrants.find((g) => g.roleId === id) ?? null })),
       // The Member selector edits only a named grant. Show the inherited
       // access separately so "no named grant" is never mistaken for a denial.
       people: assignments.map((a) => {
