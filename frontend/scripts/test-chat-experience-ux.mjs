@@ -89,16 +89,15 @@ assert.ok(notification.includes("blocked in this browser's site settings"));
 assert.ok(provider.includes("void releaseBackgroundPush(id)"));
 pass("My Account has one notification switch with inline browser guidance; Off releases previous background push without an extra settings screen.");
 
-assert.ok(reminders.includes("Email reminder activity"));
-assert.ok(reminders.includes("'Preview mode'"));
-assert.ok(reminders.includes("Messages eligible"));
-assert.ok(reminders.includes("Next possible reminder"));
+assert.ok(reminders.includes("Email reminder log"));
+assert.ok(reminders.includes("'Preview mode · no emails are sent'"));
 assert.ok(reminders.includes("How email reminders work"));
-assert.ok(reminders.includes("Reminder emails include a link to your messages."));
-assert.ok(reminders.includes("Refresh activity"));
+assert.ok(reminders.includes("unread for 30 minutes, at most once an hour"));
+assert.ok(reminders.includes("Staff announcements don’t count"));
+assert.ok(reminders.includes("Emails show only the number of unread messages and a link to the Hub."));
+assert.ok(reminders.includes("Recent reminders") && reminders.includes("d.personName"));
 assert.ok(!reminders.includes("not a personal email on/off switch"));
-assert.ok(reminders.includes("Recent reminder activity"));
-pass("Email reminder activity explains its schedule, capture mode, privacy and delivery history without a false on/off switch.");
+pass("The Owner reminder log explains the schedule, capture mode and privacy, with each person's delivery history and no false on/off switch.");
 
 assert.ok(css.includes(".creator-chat-browse-switcher"));
 assert.ok(css.includes(".creator-chat-search-panel"));

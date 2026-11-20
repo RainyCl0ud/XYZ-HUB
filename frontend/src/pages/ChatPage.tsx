@@ -293,12 +293,13 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const refreshAreas = useCallback(async (signal?: AbortSignal) => {
     const request = ++areasRequest.current;
     const params = retainedConversation ? `?retained=${encodeURIComponent(retainedConversation)}` : "";
-    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean }; attachments?: { maxBytes: number; voiceMaxSeconds?: number } }>(`/api/chat/areas${params}`, { signal });
+    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean; canViewLog?: boolean }; attachments?: { maxBytes: number; voiceMaxSeconds?: number } }>(`/api/chat/areas${params}`, { signal });
     if (signal?.aborted || request !== areasRequest.current) return;
     availableAreas.current = response.areas;
     setAreas(response.areas);
     setCanAnnounce(!!response.announcements?.canAnnounce);
-    setRemindersEnabled(!!response.unreadReminders?.enabled);
+    // Staff simply receive the email; only Owners see the delivery log.
+    setRemindersEnabled(!!response.unreadReminders?.enabled && !!response.unreadReminders?.canViewLog);
     setAttachmentMaxBytes(response.attachments?.maxBytes ?? 0);
     setVoiceMaxSeconds(response.attachments?.voiceMaxSeconds ?? 0);
     const current = selectedRef.current;
@@ -726,7 +727,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
             onClick={() => setShowChatOptions(open => !open)}>Chat options <svg className="creator-chat-options-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="m5 7 5 5 5-5" /></svg></button>}
           <div id="chat-page-options" className={`creator-chat-heading-actions ${showChatOptions ? "is-open" : ""}`}>
             {canAnnounce && <button type="button" onClick={() => { setShowChatOptions(false); setShowAnnouncements(true); }}>Staff announcements</button>}
-            {remindersEnabled && <button type="button" onClick={() => { setShowChatOptions(false); setShowReminders(true); }}>Email reminders</button>}
+            {remindersEnabled && <button type="button" onClick={() => { setShowChatOptions(false); setShowReminders(true); }}>Email reminder log</button>}
           </div>
         </div>
       </header>}

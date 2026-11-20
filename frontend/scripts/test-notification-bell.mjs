@@ -54,5 +54,16 @@ try {
   assert.ok(!/box-shadow|linear-gradient/.test(css));
   assert.ok(css.includes("@media (max-width: 720px)") && css.includes(":focus-visible"));
   pass("Bell styling follows the XYZ web kit: monochrome tokens, 2px corners, no shadows, focus outline and a phone layout");
+
+  const reminders = await read("src/pages/ChatUnreadReminders.tsx");
+  assert.ok(chat.includes("response.unreadReminders?.canViewLog") && chat.includes(">Email reminder log</button>"), "Only Owners get the reminder log entry");
+  assert.ok(reminders.includes("/api/chat/unread-reminders/log") && reminders.includes("Load older reminders") && reminders.includes("d.personName"));
+  assert.ok(!reminders.includes("Messages eligible") && !reminders.includes("Reminders on for test recipients"));
+  const push = await read("src/lib/background-push.ts");
+  const provider = await read("src/components/BrowserNotificationsProvider.tsx");
+  assert.ok(push.includes('method: "DELETE"') && push.indexOf('method: "DELETE"') < push.indexOf("subscription?.unsubscribe()"), "Turning alerts off also removes the server record");
+  assert.ok(!provider.includes("advanced settings"));
+  await assert.rejects(read("src/components/BackgroundPushSettings.tsx"), "The unused background push panel is removed");
+  pass("The email reminder log is Owner-only; turning notifications off also clears background push on the server");
   console.log(`${passed} notification bell groups passed.`);
 } finally { await vite.close(); }

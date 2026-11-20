@@ -39,7 +39,7 @@ export default function BrowserNotificationsProvider({ children }: { children: R
     void releaseBackgroundPush(id).then(() => {
       if (stored && identity.current === id) toast.success("Browser notifications turned off.");
     }).catch(() => {
-      setError("Open-tab notifications are off, but background push could not be disabled. Check advanced settings.");
+      setError("Notifications are off in this tab, but this browser could not stop background alerts. Block notifications for this site in your browser settings to stop them.");
     });
   }, [id, clear, toast]);
   useEffect(() => {
