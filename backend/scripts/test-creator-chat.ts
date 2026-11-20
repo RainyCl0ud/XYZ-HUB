@@ -106,6 +106,39 @@ async function main() {
     const options = await chatGrantOptions(owner.id, top.id);
     assert.ok(!options.people.some((p) => p.id === creator.id || p.id === owner.id));
     check("Managers cannot add themselves or people outside the creator's current assignments");
+    const otherOwner = await makeUser("other-owner", ["OWNER", "CHATTER"]);
+    const ownerAssignment = await assign(otherOwner.id, mei);
+    // Legacy rows must not make Owner access editable or reduce built-in oversight.
+    const ownerRoleGrant = await prisma.chatRoleGrant.upsert({ where: { channelId_roleId: { channelId: top.id, roleId: roles.get("OWNER")!.id } },
+      create: { channelId: top.id, roleId: roles.get("OWNER")!.id, canView: false, canPost: false }, update: { canView: false, canPost: false } });
+    const ownerPersonGrant = await prisma.chatPersonGrant.create({ data: { channelId: top.id, assignmentId: ownerAssignment.id, canView: false, canPost: false } });
+    const ownerGrantAuditCount = await prisma.auditEvent.count({ where: { action: "chat.channel.grant", targetId: top.id } });
+    for (const actor of [owner, manager]) {
+      const choices = await chatGrantOptions(actor.id, top.id);
+      assert.ok(!choices.roles.some((r) => r.id === roles.get("OWNER")!.id));
+      assert.ok(!choices.people.some((p) => p.id === otherOwner.id));
+      assert.ok(choices.roles.some((r) => r.id === custom.id), "Custom roles with no system key remain editable");
+      assert.ok(choices.people.some((p) => p.id === chatter.id), "Ordinary assigned members remain editable");
+      for (const allow of [false, true]) {
+        await expect(() => setChatGrant(actor.id, top.id, { roleId: roles.get("OWNER")!.id, canView: allow, canPost: allow }), 403);
+        await expect(() => setChatGrant(actor.id, top.id, { personId: otherOwner.id, canView: allow, canPost: allow }), 403);
+      }
+    }
+    assert.deepEqual(await prisma.chatRoleGrant.findUniqueOrThrow({ where: { channelId_roleId: { channelId: top.id, roleId: roles.get("OWNER")!.id } } }), ownerRoleGrant);
+    assert.deepEqual(await prisma.chatPersonGrant.findUniqueOrThrow({ where: { channelId_assignmentId: { channelId: top.id, assignmentId: ownerAssignment.id } } }), ownerPersonGrant);
+    assert.equal(await prisma.auditEvent.count({ where: { action: "chat.channel.grant", targetId: top.id } }), ownerGrantAuditCount);
+    assert.equal((await channels(otherOwner.id, mei)).find((c) => c.id === top.id)?.canPost, true);
+    const ownerSession = await createSession({ userId: owner.id, expiresAt: new Date(Date.now() + 60_000) });
+    const grantEndpoint = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/chat/channels/${top.id}/grants`;
+    const ownerHeaders = { Cookie: `xyz_session=${ownerSession.token}`, "Content-Type": "application/json" };
+    const choicesResponse = await fetch(grantEndpoint, { headers: ownerHeaders }); assert.equal(choicesResponse.status, 200);
+    const httpChoices = await choicesResponse.json() as { roles: { id: string }[]; people: { id: string }[] };
+    assert.ok(!httpChoices.roles.some((r) => r.id === roles.get("OWNER")!.id));
+    assert.ok(!httpChoices.people.some((p) => p.id === otherOwner.id));
+    for (const target of [{ roleId: roles.get("OWNER")!.id }, { personId: otherOwner.id }]) {
+      assert.equal((await fetch(grantEndpoint, { method: "PUT", headers: ownerHeaders, body: JSON.stringify({ ...target, canView: true, canPost: true }) })).status, 403);
+    }
+    check("Owner role and multi-role owners are absent from editable options; direct service/HTTP grants cannot change their automatic access");
     const sent = await sendChatMessage(chatter.id, general.id, "Original full message", "message-reference-1");
     const retry = await sendChatMessage(chatter.id, general.id, "Original full message", "message-reference-1");
     assert.equal(sent.id, retry.id);

@@ -706,13 +706,15 @@ export async function setChatGrant(userId: string, channelId: string, input: { r
     if (input.roleId) {
       const role = await tx.role.findFirst({ where: { id: input.roleId, archivedAt: null } });
       if (!role) throw new ChatError(404, "Role not found.");
+      if (role.systemKey === "OWNER") throw new ChatError(403, "Owner access is automatic and cannot be changed through channel grants.");
       beforeGrant = await tx.chatRoleGrant.findUnique({ where: { channelId_roleId: { channelId, roleId: role.id } } });
       recipientName = role.name;
       await tx.chatRoleGrant.upsert({ where: { channelId_roleId: { channelId, roleId: role.id } }, create: { channelId, roleId: role.id, ...data }, update: data });
     } else {
       if (input.personId === userId) throw new ChatError(403, "You cannot add yourself to a channel.");
-      const assignment = await tx.userModelAssignment.findFirst({ where: { userId: input.personId, modelId: channel.modelId, user: { status: "ACTIVE" } }, include: { user: { select: { name: true } } } });
+      const assignment = await tx.userModelAssignment.findFirst({ where: { userId: input.personId, modelId: channel.modelId, user: { status: "ACTIVE" } }, include: { user: { select: { name: true, roleMemberships: { where: { role: { archivedAt: null } }, select: { role: { select: { systemKey: true } } } } } } } });
       if (!assignment) throw new ChatError(404, "That person is not currently assigned to this creator.");
+      if (assignment.user.roleMemberships.some(({ role }) => role.systemKey === "OWNER")) throw new ChatError(403, "Owner access is automatic and cannot be changed through channel grants.");
       beforeGrant = await tx.chatPersonGrant.findUnique({ where: { channelId_assignmentId: { channelId, assignmentId: assignment.id } } });
       recipientName = assignment.user.name;
       await tx.chatPersonGrant.upsert({ where: { channelId_assignmentId: { channelId, assignmentId: assignment.id } }, create: { channelId, assignmentId: assignment.id, ...data }, update: data });
@@ -726,8 +728,10 @@ export async function chatGrantOptions(userId: string, channelId: string) {
     const { channel, access } = await openChannel(tx, userId, channelId);
     if (!channel || !access.canManage) throw new ChatError(403, "Protected chats have fixed membership; ordinary channels require channel management access.");
     const [roles, assignments] = await Promise.all([
-      tx.role.findMany({ where: { archivedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-      tx.userModelAssignment.findMany({ where: { modelId: channel.modelId, user: { status: "ACTIVE", id: { not: userId } } }, select: { id: true, user: { include: viewerInclude } }, orderBy: { user: { name: "asc" } } }),
+      // Owners have built-in oversight, never an editable role or member grant.
+      // Include custom roles whose systemKey is null as well as other system roles.
+      tx.role.findMany({ where: { archivedAt: null, OR: [{ systemKey: null }, { systemKey: { not: "OWNER" } }] }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+      tx.userModelAssignment.findMany({ where: { modelId: channel.modelId, user: { status: "ACTIVE", id: { not: userId }, roleMemberships: { none: { role: { systemKey: "OWNER", archivedAt: null } } } } }, select: { id: true, user: { include: viewerInclude } }, orderBy: { user: { name: "asc" } } }),
     ]);
     return {
       roles: roles.map((role) => ({ ...role, grant: channel.roleGrants.find((g) => g.roleId === role.id) ?? null })),
