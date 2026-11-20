@@ -111,7 +111,9 @@ const announcementSource: Source = {
 function announcementWhere(ctx: Context, query: Query): Prisma.ChatAnnouncementWhereInput {
   const reachable = [...ctx.chat!.conversations.keys()];
   return { AND: [
-    { deliveries: { some: { userId: ctx.userId } } },
+    // A recipient who can no longer open any of its posts (unassigned,
+    // paused or archived everywhere) no longer sees the notice either.
+    { deliveries: { some: { userId: ctx.userId } }, posts: { some: { targetId: { in: reachable } } } },
     { OR: [{ authorUserId: null }, { authorUserId: { not: ctx.userId } }] },
     ...(query.unread ? [{ createdAt: after(ctx), id: { notIn: explicitIds(ctx, "announcement") },
       posts: { none: { targetId: { in: reachable }, message: { reads: { some: { userId: ctx.userId } } } } } }] : []),
@@ -269,8 +271,8 @@ async function sourceWindow(ctx: Context, source: Source, unread: boolean, curso
   });
 }
 
-async function page(ctx: Context, unread: boolean, cursor: Cursor | null, size: number) {
-  const sources = SOURCES.filter((s) => s.available(ctx));
+async function page(ctx: Context, unread: boolean, cursor: Cursor | null, size: number, from: Source[] = SOURCES) {
+  const sources = from.filter((s) => s.available(ctx));
   const merged: Entry[] = [];
   for (const source of sources) merged.push(...await sourceWindow(ctx, source, unread, cursor, size));
   merged.sort(newestFirst);
@@ -292,12 +294,18 @@ export async function listNotifications(userId: string, filter: "all" | "unread"
   });
 }
 
+// Attendance and correction notices may also reach the device. Chat-derived
+// notices keep the Chat alert rules of brief 7.3, so they are not offered here.
+const DEVICE_SOURCES = [alertSource, reviewSource, decidedSource];
+
 export function notificationSummary(userId: string) {
   return withContext(userId, async (ctx) => {
     const available = SOURCES.some((s) => s.available(ctx));
-    if (!available) return { available, unreadCount: 0, latest: [] as HubNotification[] };
+    if (!available) return { available, unreadCount: 0, latest: [] as HubNotification[], deviceLatest: [] as HubNotification[] };
     const latest = await page(ctx, true, null, SUMMARY_SIZE);
-    return { available, unreadCount: await unreadTotal(ctx), latest: latest.items.map((e) => e.notice) };
+    // Listed separately so a burst of mentions never hides a break reminder.
+    const device = await page(ctx, true, null, SUMMARY_SIZE, DEVICE_SOURCES);
+    return { available, unreadCount: await unreadTotal(ctx), latest: latest.items.map((e) => e.notice), deviceLatest: device.items.map((e) => e.notice) };
   });
 }
 
@@ -310,6 +318,7 @@ export async function markNotificationRead(userId: string, key: string) {
     // Only a notice the person can currently see can be acknowledged.
     const [entry] = source ? await source.fetch(ctx, { unread: false, id, take: 1 }) : [];
     if (!entry) throw new NotificationError(404, "This notification is no longer available.");
+    if (entry.notice.read) return { read: true, unreadCount: await unreadTotal(ctx) };
     const now = await databaseNow(ctx.tx);
     // INSERT ... ON CONFLICT DO NOTHING keeps the first read time when two
     // tabs acknowledge the same notice together.
@@ -319,12 +328,27 @@ export async function markNotificationRead(userId: string, key: string) {
   });
 }
 
+/* Source rows carry timestamps taken when their writer's transaction started
+ * (Clock rows are also truncated to the second), so a row may commit just
+ * after "Mark all as read" with an earlier time. The watermark therefore only
+ * covers clearly settled history; the newest notices this person can see now
+ * are acknowledged one by one, and anything committing later stays unread. */
+const SETTLE_MS = 60_000;
 export function markAllNotificationsRead(userId: string) {
   return withContext(userId, async (ctx) => {
     const now = await databaseNow(ctx.tx);
-    await ctx.tx.hubNotificationState.upsert({ where: { userId }, create: { userId, readAllBefore: now }, update: { readAllBefore: now } });
-    // The watermark now covers every earlier acknowledgement.
-    await ctx.tx.hubNotificationRead.deleteMany({ where: { userId } });
-    return { read: true, unreadCount: await unreadTotal({ ...ctx, watermark: now, explicit: new Set() }) };
+    const settled = new Date(now.getTime() - SETTLE_MS);
+    const watermark = ctx.watermark && ctx.watermark > settled ? ctx.watermark : settled;
+    const recent: Entry[] = [];
+    for (const source of SOURCES) if (source.available(ctx)) recent.push(...await source.fetch({ ...ctx, watermark }, { unread: true }));
+    const alerts = recent.filter((e) => e.key.startsWith("alert:")).map((e) => e.key.slice("alert:".length));
+    if (alerts.length) await ctx.tx.clockAlertRead.createMany({ data: alerts.map((alertId) => ({ alertId, userId, readAt: now })), skipDuplicates: true });
+    const others = recent.filter((e) => !e.key.startsWith("alert:"));
+    if (others.length) await ctx.tx.hubNotificationRead.createMany({ data: others.map((e) => ({ userId, key: e.key, occurredAt: e.at, readAt: now })), skipDuplicates: true });
+    await ctx.tx.hubNotificationState.upsert({ where: { userId }, create: { userId, readAllBefore: watermark }, update: { readAllBefore: watermark } });
+    // Individual acknowledgements the watermark now covers are redundant.
+    await ctx.tx.hubNotificationRead.deleteMany({ where: { userId, occurredAt: { lte: watermark } } });
+    const explicit = new Set((await ctx.tx.hubNotificationRead.findMany({ where: { userId }, select: { key: true } })).map((r) => r.key));
+    return { read: true, unreadCount: await unreadTotal({ ...ctx, watermark, explicit }) };
   });
 }

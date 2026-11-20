@@ -111,7 +111,10 @@ self.addEventListener('notificationclick', event => {
     const data = event.notification.data;
     event.notification.close();
     event.waitUntil((async () => {
-      const open = await windows();
+      // Prefer a tab this worker controls: it can answer the identity check
+      // and be navigated; an uncontrolled tab would fall back to the Hub home.
+      const controlled = await self.clients.matchAll({ type: 'window' });
+      const open = controlled.length ? controlled : await windows();
       const path = validNoticePath(data.path) ? data.path : '/clock';
       const existing = open[0];
       try {

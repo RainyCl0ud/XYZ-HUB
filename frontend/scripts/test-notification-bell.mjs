@@ -41,6 +41,8 @@ try {
   assert.ok(bell.includes("See older notifications") && bell.includes("Mark all as read") && bell.includes(">New<") && bell.includes(">Earlier<"));
   assert.ok(!sidebar.includes("mentions=1") && !sidebar.includes("useChatMentionCount"), "The bell replaces the separate sidebar mention badge");
   assert.ok(chat.includes("searchParams.get('message')") && chat.includes('next.delete("message")'));
+  assert.ok(bell.includes("request === listRequest.current") && bell.includes("next.deviceLatest"), "Stale list pages are ignored; device alerts use the attendance/correction list");
+  assert.ok(chat.includes("!!linked && permitted.has(current)"), "Following a link keeps the open conversation's draft");
   pass("One header bell holds mentions, announcements, attendance and corrections; Chat opens the exact linked message");
 
   const css = await read("src/components/NotificationBell.css");

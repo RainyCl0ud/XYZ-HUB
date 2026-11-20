@@ -42,6 +42,11 @@ export default function NotificationBell() {
   const control = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const generation = useRef(0);
+  // Only the newest list request may update the dropdown, so switching
+  // filters or paging quickly never shows or appends another view's page.
+  const listRequest = useRef(0);
+  const deviceAlertsOn = useRef(false);
+  useEffect(() => { deviceAlertsOn.current = !!browserAlerts?.enabled; }, [browserAlerts?.enabled]);
   const panelId = useId(), titleId = useId();
 
   const loadSummary = useCallback(async (signal?: AbortSignal) => {
@@ -50,7 +55,7 @@ export default function NotificationBell() {
       const next = await apiRequest<HubNotificationSummary>("/api/notifications/summary", { signal });
       if (started !== generation.current || signal?.aborted) return;
       setSummary(next); setNow(Date.now());
-      if (next.available && offerDeviceNotices) void offerDeviceNotices(next.latest.filter((n) => !n.read && DEVICE_NOTICE_KINDS.has(n.kind)));
+      if (next.available && offerDeviceNotices) void offerDeviceNotices((next.deviceLatest ?? []).filter((n) => !n.read && DEVICE_NOTICE_KINDS.has(n.kind)));
     } catch (e) {
       if (started !== generation.current || signal?.aborted) return;
       if (e instanceof ApiError && [401, 403, 404].includes(e.status)) { setSummary(null); setOpen(false); }
@@ -58,17 +63,18 @@ export default function NotificationBell() {
   }, [offerDeviceNotices]);
 
   const loadList = useCallback(async (nextFilter: "all" | "unread", before?: string) => {
-    const started = generation.current;
-    if (before) setLoadingMore(true);
+    const started = generation.current, request = ++listRequest.current;
+    const current = () => started === generation.current && request === listRequest.current;
+    setLoadingMore(!!before);
     try {
       const page = await apiRequest<HubNotificationPage>(`/api/notifications?filter=${nextFilter}${before ? `&before=${encodeURIComponent(before)}` : ""}`);
-      if (started !== generation.current) return;
+      if (!current()) return;
       setList((old) => before && old ? { ...page, items: [...old.items, ...page.items.filter((n) => !old.items.some((o) => o.key === n.key))] } : page);
       setSummary((old) => old ? { ...old, unreadCount: page.unreadCount } : old);
       setError(""); setNow(Date.now());
     } catch {
-      if (started === generation.current) setError("Notifications couldn’t be loaded. Try again in a moment.");
-    } finally { if (started === generation.current) setLoadingMore(false); }
+      if (current()) setError("Notifications couldn’t be loaded. Try again in a moment.");
+    } finally { if (current()) setLoadingMore(false); }
   }, []);
 
   useEffect(() => {
@@ -80,7 +86,9 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
-    const refresh = () => { if (document.visibilityState === "visible") void loadSummary(controller.signal); };
+    // A background tab keeps checking only while device alerts are on, so a
+    // break reminder can still reach the device when the Hub is not in view.
+    const refresh = () => { if (document.visibilityState === "visible" || deviceAlertsOn.current) void loadSummary(controller.signal); };
     const initial = setTimeout(refresh, 0);
     const interval = setInterval(refresh, 15_000);
     document.addEventListener("visibilitychange", refresh);
@@ -92,7 +100,7 @@ export default function NotificationBell() {
     };
   }, [enabled, accessKey, loadSummary]);
 
-  const close = useCallback((restoreFocus = true) => { setOpen(false); if (restoreFocus) trigger.current?.focus(); }, []);
+  const close = useCallback((restoreFocus = true) => { listRequest.current++; setOpen(false); setLoadingMore(false); if (restoreFocus) trigger.current?.focus(); }, []);
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => { if (!control.current?.contains(event.target as Node)) close(false); };
@@ -122,6 +130,7 @@ export default function NotificationBell() {
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
         setList((old) => old ? { ...old, items: old.items.filter((n) => n.key !== item.key) } : old);
+        setSummary((old) => old ? { ...old, latest: old.latest.filter((n) => n.key !== item.key) } : old);
         setError("That notification is no longer available.");
       }
       return false;
@@ -206,7 +215,7 @@ export default function NotificationBell() {
     {toast && <aside className="hub-notice-toast" aria-label="New notification">
       <div role="status"><span className="hub-notice-toast-eyebrow">NEW NOTIFICATION</span><strong>{toast.title}</strong>{toast.body && <p>{toast.body}</p>}</div>
       <div className="hub-notice-toast-actions">
-        <button type="button" onClick={() => { dismissToast(toast.key); void openItem(toast); }}>{notificationHref(toast.target) ? "Open" : "Mark as read"}</button>
+        <button type="button" disabled={busy} onClick={() => void openItem(toast)}>{notificationHref(toast.target) ? "Open" : "Mark as read"}</button>
         <button type="button" onClick={() => dismissToast(toast.key)}>Dismiss</button>
       </div>
     </aside>}

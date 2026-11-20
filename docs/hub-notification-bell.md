@@ -18,7 +18,7 @@ The header bell is now the Hub's single place for notices addressed to a person.
 Chat unread counts are **not** in the bell. Channel badges keep showing them. Reactions and quarantines still notify nobody (brief 7.1, 6.2).
 
 - The separate **Mentions** list in Chat and the sidebar mention badge are removed; the bell replaces both. The sidebar's correction-review badge stays as a work-queue count.
-- The **My Account → Notification** switch is unchanged. When it is on, attendance and correction notices can also appear as a device alert while the Hub is open but not in focus. The wording is fixed and carries no names or message text. Mentions and announcements keep following the Chat alert rules of brief 7.3, so they never produce a second device alert.
+- The **My Account → Notification** switch is unchanged. When it is on, attendance and correction notices from the last 24 hours can also appear as a device alert while a Hub tab is open but not in focus (including a background tab). The wording is fixed and carries no names or message text. Mentions and announcements keep following the Chat alert rules of brief 7.3, so they never produce a second device alert.
 - **Unread email reminders:** the ten-message trigger is removed. An email is due only when a message has been unread for 30 minutes, at most one per person per hour (brief 7.3).
 
 ## How it works

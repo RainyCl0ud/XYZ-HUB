@@ -10,7 +10,7 @@ export type HubNotification = {
   title: string; body: string; context: string; target: HubNotificationTarget | null;
 };
 export type HubNotificationPage = { unreadCount: number; items: HubNotification[]; nextBefore: string | null };
-export type HubNotificationSummary = { available: boolean; unreadCount: number; latest: HubNotification[] };
+export type HubNotificationSummary = { available: boolean; unreadCount: number; latest: HubNotification[]; deviceLatest?: HubNotification[] };
 
 // Chat dispatches this after saving reads, so a mention read in Chat leaves
 // the bell promptly instead of waiting for the next poll.

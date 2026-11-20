@@ -147,9 +147,13 @@ export default function BrowserNotificationsProvider({ children }: { children: R
     if (!id || !notices.length || !supported() || Notification.permission !== 'granted') return;
     let pref; try { pref = readAlertPreference(localStorage, id); } catch { return; }
     if (!pref) return;
-    const since = Date.parse(pref.since);
+    // Only timely notices: a long-pending item never alerts again after the
+    // claim ledger forgets it. Background push on this browser (any tab)
+    // already delivers the paid-break reminder.
+    const since = Math.max(Date.parse(pref.since), Date.now() - 24 * 3600_000);
+    const pushHandlesReminders = pushActive.current || readPushDevice()?.userId === id;
     const candidates = notices.filter(n => !n.read && DEVICE_NOTICE_KINDS.has(n.kind) && Date.parse(n.occurredAt) >= since
-      && !(pushActive.current && n.kind === 'BREAK_REMINDER') && notificationHref(n.target)).slice(0, 10);
+      && !(pushHandlesReminders && n.kind === 'BREAK_REMINDER') && notificationHref(n.target)).slice(0, 10);
     if (!candidates.length) return;
     try {
       await navigator.locks.request('xyz-hub-device-notices-v1', { ifAvailable: true }, async lock => {

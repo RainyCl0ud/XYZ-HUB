@@ -315,8 +315,10 @@ function ChatWorkspace({ userId }: { userId: string }) {
       const normal = allChannels.filter(c => !c.retained);
       const restored = savedChannels.find(c => c.id === saved?.channelId);
       const linked = normal.find(c => c.id === linkedConversation);
+      // Following a link from an open, still-permitted conversation keeps
+      // that conversation's unsent draft, as switching channels by hand does.
       chooseChannel(linked?.id ?? restored?.id ?? savedChannels.find(c => !c.archived)?.id
-        ?? normal.find(c => !c.archived)?.id ?? savedChannels[0]?.id ?? normal[0]?.id ?? "", false);
+        ?? normal.find(c => !c.archived)?.id ?? savedChannels[0]?.id ?? normal[0]?.id ?? "", !!linked && permitted.has(current));
       // The message ID is only a hint: the context API rechecks access and
       // deletion before anything is shown, exactly as for in-Chat jumps.
       if (linked && linkedMessage) {

@@ -71,6 +71,8 @@ async function main() {
     assert.equal(read.unreadCount, 0); assert.equal((await find(staff.id, `mention:${second.id}`))?.read, true);
     assert.equal((await listChatUnread(staff.id)).totalUnreadMentions, before, "Reading a notice never marks the Chat message itself read");
     await markNotificationRead(staff.id, `mention:${second.id}`);
+    await markNotificationRead(staff.id, `mention:${first.id}`);
+    assert.equal(await prisma.hubNotificationRead.count({ where: { userId: staff.id, key: `mention:${first.id}` } }), 0, "An already-read notice stores nothing more");
     pass("Reading the message in Chat clears its notice; marking a notice read is idempotent and leaves Chat read state alone");
 
     const removed = await mentionStaff(" removed");
@@ -103,6 +105,10 @@ async function main() {
     assert.deepEqual(posted.target, { type: "chat-message", conversationId: updates, messageId: postId });
     assert.equal(await find(ops.id, key), undefined, "The author is not notified of their own announcement");
     assert.equal(await find(peer.id, key), undefined); assert.equal(await find(outsider.id, key), undefined);
+    await prisma.userModelAssignment.deleteMany({ where: { userId: staff.id, modelId: models[0] } });
+    assert.equal(await find(staff.id, key), undefined, "A recipient who can no longer open any post loses the notice");
+    await prisma.userModelAssignment.create({ data: { userId: staff.id, modelId: models[0] } });
+    assert.equal((await find(staff.id, key))?.read, false);
     await prisma.chatMessageRead.create({ data: { messageId: postId, userId: staff.id } });
     assert.equal((await find(staff.id, key))?.read, true);
     pass("Announcements reach only their delivery recipients, open the post, and clear once the post is read in Chat");
@@ -155,6 +161,8 @@ async function main() {
     const keys = all.map((n) => n.key);
     assert.equal(new Set(keys).size, keys.length, "No notice repeats across pages");
     for (const m of many) assert.ok(keys.includes(`mention:${m.id}`));
+    const device = (await notificationSummary(staff.id)).deviceLatest;
+    assert.ok(device.some((n) => n.key === `alert:${reminder.id}`) && device.every((n) => !n.key.startsWith("mention:") && !n.key.startsWith("announcement:")), "Mentions never crowd out device-eligible attendance notices");
     assert.ok(keys.includes(`alert:${reminder.id}`) && keys.includes(`announcement:${announcement.id}`) && keys.includes(`correction-decided:${correction.id}`));
     for (let i = 1; i < all.length; i++) assert.ok(all[i - 1].occurredAt >= all[i].occurredAt, "Newest first");
     await gone(() => listNotifications(staff.id, "all", "not-a-cursor"), 400);
@@ -164,12 +172,14 @@ async function main() {
     const unreadBefore = (await notificationSummary(staff.id)).unreadCount; assert.ok(unreadBefore > 20);
     assert.equal((await markAllNotificationsRead(staff.id)).unreadCount, 0);
     assert.equal((await listNotifications(staff.id, "unread")).items.length, 0);
-    assert.equal(await prisma.hubNotificationRead.count({ where: { userId: staff.id } }), 0);
+    assert.equal(await prisma.hubNotificationRead.count({ where: { userId: staff.id, occurredAt: { lt: new Date(Date.now() - 61_000) } } }), 0, "Settled acknowledgements are pruned");
     await new Promise((resolve) => setTimeout(resolve, 20));
     const later = await mentionStaff(" after mark all");
     assert.deepEqual((await notificationSummary(staff.id)).latest.map((n) => n.key), [`mention:${later.id}`]);
-    const lateAlert = await prisma.clockAlert.create({ data: { eventKey: `${shift.id}:late-${prefix}`, shiftId: shift.id, kind: "OPEN_SHIFT", occurredAt: started, recordedAt: new Date(Date.now() + 2000) } });
-    assert.equal((await items(staff.id, "unread")).find((n) => n.key === `alert:${lateAlert.id}`)?.read, false, "An alert recorded after Mark all arrives unread even if it is dated earlier");
+    // A writer whose transaction began before "Mark all" commits afterwards
+    // with an earlier, second-truncated time: it must still arrive unread.
+    const lateAlert = await prisma.clockAlert.create({ data: { eventKey: `${shift.id}:late-${prefix}`, shiftId: shift.id, kind: "OPEN_SHIFT", occurredAt: started, recordedAt: new Date(Math.floor(Date.now() / 1000) * 1000 - 1000) } });
+    assert.equal((await items(staff.id, "unread")).find((n) => n.key === `alert:${lateAlert.id}`)?.read, false, "A notice committed after Mark all arrives unread even if it is dated just before it");
     assert.ok((await notificationSummary(manager.id)).unreadCount > 0, "Mark all is per person");
     pass("Mark all as read clears everything at once for that person only; later notices still arrive unread");
 
