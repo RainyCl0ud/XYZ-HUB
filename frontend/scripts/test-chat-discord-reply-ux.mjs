@@ -18,6 +18,8 @@ const pass = (text) => console.log(`PASS ${++passed}: ${text}`);
 
 try {
   const { ChatMessageContent } = await vite.ssrLoadModule("/src/pages/ChatMessageTools.tsx");
+  const { ToastProvider } = await vite.ssrLoadModule("/src/components/ToastProvider.tsx");
+  const renderToast = element => renderToStaticMarkup(createElement(ToastProvider, null, element));
   const noop = () => {};
   // This timestamp is Nov 16 at 11:30 PM in America/Chicago.
   const sentAt = "2026-11-17T05:30:00.000Z";
@@ -28,7 +30,7 @@ try {
     pinnedAt: null, pinnedByName: null, reactions: [],
     replyTo: { id: "parent-1", authorName: "Original member", text: "hi", version: 1, createdAt: sentAt },
   };
-  const render = (m) => renderToStaticMarkup(createElement(ChatMessageContent, {
+  const render = (m) => renderToast(createElement(ChatMessageContent, {
     message: m, channelId: "test-channel",
     onReply: noop, onEdit: noop, onChanged: noop,
     onOpen: noop, onError: noop, onModerate: noop, onHistory: noop,

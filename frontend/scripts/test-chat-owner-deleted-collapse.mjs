@@ -17,6 +17,8 @@ let passes = 0;
 const pass = (label) => console.log(`PASS ${++passes}: ${label}`);
 try {
   const { ChatMessageContent } = await vite.ssrLoadModule("/src/pages/ChatMessageTools.tsx");
+  const { ToastProvider } = await vite.ssrLoadModule("/src/components/ToastProvider.tsx");
+  const renderToast = element => renderToStaticMarkup(createElement(ToastProvider, null, element));
   const noop = () => {};
   const base = {
     id: "deleted-test", authorName: "Retained author", text: "Confidential retained message body",
@@ -24,7 +26,7 @@ try {
     canEdit: false, canReply: false, canPin: false, canModerate: false,
     canViewHistory: true, pinnedAt: null, pinnedByName: null, reactions: [], replyTo: null,
   };
-  const render = (message) => renderToStaticMarkup(createElement(ChatMessageContent, {
+  const render = (message) => renderToast(createElement(ChatMessageContent, {
     message, channelId: "owner-test", onReply: noop, onChanged: noop,
     onOpen: noop, onError: noop, onHistory: noop,
   }));

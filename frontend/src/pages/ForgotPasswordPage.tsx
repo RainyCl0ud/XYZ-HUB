@@ -1,3 +1,4 @@
+import { useToast } from "../components/ToastProvider";
 import {
   useState,
   type FormEvent,
@@ -23,6 +24,7 @@ type ResetRequestResponse = {
 };
 
 function ForgotPasswordPage() {
+  const toast = useToast();
   const [
     email,
     setEmail,
@@ -35,15 +37,6 @@ function ForgotPasswordPage() {
   ] =
     useState(false);
 
-  const [
-    message,
-    setMessage,
-  ] =
-    useState<
-      string | null
-    >(
-      null
-    );
 
   const [
     error,
@@ -69,9 +62,6 @@ function ForgotPasswordPage() {
       null
     );
 
-    setMessage(
-      null
-    );
 
     try {
       const result =
@@ -88,9 +78,7 @@ function ForgotPasswordPage() {
           }
         );
 
-      setMessage(
-        result.message
-      );
+      toast.success(result.message);
     } catch (
       caught
     ) {
@@ -139,11 +127,6 @@ function ForgotPasswordPage() {
           </div>
         )}
 
-        {message && (
-          <div className="auth-message auth-message-success">
-            {message}
-          </div>
-        )}
 
         <label className="auth-field">
           <span className="auth-label">

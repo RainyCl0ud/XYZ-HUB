@@ -1,3 +1,4 @@
+import { useToast } from "../components/ToastProvider";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { API_BASE_URL, apiRequest } from "../lib/api";
@@ -50,6 +51,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
   onPreviewLoad?: () => void;
   recentEmojis?: readonly string[]; onReactionSelected?: (emoji: string) => void;
 }) {
+  const toast = useToast();
   // During a rolling deploy the older API still returns ordinary messages.
   const reactions = m.reactions ?? [];
   // The announcement service stores the title and body as plain text separated
@@ -221,6 +223,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       });
       if (!controller.signal.aborted) {
         onChanged(response.message);
+        if (kind === "pin" && "pinned" in body) toast.success(body.pinned ? "Message pinned." : "Message unpinned.");
         if (kind === "reaction" && "emoji" in body && typeof body.emoji === "string") onReactionSelected?.(body.emoji);
       }
       return !controller.signal.aborted;
@@ -380,7 +383,7 @@ type ToolProps = {
   onConversation: (channelId: string) => void; onJumpToMessage: (channelId: string, messageId: string) => void; onReply: (channelId: string, message: ChatMessage) => void;
   onChanged: (channelId: string, message: ChatMessage) => void;
   onModerate: (channelId: string, message: ChatMessage) => void;
-  notice?: string; revision?: number; paused?: boolean;
+  revision?: number; paused?: boolean;
   recentEmojis?: readonly string[]; onReactionSelected?: (emoji: string) => void;
 };
 const toolName = (target: ChatToolTarget) => target.kind === "search" ? "Search results" : target.kind === "pins" ? "Pinned messages" : target.kind === "deleted" ? "Deleted messages" : target.kind === "history" ? "Message history" : "Message";
@@ -394,9 +397,10 @@ export default function ChatMessageTools(props: Omit<ToolProps, "onOpen">) {
     onOpen={(target, saved) => setTrail((old) => [...old.slice(0, -1), { ...old[old.length - 1], saved }, { target }])} />;
 }
 
-function ChatToolView({ target, onClose, onOpen, onConversation, onJumpToMessage, onReply, onChanged, onModerate, saved, backLabel, onBack, notice, revision: parentRevision, paused, inline = false, recentEmojis, onReactionSelected }: Omit<ToolProps, "onOpen"> & {
+function ChatToolView({ target, onClose, onOpen, onConversation, onJumpToMessage, onReply, onChanged, onModerate, saved, backLabel, onBack, revision: parentRevision, paused, inline = false, recentEmojis, onReactionSelected }: Omit<ToolProps, "onOpen"> & {
   saved?: ToolState; backLabel?: string; onBack: () => void; onOpen: (target: ChatToolTarget, state: ToolState) => void;
 }) {
+  const toast = useToast();
   const dialog = useRef<HTMLDialogElement>(null);
   const inlinePanel = useRef<HTMLElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -424,9 +428,9 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onJumpToMessage
     // The nested confirmation closes in a passive cleanup. Restore focus only
     // after it has left the top layer, so the underlying dialog is interactive.
     const targetSurface = inline ? inlinePanel.current : dialog.current;
-    const timer = setTimeout(() => (notice ? targetSurface?.querySelector<HTMLButtonElement>("header button") : targetSurface?.querySelector<HTMLElement>(".creator-chat-action-menu summary") ?? targetSurface?.querySelector<HTMLButtonElement>("header button"))?.focus(), 0);
+    const timer = setTimeout(() => targetSurface?.querySelector<HTMLButtonElement>("header button")?.focus(), 0);
     return () => clearTimeout(timer);
-  }, [paused, notice, inline]);
+  }, [paused, inline]);
   useLayoutEffect(() => {
     const surface = inline ? inlinePanel.current : dialog.current;
     if (loaded && !restoredScroll.current && surface) { surface.scrollTop = saved?.scrollTop ?? 0; restoredScroll.current = true; }
@@ -534,7 +538,7 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onJumpToMessage
         `/api/chat/channels/${encodeURIComponent(target.channelId)}/messages/${encodeURIComponent(value.id)}/pin`,
         { method: "PUT", body: JSON.stringify({ pinned: false, version: value.pinVersion }) });
       changed(target.channelId, response.message);
-      setConfirmUnpin(null);
+      setConfirmUnpin(null); toast.success("Message unpinned.");
     } catch (err) {
       setActionError(errorText(err)); setRevision((v) => v + 1);
     } finally { setUnpinBusy(false); }
@@ -544,7 +548,6 @@ function ChatToolView({ target, onClose, onOpen, onConversation, onJumpToMessage
     {backLabel && <button type="button" className="creator-chat-back" onClick={onBack}>← {backLabel}</button>}
     {target.kind !== "pins" && <p className="creator-chat-tools-context">{target.channelName}</p>}
     {(target.kind === "deleted" || target.kind === "history") && <p className="creator-chat-owner-help">{target.kind === "history" ? "Owner-only · Full message and change history." : "Only Owners can view these retained records. Deleted messages stay hidden from everyone else."}</p>}
-    {notice && target.kind !== "history" && <p className="creator-chat-notice" role="status">{notice}</p>}
     {target.kind === "search" && <form className="creator-chat-message-search" role="search" onSubmit={submit}>
       <label htmlFor="chat-search-text">Search messages</label>
       <div className="creator-chat-message-search-field">

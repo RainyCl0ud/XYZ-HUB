@@ -1,3 +1,4 @@
+import { useToast } from "../components/ToastProvider";
 import ChatMentionComposer from "./ChatMentionComposer";
 import ChatMentions from "./ChatMentions";
 import { rebaseMentions, trimmedMentionDraft, type ChatMention } from "../lib/chat-mentions";
@@ -73,6 +74,7 @@ export default function ChatPage() {
 }
 
 function ChatWorkspace({ userId }: { userId: string }) {
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const showMentions = searchParams.get("mentions") === "1";
   const closeMentions = () => setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete("mentions"); return next; }, { replace: true });
@@ -121,10 +123,10 @@ function ChatWorkspace({ userId }: { userId: string }) {
          target.closest(".creator-chat-action-popover") ||
          target.closest(".creator-chat-emoji-popover") ||
          target.closest("dialog[open]"))) return;
-      setTools(null); setToolsNotice("");
+      setTools(null);
     };
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { setTools(null); setToolsNotice(""); }
+      if (event.key === "Escape") { setTools(null); }
     };
     document.addEventListener("pointerdown", outside);
     document.addEventListener("keydown", escape);
@@ -133,10 +135,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [deleting, setDeleting] = useState<ModerationTarget | null>(null);
   const [cleanupTarget, setCleanupTarget] = useState<CleanupTarget | null>(null);
   const [quarantining, setQuarantining] = useState<QuarantineControl | null>(null);
-  const [notice, setNotice] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
   const [toolsRevision, setToolsRevision] = useState(0);
-  const [toolsNotice, setToolsNotice] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -242,7 +242,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     setSettings(null);
     setCleanupTarget(null);
     setQuarantining(null);
-    setReply(saved?.reply ?? null); setTools(null); setDeleting(null); setNotice(saved?.text ? "Your unsent draft was kept for this conversation." : "");
+    setReply(saved?.reply ?? null); setTools(null); setDeleting(null); if (saved?.text) toast.info("Your unsent draft was kept for this conversation.");
     setShowMembers(false);
     setShowChatOptions(false);
     setShowMobileActions(false);
@@ -254,7 +254,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     earlierScroll.current = null;
     setViewingOlderJump(false); setJumpHighlight(null);
     if (jumpFlashTimer.current) clearTimeout(jumpFlashTimer.current);
-  }, [userId]);
+  }, [userId, toast]);
 
   function openConversation(id: string) {
     // Selecting a channel (even the one already selected) exits its settings page.
@@ -274,7 +274,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     followMessages.current = false;
     setJumpHighlight(null);
     setJumpTarget({ channelId, messageId });
-    setTools(null); setToolsNotice("");
+    setTools(null);
     if (selectedRef.current !== channelId) openConversation(channelId);
   }
   function jumpToLatest() {
@@ -285,7 +285,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
   }
 
   function openChannelSettings(next: { modelId: string; channelId?: string; name: string }) {
-    setTools(null); setToolsNotice(""); setShowMembers(false);
+    setTools(null); setShowMembers(false);
     setShowChannels(false); setShowComposerMenu(false);
     setSettings(next);
   }
@@ -325,10 +325,10 @@ function ChatWorkspace({ userId }: { userId: string }) {
         if (!retained) next.delete("retained");
         return next;
       }, { replace: true });
-      if (retainedConversation && !retained) setNotice("Retained channel history is unavailable.");
+      if (retainedConversation && !retained) toast.info("Retained channel history is unavailable.");
     }
     setLoading(false);
-  }, [chooseChannel, userId, linkedConversation, retainedConversation, setSearchParams]);
+  }, [chooseChannel, userId, linkedConversation, retainedConversation, setSearchParams, toast]);
 
   const readsSaved = useCallback((ids: string[]) => {
     setReadError(""); refreshChatMentionCount();
@@ -353,7 +353,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       await apiRequest(`/api/chat/channels/${channelId}/read`, { method: "PUT", body: JSON.stringify({ throughMessageId: anchor }), signal: requestRef.current?.signal });
       refreshChatMentionCount();
       if (selectedRef.current !== channelId) return;
-      setNotice("Marked as read."); setRefreshTick((v) => v + 1);
+      toast.success("Marked as read."); setRefreshTick((v) => v + 1);
       await refreshAreas();
     } catch (e) { if (selectedRef.current === channelId) setReadError(errorText(e)); }
     finally { setMarkingRead(false); }
@@ -420,8 +420,8 @@ function ChatWorkspace({ userId }: { userId: string }) {
         if (revision === messageRevision.current) {
           const edited = currentEdit && (latest.get(currentEdit.id) ?? refreshed.get(currentEdit.id));
           const parent = currentReply && (latest.get(currentReply.id) ?? refreshed.get(currentReply.id));
-          if (currentEdit && !edited?.canEdit) { setReply(beforeEdit.current.reply); setEdit(null); setDraft(beforeEdit.current.text, beforeEdit.current.mentions); setNotice("That message can no longer be edited. Your unsent draft has been restored."); }
-          else if (currentReply && (!parent || parent.deleted)) { setReply(null); setNotice("The original message is no longer available. Your draft is kept as a normal message."); }
+          if (currentEdit && !edited?.canEdit) { setReply(beforeEdit.current.reply); setEdit(null); setDraft(beforeEdit.current.text, beforeEdit.current.mentions); toast.info("That message can no longer be edited. Your unsent draft has been restored."); }
+          else if (currentReply && (!parent || parent.deleted)) { setReply(null); toast.info("The original message is no longer available. Your draft is kept as a normal message."); }
           else if (parent) setReply(parent);
         }
         if (!response.canPost) { setReply(null); setEdit(null); setDraft(""); }
@@ -462,7 +462,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       controller.abort();
       requestRef.current = null;
     };
-  }, [selected, refreshAreas, refreshTick]);
+  }, [selected, refreshAreas, refreshTick, toast]);
 
   useEffect(() => {
     if (!selected || typeof EventSource === "undefined") return;
@@ -547,13 +547,13 @@ function ChatWorkspace({ userId }: { userId: string }) {
         } catch {
           if (!controller.signal.aborted && selectedRef.current === destination.channelId) {
             setJumpTarget(null);
-            setNotice("That message is unavailable or you no longer have access to it.");
+            toast.info("That message is unavailable or you no longer have access to it.");
           }
         }
       })();
     }, 0);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [jumpTarget, selected, transcriptLoaded]);
+  }, [jumpTarget, selected, transcriptLoaded, toast]);
   useEffect(() => () => { if (jumpFlashTimer.current) clearTimeout(jumpFlashTimer.current); }, []);
 
   function followLoadedPreview() {
@@ -583,6 +583,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
       }
       if (selectedRef.current !== channelId) return;
       showSentMessage(channelId, response.message);
+      if (edit) toast.success("Message updated.");
       setDraft(edit ? beforeEdit.current.text : "", edit ? beforeEdit.current.mentions : []); setReply(edit ? beforeEdit.current.reply : null); setEdit(null); pendingSend.current = null;
       if (!edit) conversationDrafts.current.delete(channelId);
     } catch (e) {
@@ -639,10 +640,10 @@ function ChatWorkspace({ userId }: { userId: string }) {
   function startModeration(channelId: string, message: Message) {
     const place = areas.find((a) => a.channels.some((c) => c.id === channelId));
     const name = place?.channels.find((c) => c.id === channelId)?.name ?? "Conversation";
-    setDeleting({ channelId, conversationName: `${place?.name ?? "Workspace"} / ${name}`, message }); setNotice(""); setToolsNotice("");
+    setDeleting({ channelId, conversationName: `${place?.name ?? "Workspace"} / ${name}`, message });
   }
   function messageDeleted(channelId: string, id: string, retained: Message | null) {
-    setDeleting(null); setToolsRevision((v) => v + 1); setNotice("Message deleted. Owners keep its full content and history."); setToolsNotice("Message deleted. Owners keep its full content and history.");
+    setDeleting(null); setToolsRevision((v) => v + 1); toast.success("Message deleted. Owners keep its full content and history.");
     if (selectedRef.current !== channelId) return;
     messageRevision.current++;
     setTranscript((old) => old ? { ...old, messages: old.messages.flatMap((m) => m.id === id ? retained ? [retained] : [] : [
@@ -700,9 +701,9 @@ function ChatWorkspace({ userId }: { userId: string }) {
       main.removeEventListener("scroll", schedule);
       shell.style.removeProperty("height");
     };
-  }, [loading, areas.length, canAnnounce, remindersEnabled, inlineDiscoveryOpen, showChatOptions, notice, error]);
+  }, [loading, areas.length, canAnnounce, remindersEnabled, inlineDiscoveryOpen, showChatOptions, error]);
 
-  const toolView = tools ? <ChatMessageTools recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onJumpToMessage={jumpToMessage} inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); setToolsNotice(""); }} revision={toolsRevision} notice={toolsNotice} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); setToolsNotice(""); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
+  const toolView = tools ? <ChatMessageTools recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onJumpToMessage={jumpToMessage} inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); }} revision={toolsRevision} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
   return (
     <section className="creator-chat" aria-label="Chat workspace">
       <h1 className="creator-chat-sr">Chat</h1>
@@ -720,7 +721,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
         </div>
       </header>}
       {error && <div className="creator-chat-error" role="alert">{error}</div>}
-      {notice && <div className="creator-chat-notice" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss update" onClick={() => setNotice("")}>Dismiss</button></div>}
       {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
       {showReminders && <ChatUnreadReminders onClose={() => setShowReminders(false)} />}
         {showMentions && <ChatMentions onClose={closeMentions} onOpen={(channelId, messageId) => { closeMentions(); jumpToMessage(channelId, messageId); }} />}
@@ -864,7 +864,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
             onArchived={() => {
               setSettings(null); setTranscript(null); setMembers([]); setTools(null); setDeleting(null); setQuarantining(null);
               setEdit(null); setReply(null); setDraft("");
-              setNotice("Channel archived. Its messages and files were kept.");
+              toast.success("Channel archived. Its messages and files were kept.");
               setRefreshTick(n => n + 1);
             }}
           />}
@@ -897,11 +897,11 @@ function ChatWorkspace({ userId }: { userId: string }) {
       {cleanupTarget && <ChatChannelCleanupDialog target={cleanupTarget} onClose={() => setCleanupTarget(null)} onCleaned={async () => {
         setCleanupTarget(null);
         await refreshAreas().catch(() => { setRefreshTick(n => n + 1); });
-        setNotice("Channel removed from Chat. Owners can open its retained history from the Audit Log.");
+        toast.success("Channel removed from Chat. Owners can open its retained history from the Audit Log.");
       }} />}
       {deleting && <ChatModerationDialog key={deleting.message.id} target={deleting} onClose={() => setDeleting(null)} onDeleted={messageDeleted} />}
       {quarantining && <ChatQuarantineDialog key={`${quarantining.modelId}:${quarantining.userId}`} target={quarantining} onClose={() => { setQuarantining(null); setRefreshTick((n) => n + 1); }} onSaved={(result) => {
-        setQuarantining(null); setNotice(`${result.personName}: ${result.active ? "quarantined" : "quarantine lifted"} for ${result.creatorName}. ${result.active ? "Their private management chat stays open." : "Access now follows current assignments and permissions."}`);
+        setQuarantining(null); toast.success(`${result.personName}: ${result.active ? "quarantined" : "quarantine lifted"} for ${result.creatorName}. ${result.active ? "Their private management chat stays open." : "Access now follows current assignments and permissions."}`);
         setRefreshTick((n) => n + 1); void refreshAreas().catch((e: unknown) => setError(errorText(e)));
       }} />}
     </section>

@@ -1,3 +1,4 @@
+import { useToast } from "../components/ToastProvider";
 import {
   useEffect,
   useState,
@@ -57,6 +58,7 @@ function getTokenFromFragment() {
 }
 
 function InviteSetupPage() {
+  const toast = useToast();
   const [
     token,
   ] =
@@ -239,6 +241,7 @@ function InviteSetupPage() {
         window.location.pathname
       );
 
+      toast.success("Account setup completed. You can now sign in.");
       setCompleted(
         true
       );
@@ -317,9 +320,7 @@ function InviteSetupPage() {
           </Link>
         }
       >
-        <div className="auth-message auth-message-success">
-          XYZ Management account activated successfully.
-        </div>
+        <p>Continue below to sign in.</p>
       </AuthShell>
     );
   }
