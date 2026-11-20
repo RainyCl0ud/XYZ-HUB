@@ -30,8 +30,8 @@ export async function releaseBackgroundPush(userId: string) {
   // the Hub would keep trying this device until the push service rejected a
   // send. A failure here (signed out, Chat off) is harmless: revoking the
   // session or the next rejected send removes the record anyway.
-  await apiRequest(`/api/chat/background-push/${encodeURIComponent(device.id)}`, { method: "DELETE" }).catch(() => {});
-  if (readPushDevice()?.id !== device.id) return;
+  // Sent without waiting, so turning alerts off stays instant even offline.
+  void apiRequest(`/api/chat/background-push/${encodeURIComponent(device.id)}`, { method: "DELETE" }).catch(() => {});
   const subscription = await browserPushSubscription();
   if (readPushDevice()?.id !== device.id) return;
   await subscription?.unsubscribe();

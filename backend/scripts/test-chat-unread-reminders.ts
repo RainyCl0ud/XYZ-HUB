@@ -187,6 +187,7 @@ async function main() {
     const logBody = await log.json() as { emailMode: string; deliveries: { personName: string; unreadCount: number; status: string }[] };
     assert.equal(logBody.emailMode, 'capture');
     for (const p of [accountant, general]) assert.ok(logBody.deliveries.some(d => d.personName === p.name && d.unreadCount === 10 && d.status === 'CAPTURED'));
+    assert.ok(!JSON.stringify(logBody).includes('<html') && (logBody.deliveries as unknown as { previewEmail: Record<string, unknown> | null }[]).every(d => !d.previewEmail || Object.keys(d.previewEmail).sort().join(',') === 'subject,text,to'), 'The log carries only what it shows');
     assert.equal((await fetch(base + '/log?userId=' + staff.id, { headers: ownerHeaders })).status, 400);
     assert.equal((await fetch(base + '/log?before=missing', { headers: ownerHeaders })).status, 400);
     const countBeforeLog = await prisma.chatUnreadReminder.count(); await fetch(base + '/log', { headers: ownerHeaders }); assert.equal(await prisma.chatUnreadReminder.count(), countBeforeLog);

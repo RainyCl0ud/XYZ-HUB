@@ -9,7 +9,9 @@ Staging candidate, 21 November 2026. Production is outside this release. Follows
 - **Turning notifications off also clears background push on the server.** Before, My Account → Notification → Off only unsubscribed this browser; the Hub's record stayed until the push service rejected a later send. The error shown if a browser can't stop background alerts now gives a real next step instead of pointing to "advanced settings" that no longer exist.
 - The unused background-push settings panel is removed.
 
-No migration, feature flag, delivery mode or Railway setting changes. Background push stays switched off on Staging; enabling it is a separate decision.
+One additive migration adds an index for the log's newest-first order (`20261121020000_unread_reminder_log_index`). No feature flag, delivery mode or Railway setting changes. Background push stays switched off on Staging; enabling it is a separate decision.
+
+The log returns only the preview's recipient, subject and text (never the HTML body), and hides the address once an account has been deleted. The old per-person `GET /api/chat/unread-reminders` endpoint remains for tests and returns only the caller's own data; nothing in the Hub calls it any more.
 
 ## Verification (local, loopback PostgreSQL in UTC with fictional data)
 

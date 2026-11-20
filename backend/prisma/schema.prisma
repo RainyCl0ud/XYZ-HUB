@@ -1221,6 +1221,7 @@ model ChatUnreadReminder {
   lastError String?
   @@index([userKey, createdAt])
   @@index([status, createdAt])
+  @@index([createdAt, id])
 }
 
 // Offsets use JavaScript UTF-16 positions in the stored plain message text.

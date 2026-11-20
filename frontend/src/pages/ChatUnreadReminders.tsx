@@ -10,16 +10,17 @@ const statusLabel: Record<string, string> = { SENDING: 'Sending email', SENT: 'E
 /** Owner-only log of unread reminder emails across all staff. */
 export default function ChatUnreadReminders({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), controller = useRef<AbortController | null>(null);
-  const [data, setData] = useState<ReminderLog | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const [data, setData] = useState<ReminderLog | null>(null), [error, setError] = useState(''), [loading, setLoading] = useState<'refresh' | 'older' | null>(null);
+  const busy = loading !== null;
   const load = useCallback(async (before?: string) => {
     controller.current?.abort();
     const request = new AbortController(); controller.current = request;
-    setBusy(true); setError('');
+    setLoading(before ? 'older' : 'refresh'); setError('');
     try {
       const result = await apiRequest<ReminderLog>(`/api/chat/unread-reminders/log${before ? `?before=${encodeURIComponent(before)}` : ''}`, { signal: request.signal });
       if (!request.signal.aborted) setData((old) => before && old ? { ...result, deliveries: [...old.deliveries, ...result.deliveries] } : result);
     } catch (e) { if (!request.signal.aborted) { if (!before) setData(null); setError(e instanceof Error ? e.message : 'Unable to load the email reminder log.'); } }
-    finally { if (!request.signal.aborted) setBusy(false); }
+    finally { if (!request.signal.aborted) setLoading(null); }
   }, []);
   useEffect(() => { dialog.current?.showModal(); const initial = setTimeout(() => void load(), 0); return () => { clearTimeout(initial); controller.current?.abort(); }; }, [load]);
   const deliverySummary = data?.emailMode === 'capture'
@@ -46,8 +47,8 @@ export default function ChatUnreadReminders({ onClose }: { onClose: () => void }
       </li>)}</ul>}
     </>}
     <div className="creator-chat-dialog-actions">
-      {data?.nextBefore && <button type="button" disabled={busy} onClick={() => void load(data.nextBefore!)}>{busy ? 'Loading…' : 'Load older reminders'}</button>}
-      <button type="button" disabled={busy} onClick={() => void load()}>{busy ? 'Refreshing…' : 'Refresh'}</button>
+      {data?.nextBefore && <button type="button" disabled={busy} onClick={() => void load(data.nextBefore!)}>{loading === 'older' ? 'Loading…' : 'Load older reminders'}</button>}
+      <button type="button" disabled={busy} onClick={() => void load()}>{loading === 'refresh' ? 'Refreshing…' : 'Refresh'}</button>
     </div>
   </dialog>;
 }

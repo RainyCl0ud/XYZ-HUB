@@ -56,10 +56,22 @@ export async function unreadReminderHistory(userId: string) {
   });
 }
 
-/** Owners only: whether the Chat menu offers the email reminder log. */
+/** Owners only: whether the Chat menu offers the email reminder log. Chat
+ * calls /areas on every refresh, so this is one plain query, not a viewer
+ * transaction; the log endpoint itself rechecks access in full. */
 export async function canViewUnreadReminderLog(userId: string) {
   if (!unreadRemindersEnabled()) return false;
-  return prisma.$transaction(async tx => (await loadViewer(tx, userId)).isOwner);
+  return (await prisma.user.count({ where: { id: userId, status: 'ACTIVE', roleMemberships: { some: { role: { systemKey: 'OWNER', archivedAt: null } } } } })) > 0;
+}
+
+type StoredPreview = { to?: unknown; subject?: unknown; text?: unknown } | null;
+/** Only what the log shows: never the HTML body, and no address once the
+ * account has been deleted. */
+function previewForLog(value: Prisma.JsonValue | null, recipientExists: boolean) {
+  const stored = (value && typeof value === 'object' && !Array.isArray(value) ? value : null) as StoredPreview;
+  if (!stored) return null;
+  return { to: recipientExists && typeof stored.to === 'string' ? stored.to : 'Address removed with the account',
+    subject: typeof stored.subject === 'string' ? stored.subject : '', text: typeof stored.text === 'string' ? stored.text : '' };
 }
 
 /** Owner-only delivery log across all staff: status, count, time and the
@@ -78,7 +90,7 @@ export async function unreadReminderLog(userId: string, before?: string) {
     });
     return {
       emailMode: unreadReminderEmailMode(),
-      deliveries: rows.slice(0, 20).map(({ recipient, ...row }) => ({ ...row, personName: recipient?.name ?? 'Deleted account' })),
+      deliveries: rows.slice(0, 20).map(({ recipient, previewEmail, ...row }) => ({ ...row, personName: recipient?.name ?? 'Deleted account', previewEmail: previewForLog(previewEmail, !!recipient) })),
       nextBefore: rows.length > 20 ? rows[19].id : null,
     };
   });
