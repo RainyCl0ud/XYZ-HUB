@@ -53,7 +53,9 @@ try {
   assert.ok(!page.includes("tabIndex={m.deleted ? undefined : 0}"));
   assert.ok(!page.includes('event.currentTarget.focus({ preventScroll: true })'));
   assert.ok(!page.includes('event.pointerType !== "touch"'));
-  assert.ok(page.includes('data-chat-message-id={m.id}>'));
+  const transcriptRow = await read("src/pages/ChatTranscriptMessage.tsx");
+  assert.ok(page.includes('<ChatTranscriptMessage'));
+  assert.ok(transcriptRow.includes('data-chat-message-id={m.id}'));
   assert.ok(css.includes("@media (hover: hover) and (pointer: fine)"));
   assert.ok(css.includes(".creator-chat .creator-chat-message:hover .creator-chat-message-actions"));
   assert.ok(css.includes(".creator-chat .creator-chat-message-actions:focus-within"));
@@ -80,7 +82,7 @@ try {
   assert.ok(actual.includes('class="creator-chat-announcement-tag"'));
   assert.ok(!actual.includes('class="creator-chat-touch-actions-toggle"'));
   assert.ok(!message.includes('class="creator-chat-announcement-message"'));
-  assert.ok(page.includes('m.announcement ? "is-announcement" : ""'));
+  assert.ok(transcriptRow.includes('m.announcement ? "is-announcement" : ""'));
   assert.ok(css.includes(".creator-chat .creator-chat-message.is-announcement {"));
   pass("Published staff announcements display structured titles/bodies without turning ordinary messages into announcement cards.");
 

@@ -95,7 +95,9 @@ try {
   assert.ok(!component.includes('month: "short", day: "numeric", hour: "numeric"'));
   assert.ok(page.includes('timeZone: CENTRAL_TIME_ZONE, month: "long", day: "numeric", year: "numeric"'));
   assert.ok(page.includes('className="creator-chat-day"'));
-  assert.ok(page.includes('!m.deleted && (m.replyTo || m.replyUnavailable) ? "has-reply" : ""'));
+  const transcriptRow = await read("src/pages/ChatTranscriptMessage.tsx");
+  assert.ok(page.includes("<ChatTranscriptMessage"));
+  assert.ok(transcriptRow.includes('!m.deleted && (m.replyTo || m.replyUnavailable) ? "has-reply" : ""'));
   assert.ok(css.includes(".creator-chat .creator-chat-message.has-reply > .creator-chat-avatar { margin-top: 21px; }"));
   assert.ok(css.includes(".creator-chat .creator-chat-quote {"));
   assert.ok(css.includes("height: 19px;"));

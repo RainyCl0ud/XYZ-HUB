@@ -14,7 +14,8 @@ import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
 import UserAvatar from "../components/UserAvatar";
 import ChatChannelCleanupDialog, { type CleanupTarget } from "./ChatChannelCleanupDialog";
-import ChatMessageTools, { ChatMessageContent, type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
+import ChatMessageTools, { type ChatMessage as Message, type ChatToolTarget } from "./ChatMessageTools";
+import ChatTranscriptMessage from "./ChatTranscriptMessage";
 import ChatAttachmentPicker, { type ChatAttachmentPickerHandle } from "./ChatAttachmentPicker";
 import ChatVoiceRecorder, { type ChatVoiceRecorderHandle } from "./ChatVoiceRecorder";
 import ChatModerationDialog, { type ModerationTarget } from "./ChatModerationDialog";
@@ -801,7 +802,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 {!transcript.messages.length && <div className="creator-chat-empty"><span className="creator-chat-empty-icon"><ChatIcon name={channel?.isPrivate ? "lock" : "chat"} /></span><p className="creator-chat-empty-kicker">{channel?.isPrivate ? "PRIVATE CONVERSATION" : "YOU’RE AT THE BEGINNING"}</p><h3>{channel?.name}</h3><p>{transcript.canPost ? "No messages yet. Send the first one below." : "No messages yet. New messages will appear here."}</p></div>}
                 {transcript.messages.map((m, index) => <Fragment key={m.id}>
                   {(index === 0 || day(transcript.messages[index - 1].createdAt) !== day(m.createdAt)) && <div className="creator-chat-day"><span>{day(m.createdAt)}</span></div>}
-                  <article className={`creator-chat-message ${m.deleted ? "is-deleted-message" : ""} ${m.announcement ? "is-announcement" : ""} ${!m.deleted && (m.replyTo || m.replyUnavailable) ? "has-reply" : ""} ${jumpHighlight === m.id ? "is-jump-highlight" : ""}`} data-chat-message-id={m.id}><div className="creator-chat-avatar" aria-hidden="true">{m.authorName.slice(0, 1).toUpperCase()}</div><ChatMessageContent message={m} channelId={selected} recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onReply={(message) => startReply(selected, message)} onEdit={startEdit} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => jumpToMessage(selected, messageId)} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onPreviewLoad={followLoadedPreview} /></article>
+                  <ChatTranscriptMessage message={m} previous={transcript.messages[index - 1]} highlighted={jumpHighlight === m.id} channelId={selected} recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onReply={(message) => startReply(selected, message)} onEdit={startEdit} onChanged={(message) => changedMessage(selected, message)} onError={messageError} onOpen={(messageId) => jumpToMessage(selected, messageId)} onModerate={(message) => startModeration(selected, message)} onHistory={(messageId) => setTools({ kind: "history", channelId: selected, channelName: `${area?.name ?? "Workspace"} / ${channel?.name ?? "Conversation"}`, messageId })} onPreviewLoad={followLoadedPreview} />
                 </Fragment>)}
               </>}
             </div>

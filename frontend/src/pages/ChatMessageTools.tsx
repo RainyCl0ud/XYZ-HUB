@@ -7,7 +7,7 @@ import ChatVoicePlayback from "./ChatVoicePlayback";
 import { CHAT_EMOJI_OPTIONS, CHAT_EMOJI_CATEGORIES, emojiLabel, normalizeRecentEmojis } from "../lib/chat-reaction-emojis";
 
 export type ChatMessage = {
-  id: string; authorName: string; text: string; version: number; createdAt: string; updatedAt: string;
+  id: string; authorUserId?: string | null; authorName: string; text: string; version: number; createdAt: string; updatedAt: string;
   canEdit: boolean; canReply: boolean; canPin: boolean; pinnedAt: string | null; pinnedByName: string | null; pinVersion: number;
   canModerate?: boolean; canViewHistory?: boolean; replyUnavailable?: boolean;
   systemNotice?: boolean;
@@ -44,12 +44,13 @@ function ChatImagePreview({ src, fileName, onLoad }: { src: string; fileName: st
     loading="lazy" decoding="async" referrerPolicy="no-referrer" onLoad={onLoad} onError={() => setFailed(true)} />;
 }
 
-export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onChanged, onOpen, onError, onModerate, onHistory, onPreviewLoad, recentEmojis, onReactionSelected }: {
+export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onChanged, onOpen, onError, onModerate, onHistory, onPreviewLoad, recentEmojis, onReactionSelected, compact = false }: {
   message: ChatMessage; channelId: string; onReply: (message: ChatMessage) => void; onEdit?: (message: ChatMessage) => void;
   onChanged: (message: ChatMessage) => void; onOpen: (messageId: string) => void; onError: (e: unknown) => void;
   onModerate?: (message: ChatMessage) => void; onHistory?: (messageId: string) => void;
   onPreviewLoad?: () => void;
   recentEmojis?: readonly string[]; onReactionSelected?: (emoji: string) => void;
+  compact?: boolean;
 }) {
   const toast = useToast();
   // During a rolling deploy the older API still returns ordinary messages.
@@ -257,12 +258,12 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
       <span className="creator-chat-quote-author">{m.replyTo.authorName}{m.replyTo.deleted ? " · Deleted" : ""}{m.replyTo.version > 1 ? " · edited" : ""}</span>
       <span className="creator-chat-quote-preview">{m.replyTo.text || "Attachment"}</span>
     </button>}
-    {!m.deleted && <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small className={m.announcement ? "creator-chat-announcement-tag" : undefined}>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>}
+    {!m.deleted && !compact && <header><strong>{m.authorName}</strong><time dateTime={m.createdAt}>{chatTime(m.createdAt)}</time>{m.systemNotice && <small className={m.announcement ? "creator-chat-announcement-tag" : undefined}>{m.announcement ? 'Staff announcement' : 'System notice'}</small>}{m.version > 1 && <small>Edited</small>}</header>}
     {m.pinnedAt && <small className="creator-chat-pin-label">Pinned by {m.pinnedByName}</small>}
     {m.announcement && m.text ? <section className="creator-chat-announcement-message" aria-label="Staff announcement">
       <h4>{announcementTitle}</h4>
       {announcementBody && <p>{announcementBody}</p>}
-    </section> : m.text && <p><ChatMentionText text={m.text} mentions={m.mentions} /></p>}
+    </section> : m.text && <p><ChatMentionText text={m.text} mentions={m.mentions} />{compact && m.version > 1 && <small className="creator-chat-group-edited"> Edited</small>}</p>}
     {m.attachment && <>
       {m.attachment.available && m.attachment.canPreview && <ChatImagePreview
         key={attachmentPath} src={`${attachmentPath}/preview`} fileName={m.attachment.fileName} onLoad={onPreviewLoad}
@@ -320,6 +321,7 @@ export function ChatMessageContent({ message: m, channelId, onReply, onEdit, onC
         </button>
         {menuOpen && popupHost && createPortal(<div id={popupId} ref={popupRef}
           className="creator-chat-action-popover" style={popupPosition} role="group" aria-label="Message actions">
+          {compact && <time className="creator-chat-action-time" dateTime={m.createdAt}>{new Intl.DateTimeFormat("en-US", { timeZone: CENTRAL_TIME_ZONE, month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" }).format(new Date(m.createdAt))}</time>}
           {m.canReply && <button type="button" disabled={busy} onClick={() => act(() => onReply(m))}>Reply</button>}
           {m.canReply && <button type="button" disabled={busy} onClick={openReactionPicker}>React…</button>}
           {m.attachment?.available && <a href={`${attachmentPath}/file`} target="_blank" rel="noopener"
