@@ -60,16 +60,16 @@ try {
   roleMode = "ops"; grant = { canView: false, canPost: false }; await page.reload();
   await page.getByRole("button", { name: "Permissions", exact: true }).click();
   const opsAccess = page.getByLabel("Role access for Ops Manager"); await opsAccess.waitFor();
-  assert.equal(await opsAccess.textContent(), "Can post"); assert.equal(await opsAccess.evaluate(n => n.tagName), "SPAN");
-  assert.equal(await page.getByRole("button", { name: "Save", exact: true }).count(), 0);
-  assert.equal(await page.getByText("Site-wide role access", { exact: true }).count(), 1);
+  assert.equal(await opsAccess.inputValue(), "post"); assert.equal(await opsAccess.locator('option:checked').textContent(), "Post");
+  assert.ok(await opsAccess.isDisabled()); assert.ok(await page.getByRole("button", { name: "Save", exact: true }).isDisabled());
+  assert.equal(await page.getByText(/Site-wide role access/).count(), 0);
   await page.screenshot({ path: out + "/ops-inherited-post.png", animations: "disabled" });
   roleMode = "manager"; grant = null; await page.reload(); await page.getByRole("button", { name: "Permissions", exact: true }).click();
   const managerAccess = page.getByLabel("Role access for Manager"); assert.equal(await managerAccess.inputValue(), "view");
   assert.ok(await managerAccess.locator('option[value="none"]').isDisabled());
   await managerAccess.selectOption("post"); await page.getByRole("button", { name: "Save", exact: true }).click(); await toast("Access saved for Manager.").waitFor(); await dismiss();
   assert.equal(await managerAccess.inputValue(), "post");
-  console.log("PASS: inherited Ops access displays Can post without editable grant controls; inherited See cannot be removed but can receive a Post grant.");
+  console.log("PASS: inherited Ops access uses the standard Post selector with no extra wording; inherited See cannot be removed but can receive a Post grant.");
 
   await page.getByRole("button", { name: "Open test dialog", exact: true }).click(); const modal = page.getByRole("dialog", { name: "Test dialog", exact: true });
   await modal.getByRole("button", { name: "Save dialog change", exact: true }).click(); await toast("Dialog change saved.").waitFor();
