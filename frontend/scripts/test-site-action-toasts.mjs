@@ -10,7 +10,7 @@ const out = resolve(process.env.HUB_TEST_OUTPUT || "../../outputs/site-toast-bro
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-let grant = null, failGrant = false, writes = 0;
+let grant = null, failGrant = false, writes = 0, roleMode = "chatter";
 let signedIn = true;
 const fixtureDate = "2026-11-19T12:00:00.000Z";
 const user = { id: "toast-user", name: "Casey Example", email: "casey@example.test", status: "ACTIVE", lastSignInAt: fixtureDate, avatarUpdatedAt: fixtureDate };
@@ -39,7 +39,7 @@ await page.route("**/api/**", async route => {
   if (path === "/api/invites/validate") return json({ status: "VALID_INVITE", invite: { name: "Casey Example", email: "casey@example.test", expiresAt: "2027-03-01T00:00:00Z" } });
   if (path === "/api/invites/accept") return json({ status: "INVITE_ACCEPTED" });
   if (req.method() === "PUT") { writes++; if (failGrant) return route.fulfill({ status: 400, headers, body: JSON.stringify({ message: "Permission change was not saved." }) }); grant = JSON.parse(req.postData()); }
-  const body = path.endsWith("/grants") ? { roles: [{ id: "chatter", name: "Chatter", grant }], people: [] } : { success: true };
+  const body = path.endsWith("/grants") ? { roles: [{ id: roleMode, name: roleMode === "ops" ? "Ops Manager" : roleMode === "manager" ? "Manager" : "Chatter", siteWideAccess: { canView: roleMode !== "chatter", canPost: roleMode === "ops" }, grant }], people: [] } : { success: true };
   return route.fulfill({ headers, body: JSON.stringify(body) });
 });
 try {
@@ -57,6 +57,19 @@ try {
   await page.getByRole("alert").filter({ hasText: "Permission change was not saved." }).waitFor(); assert.equal(await page.locator(".toast-success").count(), 0);
   failGrant = false; await page.getByRole("button", { name: "Save", exact: true }).click(); await toast("Access saved for Chatter.").waitFor(); assert.equal(await page.locator(".toast").count(), 1); await dismiss();
   console.log("PASS: actual channel name and permission actions emit one toast, failures retain validation and never claim success, and retry succeeds.");
+  roleMode = "ops"; grant = { canView: false, canPost: false }; await page.reload();
+  await page.getByRole("button", { name: "Permissions", exact: true }).click();
+  const opsAccess = page.getByLabel("Role access for Ops Manager"); await opsAccess.waitFor();
+  assert.equal(await opsAccess.textContent(), "Can post"); assert.equal(await opsAccess.evaluate(n => n.tagName), "SPAN");
+  assert.equal(await page.getByRole("button", { name: "Save", exact: true }).count(), 0);
+  assert.equal(await page.getByText("Site-wide role access", { exact: true }).count(), 1);
+  await page.screenshot({ path: out + "/ops-inherited-post.png", animations: "disabled" });
+  roleMode = "manager"; grant = null; await page.reload(); await page.getByRole("button", { name: "Permissions", exact: true }).click();
+  const managerAccess = page.getByLabel("Role access for Manager"); assert.equal(await managerAccess.inputValue(), "view");
+  assert.ok(await managerAccess.locator('option[value="none"]').isDisabled());
+  await managerAccess.selectOption("post"); await page.getByRole("button", { name: "Save", exact: true }).click(); await toast("Access saved for Manager.").waitFor(); await dismiss();
+  assert.equal(await managerAccess.inputValue(), "post");
+  console.log("PASS: inherited Ops access displays Can post without editable grant controls; inherited See cannot be removed but can receive a Post grant.");
 
   await page.getByRole("button", { name: "Open test dialog", exact: true }).click(); const modal = page.getByRole("dialog", { name: "Test dialog", exact: true });
   await modal.getByRole("button", { name: "Save dialog change", exact: true }).click(); await toast("Dialog change saved.").waitFor();

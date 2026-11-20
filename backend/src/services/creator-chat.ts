@@ -730,11 +730,16 @@ export async function chatGrantOptions(userId: string, channelId: string) {
     const [roles, assignments] = await Promise.all([
       // Owners have built-in oversight, never an editable role or member grant.
       // Include custom roles whose systemKey is null as well as other system roles.
-      tx.role.findMany({ where: { archivedAt: null, OR: [{ systemKey: null }, { systemKey: { not: "OWNER" } }] }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+      tx.role.findMany({ where: { archivedAt: null, OR: [{ systemKey: null }, { systemKey: { not: "OWNER" } }] }, select: { id: true, name: true, rolePermissions: { select: { permission: { select: { key: true } } } } }, orderBy: { name: "asc" } }),
       tx.userModelAssignment.findMany({ where: { modelId: channel.modelId, user: { status: "ACTIVE", id: { not: userId }, roleMemberships: { none: { role: { systemKey: "OWNER", archivedAt: null } } } } }, select: { id: true, user: { include: viewerInclude } }, orderBy: { user: { name: "asc" } } }),
     ]);
     return {
-      roles: roles.map((role) => ({ ...role, grant: channel.roleGrants.find((g) => g.roleId === role.id) ?? null })),
+      roles: roles.map((role) => {
+        const keys = new Set(role.rolePermissions.map(({ permission }) => permission.key));
+        const canView = keys.has("chat.channels.all");
+        return { id: role.id, name: role.name, grant: channel.roleGrants.find((g) => g.roleId === role.id) ?? null,
+          siteWideAccess: { canView, canPost: canView && keys.has("chat.channels.post_all") && keys.has("chat.messages.send") } };
+      }),
       // The Member selector edits only a named grant. Show the inherited
       // access separately so "no named grant" is never mistaken for a denial.
       people: assignments.map((a) => {

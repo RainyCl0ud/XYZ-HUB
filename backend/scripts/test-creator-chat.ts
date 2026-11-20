@@ -139,6 +139,20 @@ async function main() {
       assert.equal((await fetch(grantEndpoint, { method: "PUT", headers: ownerHeaders, body: JSON.stringify({ ...target, canView: true, canPost: true }) })).status, 403);
     }
     check("Owner role and multi-role owners are absent from editable options; direct service/HTTP grants cannot change their automatic access");
+    const roleChoices = await chatGrantOptions(owner.id, top.id);
+    const roleChoice = (id: string) => roleChoices.roles.find((r) => r.id === id)!;
+    assert.deepEqual(roleChoice(roles.get("OPS_MANAGER")!.id).siteWideAccess, { canView: true, canPost: true });
+    assert.deepEqual(roleChoice(roles.get("DEV")!.id).siteWideAccess, { canView: true, canPost: false });
+    assert.deepEqual(roleChoice(custom.id).siteWideAccess, { canView: false, canPost: false });
+    assert.equal(roleChoice(roles.get("OPS_MANAGER")!.id).grant, null);
+    await setChatGrant(owner.id, top.id, { roleId: roles.get("OPS_MANAGER")!.id, canView: false, canPost: false });
+    const opsChoice = (await chatGrantOptions(owner.id, top.id)).roles.find((r) => r.id === roles.get("OPS_MANAGER")!.id)!;
+    assert.equal(opsChoice.grant?.canView, false); assert.equal(opsChoice.siteWideAccess.canPost, true);
+    assert.equal((await listChatMessages(ops.id, top.id)).canPost, true);
+    assert.equal((await channels(ops.id, other)).length, 13);
+    const refreshedChoices = await (await fetch(grantEndpoint, { headers: ownerHeaders })).json() as { roles: { id: string; siteWideAccess: { canView: boolean; canPost: boolean } }[] };
+    assert.equal(refreshedChoices.roles.find((r) => r.id === roles.get("OPS_MANAGER")!.id)!.siteWideAccess.canPost, true);
+    check("Channel options report site-wide Post/See access independently of saved grants and preserve Ops access across creator areas");
     const sent = await sendChatMessage(chatter.id, general.id, "Original full message", "message-reference-1");
     const retry = await sendChatMessage(chatter.id, general.id, "Original full message", "message-reference-1");
     assert.equal(sent.id, retry.id);
