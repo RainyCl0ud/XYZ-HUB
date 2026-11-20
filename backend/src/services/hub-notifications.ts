@@ -5,6 +5,7 @@ import { alertInclude, clockAlertAudience, describeClockAlert } from "./clock-al
 import { correctionCapabilities, correctionReviewWhere } from "./clock-corrections.js";
 import { clockAllowed, clockViewerInclude, type ClockViewer } from "./clock-policy.js";
 import { isClockEnabled } from "./clock.js";
+import { emailCapacityState } from "./chat-email-health.js";
 
 /*
  * Header bell inbox. Every notice is derived live from its source record and
@@ -18,11 +19,12 @@ export class NotificationError extends Error {
   constructor(readonly status: number, message: string) { super(message); this.name = "NotificationError"; }
 }
 
-export type NotificationKind = "MENTION" | "ANNOUNCEMENT" | "BREAK_REMINDER" | "BREAK_LIMIT" | "OPEN_SHIFT" | "CORRECTION_REVIEW" | "CORRECTION_DECIDED";
+export type NotificationKind = "MENTION" | "ANNOUNCEMENT" | "BREAK_REMINDER" | "BREAK_LIMIT" | "OPEN_SHIFT" | "CORRECTION_REVIEW" | "CORRECTION_DECIDED" | "EMAIL_REVIEW" | "EMAIL_LIMIT";
 export type NotificationTarget =
   | { type: "chat-message"; conversationId: string; messageId: string }
   | { type: "clock" }
-  | { type: "clock-request"; requestId: string };
+  | { type: "clock-request"; requestId: string }
+  | { type: "email-delivery" };
 export type HubNotification = {
   key: string; kind: NotificationKind; occurredAt: string; read: boolean;
   title: string; body: string; context: string; target: NotificationTarget | null;
@@ -31,12 +33,14 @@ export type HubNotification = {
 const PAGE = 20;
 const SUMMARY_SIZE = 5;
 const EXCERPT = 140;
-export const NOTIFICATION_KEY = /^(alert|announcement|correction-decided|correction-review|mention):([A-Za-z0-9_-]{1,100})$/;
+export const NOTIFICATION_KEY = /^(alert|announcement|correction-decided|correction-review|email|mention):([A-Za-z0-9_-]{1,100})$/;
 
 type Tx = Prisma.TransactionClient;
 type Conversation = { name: string; area: string; isPrivate: boolean };
 type Context = {
   tx: Tx; userId: string; watermark: Date | null; explicit: Set<string>;
+  // Owners also get Chat email problems (paused deliveries, daily limit).
+  owner: boolean;
   chat: { conversations: Map<string, Conversation>; unreadStart: Date } | null;
   clock: { viewer: ClockViewer; alerts: boolean; ownCorrections: boolean; review: boolean } | null;
 };
@@ -199,7 +203,74 @@ function decidedWhere(ctx: Context, query: Query): Prisma.ClockCorrectionWhereIn
   ] };
 }
 
-const SOURCES: Source[] = [mentionSource, announcementSource, alertSource, reviewSource, decidedSource];
+/* Owner-only Chat email problems. A paused delivery is dated by when it was
+ * paused (reviewAt), so a pause that happens after "Mark all as read" still
+ * arrives unread; it stays in history once resolved. Each near-limit period
+ * (EmailLimitWarning) is one notice with a fixed start time. */
+const emailIds = (ctx: Context, type: string) => explicitIds(ctx, "email").filter((id) => id.startsWith(type + "-")).map((id) => id.slice(type.length + 1));
+const emailTarget: NotificationTarget = { type: "email-delivery" };
+const emailSource: Source = {
+  prefix: "email",
+  available: (ctx) => ctx.owner,
+  async fetch(ctx, query) {
+    const wanted = query.id ? /^(reminder|announcement|limit)-(.+)$/.exec(query.id) : null;
+    if (query.id && !wanted) return [];
+    const type = wanted?.[1], id = wanted?.[2];
+    const entries: Entry[] = [];
+    if (!type || type === "reminder") {
+      const rows = await ctx.tx.chatUnreadReminder.findMany({ where: { AND: [
+        { status: "REVIEW", reviewAt: { not: null } }, ...(id ? [{ id }] : []), ...(query.time ? [{ reviewAt: query.time }] : []),
+        ...(query.unread ? [{ reviewResolvedAt: null, reviewAt: after(ctx), id: { notIn: emailIds(ctx, "reminder") } }] : []),
+      ] }, orderBy: [{ reviewAt: "desc" }, { id: "desc" }], take: query.take,
+      select: { id: true, reviewAt: true, reviewResolvedAt: true, reviewResolvedByName: true, recipient: { select: { name: true } } } });
+      for (const r of rows) {
+        if (!r.reviewAt) continue;
+        const key = `email:reminder-${r.id}`;
+        entries.push(notice(key, "EMAIL_REVIEW", r.reviewAt, !!r.reviewResolvedAt || ctx.explicit.has(key) || readByWatermark(ctx, r.reviewAt),
+          `Reminder emails paused for ${r.recipient?.name ?? "a deleted account"}`,
+          r.reviewResolvedAt ? `Resumed by ${r.reviewResolvedByName ?? "an Owner"}` : "Gmail didn’t confirm a reminder. Check their inbox, then resume reminders.",
+          "Email delivery", emailTarget));
+      }
+    }
+    if (!type || type === "announcement") {
+      const rows = await ctx.tx.chatAnnouncementDelivery.findMany({ where: { AND: [
+        { status: "REVIEW", reviewAt: { not: null } }, ...(id ? [{ id }] : []), ...(query.time ? [{ reviewAt: query.time }] : []),
+        ...(query.unread ? [{ reviewResolvedAt: null, reviewAt: after(ctx), id: { notIn: emailIds(ctx, "announcement") } }] : []),
+      ] }, orderBy: [{ reviewAt: "desc" }, { id: "desc" }], take: query.take,
+      select: { id: true, personName: true, reviewAt: true, reviewResolvedAt: true, reviewResolvedByName: true, announcement: { select: { title: true } } } });
+      for (const a of rows) {
+        if (!a.reviewAt) continue;
+        const key = `email:announcement-${a.id}`;
+        entries.push(notice(key, "EMAIL_REVIEW", a.reviewAt, !!a.reviewResolvedAt || ctx.explicit.has(key) || readByWatermark(ctx, a.reviewAt),
+          `Announcement email unconfirmed for ${a.personName}`,
+          a.reviewResolvedAt ? `Marked handled by ${a.reviewResolvedByName ?? "an Owner"}` : `“${a.announcement.title}”. Check their inbox before sending anything again.`,
+          "Email delivery", emailTarget));
+      }
+    }
+    if (!type || type === "limit") {
+      // Opens or closes the current warning period before listing periods.
+      const state = await emailCapacityState(ctx.tx);
+      const rows = await ctx.tx.emailLimitWarning.findMany({ where: { AND: [
+        ...(id ? [{ id }] : []), ...(query.time ? [{ startedAt: query.time }] : []),
+        ...(query.unread ? [{ endedAt: null, startedAt: after(ctx), id: { notIn: emailIds(ctx, "limit") } }] : []),
+      ] }, orderBy: [{ startedAt: "desc" }, { id: "desc" }], take: query.take });
+      for (const w of rows) {
+        const key = `email:limit-${w.id}`;
+        const current = !w.endedAt && state.usage;
+        entries.push(notice(key, "EMAIL_LIMIT", w.startedAt, !!w.endedAt || ctx.explicit.has(key) || readByWatermark(ctx, w.startedAt),
+          current && state.status === "PAUSED_TODAY" ? "Chat emails paused for today" : "Daily email limit nearly reached",
+          current ? `${state.usage!.usedToday} of ${state.usage!.allowanceToday} emails used in the last 24 hours. Sign-in codes are still sent.`
+            : "Chat email went back under the daily limit. Sign-in codes were never affected.",
+          "Email delivery", emailTarget));
+      }
+    }
+    entries.sort((a, b) => b.at.getTime() - a.at.getTime() || (a.key < b.key ? 1 : -1));
+    return query.take ? entries.slice(0, query.take) : entries;
+  },
+  async unreadCount(ctx) { return (await this.fetch(ctx, { unread: true })).length; },
+};
+
+const SOURCES: Source[] = [mentionSource, announcementSource, alertSource, reviewSource, decidedSource, emailSource];
 
 async function databaseNow(tx: Tx) {
   const [{ now }] = await tx.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS "now"`;
@@ -214,11 +285,12 @@ async function loadContext(tx: Tx, userId: string): Promise<Context> {
   if (!person || person.status !== "ACTIVE") throw new NotificationError(401, "Please sign in again.");
   const state = await tx.hubNotificationState.findUnique({ where: { userId } });
   const explicit = new Set((await tx.hubNotificationRead.findMany({ where: { userId }, select: { key: true } })).map((r) => r.key));
-  let chat: Context["chat"] = null;
+  let chat: Context["chat"] = null, owner = false;
   if (isCreatorChatEnabled()) {
     const chatUser = await tx.user.findUnique({ where: { id: userId }, include: viewerInclude });
     const viewer = chatUser ? makeViewer(chatUser) : null;
     if (viewer?.permissions.has("chat.access")) {
+      owner = viewer.isOwner;
       const areas = await accessibleChatAreas(tx, viewer);
       const conversations = new Map<string, Conversation>();
       for (const area of areas) for (const c of area.channels) if (!c.archived) conversations.set(c.id, { name: c.name, area: area.name, isPrivate: c.isPrivate });
@@ -236,7 +308,7 @@ async function loadContext(tx: Tx, userId: string): Promise<Context> {
       if (alerts || ownCorrections) clock = { viewer, alerts, ownCorrections, review };
     }
   }
-  return { tx, userId, watermark: state?.readAllBefore ?? null, explicit, chat, clock };
+  return { tx, userId, watermark: state?.readAllBefore ?? null, explicit, owner, chat, clock };
 }
 
 function withContext<T>(userId: string, fn: (ctx: Context) => Promise<T>) {

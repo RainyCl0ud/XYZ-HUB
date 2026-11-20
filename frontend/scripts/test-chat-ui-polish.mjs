@@ -19,7 +19,7 @@ const pass = (label) => console.log("PASS " + (++passed) + ": " + label);
 assert.ok(!page.includes("TEAM COMMUNICATION"));
 assert.ok(!page.includes('<h1 id="chat-page-title">Chat</h1>'));
 assert.ok(page.includes('aria-label="Chat workspace"'));
-assert.ok(page.includes('{(canAnnounce || remindersEnabled) && <header className="creator-chat-heading"'));
+assert.ok(page.includes('{canAnnounce && <header className="creator-chat-heading"'));
 pass("No redundant Chat or Team communication heading; secondary actions remain available.");
 
 assert.ok(page.includes('<div className="creator-chat-channel-title"><h2>{channel?.name'));

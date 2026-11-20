@@ -7,7 +7,6 @@ import { API_BASE_URL, ApiError, apiRequest } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import ChatAnnouncements from "./ChatAnnouncements";
-import ChatUnreadReminders from "./ChatUnreadReminders";
 import { setAlertReadingContext } from '../lib/browser-alerts';
 import "./ChatPage.css";
 import ChatChannelSettings from "./ChatChannelSettings";
@@ -81,7 +80,6 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const linkedMessage = searchParams.get('message') ?? '';
   const retainedConversation = searchParams.get("retained") ?? "";
   const [canAnnounce, setCanAnnounce] = useState(false), [showAnnouncements, setShowAnnouncements] = useState(false);
-  const [remindersEnabled, setRemindersEnabled] = useState(false), [showReminders, setShowReminders] = useState(false);
   const [attachmentMaxBytes, setAttachmentMaxBytes] = useState(0);
   const [voiceMaxSeconds, setVoiceMaxSeconds] = useState(0);
   const [areas, setAreas] = useState<Area[]>([]);
@@ -293,13 +291,11 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const refreshAreas = useCallback(async (signal?: AbortSignal) => {
     const request = ++areasRequest.current;
     const params = retainedConversation ? `?retained=${encodeURIComponent(retainedConversation)}` : "";
-    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; unreadReminders?: { enabled: boolean; canViewLog?: boolean }; attachments?: { maxBytes: number; voiceMaxSeconds?: number } }>(`/api/chat/areas${params}`, { signal });
+    const response = await apiRequest<{ areas: Area[]; announcements?: { canAnnounce: boolean }; attachments?: { maxBytes: number; voiceMaxSeconds?: number } }>(`/api/chat/areas${params}`, { signal });
     if (signal?.aborted || request !== areasRequest.current) return;
     availableAreas.current = response.areas;
     setAreas(response.areas);
     setCanAnnounce(!!response.announcements?.canAnnounce);
-    // Staff simply receive the email; only Owners see the delivery log.
-    setRemindersEnabled(!!response.unreadReminders?.enabled && !!response.unreadReminders?.canViewLog);
     setAttachmentMaxBytes(response.attachments?.maxBytes ?? 0);
     setVoiceMaxSeconds(response.attachments?.voiceMaxSeconds ?? 0);
     const current = selectedRef.current;
@@ -348,7 +344,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
     void refreshAreas().catch(() => {});
   }, [refreshAreas]);
   const readFailed = useCallback(() => setReadError("Read status wasn’t saved. It will retry when messages refresh."), []);
-  const notificationsPaused = !!(loading || error || tools || deleting || cleanupTarget || quarantining || settings || showMembers || showChannels || showAnnouncements || showReminders || markingRead);
+  const notificationsPaused = !!(loading || error || tools || deleting || cleanupTarget || quarantining || settings || showMembers || showChannels || showAnnouncements || markingRead);
   useEffect(() => {
     setAlertReadingContext({ userId, conversationId: selected, paused: notificationsPaused });
     return () => setAlertReadingContext({ userId: '', conversationId: '', paused: true });
@@ -712,28 +708,26 @@ function ChatWorkspace({ userId }: { userId: string }) {
       main.removeEventListener("scroll", schedule);
       shell.style.removeProperty("height");
     };
-  }, [loading, areas.length, canAnnounce, remindersEnabled, inlineDiscoveryOpen, showChatOptions, error]);
+  }, [loading, areas.length, canAnnounce, inlineDiscoveryOpen, showChatOptions, error]);
 
   const toolView = tools ? <ChatMessageTools recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onJumpToMessage={jumpToMessage} inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); }} revision={toolsRevision} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
   return (
     <section className="creator-chat" aria-label="Chat workspace">
       <h1 className="creator-chat-sr">Chat</h1>
-      {(canAnnounce || remindersEnabled) && <header className="creator-chat-heading" aria-label="Chat options">
+      {canAnnounce && <header className="creator-chat-heading" aria-label="Chat options">
         <div className="creator-chat-heading-tools">
-          {(canAnnounce || remindersEnabled) && <button type="button"
+          {canAnnounce && <button type="button"
             className="creator-chat-mobile creator-chat-options-toggle"
             aria-controls="chat-page-options"
             aria-expanded={showChatOptions}
             onClick={() => setShowChatOptions(open => !open)}>Chat options <svg className="creator-chat-options-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="m5 7 5 5 5-5" /></svg></button>}
           <div id="chat-page-options" className={`creator-chat-heading-actions ${showChatOptions ? "is-open" : ""}`}>
             {canAnnounce && <button type="button" onClick={() => { setShowChatOptions(false); setShowAnnouncements(true); }}>Staff announcements</button>}
-            {remindersEnabled && <button type="button" onClick={() => { setShowChatOptions(false); setShowReminders(true); }}>Email reminder log</button>}
           </div>
         </div>
       </header>}
       {error && <div className="creator-chat-error" role="alert">{error}</div>}
       {showAnnouncements && <ChatAnnouncements onClose={() => setShowAnnouncements(false)} onPublished={() => { setRefreshTick(n => n+1); void refreshAreas().catch(() => {}); }} />}
-      {showReminders && <ChatUnreadReminders onClose={() => setShowReminders(false)} />}
       {loading ? <div className="creator-chat-empty" role="status">Loading your conversations…</div> : !areas.length ? <div className="creator-chat-empty"><ChatIcon name="chat" /><h2>No conversations available yet</h2><p>Your conversations will appear here when you have access. Contact an Owner if you need help.</p></div> : (
         <div ref={chatShellRef} className={`creator-chat-shell ${showChannels ? "is-browsing" : ""} ${settings ? "is-settings" : ""}`}>
           <aside className="creator-chat-channels" aria-label="Browse conversations">

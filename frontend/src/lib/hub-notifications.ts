@@ -1,10 +1,11 @@
 import { CENTRAL_TIME_ZONE } from "./time";
 
-export type HubNotificationKind = "MENTION" | "ANNOUNCEMENT" | "BREAK_REMINDER" | "BREAK_LIMIT" | "OPEN_SHIFT" | "CORRECTION_REVIEW" | "CORRECTION_DECIDED";
+export type HubNotificationKind = "MENTION" | "ANNOUNCEMENT" | "BREAK_REMINDER" | "BREAK_LIMIT" | "OPEN_SHIFT" | "CORRECTION_REVIEW" | "CORRECTION_DECIDED" | "EMAIL_REVIEW" | "EMAIL_LIMIT";
 export type HubNotificationTarget =
   | { type: "chat-message"; conversationId: string; messageId: string }
   | { type: "clock" }
-  | { type: "clock-request"; requestId: string };
+  | { type: "clock-request"; requestId: string }
+  | { type: "email-delivery" };
 export type HubNotification = {
   key: string; kind: HubNotificationKind; occurredAt: string; read: boolean;
   title: string; body: string; context: string; target: HubNotificationTarget | null;
@@ -26,6 +27,7 @@ export function notificationHref(target: HubNotificationTarget | null): string |
     return `/chat?conversation=${encodeURIComponent(target.conversationId)}&message=${encodeURIComponent(target.messageId)}`;
   }
   if (target.type === "clock-request") return safeId(target.requestId) ? `/clock/requests/${encodeURIComponent(target.requestId)}` : null;
+  if (target.type === "email-delivery") return "/audit#email-delivery";
   return "/clock";
 }
 

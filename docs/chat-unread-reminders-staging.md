@@ -20,9 +20,10 @@ capacity. Unread totals are recalculated immediately before delivery.
   areas are excluded. Reactions, edits and pins add no unread message.
 - Each email has one To address, an unread count and a generic Hub link. No
   message text, quotes, fan names, files, channel names or staff directory.
-- Staff have no reminder screen; the email simply arrives. Owners use Chat ->
-  Email reminder log to see recent reminders for every staff member (status,
-  count, time and the stored preview). Viewing/refreshing never sends.
+- Staff have no reminder screen; the email simply arrives. Each reminder is
+  recorded in the Audit Log ("Unread reminder email": recipient, unread count,
+  outcome, no content). Owners see sending status and any paused delivery under
+  Audit Log -> Email delivery (see `docs/email-delivery-staging.md`).
 - Staff announcement posts never count toward a reminder: each announcement
   already sends its own email (brief 6.1) and appears in the header bell.
 - Reminder messages do not create Chat messages, alter reads, or grant access.
@@ -53,21 +54,21 @@ testing may therefore produce an initial preview for already-unread test chats.
    account in another. Leave the recipient on General; send into a different,
    permitted channel so the messages remain unread.
 2. Starting with no eligible unread messages, send ten or more messages. The
-   badge increases, but the Owner's Email reminder log shows no new entry yet.
-3. Leave them unread for thirty minutes. Within the next successful sweep, open
-   Chat -> Email reminder log as the Owner and refresh. Expand the recipient's
-   preview: one recipient, count and Hub link only, with "no email sent" shown.
-4. Send into another creator/channel during that hour. Confirm no second preview
+   badge increases, but the Audit Log shows no new "Unread reminder email" yet.
+3. Leave them unread for thirty minutes. Within the next successful sweep, the
+   Owner's Audit Log shows one "Unread reminder email" for that person with the
+   count and the outcome "Preview saved" (capture mode sends nothing).
+4. Send into another creator/channel during that hour. Confirm no second entry
    appears for the same recipient. Reading a chat must update its count normally.
 5. After the hourly limit has elapsed, leave a single message unread for thirty
-   minutes. A preview should appear on a sweep once the age threshold is met.
-   Do not change database timestamps for this QA.
+   minutes. A new Audit Log entry should appear on a sweep once the age
+   threshold is met. Do not change database timestamps for this QA.
 6. Check an Owner/Ops/Developer test account: ordinary oversight channels show
    badges but do not count toward reminders unless explicitly added by name.
    Their permitted standing private chats do count. Do not add yourself or grant
    extra access merely to bypass a test failure.
-7. Verify the recipient's own preview on mobile, close/reopen it, and switch
-   accounts. One person's reminder history must never appear for another.
+7. As a non-Owner, confirm there is no email reminder screen anywhere and the
+   Audit Log is unavailable; only Owners see reminder history and Email delivery.
 
 Concurrent claims, access loss/deactivation/read changes immediately before send,
 restarts, exact threshold boundaries, provider uncertainty and capacity reserves

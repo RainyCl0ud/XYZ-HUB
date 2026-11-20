@@ -11,7 +11,8 @@ import { deleteChatMessage, listDeletedChatMessages, getChatMessageHistory } fro
 import { getChatQuarantine, setChatQuarantine } from "../services/creator-chat.js";
 import { listChatUnread, listChatMentions, markChatMessagesRead } from "../services/creator-chat.js";
 import { announcementCapability, previewAnnouncement, publishAnnouncement, listAnnouncements, announcementDetails } from "../services/chat-announcements.js";
-import { canViewUnreadReminderLog, unreadReminderHistory, unreadReminderLog } from "../services/chat-unread-reminders.js";
+import { unreadReminderHistory } from "../services/chat-unread-reminders.js";
+import { emailDeliveryOverview, resolveEmailReview } from "../services/chat-email-health.js";
 import { unreadRemindersEnabled } from "../services/chat-unread-reminder-policy.js";
 import { browserNotificationFeed } from "../services/chat-browser-notifications.js";
 import { openChatAttachment } from "../services/creator-chat.js";
@@ -62,16 +63,19 @@ router.get("/retained-channels", run(async (req, res) => {
 router.get("/areas", run(async (req, res) => res.json({
   areas: await listChatAreas(user(req), z.string().min(1).max(100).optional().parse(req.query.retained)),
   announcements: await announcementCapability(user(req)),
-  unreadReminders: { enabled: unreadRemindersEnabled(), canViewLog: await canViewUnreadReminderLog(user(req)) },
+  unreadReminders: { enabled: unreadRemindersEnabled() },
   ...(chatAttachmentDirectory() ? { attachments: {
     maxBytes: MAX_CHAT_ATTACHMENT_BYTES,
     ...(chatVoiceEnabled() ? { voiceMaxSeconds: MAX_CHAT_VOICE_SECONDS } : {}),
   } } : {}),
 })));
 router.get("/unread-reminders", run(async (req, res) => res.json(await unreadReminderHistory(user(req)))));
-router.get("/unread-reminders/log", run(async (req, res) => {
-  const query = z.object({ before: z.string().min(1).max(100).optional() }).strict().parse(req.query);
-  res.json(await unreadReminderLog(user(req), query.before));
+// Owner-only Chat email health: status, sending budget and paused deliveries.
+router.get("/email-delivery", run(async (req, res) => res.json(await emailDeliveryOverview(user(req)))));
+const resolveSchema = z.object({ type: z.enum(["reminder", "announcement"]), id: z.string().min(1).max(100) }).strict();
+router.post("/email-delivery/resolve", run(async (req, res) => {
+  const input = resolveSchema.parse(req.body ?? {});
+  res.json(await resolveEmailReview(user(req), input.type, input.id));
 }));
 const browserAlertLimit = createRateLimit({ windowMs: 60_000, max: 120, keyPrefix: 'chat-browser-alerts', getIdentity: req => user(req) });
 router.get('/browser-notifications', browserAlertLimit, run(async (req, res) => {

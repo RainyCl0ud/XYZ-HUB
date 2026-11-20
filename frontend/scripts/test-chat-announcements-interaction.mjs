@@ -13,7 +13,7 @@ const [page, css, tools, announcements, reminders, service, routes] = await Prom
   read("src/pages/ChatPage.css"),
   read("src/pages/ChatMessageTools.tsx"),
   read("src/pages/ChatAnnouncements.tsx"),
-  read("src/pages/ChatUnreadReminders.tsx"),
+  read("src/pages/AuditEmailDelivery.tsx"),
   read("../backend/src/services/chat-announcements.ts"),
   read("../backend/src/routes/chat.ts"),
 ]);

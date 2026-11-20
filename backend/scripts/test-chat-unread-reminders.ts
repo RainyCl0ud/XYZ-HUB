@@ -177,22 +177,8 @@ async function main() {
     const session = await createSession({ userId: staff.id, expiresAt: new Date(Date.now() + 600000) }); const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/chat/unread-reminders`;
     assert.equal((await fetch(base)).status, 401); const headers = { Cookie: `xyz_session=${session.token}` }; const response = await fetch(base, { headers }); assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'no-store');
     const countBeforeGet = await prisma.chatUnreadReminder.count(); await fetch(base, { headers }); assert.equal(await prisma.chatUnreadReminder.count(), countBeforeGet);
-    // Only Owners see the reminder log, which covers every staff member.
-    const chatBase = base.replace(/\/unread-reminders$/, '');
-    const ownerSession = await createSession({ userId: owner.id, expiresAt: new Date(Date.now() + 600000) }); const ownerHeaders = { Cookie: `xyz_session=${ownerSession.token}` };
-    assert.equal((await (await fetch(chatBase + '/areas', { headers })).json() as { unreadReminders: { canViewLog: boolean } }).unreadReminders.canViewLog, false);
-    assert.equal((await (await fetch(chatBase + '/areas', { headers: ownerHeaders })).json() as { unreadReminders: { canViewLog: boolean } }).unreadReminders.canViewLog, true);
-    assert.equal((await fetch(base + '/log', { headers })).status, 403);
-    const log = await fetch(base + '/log', { headers: ownerHeaders }); assert.equal(log.status, 200); assert.equal(log.headers.get('cache-control'), 'no-store');
-    const logBody = await log.json() as { emailMode: string; deliveries: { personName: string; unreadCount: number; status: string }[] };
-    assert.equal(logBody.emailMode, 'capture');
-    for (const p of [accountant, general]) assert.ok(logBody.deliveries.some(d => d.personName === p.name && d.unreadCount === 10 && d.status === 'CAPTURED'));
-    assert.ok(!JSON.stringify(logBody).includes('<html') && (logBody.deliveries as unknown as { previewEmail: Record<string, unknown> | null }[]).every(d => !d.previewEmail || Object.keys(d.previewEmail).sort().join(',') === 'subject,text,to'), 'The log carries only what it shows');
-    assert.equal((await fetch(base + '/log?userId=' + staff.id, { headers: ownerHeaders })).status, 400);
-    assert.equal((await fetch(base + '/log?before=missing', { headers: ownerHeaders })).status, 400);
-    const countBeforeLog = await prisma.chatUnreadReminder.count(); await fetch(base + '/log', { headers: ownerHeaders }); assert.equal(await prisma.chatUnreadReminder.count(), countBeforeLog);
-    process.env.BLOCK2_UNREAD_EMAIL_ENABLED = 'false'; assert.equal((await fetch(base, { headers })).status, 404); assert.equal((await fetch(base + '/log', { headers: ownerHeaders })).status, 404); process.env.BLOCK2_UNREAD_EMAIL_ENABLED = 'true';
-    pass('Accountant/General Staff protected-chat counts and authenticated own-history previews; viewing status never sends mail or reveals another person; only Owners see the log');
+    process.env.BLOCK2_UNREAD_EMAIL_ENABLED = 'false'; assert.equal((await fetch(base, { headers })).status, 404); process.env.BLOCK2_UNREAD_EMAIL_ENABLED = 'true';
+    pass('Accountant/General Staff protected-chat counts and authenticated own-history previews; viewing status never sends mail or reveals another person');
 
     // Re-use the production sender ledger without enabling provider requests.
     process.env.CHAT_UNREAD_EMAIL_MODE = 'gmail'; process.env.CHAT_ANNOUNCEMENT_EMAIL_MODE = 'gmail';
