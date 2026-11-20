@@ -14,7 +14,7 @@ A list of every reminder with its preview was a testing aid, not something an Ow
 - **Audit Log → Email delivery** (Owner only, top of the page):
   - A status line: Preview mode, Sending normally, Chat emails off, no sending budget set, daily limit nearly reached, or paused for the hour or the day. Problems are marked "!" and show how much of the daily budget is used.
   - **Needs attention**: each paused reminder or unconfirmed announcement email, with **Resume reminders** or **Mark handled**. Check the person's inbox first; nothing is re-sent.
-- **The bell (Owners only)** shows "Reminder emails paused for ‹name›", "Announcement email unconfirmed for ‹name›" and "Daily email limit nearly reached" / "Chat emails paused for today", each opening Email delivery. The limit notice appears once per day, only while it applies.
+- **The bell (Owners only)** shows "Reminder emails paused for ‹name›", "Announcement email unconfirmed for ‹name›" and "Daily email limit nearly reached" / "Chat emails paused for today", each opening Email delivery. The limit notice appears once per near-limit period and stays in the bell's history, marked read, once usage drops back.
 - **Audit Log records** every reminder email ("Unread reminder email": recipient, unread count, outcome Preview saved / Email sent / Needs review, no content) and every resolve action ("Paused email delivery resolved", with who did it). Announcement emails keep their per-recipient status in Staff announcements, so they are not copied into the Audit Log.
 - The Chat options **Email reminder log** and its endpoint are removed.
 
