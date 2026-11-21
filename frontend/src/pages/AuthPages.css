@@ -598,9 +598,27 @@
   color: transparent;
   -webkit-text-fill-color: transparent;
   caret-color: transparent;
-  font-size: 16px;
   outline: none;
   cursor: text;
+}
+
+/* F4Usability.css sets every input and button to 12.5px with !important.
+   16px on the hidden input stops iOS Safari zooming in on tap. */
+.auth-code-boxes .auth-code-boxes-input {
+  font-size: 16px !important;
+}
+
+.auth-card-two-step .auth-submit,
+.auth-card-two-step .auth-alt-button {
+  font-size: 13px !important;
+}
+
+.auth-card-two-step .auth-code-input {
+  font-size: 20px !important;
+}
+
+.auth-card-two-step .auth-restart {
+  text-decoration: none;
 }
 
 /* The active box shows focus instead of the global input ring. */
@@ -741,5 +759,30 @@
 @media (prefers-reduced-motion: reduce) {
   .auth-code-box.is-active:not(.is-filled)::after {
     animation: none;
+  }
+}
+
+/* Windows High Contrast: keep the real input invisible (its digits would
+   double up over box 1) and draw the boxes in system colours. */
+@media (forced-colors: active) {
+  .auth-code-boxes-input {
+    forced-color-adjust: none;
+    background: transparent;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    caret-color: transparent;
+  }
+
+  .auth-code-box {
+    border-color: CanvasText;
+  }
+
+  .auth-code-box.is-active {
+    border-color: Highlight;
+    outline: 2px solid Highlight;
+  }
+
+  .auth-code-box.is-active:not(.is-filled)::after {
+    background: CanvasText;
   }
 }
