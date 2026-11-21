@@ -8,7 +8,7 @@ export type Usage = { usedToday: number; allowanceToday: number; dailyLimit: num
 export type Attention = { type: "reminder" | "announcement"; id: string; personName: string; at: string; detail: string; title: string | null };
 export type Overview = { status: Status; usage: Usage | null; attention: Attention[]; attentionTotal: number };
 
-// Problems lead with "!", per the XYZ web kit; normal states stay quiet.
+// Problems get the is-problem style (bold, white border); normal states stay quiet.
 export const STATUS: Record<Status, { problem: boolean; title: string; detail: string }> = {
   OFF: { problem: false, title: "Chat emails are off", detail: "Unread reminders and announcement emails are not being sent." },
   PREVIEW: { problem: false, title: "Preview mode", detail: "Unread reminders and announcement emails are recorded but not sent." },

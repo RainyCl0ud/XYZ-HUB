@@ -28,7 +28,7 @@ export default function AuditRetainedChannels({ refreshKey = 0, onLoadingChange 
   useEffect(() => { onLoadingChange?.(busy); }, [busy, onLoadingChange]);
   return <div className="audit-retained-channels">
     <p className="audit-panel-note">Owner access to retained messages, message edit history and files. These channels stay hidden from the Chat list and message search.</p>
-    {error && <p className="audit-email-error" role="alert">! {error} <button type="button" className="secondary-button" onClick={() => void load()}>Try again</button></p>}
+    {error && <p className="audit-email-error" role="alert">{error} <button type="button" className="secondary-button" onClick={() => void load()}>Try again</button></p>}
     {busy && <p className="audit-panel-note" role="status">Loading retained channels…</p>}
     {!busy && !error && !channels.length && <p className="audit-panel-empty">No channels have been cleaned up.</p>}
     {!!channels.length && <div className="audit-retained-scroll"><table><thead><tr><th scope="col">Channel</th><th scope="col">Workspace</th><th scope="col">Cleaned up</th><th scope="col">History</th></tr></thead>

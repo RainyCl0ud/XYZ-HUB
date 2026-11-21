@@ -37,7 +37,7 @@ assert.ok(verifyBody.includes("if (ENDED_CODES.includes(caught.code ?? \"\")) { 
   && code.includes('<Link className="auth-submit auth-restart" to="/login" onClick={clearPending}>Sign in again</Link>'), "A locked, expired or used-up sign-in ends in Sign in again instead of taking more codes");
 assert.ok(verifyBody.includes("if (recovery) selectInput(); else { setCode(\"\"); focusInput(); }"), "A wrong recovery code stays, selected, for a quick fix");
 assert.ok(code.includes('<button className="auth-submit" type="submit" disabled={submitting}>') && !code.includes("disabled={submitting || !ready}"), "Verify stays available and explains what's missing");
-assert.ok(code.includes('setError(recovery ? "Enter a recovery code, like 7K4M-9QRT." : "Enter the 6-digit code.")') && code.includes('role="alert"><span aria-hidden="true">! </span>{error}</div>'), "Errors lead with a ! that screen readers skip");
+assert.ok(code.includes('setError(recovery ? "Enter a recovery code, like 7K4M-9QRT." : "Enter the 6-digit code.")') && code.includes('role="alert">{error}</div>'), "Errors show the message alone, in the bold white-bordered box");
 assert.ok(code.includes('<section className="auth-other-ways" aria-labelledby="auth-other-ways-title">') && code.includes(">Other ways to sign in</h2>")
   && (code.match(/className="auth-alt-button"/g) ?? []).length === 2, "Other ways are full-width buttons, not small links");
 assert.ok(!code.includes("auth-text-button") && !code.includes("auth-alternatives"));

@@ -120,10 +120,10 @@ function getToastIcon(
       return "✓";
 
     case "error":
-      return "!";
+      return "✕";
 
     case "warning":
-      return "!";
+      return "△";
 
     case "info":
       return "i";

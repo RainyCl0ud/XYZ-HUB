@@ -133,12 +133,12 @@ export default function ClockPage() {
 
   return <section className="clock-page" aria-labelledby="clock-title">
     <header className="clock-page-heading"><div><p className="clock-eyebrow">YOUR ATTENDANCE</p><h1 id="clock-title">Clock &amp; Hours</h1></div><span className="clock-zone">US Central</span></header>
-    {loadError && <div className="clock-error" role="alert">! {loadError} <button type="button" onClick={() => void refresh().catch((e: unknown) => setLoadError(describeError(e)))}>Retry connection</button></div>}
+    {loadError && <div className="clock-error" role="alert">{loadError} <button type="button" onClick={() => void refresh().catch((e: unknown) => setLoadError(describeError(e)))}>Retry connection</button></div>}
     {data && <ClockTabs mode="staff" activeTab={tab} canReview={data.canReviewCorrections} canViewTeam={canViewTeam} />}
     {data && tab === "team" && <OwnerClockPage embedded />}
     {!data ? <p role="status">{loadError ? "Your attendance could not be loaded." : "Loading your attendance…"}</p> : <>
       {tab === "overview" && <div className="clock-workspace">
-      {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>! Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. Use Time corrections below if a recorded time needs changing.</p></div>}
+      {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. Use Time corrections below if a recorded time needs changing.</p></div>}
       <section className="clock-summary-section" aria-labelledby="current-shift-title">
         <header className="clock-section-heading">
           <h2 id="current-shift-title">Current shift</h2>
