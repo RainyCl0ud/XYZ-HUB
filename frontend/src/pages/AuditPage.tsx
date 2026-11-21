@@ -1,5 +1,6 @@
 import AuditRetainedChannels from "./AuditRetainedChannels";
 import AuditEmailDelivery from "./AuditEmailDelivery";
+import { useEmailDelivery } from "./useEmailDelivery";
 import { useAuth } from "../auth/AuthContext";
 import {
   useNavigationFilter,
@@ -8,6 +9,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -20,7 +22,7 @@ import {
 } from "../components/ToastProvider";
 
 import "./AuditPage.css";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useSearchParams, type SetURLSearchParams } from "react-router-dom";
 
 const CENTRAL_TIME_ZONE =
   "America/Chicago";
@@ -124,6 +126,32 @@ function AuditPartyDisplay({
 function AuditPage() {
   const { access } = useAuth();
   const isOwner = access?.roles.some(role => role.systemKey === "OWNER");
+  // Sections are tabs so the activity log always comes first. Owners also get
+  // Email delivery (with a "!" count when something needs attention) and
+  // Cleaned-up channels. The tab lives in the URL; bell notices link to it.
+  const emailEnabled = !!isOwner && import.meta.env.VITE_BLOCK2_CHAT_ENABLED === "true";
+  const email = useEmailDelivery(emailEnabled);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const [channelsRefresh, setChannelsRefresh] = useState(0);
+  const [channelsLoading, setChannelsLoading] = useState(false);
+  const emailPanel = useRef<HTMLElement>(null);
+  const loadEmail = email.load;
+  const tabs = [
+    { id: "activity", label: "Activity" },
+    ...(emailEnabled && !email.hidden ? [{ id: "email", label: "Email delivery" }] : []),
+    ...(isOwner ? [{ id: "channels", label: "Cleaned-up channels" }] : []),
+  ];
+  const requestedTab = searchParams.get("tab") ?? (location.hash === "#email-delivery" ? "email" : "activity");
+  const tab = tabs.some((t) => t.id === requestedTab) ? requestedTab : "activity";
+  // Arriving at the Email tab (from the bell, or a tab click) shows fresh data.
+  // A bell visit also moves focus to the panel; tab clicks keep focus on the tab.
+  const fromTabClick = (location.state as { fromTab?: boolean } | null)?.fromTab === true;
+  useEffect(() => {
+    if (tab !== "email") return;
+    void loadEmail();
+    if (!fromTabClick) emailPanel.current?.focus();
+  }, [tab, location.key, fromTabClick, loadEmail]);
   const toast =
     useToast();
 
@@ -505,21 +533,27 @@ function AuditPage() {
           type="button"
           className="secondary-button"
           onClick={() => {
-            void loadAudit();
+            if (tab === "email") void email.load();
+            else if (tab === "channels") setChannelsRefresh((n) => n + 1);
+            else void loadAudit();
           }}
-          disabled={
-            loading
-          }
+          disabled={tab === "email" ? email.loading : tab === "channels" ? channelsLoading : loading}
         >
-          {loading
-            ? "Refreshing…"
-            : "Refresh"}
+          {(tab === "email" ? email.loading : tab === "channels" ? channelsLoading : loading) ? "Refreshing…" : "Refresh"}
         </button>
       </header>
 
-      {isOwner && import.meta.env.VITE_BLOCK2_CHAT_ENABLED === "true" && <AuditEmailDelivery />}
-      {isOwner && <AuditRetainedChannels />}
+      {tabs.length > 1 && <AuditTabs tabs={tabs} active={tab} setSearchParams={setSearchParams}
+        emailBadge={email.attentionTotal ? `! ${email.attentionTotal}` : email.problem ? "!" : ""} />}
 
+      {tab === "email" && <section ref={emailPanel} tabIndex={-1} id="audit-panel-email" role="tabpanel" aria-labelledby="audit-tab-email" className="content-card audit-tab-panel">
+        <AuditEmailDelivery state={email} />
+      </section>}
+      {tab === "channels" && <section id="audit-panel-channels" role="tabpanel" aria-labelledby="audit-tab-channels" className="content-card audit-tab-panel">
+        <AuditRetainedChannels refreshKey={channelsRefresh} onLoadingChange={setChannelsLoading} />
+      </section>}
+
+      {tab === "activity" && <div id="audit-panel-activity" {...(tabs.length > 1 ? { role: "tabpanel", "aria-labelledby": "audit-tab-activity" } : {})}>
       <section className="content-card audit-toolbar">
         <input
           className="search-input"
@@ -770,6 +804,7 @@ function AuditPage() {
           </div>
         )}
       </section>
+      </div>}
 
       {selectedEvent && (
         <div
@@ -1081,6 +1116,37 @@ function AuditPage() {
       )}
     </div>
   );
+}
+
+type AuditTab = { id: string; label: string };
+/** Accessible tab list: arrow keys, Home and End move between sections. */
+function AuditTabs({ tabs, active, setSearchParams, emailBadge }: { tabs: AuditTab[]; active: string; setSearchParams: SetURLSearchParams; emailBadge: string }) {
+  const choose = (id: string, focus = false) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (id === "activity") next.delete("tab"); else next.set("tab", id);
+      return next;
+    }, { replace: true, state: { fromTab: true } });
+    if (focus) window.setTimeout(() => document.getElementById("audit-tab-" + id)?.focus(), 0);
+  };
+  const onKeyDown = (event: React.KeyboardEvent) => {
+    const index = tabs.findIndex((t) => t.id === active);
+    const target = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index - 1 + tabs.length) % tabs.length
+      : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1;
+    if (target < 0) return;
+    event.preventDefault();
+    choose(tabs[target].id, true);
+  };
+  return <div className="audit-tabs" role="tablist" aria-label="Audit Log sections" onKeyDown={onKeyDown}>
+    {tabs.map((t) => <button key={t.id} type="button" role="tab" id={"audit-tab-" + t.id} aria-selected={active === t.id} aria-controls={"audit-panel-" + t.id}
+      tabIndex={active === t.id ? 0 : -1} onClick={() => choose(t.id)}>
+      {t.label}
+      {t.id === "email" && emailBadge && <>
+        <span className="audit-tab-badge" aria-hidden="true">{emailBadge}</span>
+        <span className="audit-sr">{emailBadge === "!" ? ", needs a look" : emailBadge === "! 1" ? ", 1 needs attention" : `, ${emailBadge.slice(2)} need attention`}</span>
+      </>}
+    </button>)}
+  </div>;
 }
 
 export default AuditPage;

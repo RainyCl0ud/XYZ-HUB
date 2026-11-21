@@ -55,17 +55,25 @@ try {
   assert.ok(css.includes("@media (max-width: 720px)") && css.includes(":focus-visible"));
   pass("Bell styling follows the XYZ web kit: monochrome tokens, 2px corners, no shadows, focus outline and a phone layout");
 
-  const audit = await read("src/pages/AuditPage.tsx"), delivery = await read("src/pages/AuditEmailDelivery.tsx");
-  assert.ok(audit.includes("{isOwner && import.meta.env.VITE_BLOCK2_CHAT_ENABLED === \"true\" && <AuditEmailDelivery />}"), "Email delivery is an Owner section of the Audit Log");
-  assert.ok(delivery.includes("/api/chat/email-delivery/resolve") && delivery.includes("refreshHubNotifications()") && delivery.includes('location.hash !== "#email-delivery"') && delivery.includes("scrolledFor.current === location.key"), "Scrolls once per visit, not on every refresh");
+  const audit = await read("src/pages/AuditPage.tsx"), delivery = await read("src/pages/useEmailDelivery.ts");
+  assert.ok(audit.includes('role="tablist"') && audit.includes('{ id: "activity", label: "Activity" }') && audit.includes('label: "Email delivery"') && audit.includes('label: "Cleaned-up channels"'), "The Audit Log has Activity, Email delivery and Cleaned-up channels tabs");
+  assert.ok(audit.indexOf('{ id: "activity"') < audit.indexOf('label: "Email delivery"'), "Activity comes first");
+  assert.ok(audit.includes('const emailEnabled = !!isOwner && import.meta.env.VITE_BLOCK2_CHAT_ENABLED === "true"'), "Email delivery stays Owner-only");
+  assert.ok(audit.includes('location.hash === "#email-delivery" ? "email"'), "Older #email-delivery links still open the tab");
+  assert.ok(audit.includes('else if (tab === "channels") setChannelsRefresh') && audit.includes('tab === "email" ? email.loading'), "One Refresh button for the active tab");
+  assert.ok(delivery.includes("/api/chat/email-delivery/resolve") && delivery.includes("refreshHubNotifications()"));
   assert.ok(!chat.includes("Email reminder") && !chat.includes("canViewLog"));
-  assert.equal(lib.notificationHref({ type: "email-delivery" }), "/audit#email-delivery");
+  assert.equal(lib.notificationHref({ type: "email-delivery" }), "/audit?tab=email");
   await assert.rejects(read("src/pages/ChatUnreadReminders.tsx"), "The Chat-menu reminder log is removed");
   const push = await read("src/lib/background-push.ts");
   const provider = await read("src/components/BrowserNotificationsProvider.tsx");
   assert.ok(push.includes('method: "DELETE"') && push.indexOf('method: "DELETE"') < push.indexOf("subscription?.unsubscribe()"), "Turning alerts off also removes the server record");
   assert.ok(!provider.includes("advanced settings"));
   await assert.rejects(read("src/components/BackgroundPushSettings.tsx"), "The unused background push panel is removed");
-  pass("Email delivery lives in the Owner Audit Log and the bell links to it; turning notifications off also clears background push on the server");
+  assert.ok(audit.includes("if (tab !== \"email\") return;") && audit.includes("void loadEmail();") && audit.includes("state: { fromTab: true }"), "Opening the Email tab reloads it; bell visits move focus there");
+  const auditCss = await read("src/pages/AuditPage.css");
+  assert.ok(auditCss.includes("outline-offset: -4px") && !auditCss.includes(".audit-retained-channels p {") && auditCss.includes(".audit-sr {"), "Focus ring is never clipped; screen readers get real text");
+  assert.ok(!audit.includes("aria-label={emailBadge") && audit.includes("className=\"audit-sr\""));
+  pass("The Audit Log uses tabs with the activity log first; email notices open the Email delivery tab; turning notifications off also clears background push on the server");
   console.log(`${passed} notification bell groups passed.`);
 } finally { await vite.close(); }

@@ -1232,6 +1232,17 @@ function buildSummary(
     case "auth.sign_in_failed":
       return "A sign-in attempt for " + label + " failed.";
 
+    case "chat.unread_reminder.email": {
+      const details = asRecord(event.metadata);
+      const unread = asNumber(details?.unreadCount);
+      return ["To " + label, unread === null ? null : unread + " unread", asString(details?.outcome)].filter(Boolean).join(" · ");
+    }
+
+    case "chat.email.review_resolve":
+      return asString(asRecord(event.metadata)?.kind) === "Announcement email"
+        ? "Announcement email for " + label + " marked handled."
+        : "Reminder emails resumed for " + label + ".";
+
     default:
       return actionLabel(
         event.action
@@ -1785,7 +1796,9 @@ export async function presentAuditEvents(
             "invitation",
         };
       } else if (event.targetType === "chat") {
-        target = { label: asString(metadata?.channelName) ?? "Chat", secondary: null, kind: "chat" };
+        // Email delivery records affect a person, not a channel.
+        const emailPerson = ["chat.unread_reminder.email", "chat.email.review_resolve"].includes(event.action) ? asString(metadata?.personName) : null;
+        target = { label: emailPerson ?? asString(metadata?.channelName) ?? "Chat", secondary: null, kind: "chat" };
       } else if (event.targetType === "clock") {
         target = { label: asString(metadata?.personName) ?? event.actorLabel ?? "Attendance", secondary: null, kind: "clock" };
       } else {
