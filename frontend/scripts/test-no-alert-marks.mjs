@@ -11,15 +11,35 @@ const files = [];
 const walk = (dir) => { for (const name of readdirSync(dir)) { const path = join(dir, name); if (statSync(path).isDirectory()) walk(path); else if (/\.(tsx|ts|css)$/.test(name)) files.push(path); } };
 walk(root);
 
+// A "!" right after a quote or a closing tag, followed by text, a value, a
+// quote (so "!" and "! " strings count) or a tag; a "!" alone between tags;
+// and CSS content that adds one.
 const patterns = [
-  { name: 'text that starts with "! "', re: /(["'`>])! (?=[A-Za-z{$])/g },
-  { name: 'a lone "!" string', re: /(["'`])!\1/g },
+  { name: '"!" at the start of text', re: /(["'`>])!\s*(?=["'`<$\w{])/g },
+  { name: '"!" alone between tags', re: />\s*!\s*</g },
   { name: 'CSS content adding "!"', re: /content:\s*(["'])!/g },
 ];
+const flagged = (line) => patterns.some(({ re }) => { re.lastIndex = 0; return re.test(line); });
+
+// The guard must catch every form the clean-up removed and leave ordinary code alone.
+const bad = [
+  '{x ? "! " : ""}{count}',
+  '<p role="alert">! {error}</p>',
+  "<strong>! Your shift</strong>",
+  'return "!";',
+  "emailBadge={n ? `! ${n}` : \"\"}",
+  "'! ' + message",
+  "<span>!</span>",
+  "<b> ! </b>",
+  ".x::before { content: '! '; }",
+];
+const fine = ["if (!ready) return;", "a !== b", "{!loading && <p>Hi</p>}", "items.filter((x) => !x.done)", "state_!.problem", '"Saved"', "value={!busy}"];
+for (const line of bad) assert.ok(flagged(line), "Guard misses: " + line);
+for (const line of fine) assert.ok(!flagged(line), "Guard false positive: " + line);
+
 const found = [];
 for (const file of files) {
-  const lines = readFileSync(file, "utf8").split(/\r?\n/);
-  lines.forEach((line, index) => {
+  readFileSync(file, "utf8").split(/\r?\n/).forEach((line, index) => {
     for (const { name, re } of patterns) {
       re.lastIndex = 0;
       if (re.test(line)) found.push(`${relative(root, file)}:${index + 1} ${name}: ${line.trim().slice(0, 120)}`);
@@ -27,7 +47,7 @@ for (const file of files) {
   });
 }
 assert.equal(found.length, 0, `"!" markers are back:\n${found.join("\n")}`);
-console.log(`PASS 1: No "!" markers in ${files.length} frontend source files (messages, buttons, badges, toasts or CSS).`);
+console.log(`PASS 1: No "!" markers in ${files.length} frontend source files (messages, buttons, badges, toasts or CSS); the guard catches ${bad.length} known forms.`);
 
 const toast = readFileSync(join(root, "components/ToastProvider.tsx"), "utf8").replace(/\r\n/g, "\n");
 assert.ok(toast.includes('case "error":\n      return "✕";') && toast.includes('case "warning":\n      return "△";'), "Toast icons use ✕ and △, not !");
