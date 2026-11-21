@@ -84,6 +84,9 @@ async function main() {
     assert.equal((await channels(chatter.id, mei)).length, 13);
     await prisma.userRole.deleteMany({ where: { userId: chatter.id, roleId: roles.get("QC")!.id } });
     await expect(() => listChatMessages(chatter.id, feedback.id), 404);
+    const feedbackChatter = (await chatGrantOptions(owner.id, feedback.id)).people.find((p) => p.id === chatter.id)!;
+    assert.equal(feedbackChatter.grant?.canPost, true);
+    assert.deepEqual([feedbackChatter.access, feedbackChatter.limit], [{ canView: false, canPost: false }, { canView: false, canPost: false }], "Options never show a restricted named grant as real access");
     check("Trial feedback stays hidden from Chatter-only access; adding/removing QC takes effect immediately");
     const custom = await prisma.role.create({ data: { name: `${prefix} custom`, dataScope: "ALL", rank: 2 } }); customRoles.push(custom.id);
     const customUser = await makeUser("custom", []);
@@ -98,8 +101,12 @@ async function main() {
     check("Custom role rank/data scope grants nothing: explicit page and channel permissions control access");
     await setChatGrant(owner.id, top.id, { personId: chatter.id, canView: true, canPost: false });
     assert.equal((await channels(chatter.id, mei)).find((c) => c.id === top.id)?.canPost, false);
+    const topChatter = (await chatGrantOptions(owner.id, top.id)).people.find((p) => p.id === chatter.id)!;
+    assert.deepEqual([topChatter.inheritedAccess, topChatter.access, topChatter.limit], [{ canView: false, canPost: false }, { canView: true, canPost: false }, { canView: true, canPost: true }]);
     await setChatGrant(owner.id, general.id, { personId: chatter.id, canView: false, canPost: false });
     assert.equal((await channels(chatter.id, mei)).find((c) => c.id === general.id)?.canPost, true);
+    const generalChatter = (await chatGrantOptions(owner.id, general.id)).people.find((p) => p.id === chatter.id)!;
+    assert.deepEqual([generalChatter.inheritedAccess, generalChatter.access, generalChatter.limit], [{ canView: true, canPost: true }, { canView: true, canPost: true }, { canView: true, canPost: true }]);
     check("Read-only named grants work and an empty grant cannot cancel a generous role grant");
     await expect(() => setChatGrant(owner.id, top.id, { personId: owner.id, canView: true, canPost: true }), 403);
     await expect(() => setChatGrant(owner.id, top.id, { personId: creator.id, canView: true, canPost: true }), 404);
@@ -145,6 +152,8 @@ async function main() {
     assert.deepEqual(roleChoice(roles.get("OPS_MANAGER")!.id).siteWideAccess, { canView: true, canPost: true });
     assert.deepEqual(roleChoice(roles.get("DEV")!.id).siteWideAccess, { canView: true, canPost: false });
     assert.deepEqual(roleChoice(custom.id).siteWideAccess, { canView: false, canPost: false });
+    assert.deepEqual(roleChoice(roles.get("OPS_MANAGER")!.id).limit, { canView: true, canPost: true });
+    assert.deepEqual(roleChoice(roles.get("DEV")!.id).limit, { canView: true, canPost: false }, "A role that can't send messages is flagged even with a Post grant");
     assert.equal(roleChoice(roles.get("OPS_MANAGER")!.id).grant, null);
     await setChatGrant(owner.id, top.id, { roleId: roles.get("OPS_MANAGER")!.id, canView: false, canPost: false });
     const opsChoice = (await chatGrantOptions(owner.id, top.id)).roles.find((r) => r.id === roles.get("OPS_MANAGER")!.id)!;

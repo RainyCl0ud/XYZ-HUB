@@ -764,17 +764,28 @@ export async function chatGrantOptions(userId: string, channelId: string) {
       roles: roles.map((role) => {
         const keys = new Set(role.rolePermissions.map(({ permission }) => permission.key));
         const canView = keys.has("chat.channels.all");
+        // What this role allows on its own, whatever the channel grant says.
+        // A person with another role may still get more, so this is a hint.
+        const restricted = channel.key === "trial-feedback" && keys.has("chat.trial_feedback.restricted") && !keys.has("chat.trial_feedback.review");
+        const reachable = keys.has("chat.access") && keys.has("chat.ordinary.access") && !restricted;
         return { id: role.id, name: role.name, grant: channel.roleGrants.find((g) => g.roleId === role.id) ?? null,
-          siteWideAccess: { canView, canPost: canView && keys.has("chat.channels.post_all") && keys.has("chat.messages.send") } };
+          siteWideAccess: { canView, canPost: canView && keys.has("chat.channels.post_all") && keys.has("chat.messages.send") },
+          limit: { canView: reachable, canPost: reachable && keys.has("chat.messages.send") } };
       }),
-      // The Member selector edits only a named grant. Show the inherited
-      // access separately so "no named grant" is never mistaken for a denial.
+      // The Member selector edits only a named grant. Show what the person
+      // can do now, what their roles alone give (the minimum), and the most
+      // a named grant could give (role and pause limits still apply).
       people: assignments.map((a) => {
-        const roleAccess = channelAccess(makeViewer(a.user), { ...channel, personGrants: [] });
+        const person = makeViewer(a.user);
+        const roleAccess = channelAccess(person, { ...channel, personGrants: [] });
+        const access = channelAccess(person, channel);
+        const limit = channelAccess(person, { ...channel, personGrants: [{ channelId: channel.id, assignmentId: a.id, canView: true, canPost: true }] });
         return {
           id: a.user.id, name: a.user.name,
           grant: channel.personGrants.find((g) => g.assignmentId === a.id) ?? null,
           inheritedAccess: { canView: roleAccess.canView, canPost: roleAccess.canPost },
+          access: { canView: access.canView, canPost: access.canPost },
+          limit: { canView: limit.canView, canPost: limit.canPost },
         };
       }),
     };
