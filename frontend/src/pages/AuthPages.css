@@ -513,36 +513,233 @@
   }
 }
 
-/* Authenticator sign-in alternatives: plain underlined text buttons. */
-.auth-alternatives {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 4px;
+/* Two-step sign-in code screen: authenticator app, recovery or emailed code.
+   Monochrome XYZ web kit tokens only; one white primary action. */
+.auth-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.auth-text-button {
-  min-height: 32px;
-  padding: 4px 0;
+.auth-card-two-step .auth-heading {
+  padding-bottom: 22px;
+}
+
+.auth-card-two-step .auth-description {
+  color: #CCCCCC;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.auth-card-two-step .auth-identity {
+  display: block;
+  margin-top: 8px;
+  color: #999999;
+  overflow-wrap: anywhere;
+}
+
+.auth-card-two-step .auth-label {
+  color: #CCCCCC;
+  font-size: 13px;
+}
+
+.auth-card-two-step .auth-message {
+  font-size: 13px;
+}
+
+.auth-card-two-step .auth-message-error {
+  border: 2px solid #FFFFFF;
+  background: #000000;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.auth-card-two-step .auth-submit {
+  min-height: 48px;
+  margin-top: 0;
+  font-size: 13px;
+}
+
+/* Disabled only while a code is being checked: stay white, show progress. */
+.auth-card-two-step .auth-submit:disabled {
+  border-color: #FFFFFF;
+  background: #FFFFFF;
+  color: #000000;
+  cursor: progress;
+}
+
+.auth-card-two-step .auth-footer {
+  font-size: 13px;
+}
+
+/* One real input laid over six drawn boxes, so paste and autofill work. */
+.auth-code-boxes {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.auth-code-boxes-input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: transparent;
+  font-size: 16px;
+  outline: none;
+  cursor: text;
+}
+
+/* The active box shows focus instead of the global input ring. */
+.auth-code-boxes .auth-code-boxes-input:focus,
+.auth-code-boxes .auth-code-boxes-input:focus-visible {
+  outline: none;
+}
+
+.auth-code-boxes-input::selection {
+  background: transparent;
+}
+
+.auth-code-boxes-input:-webkit-autofill {
+  -webkit-text-fill-color: transparent;
+  transition: background-color 0s 600000s;
+}
+
+.auth-code-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  border: 1px solid #666666;
+  border-radius: 2px;
+  background: #0D0D0D;
+  color: #FFFFFF;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keyboard focus: the box the next digit goes into gets a 2px white ring. */
+.auth-code-box.is-active {
+  border-color: #FFFFFF;
+  outline: 1px solid #FFFFFF;
+}
+
+.auth-code-box.is-active:not(.is-filled)::after {
+  content: "";
+  width: 1px;
+  height: 26px;
+  background: #FFFFFF;
+  animation: auth-code-caret 1s steps(1) infinite;
+}
+
+@keyframes auth-code-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.auth-other-ways {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.auth-other-ways-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 2px;
+  color: #8E8E8E;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.auth-other-ways-title::before,
+.auth-other-ways-title::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid #333333;
+}
+
+.auth-alt-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #666666;
+  border-radius: 2px;
+  background: #000000;
+  color: #FFFFFF;
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  color: #FFFFFF;
-  background: none;
-  border: 0;
-  border-radius: 2px;
-  text-decoration: underline;
-  text-underline-offset: 4px;
+  text-align: left;
   cursor: pointer;
+  transition:
+    border-color 130ms ease,
+    background 130ms ease;
 }
 
-.auth-text-button:disabled {
+.auth-alt-button:hover:not(:disabled) {
+  border-color: #FFFFFF;
+  background: #1A1A1A;
+}
+
+.auth-alt-button:disabled {
+  border-color: #333333;
   color: #5C5C5C;
   cursor: default;
 }
 
-.auth-text-button:focus-visible {
+.auth-alt-button:focus-visible {
   outline: 2px solid #FFFFFF;
   outline-offset: 2px;
+}
+
+.auth-alt-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 560px) {
+  .auth-code-boxes {
+    gap: 6px;
+  }
+
+  .auth-code-box {
+    height: 52px;
+    font-size: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-code-box.is-active:not(.is-filled)::after {
+    animation: none;
+  }
 }
