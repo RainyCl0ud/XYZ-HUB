@@ -836,7 +836,7 @@ function buildChanges(
       pushChange(changes, "Announcement", null, asString(metadata?.title));
     }
     if (event.action === "chat.channel.grant") {
-      const describe = (value: unknown) => { const grant = asRecord(value); return grant?.canPost ? "See and post" : grant?.canView ? "See only" : "No direct grant"; };
+      const describe = (value: unknown) => { const grant = asRecord(value); return grant?.canPost ? "Can post" : grant?.canView ? "Can see" : "Not granted here"; };
       pushChange(changes, asString(metadata?.recipientName) ?? "Channel access", describe(metadata?.beforeGrant), describe(metadata?.afterGrant));
     }
     return changes;

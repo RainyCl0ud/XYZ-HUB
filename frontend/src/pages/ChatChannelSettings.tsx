@@ -3,7 +3,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { apiRequest } from "../lib/api";
 
 type Grant = { canView: boolean; canPost: boolean };
-type Option = { id: string; name: string; grant: Grant | null; inheritedAccess?: Grant; siteWideAccess?: Grant };
+// Roles: grant, siteWideAccess (Role Settings, all channels) and limit (what
+// the role allows on its own). Members: grant, inheritedAccess (their roles),
+// access (what they can do now) and limit (the most a grant could give).
+type Option = { id: string; name: string; grant: Grant | null; inheritedAccess?: Grant; siteWideAccess?: Grant; access?: Grant; limit?: Grant };
 type Options = { roles: Option[]; people: Option[] };
 type Props = {
   target: { modelId: string; channelId?: string; name: string; canArchive?: boolean };
@@ -154,8 +157,8 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
         <section className="creator-chat-settings-section creator-chat-settings-access" aria-labelledby="chat-settings-access-title">
           <h3 id="chat-settings-access-title">{accessCategory === "roles" ? "Role permissions" : "Member permissions"}</h3>
           <p>{accessCategory === "roles"
-            ? "Choose which roles can see or post. Only roles ranked below yours are listed. Individual member grants can add access, but never remove access given by a role."
-            : "Grant additional access to a member. Only members whose roles are all ranked below yours are listed. Role and member grants combine, so the most generous access applies."}</p>
+            ? "Choose which roles can see or post in this channel. Only roles ranked below yours are listed."
+            : "Each member shows the access they have now. Their roles set the minimum: you can give a member more access here, not less. Only members whose roles are all ranked below yours are listed."}</p>
           <label htmlFor="chat-settings-find-access">{accessCategory === "roles" ? "Find a role" : "Find a member"}</label>
           <input id="chat-settings-find-access" type="search" value={accessQuery} onChange={(event) => setAccessQuery(event.target.value)}
             placeholder={accessCategory === "roles" ? "Search roles…" : "Search members…"} />
@@ -187,31 +190,72 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
     </section>
   );
 }
+type Level = "none" | "view" | "post";
+const LEVEL: Record<Level, number> = { none: 0, view: 1, post: 2 };
+const ACCESS_LABEL: Record<Level, string> = { none: "No access", view: "Can see", post: "Can post" };
+const levelOf = (access?: Grant | null): Level => (access?.canPost ? "post" : access?.canView ? "view" : "none");
+
+/**
+ * One role or member. The menu shows the access they actually have.
+ * Access that comes from elsewhere (a member's roles, or a role's
+ * all-channels setting in Role Settings) is the minimum: lower choices are
+ * unavailable, and a grant here can only add to it. For members, choices a
+ * grant can't give (their roles can't send messages, a pause, the trial
+ * feedback restriction) are unavailable too. Choosing the minimum clears any
+ * extra grant saved here. A saved grant that changes nothing today (the
+ * minimum already covers it, or it's above what they can get) is shown and
+ * can be removed, so it can't switch on unnoticed later.
+ */
 function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option; busy: boolean; onSave: (grant: Grant) => void }) {
-  const siteWide = kind === "Role" ? option.siteWideAccess : undefined;
-  const current = siteWide?.canPost || option.grant?.canPost ? "post" : siteWide?.canView || option.grant?.canView ? "view" : "none";
-  const [value, setValue] = useState(current);
+  const member = kind === "Member";
+  const floor = levelOf(member ? option.inheritedAccess : option.siteWideAccess);
+  const own = levelOf(option.grant);
+  const ceiling: Level = member && option.limit ? levelOf(option.limit) : "post";
+  const current: Level = member && option.access ? levelOf(option.access) : LEVEL[own] > LEVEL[floor] ? own : floor;
+  const [value, setValue] = useState<Level>(current);
+  // Follow access changes after a refetch without remounting (keeps focus).
+  const [shown, setShown] = useState<Level>(current);
+  if (shown !== current) { setShown(current); setValue(current); }
+  const locked = LEVEL[floor] >= LEVEL[ceiling];
+  // A saved grant that changes nothing today: role access already covers it,
+  // or it's above what they can get. It could still take effect if their
+  // roles change, so it's shown and can be removed.
+  const covered = own !== "none" && LEVEL[own] <= LEVEL[floor];
+  const unused = LEVEL[own] > LEVEL[ceiling];
+  const extra = covered || unused;
+  const removing = extra && value === current && value === floor;
   const id = "chat-grant-" + kind.toLowerCase() + "-" + option.id;
+  const given = current !== "none" && floor === "none" ? "Given in this channel" : kind;
+  const source = (floor === "none" ? given : member ? `From their role: ${ACCESS_LABEL[floor]}` : `All channels (Role Settings): ${ACCESS_LABEL[floor]}`)
+    + (covered ? " · also granted here" : unused ? " · unused grant here" : "");
+  const roleLimit = levelOf(option.limit);
+  const note = member
+    ? ceiling === "none" ? "Can’t be given access here: blocked by their roles or a Chat pause."
+      : ceiling === "view" ? "Can’t post here: their roles don’t allow sending messages." : null
+    : option.limit && LEVEL[current] > LEVEL[roleLimit]
+      ? roleLimit === "none" ? "On its own, this role has no Chat access here (Role Settings)."
+        : "On its own, this role can’t send messages (Role Settings), so it can only see."
+      : null;
+  const lockReason = !locked ? undefined
+    : floor === "post" ? (member ? "Their role already lets them post" : "This role can post in every channel")
+      : "A grant here can’t give more access";
   return (
     <form className="creator-chat-grant-row" onSubmit={(event) => {
-      event.preventDefault(); onSave({ canView: value !== "none", canPost: value === "post" });
+      event.preventDefault();
+      onSave(LEVEL[value] > LEVEL[floor] ? { canView: true, canPost: value === "post" } : { canView: false, canPost: false });
     }}>
       <div className="creator-chat-grant-identity">
         <strong title={option.name}>{option.name}</strong>
-        {kind === "Member" && option.inheritedAccess ? (
-          <span className="creator-chat-grant-inherited">
-            Role access: {option.inheritedAccess.canPost ? "Post" : option.inheritedAccess.canView ? "See" : "None"}
-          </span>
-        ) : <span>{kind}</span>}
+        <span className={floor === "none" ? undefined : "creator-chat-grant-inherited"}>{source}</span>
+        {note && <span className="creator-chat-grant-note">{note}</span>}
       </div>
       <div className="creator-chat-grant-controls">
         <label className="creator-chat-sr" htmlFor={id}>{kind} access for {option.name}</label>
-        <select id={id} aria-label={kind + " access for " + option.name} value={value} onChange={(event) => setValue(event.target.value)} disabled={busy || siteWide?.canPost}>
-          <option value="none" disabled={siteWide?.canView}>{kind === "Member" ? "No individual grant" : "No role grant"}</option>
-          <option value="view">See</option>
-          <option value="post">Post</option>
+        <select id={id} aria-label={kind + " access for " + option.name} value={value} onChange={(event) => setValue(event.target.value as Level)}
+          disabled={busy || locked} title={lockReason}>
+          {(["none", "view", "post"] as Level[]).map((level) => <option key={level} value={level} disabled={LEVEL[level] < LEVEL[floor] || LEVEL[level] > LEVEL[ceiling]}>{ACCESS_LABEL[level]}</option>)}
         </select>
-        <button type="submit" disabled={busy || siteWide?.canPost || current === value}>Save</button>
+        <button type="submit" disabled={busy || !(value !== current || removing)}>{removing ? "Remove extra grant" : "Save"}</button>
       </div>
     </form>
   );

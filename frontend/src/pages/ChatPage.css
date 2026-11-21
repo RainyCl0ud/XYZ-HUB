@@ -1160,6 +1160,12 @@
 .creator-chat .creator-chat-settings-workspace .creator-chat-grant-row {
   min-width: 0;
 }
+.creator-chat .creator-chat-settings-workspace .creator-chat-grant-note {
+  color: #999999;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+}
 .creator-chat .creator-chat-settings-workspace .creator-chat-grant-controls {
   flex-shrink: 0;
 }

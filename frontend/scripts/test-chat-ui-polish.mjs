@@ -88,10 +88,8 @@ assert.ok(settings.includes('aria-controls="chat-settings-permission-children"')
 assert.ok(settings.includes('className="creator-chat-settings-subnav"'));
 assert.ok(settings.includes('matchingRoles.map'));
 assert.ok(settings.includes('matchingPeople.map'));
-assert.ok(settings.includes('No role grant'));
-assert.ok(settings.includes('No individual grant'));
-assert.ok(settings.includes('<option value="view">See</option>'));
-assert.ok(settings.includes('<option value="post">Post</option>'));
+assert.ok(settings.includes('none: "No access", view: "Can see", post: "Can post"'));
+assert.ok(!settings.includes('No role grant') && !settings.includes('No individual grant'));
 pass("Channel Settings has Overview and expandable Role/Member permissions with existing grant semantics.");
 
 assert.ok(settings.includes('Confirm archive'));
