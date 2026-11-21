@@ -199,7 +199,7 @@ export default function NotificationBell() {
         <button type="button" aria-pressed={filter === "all"} onClick={() => chooseFilter("all")}>All</button>
         <button type="button" aria-pressed={filter === "unread"} onClick={() => chooseFilter("unread")}>Unread{unread ? ` (${unread > 99 ? "99+" : unread})` : ""}</button>
       </div>
-      {error && <p className="hub-notifications-error" role="alert">! {error}</p>}
+      {error && <p className="hub-notifications-error" role="alert">{error}</p>}
       {!list ? (!error && <p className="hub-notifications-status" role="status">Loading notifications…</p>) : !list.items.length ? (
         <div className="hub-notifications-empty">
           <h3>{filter === "unread" ? "You’re all caught up" : "No notifications yet"}</h3>

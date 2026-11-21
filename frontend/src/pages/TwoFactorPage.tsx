@@ -137,7 +137,7 @@ function TwoFactorPage() {
   >
     <form className="auth-form auth-two-step-form" onSubmit={handleSubmit} noValidate>
       {notice && !ended && <div className="auth-message auth-message-info" role="status">{notice}</div>}
-      {error && <div className="auth-message auth-message-error" role="alert"><span aria-hidden="true">! </span>{error}</div>}
+      {error && <div className="auth-message auth-message-error" role="alert">{error}</div>}
       {ended
         ? <Link className="auth-submit auth-restart" to="/login" onClick={clearPending}>Sign in again</Link>
         : <>

@@ -127,7 +127,7 @@ function AuditPage() {
   const { access } = useAuth();
   const isOwner = access?.roles.some(role => role.systemKey === "OWNER");
   // Sections are tabs so the activity log always comes first. Owners also get
-  // Email delivery (with a "!" count when something needs attention) and
+  // Email delivery (with a count, or a dot, when something needs attention) and
   // Cleaned-up channels. The tab lives in the URL; bell notices link to it.
   const emailEnabled = !!isOwner && import.meta.env.VITE_BLOCK2_CHAT_ENABLED === "true";
   const email = useEmailDelivery(emailEnabled);
@@ -544,7 +544,7 @@ function AuditPage() {
       </header>
 
       {tabs.length > 1 && <AuditTabs tabs={tabs} active={tab} setSearchParams={setSearchParams}
-        emailBadge={email.attentionTotal ? `! ${email.attentionTotal}` : email.problem ? "!" : ""} />}
+        emailBadge={email.attentionTotal ? String(email.attentionTotal) : email.problem ? "dot" : ""} />}
 
       {tab === "email" && <section ref={emailPanel} tabIndex={-1} id="audit-panel-email" role="tabpanel" aria-labelledby="audit-tab-email" className="content-card audit-tab-panel">
         <AuditEmailDelivery state={email} />
@@ -1142,8 +1142,8 @@ function AuditTabs({ tabs, active, setSearchParams, emailBadge }: { tabs: AuditT
       tabIndex={active === t.id ? 0 : -1} onClick={() => choose(t.id)}>
       {t.label}
       {t.id === "email" && emailBadge && <>
-        <span className="audit-tab-badge" aria-hidden="true">{emailBadge}</span>
-        <span className="audit-sr">{emailBadge === "!" ? ", needs a look" : emailBadge === "! 1" ? ", 1 needs attention" : `, ${emailBadge.slice(2)} need attention`}</span>
+        <span className={emailBadge === "dot" ? "audit-tab-badge is-dot" : "audit-tab-badge"} aria-hidden="true">{emailBadge === "dot" ? null : emailBadge}</span>
+        <span className="audit-sr">{emailBadge === "dot" ? ", needs a look" : emailBadge === "1" ? ", 1 needs attention" : `, ${emailBadge} need attention`}</span>
       </>}
     </button>)}
   </div>;

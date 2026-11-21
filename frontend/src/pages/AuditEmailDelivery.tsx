@@ -6,10 +6,10 @@ export default function AuditEmailDelivery({ state }: { state: EmailDeliveryStat
   const { data, error, busy, resolve } = state;
   const state_ = data ? STATUS[data.status] : null;
   return <div className="audit-email-delivery">
-    {error && <p className="audit-email-error" role="alert">! {error}</p>}
+    {error && <p className="audit-email-error" role="alert">{error}</p>}
     {!data ? (!error && <p className="audit-panel-note" role="status">Loading email delivery…</p>) : <>
       <div className={`audit-email-status${state_!.problem ? " is-problem" : ""}`} role="status">
-        <strong>{state_!.problem ? "! " : ""}{state_!.title}</strong>
+        <strong>{state_!.title}</strong>
         <p>{state_!.detail}</p>
         {data.usage && <p>{data.usage.usedToday} of {data.usage.allowanceToday} emails used in the last 24 hours. Google allows about {data.usage.dailyLimit} a day; the rest is kept for sign-in codes.</p>}
       </div>

@@ -98,11 +98,11 @@ export default function AccountTwoFactor() {
         : <button type="button" className="primary-button" onClick={() => setStep({ kind: "password", purpose: "setup" })}>Set up authenticator app</button>)}
     </div>
 
-    {error && <p className="account-2fa-error" role="alert">! {error}</p>}
+    {error && <p className="account-2fa-error" role="alert">{error}</p>}
 
     {status && step.kind === "idle" && (enabled
       ? <p className={`account-2fa-note${status.recoveryCodesLeft <= 3 ? " is-warning" : ""}`}>
-          {status.recoveryCodesLeft <= 3 ? "! " : ""}{status.recoveryCodesLeft} recovery {status.recoveryCodesLeft === 1 ? "code" : "codes"} left. If you lose your phone, sign in with a recovery code or an emailed code, or ask an Owner to reset two-step sign-in.
+          {status.recoveryCodesLeft} recovery {status.recoveryCodesLeft === 1 ? "code" : "codes"} left. If you lose your phone, sign in with a recovery code or an emailed code, or ask an Owner to reset two-step sign-in.
         </p>
       : <p className="account-2fa-note">Sign in faster with a free authenticator app such as Google Authenticator, Apple Passwords or Bitwarden Authenticator. Emailed codes stay available as a backup.</p>)}
 
@@ -113,7 +113,7 @@ export default function AccountTwoFactor() {
       </label>
       <div className="account-2fa-actions">
         <button type="submit" className={passwordStep.purpose === "disable" ? "secondary-button account-2fa-danger" : "primary-button"} disabled={busy || !password}>
-          {busy ? "Checking…" : passwordStep.purpose === "disable" ? "! Turn off" : "Continue"}
+          {busy ? "Checking…" : passwordStep.purpose === "disable" ? "Turn off" : "Continue"}
         </button>
         <button type="button" className="secondary-button" onClick={reset} disabled={busy}>Cancel</button>
       </div>

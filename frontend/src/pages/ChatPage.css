@@ -194,7 +194,6 @@
 .creator-chat .creator-chat-channel-row[aria-current] { border-left: 2px solid #FFFFFF; }
 .creator-chat .creator-chat-filters button[aria-pressed=true] { background: #1A1A1A; border-color: #FFFFFF; color: #FFFFFF; }
 .creator-chat-error { border: 2px solid #FFFFFF; color: #FFFFFF; font-weight: 700; }
-.creator-chat-error::before { content: '! '; }
 .creator-chat button:disabled, .creator-chat-settings button:disabled { opacity: 1; color: #5C5C5C; background: transparent; border-color: #333333; }
 .creator-chat-settings { border-color: #FFFFFF; }
 .creator-chat-settings label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #8E8E8E; }
@@ -331,7 +330,6 @@
 .creator-chat-moderation textarea { display: block; width: 100%; margin-top: 8px; padding: 12px; font: inherit; font-size: 15px; color: #FFFFFF; background: #0D0D0D; border: 1px solid #666666; border-radius: 2px; resize: vertical; }
 .creator-chat-moderation textarea:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
 .creator-chat .creator-chat-delete-confirm { color: #000000; background: #FFFFFF; border: 2px solid #FFFFFF; font-weight: 700; }
-.creator-chat .creator-chat-delete-confirm::before { content: '!'; }
 @media (max-width: 720px) {
   .creator-chat-conversation-tools { padding: 8px 12px; }
   .creator-chat-tools { padding: 16px; max-height: 90dvh; }
@@ -349,7 +347,6 @@
 .creator-chat-action-menu[open] { flex-basis: 100%; }
 .creator-chat-action-menu > div { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border: 1px solid #666666; border-radius: 2px; background: #0D0D0D; }
 .creator-chat .creator-chat-delete-action, .creator-chat-settings .creator-chat-delete-action { border: 2px solid #FFFFFF; }
-.creator-chat-delete-action::before { content: '!'; font-weight: 800; }
 .creator-chat-message-actions > button, .creator-chat-reaction-menu summary { min-height: 36px; }
 .creator-chat-filter-help, .creator-chat-settings .creator-chat-owner-help { color: #999999; font-size: 13px; line-height: 1.5; }
 .creator-chat-notice { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
