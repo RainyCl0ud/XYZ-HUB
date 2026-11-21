@@ -19,10 +19,11 @@ assert.ok(ui.includes("const current: Level = member && option.access ? levelOf(
 assert.ok(ui.includes('const ceiling: Level = member && option.limit ? levelOf(option.limit) : "post";'), "Choices a grant can't give are capped");
 assert.ok(ui.includes("disabled={LEVEL[level] < LEVEL[floor] || LEVEL[level] > LEVEL[ceiling]}") && ui.includes("const locked = LEVEL[floor] >= LEVEL[ceiling];"), "Choices outside what a grant can change are unavailable");
 assert.ok(ui.includes("LEVEL[value] > LEVEL[floor] ? { canView: true, canPost: value === \"post\" } : { canView: false, canPost: false }"), "Saving the minimum clears an extra grant");
-assert.ok(ui.includes('const extra = own !== "none" && LEVEL[own] <= LEVEL[floor];') && ui.includes("const removing = extra && value === current && value === floor;")
+assert.ok(ui.includes('const covered = own !== "none" && LEVEL[own] <= LEVEL[floor];') && ui.includes("const unused = LEVEL[own] > LEVEL[ceiling];") && ui.includes("const extra = covered || unused;") && ui.includes("const removing = extra && value === current && value === floor;")
   && ui.includes('disabled={busy || !(value !== current || removing)}>{removing ? "Remove extra grant" : "Save"}'), "An extra grant the role already covers can still be removed, even when the menu is locked");
-assert.ok(ui.includes('" · also granted here"') && ui.includes("Can’t post here: their roles don’t allow sending messages.") && ui.includes("blocked by their roles or a Chat pause"));
-assert.ok(ui.includes("<GrantRow key={rowKey(option)} kind=\"Role\"") && ui.includes("<GrantRow key={rowKey(option)} kind=\"Member\""), "Rows remount when their saved access changes");
+assert.ok(ui.includes('" · also granted here"') && ui.includes('" · unused grant here"') && ui.includes("Can’t post here: their roles don’t allow sending messages.") && ui.includes("blocked by their roles or a Chat pause"));
+assert.ok(ui.includes("<GrantRow key={option.id} kind=\"Role\"") && ui.includes("<GrantRow key={option.id} kind=\"Member\"") && !ui.includes("rowKey("), "Rows stay mounted after a save, so keyboard focus stays put");
+assert.ok(ui.includes("if (shown !== current) { setShown(current); setValue(current); }"), "Rows follow access changes after a refetch");
 assert.ok(server.includes("access: { canView: access.canView, canPost: access.canPost },") && server.includes("limit: { canView: limit.canView, canPost: limit.canPost },"));
 assert.ok(server.includes("personGrants: [{ channelId: channel.id, assignmentId: a.id, canView: true, canPost: true }]"), "The limit runs a full grant through the same access rules");
 assert.ok(server.includes('limit: { canView: reachable, canPost: reachable && keys.has("chat.messages.send") }'));

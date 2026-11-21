@@ -168,7 +168,7 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
                 <section aria-labelledby="chat-access-roles-title">
                   <div className="creator-chat-settings-group-title"><h4 id="chat-access-roles-title">Role</h4><span>{matchingRoles.length}</span></div>
                   <div className="creator-chat-grant-list">
-                    {matchingRoles.map((option) => <GrantRow key={rowKey(option)} kind="Role" option={option} busy={busy} onSave={(grant) => void saveGrant("roles", option, grant)} />)}
+                    {matchingRoles.map((option) => <GrantRow key={option.id} kind="Role" option={option} busy={busy} onSave={(grant) => void saveGrant("roles", option, grant)} />)}
                     {!matchingRoles.length && <p className="creator-chat-settings-no-match">No matching roles.</p>}
                   </div>
                 </section>
@@ -176,7 +176,7 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
                 <section aria-labelledby="chat-access-people-title">
                   <div className="creator-chat-settings-group-title"><h4 id="chat-access-people-title">Member</h4><span>{matchingPeople.length}</span></div>
                   <div className="creator-chat-grant-list">
-                    {matchingPeople.map((option) => <GrantRow key={rowKey(option)} kind="Member" option={option} busy={busy} onSave={(grant) => void saveGrant("people", option, grant)} />)}
+                    {matchingPeople.map((option) => <GrantRow key={option.id} kind="Member" option={option} busy={busy} onSave={(grant) => void saveGrant("people", option, grant)} />)}
                     {!matchingPeople.length && <p className="creator-chat-settings-no-match">No matching members.</p>}
                   </div>
                 </section>
@@ -195,10 +195,6 @@ const LEVEL: Record<Level, number> = { none: 0, view: 1, post: 2 };
 const ACCESS_LABEL: Record<Level, string> = { none: "No access", view: "Can see", post: "Can post" };
 const levelOf = (access?: Grant | null): Level => (access?.canPost ? "post" : access?.canView ? "view" : "none");
 
-// Remount a row when its saved access changes, so it never keeps a stale choice.
-const bits = (access?: Grant | null) => (access?.canView ? "v" : "-") + (access?.canPost ? "p" : "-");
-const rowKey = (option: Option) => [option.id, bits(option.grant), bits(option.inheritedAccess), bits(option.siteWideAccess), bits(option.access), bits(option.limit)].join(":");
-
 /**
  * One role or member. The menu shows the access they actually have.
  * Access that comes from elsewhere (a member's roles, or a role's
@@ -206,8 +202,9 @@ const rowKey = (option: Option) => [option.id, bits(option.grant), bits(option.i
  * unavailable, and a grant here can only add to it. For members, choices a
  * grant can't give (their roles can't send messages, a pause, the trial
  * feedback restriction) are unavailable too. Choosing the minimum clears any
- * extra grant saved here, and an extra grant the minimum already covers can
- * be removed.
+ * extra grant saved here. A saved grant that changes nothing today (the
+ * minimum already covers it, or it's above what they can get) is shown and
+ * can be removed, so it can't switch on unnoticed later.
  */
 function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option; busy: boolean; onSave: (grant: Grant) => void }) {
   const member = kind === "Member";
@@ -216,15 +213,21 @@ function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option
   const ceiling: Level = member && option.limit ? levelOf(option.limit) : "post";
   const current: Level = member && option.access ? levelOf(option.access) : LEVEL[own] > LEVEL[floor] ? own : floor;
   const [value, setValue] = useState<Level>(current);
+  // Follow access changes after a refetch without remounting (keeps focus).
+  const [shown, setShown] = useState<Level>(current);
+  if (shown !== current) { setShown(current); setValue(current); }
   const locked = LEVEL[floor] >= LEVEL[ceiling];
-  // A saved grant that the role access already covers: harmless today, but
-  // it would keep access if the role changed, so it can be removed.
-  const extra = own !== "none" && LEVEL[own] <= LEVEL[floor];
+  // A saved grant that changes nothing today: role access already covers it,
+  // or it's above what they can get. It could still take effect if their
+  // roles change, so it's shown and can be removed.
+  const covered = own !== "none" && LEVEL[own] <= LEVEL[floor];
+  const unused = LEVEL[own] > LEVEL[ceiling];
+  const extra = covered || unused;
   const removing = extra && value === current && value === floor;
   const id = "chat-grant-" + kind.toLowerCase() + "-" + option.id;
   const given = current !== "none" && floor === "none" ? "Given in this channel" : kind;
   const source = (floor === "none" ? given : member ? `From their role: ${ACCESS_LABEL[floor]}` : `All channels (Role Settings): ${ACCESS_LABEL[floor]}`)
-    + (extra ? " · also granted here" : "");
+    + (covered ? " · also granted here" : unused ? " · unused grant here" : "");
   const roleLimit = levelOf(option.limit);
   const note = member
     ? ceiling === "none" ? "Can’t be given access here: blocked by their roles or a Chat pause."
