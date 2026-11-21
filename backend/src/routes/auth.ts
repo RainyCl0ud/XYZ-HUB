@@ -54,7 +54,9 @@ import {
 } from "../services/two-factor.js";
 
 import {
+  APP_FAILURE_LIMIT,
   AuthenticatorError,
+  recentAppFailures,
   authenticatorStatus,
   confirmAuthenticatorSetup,
   disableAuthenticator,
@@ -368,10 +370,37 @@ router.post(
        * its code; no email is sent. They can still
        * ask for an emailed code instead.
        */
-      if (
+      const appUser =
         await hasAuthenticator(
           user.id
-        )
+        );
+      // After too many wrong app codes this hour,
+      // the code is emailed instead (the person
+      // sees the email, a signal if it wasn't them).
+      const appPaused =
+        appUser &&
+        (await recentAppFailures(user.id)) >=
+          APP_FAILURE_LIMIT;
+
+      if (appPaused) {
+        await prisma.auditEvent.create({
+          data: {
+            occurredAt: new Date(),
+            action: "auth.authenticator_paused",
+            success: false,
+            statusCode: 429,
+            actorUserId: user.id,
+            actorLabel: user.name,
+            targetType: "user",
+            targetId: user.id,
+            metadata: { email: user.email },
+          },
+        });
+      }
+
+      if (
+        appUser &&
+        !appPaused
       ) {
         const challenge =
           await createAuthenticatorTwoFactorChallenge(
@@ -409,6 +438,10 @@ router.post(
 
         method:
           "EMAIL",
+
+        ...(appPaused
+          ? { appPaused: true }
+          : {}),
 
         challengeId:
           challenge.id,
@@ -738,19 +771,13 @@ router.post(
         return;
       }
 
-      const closed =
-        await prisma.twoFactorChallenge.updateMany({
-          where: { id: open.id, consumedAt: null },
-          data: { consumedAt: now },
-        });
-
       const user =
         await prisma.user.findUnique({
           where: { id: open.userId },
           select: { id: true, email: true, status: true },
         });
 
-      if (!closed.count || !user || user.status !== UserStatus.ACTIVE) {
+      if (!user || user.status !== UserStatus.ACTIVE) {
         res.status(401).json({
           error: "INVALID_TWO_FACTOR_CHALLENGE",
           message: "This sign-in has expired. Sign in again.",
@@ -758,8 +785,16 @@ router.post(
         return;
       }
 
+      // Send first: if the email fails, the app
+      // challenge stays open and the person can
+      // still use their app or try again.
       const challenge =
         await issueEmailChallenge(user);
+
+      await prisma.twoFactorChallenge.updateMany({
+        where: { id: open.id, consumedAt: null },
+        data: { consumedAt: new Date() },
+      });
 
       res.status(200).json({
         status: "TWO_FACTOR_REQUIRED",

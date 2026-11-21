@@ -221,3 +221,35 @@ export const passwordResetRateLimit =
     getIdentity:
       normalizedEmail,
   });
+
+/*
+ * "Email me a code instead": keyed to the sign-in attempt (challenge), so
+ * people behind one office network don't share a limit, plus a generous
+ * per-network ceiling. Each attempt already needed the correct password.
+ */
+function challengeIdentity(
+  req: Request
+) {
+  const body =
+    req.body as { challengeId?: unknown } | undefined;
+  const id =
+    typeof body?.challengeId === "string"
+      ? body.challengeId.slice(0, 100)
+      : "unknown";
+  return `${req.ip ?? "unknown"}:${id}`;
+}
+
+export const emailInsteadRateLimit =
+  createRateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 3,
+    keyPrefix: "email-instead",
+    getIdentity: challengeIdentity,
+  });
+
+export const emailInsteadNetworkRateLimit =
+  createRateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    keyPrefix: "email-instead-network",
+  });

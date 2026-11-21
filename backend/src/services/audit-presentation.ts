@@ -219,7 +219,8 @@ function actionLabel(
     "auth.authenticator_enabled": "Authenticator app turned on",
     "auth.authenticator_disabled": "Authenticator app turned off",
     "auth.recovery_codes_regenerated": "New recovery codes issued",
-    "auth.recovery_code_used": "Signed in with a recovery code",
+    "auth.recovery_code_used": "Recovery code used to sign in",
+    "auth.authenticator_paused": "Authenticator sign-in paused after wrong codes",
     "chat.email.review_resolve": "Paused email delivery resolved",
     "clock.correction.request": "Attendance correction requested",
     "clock.correction.approve": "Attendance correction approved",
@@ -1253,8 +1254,11 @@ function buildSummary(
 
     case "auth.recovery_code_used": {
       const left = asNumber(asRecord(event.metadata)?.recoveryCodesLeft);
-      return label + " signed in with a recovery code" + (left === null ? "." : " (" + left + " left).");
+      return label + " used a recovery code to sign in" + (left === null ? "." : " (" + left + " left).");
     }
+
+    case "auth.authenticator_paused":
+      return "Too many wrong authenticator codes for " + label + "; their sign-in code was emailed instead.";
 
     case "chat.email.review_resolve":
       return asString(asRecord(event.metadata)?.kind) === "Announcement email"

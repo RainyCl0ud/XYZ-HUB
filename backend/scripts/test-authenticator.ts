@@ -39,9 +39,12 @@ async function main() {
     const now = Date.now();
     assert.equal(matchTotp(rfc, totpAt(rfc, stepAt(now) - 1), now), stepAt(now) - 1, "One step of clock drift is accepted");
     assert.equal(matchTotp(rfc, totpAt(rfc, stepAt(now) - 3), now), null, "Older codes are rejected");
-    const sealed = encryptSecret(rfc); assert.deepEqual(decryptSecret(sealed), rfc); assert.ok(!sealed.includes(base32Encode(rfc)));
+    const sealed = encryptSecret(rfc, "user-a"); assert.deepEqual(decryptSecret(sealed, "user-a"), rfc); assert.ok(!sealed.includes(base32Encode(rfc)));
     const tampered = sealed.slice(0, -2) + (sealed.endsWith("A") ? "B" : "A") + sealed.slice(-1);
-    assert.throws(() => decryptSecret(tampered), "Tampering is detected");
+    assert.throws(() => decryptSecret(tampered, "user-a"), "Tampering is detected");
+    assert.throws(() => decryptSecret(sealed, "user-b"), "A secret can't be moved to another person");
+    const [v, iv, tag, data] = sealed.split(".");
+    assert.throws(() => decryptSecret([v, iv, Buffer.from(tag, "base64url").subarray(0, 4).toString("base64url"), data].join("."), "user-a"), "Truncated tags are refused");
     pass("Codes match the RFC 6238 test vectors, allow one step of drift, and secrets are encrypted with tamper detection");
 
     // Setup
@@ -85,7 +88,7 @@ async function main() {
     assert.equal((await post("/verify-2fa", { challengeId: body.challengeId, code: recoveryCodes[0] })).status, 401, "Each recovery code works once");
     const used = await prisma.auditEvent.findFirstOrThrow({ where: { action: "auth.recovery_code_used", actorUserId: person.id } });
     assert.equal((used.metadata as { recoveryCodesLeft: number }).recoveryCodesLeft, 9);
-    assert.equal((await presentAuditEvents([used]))[0].summary, "Sam Example signed in with a recovery code (9 left).");
+    assert.equal((await presentAuditEvents([used]))[0].summary, "Sam Example used a recovery code to sign in (9 left).");
     emailed = [];
     const instead = await post("/two-factor/email-instead", { challengeId: body.challengeId }); assert.equal(instead.status, 200);
     const emailedChallenge = await instead.json() as { method: string; challengeId: string };
@@ -103,6 +106,33 @@ async function main() {
     assert.deepEqual(statuses, [401, 401, 401, 401, 429]);
     assert.equal((await post("/two-factor/email-instead", { challengeId: body.challengeId })).status, 401, "A locked challenge can't switch to email");
     pass("Recovery codes work once and are audited; an emailed code is always available instead; five wrong codes lock the attempt");
+
+    // Failed backup email keeps the app challenge usable
+    login = await post("/login", { email: person.email, password }); body = await login.json() as typeof body;
+    process.env.TWO_FACTOR_DELIVERY_MODE = "broken";
+    assert.equal((await post("/two-factor/email-instead", { challengeId: body.challengeId })).status, 500);
+    process.env.TWO_FACTOR_DELIVERY_MODE = "console";
+    await prisma.userTwoFactorMethod.updateMany({ where: { userId: person.id, type: "AUTHENTICATOR" }, data: { lastUsedStep: stepAt(Date.now()) - 5 } });
+    assert.equal((await post("/verify-2fa", { challengeId: body.challengeId, code: totpAt(secret, stepAt(Date.now())) })).status, 200, "The app still works after a failed backup email");
+
+    // Too many wrong app codes across sign-ins switch to emailed codes for an hour
+    await prisma.twoFactorChallenge.deleteMany({ where: { userId: person.id } });
+    for (let round = 0; round < 2; round++) {
+      login = await post("/login", { email: person.email, password }); body = await login.json() as typeof body;
+      assert.equal(body.method, "AUTHENTICATOR");
+      for (let i = 0; i < 5; i++) await post("/verify-2fa", { challengeId: body.challengeId, code: String(100000 + round * 10 + i) });
+    }
+    emailed = [];
+    login = await post("/login", { email: person.email, password });
+    const paused = await login.json() as { method: string; appPaused?: boolean; challengeId: string };
+    assert.equal(paused.method, "EMAIL"); assert.equal(paused.appPaused, true); assert.equal(emailed.length, 1, "The person is emailed, a signal if it wasn't them");
+    assert.ok(await prisma.auditEvent.findFirst({ where: { action: "auth.authenticator_paused", actorUserId: person.id } }));
+    const openApp = await prisma.twoFactorChallenge.create({ data: { userId: person.id, methodType: "AUTHENTICATOR", codeHash: "authenticator:test", expiresAt: new Date(Date.now() + 600000) } });
+    await prisma.userTwoFactorMethod.updateMany({ where: { userId: person.id, type: "AUTHENTICATOR" }, data: { lastUsedStep: stepAt(Date.now()) - 5 } });
+    assert.equal((await post("/verify-2fa", { challengeId: openApp.id, code: totpAt(secret, stepAt(Date.now())) })).status, 429, "Even a correct app code waits out the pause");
+    assert.equal((await post("/verify-2fa", { challengeId: paused.challengeId, code: emailed[0] })).status, 200, "The emailed code still signs in");
+    await prisma.twoFactorChallenge.deleteMany({ where: { userId: person.id } });
+    pass("A failed backup email leaves the app usable; ten wrong app codes in an hour pause app sign-in, email the person and are audited");
 
     // Account endpoints
     assert.equal((await fetch(base + "/two-factor")).status, 401);
@@ -128,14 +158,20 @@ async function main() {
 
     // Owner reset clears the app and its recovery codes
     const again = await startAuthenticatorSetup(person.id, password);
-    await prisma.userTwoFactorMethod.updateMany({ where: { userId: person.id, type: "AUTHENTICATOR" }, data: { lastUsedStep: null } });
-    await confirmAuthenticatorSetup(person.id, totpAt(base32Decode(again.key), stepAt(Date.now())));
+    const confirmCode = totpAt(base32Decode(again.key), stepAt(Date.now()));
+    const both = await Promise.allSettled([confirmAuthenticatorSetup(person.id, confirmCode), confirmAuthenticatorSetup(person.id, confirmCode)]);
+    assert.equal(both.filter((r) => r.status === "fulfilled").length, 1, "Two confirms at once: exactly one succeeds");
+    assert.equal(await prisma.twoFactorRecoveryCode.count({ where: { userId: person.id } }), 10);
+    const oddSecret = await prisma.userTwoFactorMethod.findFirstOrThrow({ where: { userId: person.id, type: "AUTHENTICATOR" } });
+    await prisma.userTwoFactorMethod.update({ where: { id: oddSecret.id }, data: { secretEncrypted: "v1.broken.broken.broken" } });
+    login = await post("/login", { email: person.email, password }); assert.equal((await login.json() as { method: string }).method, "EMAIL", "An unreadable secret falls back to emailed codes");
+    await prisma.userTwoFactorMethod.update({ where: { id: oddSecret.id }, data: { secretEncrypted: oddSecret.secretEncrypted } });
     const roles = new Map((await prisma.role.findMany({ where: { systemKey: { not: null } } })).map((r) => [r.systemKey!, r.id]));
     const owner = await prisma.user.create({ data: { name: "Owner Example", email: `${prefix}-owner@example.test`, status: "ACTIVE", roleMemberships: { create: { roleId: roles.get("OWNER")! } } } }); users.push(owner.id);
     await resetPersonTwoFactor(person.id, await getAccessContext(owner.id));
     assert.equal(await prisma.userTwoFactorMethod.count({ where: { userId: person.id, type: "AUTHENTICATOR" } }), 0);
     assert.equal(await prisma.twoFactorRecoveryCode.count({ where: { userId: person.id } }), 0);
-    pass("An Owner's two-step reset removes the authenticator app and its recovery codes");
+    pass("Concurrent confirms can't both win, an unreadable secret falls back to email, and an Owner reset removes the app and its codes");
 
     realLog(`${passed} authenticator sign-in integration groups passed. No real email sent.`);
   } finally {

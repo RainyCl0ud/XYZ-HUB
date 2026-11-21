@@ -8,9 +8,9 @@ type VerifyResponse = { status: "AUTHENTICATED"; user: { id: string; name: strin
 type ChallengeResponse = { status: "TWO_FACTOR_REQUIRED"; method: "EMAIL"; challengeId: string; expiresAt: string };
 type Method = "EMAIL" | "AUTHENTICATOR";
 
-const KEYS = { challenge: "xyz_pending_2fa_challenge", email: "xyz_pending_2fa_email", method: "xyz_pending_2fa_method", after: "xyz_after_login" };
+const KEYS = { challenge: "xyz_pending_2fa_challenge", email: "xyz_pending_2fa_email", method: "xyz_pending_2fa_method", notice: "xyz_pending_2fa_notice", after: "xyz_after_login" };
 const RECOVERY_PATTERN = /^[2-9A-HJKMNP-Z]{4}-?[2-9A-HJKMNP-Z]{4}$/;
-const clearPending = () => { sessionStorage.removeItem(KEYS.challenge); sessionStorage.removeItem(KEYS.email); sessionStorage.removeItem(KEYS.method); };
+const clearPending = () => { sessionStorage.removeItem(KEYS.challenge); sessionStorage.removeItem(KEYS.email); sessionStorage.removeItem(KEYS.method); sessionStorage.removeItem(KEYS.notice); };
 
 /** Second sign-in step: an emailed code, or a code from an authenticator
  * app (with a recovery code or an emailed code as backups). */
@@ -24,7 +24,9 @@ function TwoFactorPage() {
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(() => sessionStorage.getItem(KEYS.notice) === "app-paused"
+    ? "There were too many wrong authenticator codes in the last hour, so we emailed you a code instead. If that wasn’t you, change your password."
+    : null);
 
   if (!loading && user) return <Navigate to="/" replace />;
   if (!challengeId) return <Navigate to="/login" replace />;

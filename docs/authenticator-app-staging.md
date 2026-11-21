@@ -19,22 +19,26 @@ People can now use a free authenticator app for the second sign-in step instead 
 ## How it's built
 
 - Standard authenticator codes (TOTP, RFC 6238): six digits that change every 30 seconds, with one step of clock drift allowed. Each code is accepted only once.
-- Each person's app secret is encrypted (AES-256-GCM) with a key derived from the existing `TWO_FACTOR_CODE_SECRET`, so no new Railway setting is needed. If that setting is ever changed, everyone must set the app up again.
-- Recovery codes are stored only as keyed hashes, and each one works once.
-- Sign-in keeps the existing limits: five wrong codes end the attempt, codes expire after 10 minutes, and "Email me a code instead" shares the sign-in rate limit.
+- Each person's app secret is encrypted (AES-256-GCM with a full-length tag, bound to their account) with a key derived from the existing `TWO_FACTOR_CODE_SECRET`, so no new Railway setting is needed. If that setting is ever changed, everyone falls back to emailed codes and sets the app up again.
+- Recovery codes are stored only as keyed hashes, using a separate derived key, and each one works once.
+- Sign-in keeps the existing limits: five wrong codes end an attempt, and codes expire after 10 minutes.
+- **Wrong app codes are also limited per person.** After 10 wrong app codes in an hour, across sign-ins, that person gets an emailed code instead for the rest of the hour. The email itself is a warning if it wasn't them, and the Audit Log records "Authenticator sign-in paused after wrong codes".
+- An app code (or recovery code) and its sign-in attempt are used up together. A code is never spent on a sign-in that doesn't go through.
+- "Email me a code instead" sends the email before closing the app attempt, so a failed email never strands anyone. It's limited per sign-in attempt (3 per 15 minutes) and per network (60 per 15 minutes).
 - In the app, the account shows as "XYZ Hub Staging" on Staging, so it can't be confused with the live Hub later.
 - Migration `20261121050000_authenticator_app` adds a replay guard column and the recovery code table. The existing "authenticator" slot from the original sign-in build is reused.
 - New backend package: `qrcode` 1.5.4 (MIT), installed with your approval, to draw the setup QR code.
 
 ## Verification (local, loopback PostgreSQL with fictional data)
 
-- New `test:authenticator`, 6 groups:
+- New `test:authenticator`, 7 groups:
   - codes match the RFC 6238 test vectors, and secrets are encrypted and tamper-checked;
   - setup needs the password and only switches on after a real code;
   - app sign-in sends no email, and no code is accepted twice;
   - recovery codes work once and are audited; the emailed backup works; five wrong codes lock the attempt;
+  - a failed backup email leaves the app usable, and ten wrong app codes pause app sign-in;
   - every account change needs the password;
-  - the Owner reset clears everything.
+  - two confirms at once can't both succeed, an unreadable secret falls back to email, and the Owner reset clears everything.
 - New `test:authenticator-ui` (3 groups).
 - Also passed: two-factor, session, session-auth, session-token, People two-factor, password, middleware, access, People read/status/access, live session invalidation, audit presentation and audit database suites, staging regressions, both builds, frontend lint, and all 26 frontend suites.
 - `npm audit` reports 4 warnings in packages that were already installed (body-parser, nodemailer, qs, zod), not in `qrcode`. They're worth a separate update.

@@ -14,8 +14,12 @@ import {
 } from "../lib/prisma.js";
 
 import {
+  APP_FAILURE_LIMIT,
+  recentAppFailures,
   useAuthenticatorCode,
 } from "./authenticator.js";
+
+class InvalidAuthenticatorCode extends Error {}
 
 export const TWO_FACTOR_CODE_TTL_MS =
   10 * 60 * 1000;
@@ -289,16 +293,65 @@ export async function verifyTwoFactorChallenge(
     return "LOCKED";
   }
 
-  // Same attempt limit, expiry and single-use claim for both kinds; only
-  // the way the code is checked differs.
+  if (
+    challenge.methodType ===
+    TwoFactorMethodType.AUTHENTICATOR
+  ) {
+    /*
+     * Wrong app codes are also limited per person
+     * across sign-ins, so a known password can't be
+     * used to keep guessing on fresh challenges.
+     */
+    if (
+      (await recentAppFailures(challenge.userId)) >=
+      APP_FAILURE_LIMIT
+    ) {
+      await prisma.twoFactorChallenge.updateMany({
+        where: { id: challenge.id, consumedAt: null },
+        data: { consumedAt: now },
+      });
+      return "LOCKED";
+    }
+
+    /*
+     * The challenge and the code (app step or
+     * recovery code) are claimed in one transaction:
+     * if either claim fails, neither is spent.
+     */
+    const outcome =
+      await prisma.$transaction(async (tx) => {
+        const claimed =
+          await tx.twoFactorChallenge.updateMany({
+            where: {
+              id: challenge.id,
+              consumedAt: null,
+              expiresAt: { gt: now },
+              failedAttempts: { lt: TWO_FACTOR_MAX_ATTEMPTS },
+            },
+            data: { consumedAt: now },
+          });
+        if (!claimed.count) return "UNAVAILABLE" as const;
+        const check =
+          await useAuthenticatorCode(tx, challenge.userId, code);
+        if (!check.ok) throw new InvalidAuthenticatorCode();
+        return "VERIFIED" as const;
+      }).catch((error: unknown) => {
+        if (error instanceof InvalidAuthenticatorCode) return "INVALID" as const;
+        throw error;
+      });
+
+    if (outcome === "VERIFIED") return "VERIFIED";
+    if (outcome === "UNAVAILABLE") return getUnavailableResult(challenge.id);
+    // INVALID continues to the shared failed-attempt handling below.
+  }
+
   const isValid =
-    challenge.methodType === TwoFactorMethodType.AUTHENTICATOR
-      ? (await useAuthenticatorCode(challenge.userId, code)).ok
-      : /^\d{6}$/.test(code) &&
-        verifyTwoFactorCodeHash(
-          code,
-          challenge.codeHash
-        );
+    challenge.methodType === TwoFactorMethodType.EMAIL &&
+    /^\d{6}$/.test(code) &&
+    verifyTwoFactorCodeHash(
+      code,
+      challenge.codeHash
+    );
 
   if (
     isValid
