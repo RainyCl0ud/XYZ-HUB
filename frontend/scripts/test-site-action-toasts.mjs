@@ -60,7 +60,7 @@ try {
   roleMode = "ops"; grant = { canView: false, canPost: false }; await page.reload();
   await page.getByRole("button", { name: "Permissions", exact: true }).click();
   const opsAccess = page.getByLabel("Role access for Ops Manager"); await opsAccess.waitFor();
-  assert.equal(await opsAccess.inputValue(), "post"); assert.equal(await opsAccess.locator('option:checked').textContent(), "Post");
+  assert.equal(await opsAccess.inputValue(), "post"); assert.equal(await opsAccess.locator('option:checked').textContent(), "Can post");
   assert.ok(await opsAccess.isDisabled()); assert.ok(await page.getByRole("button", { name: "Save", exact: true }).isDisabled());
   assert.equal(await page.getByText(/Site-wide role access/).count(), 0);
   await page.screenshot({ path: out + "/ops-inherited-post.png", animations: "disabled" });

@@ -154,8 +154,8 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
         <section className="creator-chat-settings-section creator-chat-settings-access" aria-labelledby="chat-settings-access-title">
           <h3 id="chat-settings-access-title">{accessCategory === "roles" ? "Role permissions" : "Member permissions"}</h3>
           <p>{accessCategory === "roles"
-            ? "Choose which roles can see or post. Only roles ranked below yours are listed. Individual member grants can add access, but never remove access given by a role."
-            : "Grant additional access to a member. Only members whose roles are all ranked below yours are listed. Role and member grants combine, so the most generous access applies."}</p>
+            ? "Choose which roles can see or post in this channel. Only roles ranked below yours are listed."
+            : "Each member shows the access they have now. Their roles set the minimum: you can give a member more access here, not less. Only members whose roles are all ranked below yours are listed."}</p>
           <label htmlFor="chat-settings-find-access">{accessCategory === "roles" ? "Find a role" : "Find a member"}</label>
           <input id="chat-settings-find-access" type="search" value={accessQuery} onChange={(event) => setAccessQuery(event.target.value)}
             placeholder={accessCategory === "roles" ? "Search roles…" : "Search members…"} />
@@ -187,31 +187,44 @@ export default function ChatChannelSettings({ target, onClose, onSaved, onArchiv
     </section>
   );
 }
+type Level = "none" | "view" | "post";
+const LEVEL: Record<Level, number> = { none: 0, view: 1, post: 2 };
+const ACCESS_LABEL: Record<Level, string> = { none: "No access", view: "Can see", post: "Can post" };
+const levelOf = (access?: Grant | null): Level => (access?.canPost ? "post" : access?.canView ? "view" : "none");
+
+/**
+ * One role or member. The menu always shows the access they actually have.
+ * Access that comes from elsewhere (a member's roles, or a role's
+ * all-channels setting in Role Settings) is the minimum: lower choices are
+ * unavailable, and a grant here can only add to it. Choosing the minimum
+ * clears any extra grant saved here.
+ */
 function GrantRow({ kind, option, busy, onSave }: { kind: string; option: Option; busy: boolean; onSave: (grant: Grant) => void }) {
-  const siteWide = kind === "Role" ? option.siteWideAccess : undefined;
-  const current = siteWide?.canPost || option.grant?.canPost ? "post" : siteWide?.canView || option.grant?.canView ? "view" : "none";
-  const [value, setValue] = useState(current);
+  const floor = levelOf(kind === "Role" ? option.siteWideAccess : option.inheritedAccess);
+  const own = levelOf(option.grant);
+  const current: Level = LEVEL[own] > LEVEL[floor] ? own : floor;
+  const [value, setValue] = useState<Level>(current);
+  const locked = floor === "post";
   const id = "chat-grant-" + kind.toLowerCase() + "-" + option.id;
+  const source = kind === "Member"
+    ? floor === "none" ? "Member" : `From their role: ${ACCESS_LABEL[floor]}`
+    : floor === "none" ? "Role" : `All channels (Role Settings): ${ACCESS_LABEL[floor]}`;
   return (
     <form className="creator-chat-grant-row" onSubmit={(event) => {
-      event.preventDefault(); onSave({ canView: value !== "none", canPost: value === "post" });
+      event.preventDefault();
+      onSave(LEVEL[value] > LEVEL[floor] ? { canView: true, canPost: value === "post" } : { canView: false, canPost: false });
     }}>
       <div className="creator-chat-grant-identity">
         <strong title={option.name}>{option.name}</strong>
-        {kind === "Member" && option.inheritedAccess ? (
-          <span className="creator-chat-grant-inherited">
-            Role access: {option.inheritedAccess.canPost ? "Post" : option.inheritedAccess.canView ? "See" : "None"}
-          </span>
-        ) : <span>{kind}</span>}
+        <span className={floor === "none" ? undefined : "creator-chat-grant-inherited"}>{source}</span>
       </div>
       <div className="creator-chat-grant-controls">
         <label className="creator-chat-sr" htmlFor={id}>{kind} access for {option.name}</label>
-        <select id={id} aria-label={kind + " access for " + option.name} value={value} onChange={(event) => setValue(event.target.value)} disabled={busy || siteWide?.canPost}>
-          <option value="none" disabled={siteWide?.canView}>{kind === "Member" ? "No individual grant" : "No role grant"}</option>
-          <option value="view">See</option>
-          <option value="post">Post</option>
+        <select id={id} aria-label={kind + " access for " + option.name} value={value} onChange={(event) => setValue(event.target.value as Level)}
+          disabled={busy || locked} title={locked ? (kind === "Member" ? "Their role already lets them post" : "This role can post in every channel") : undefined}>
+          {(["none", "view", "post"] as Level[]).map((level) => <option key={level} value={level} disabled={LEVEL[level] < LEVEL[floor]}>{ACCESS_LABEL[level]}</option>)}
         </select>
-        <button type="submit" disabled={busy || siteWide?.canPost || current === value}>Save</button>
+        <button type="submit" disabled={busy || locked || current === value}>Save</button>
       </div>
     </form>
   );

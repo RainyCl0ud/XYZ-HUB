@@ -8,20 +8,22 @@ const ui = readFileSync(resolve(root, "src/pages/ChatChannelSettings.tsx"), "utf
 const server = readFileSync(resolve(root, "../backend/src/services/creator-chat.ts"), "utf8");
 const css = readFileSync(resolve(root, "src/pages/ChatPage.css"), "utf8");
 
-assert.ok(ui.includes('<option value="view">See</option>'));
-assert.ok(ui.includes('<option value="post">Post</option>'));
-assert.ok(ui.includes('kind === "Member" ? "No individual grant" : "No role grant"'));
+assert.ok(ui.includes('const ACCESS_LABEL: Record<Level, string> = { none: "No access", view: "Can see", post: "Can post" };'));
+assert.ok(!ui.includes("No individual grant") && !ui.includes("No role grant") && !ui.includes(">See</option>") && !ui.includes(">Post</option>"));
 assert.ok(!ui.includes("Can send</option>"));
 assert.ok(!ui.includes("Can view</option>"));
-console.log("PASS 1: Channel role and member selectors use Block 2 See/Post terminology.");
+console.log("PASS 1: Channel role and member selectors say No access / Can see / Can post.");
 
-assert.ok(ui.includes("Role access: {option.inheritedAccess.canPost"));
-assert.ok(ui.includes("Role and member grants combine"));
+assert.ok(ui.includes('levelOf(kind === "Role" ? option.siteWideAccess : option.inheritedAccess)'), "A member's role access (or a role's all-channel access) is the minimum shown");
+assert.ok(ui.includes("const current: Level = LEVEL[own] > LEVEL[floor] ? own : floor;"), "The menu shows the access they actually have");
+assert.ok(ui.includes("disabled={LEVEL[level] < LEVEL[floor]}") && ui.includes('const locked = floor === "post";'), "Choices below role access are unavailable");
+assert.ok(ui.includes("LEVEL[value] > LEVEL[floor] ? { canView: true, canPost: value === \"post\" } : { canView: false, canPost: false }"), "Saving the minimum clears an extra grant");
+assert.ok(ui.includes("From their role: ") && ui.includes("you can give a member more access here, not less"));
 assert.ok(server.includes("inheritedAccess: { canView: roleAccess.canView, canPost: roleAccess.canPost }"));
 assert.ok(server.includes("channelAccess(makeViewer(a.user), { ...channel, personGrants: [] })"));
 assert.ok(server.includes('select: { id: true, user: { include: viewerInclude } }'));
 assert.ok(!server.includes("user: { select: { id: true, name: true, ...viewerInclude } }"));
-console.log("PASS 2: Member settings show role-derived access separately from named grants.");
+console.log("PASS 2: Member and role menus show real access, with role access as a minimum that can't be lowered.");
 
 assert.ok(server.includes('p.has("chat.channels.all") || grants.some((g) => g.canView || g.canPost)'));
 assert.ok(server.includes('p.has("chat.channels.post_all") || grants.some((g) => g.canPost)'));
@@ -42,4 +44,4 @@ assert.ok(selectRules.some((rule) => /(?:^|\s)width:\s*100%\s*;/.test(rule) && /
 assert.ok(selectRules.some((rule) => /font-size:\s*16px\s*;/.test(rule)),
   "Mobile selector must retain touch-friendly font sizing");
 assert.ok(css.includes('max-width: none;'));
-console.log("PASS 4: Member rows keep inherited role access beside the name and give See/Post selectors responsive full-width controls.");
+console.log("PASS 4: Member rows keep role access beside the name and give the access selectors responsive full-width controls.");
