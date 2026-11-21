@@ -643,20 +643,36 @@
 .audit-retained-scroll th, .audit-retained-scroll td { padding: 14px 12px; border-bottom: 1px solid #383838; }
 .audit-retained-scroll a { color: inherit; text-decoration: underline; }
 
-/* Owner email delivery: problems first, monochrome, "!" marks a problem. */
-.audit-email-delivery { scroll-margin-top: 24px; }
-.audit-email-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.audit-email-heading h3 { margin: 0; }
-.audit-email-status { padding: 12px 16px; border: 1px solid #666666; border-radius: 2px; background: #0D0D0D; }
+/* Audit Log sections as tabs: the activity log comes first. Monochrome,
+ * 2px corners, "!" marks a problem (XYZ web kit). */
+.audit-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 16px; border-bottom: 1px solid #333333; }
+.audit-tabs [role="tab"] { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; margin-bottom: -1px; font: inherit; font-size: 13px; font-weight: 700; color: #999999; background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0; cursor: pointer; }
+.audit-tabs [role="tab"]:hover { color: #FFFFFF; }
+.audit-tabs [role="tab"][aria-selected="true"] { color: #FFFFFF; border-bottom-color: #FFFFFF; }
+.audit-tabs [role="tab"]:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.audit-tab-badge { display: inline-flex; align-items: center; min-height: 20px; padding: 0 6px; font-size: 11px; font-weight: 700; color: #000000; background: #FFFFFF; border-radius: 2px; font-variant-numeric: tabular-nums; }
+.audit-tab-panel { padding: 24px; margin-bottom: 16px; }
+.audit-panel-note { margin: 12px 0 0; font-size: 13px; line-height: 1.5; color: #999999; }
+.audit-panel-note:first-child { margin-top: 0; color: #CCCCCC; }
+.audit-panel-empty { margin: 16px 0 0; padding: 24px 16px; text-align: center; font-size: 13px; color: #CCCCCC; background: #0D0D0D; border: 1px solid #666666; border-radius: 2px; }
+.audit-panel-label { margin: 24px 0 0; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #8E8E8E; }
+.audit-retained-channels .audit-retained-scroll { margin-top: 16px; }
+.audit-retained-channels > button { margin-top: 16px; }
+
+/* Email delivery panel. */
+.audit-email-status { padding: 16px; border: 1px solid #666666; border-radius: 2px; background: #0D0D0D; }
 .audit-email-status.is-problem { border: 2px solid #FFFFFF; }
 .audit-email-status strong { display: block; font-size: 15px; }
 .audit-email-status p { margin: 4px 0 0; font-size: 13px; color: #CCCCCC; line-height: 1.5; }
-.audit-email-delivery h4 { margin: 24px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #8E8E8E; }
-.audit-email-quiet { font-size: 13px; color: #999999; line-height: 1.5; margin: 8px 0; }
-.audit-email-attention { list-style: none; margin: 0; padding: 0; }
+.audit-email-attention { list-style: none; margin: 12px 0 0; padding: 0; }
 .audit-email-attention li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid #333333; }
 .audit-email-attention li > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 .audit-email-attention strong { font-size: 15px; }
 .audit-email-attention span { font-size: 13px; color: #999999; font-variant-numeric: tabular-nums; }
-.audit-email-error { padding: 12px; border: 2px solid #FFFFFF; font-size: 13px; font-weight: 700; }
-@media (max-width: 720px) { .audit-email-attention li { flex-direction: column; align-items: stretch; } }
+.audit-email-error { margin: 0 0 16px; padding: 12px; border: 2px solid #FFFFFF; border-radius: 2px; font-size: 13px; font-weight: 700; }
+@media (max-width: 720px) {
+  .audit-tabs { flex-wrap: nowrap; overflow-x: auto; }
+  .audit-tabs [role="tab"] { flex: none; }
+  .audit-tab-panel { padding: 16px; }
+  .audit-email-attention li { flex-direction: column; align-items: stretch; }
+}

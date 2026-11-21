@@ -11,7 +11,7 @@ A list of every reminder with its preview was a testing aid, not something an Ow
 
 ## What changes
 
-- **Audit Log → Email delivery** (Owner only, top of the page):
+- **Audit Log → Email delivery tab** (Owner only; see `docs/audit-page-tabs-staging.md`):
   - A status line: Preview mode, Sending normally, Chat emails off, no sending budget set, daily limit nearly reached, or paused for the hour or the day. Problems are marked "!" and show how much of the daily budget is used.
   - **Needs attention**: each paused reminder or unconfirmed announcement email, with **Resume reminders** or **Mark handled**. Check the person's inbox first; nothing is re-sent.
 - **The bell (Owners only)** shows "Reminder emails paused for ‹name›", "Announcement email unconfirmed for ‹name›" and "Daily email limit nearly reached" / "Chat emails paused for today", each opening Email delivery. The limit notice appears once per near-limit period and stays in the bell's history, marked read, once usage drops back.
@@ -34,6 +34,6 @@ Two additive migrations. `20261121030000_email_delivery_review` records who reso
 ## Staging acceptance
 
 1. As a test Chatter, open Chat options: there is no email reminder entry.
-2. As the Owner, open **Audit Log**. **Email delivery** sits at the top and reads "Preview mode", with "Nothing needs attention".
+2. As the Owner, open **Audit Log → Email delivery**. It reads "Preview mode", with "Nothing needs attention".
 3. Leave a message unread for a test Chatter for 30 minutes. The Audit Log gains an "Unread reminder email" entry for them, showing the unread count and "Preview saved". No message text appears.
 4. Paused deliveries and the daily limit only occur with real sending, so they can't be produced on Staging in preview mode. They are covered by the local tests above.

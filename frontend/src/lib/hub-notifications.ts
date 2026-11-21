@@ -27,7 +27,7 @@ export function notificationHref(target: HubNotificationTarget | null): string |
     return `/chat?conversation=${encodeURIComponent(target.conversationId)}&message=${encodeURIComponent(target.messageId)}`;
   }
   if (target.type === "clock-request") return safeId(target.requestId) ? `/clock/requests/${encodeURIComponent(target.requestId)}` : null;
-  if (target.type === "email-delivery") return "/audit#email-delivery";
+  if (target.type === "email-delivery") return "/audit?tab=email";
   return "/clock";
 }
 

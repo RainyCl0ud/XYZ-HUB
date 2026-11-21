@@ -98,6 +98,7 @@ async function main() {
     const [presented] = await presentAuditEvents([record]);
     assert.equal(presented.actionLabel, "Unread reminder email");
     assert.ok(presented.changes.some((c) => c.label === "Outcome" && c.after === "Preview saved"));
+    assert.equal(presented.summary, "To Sam Example · 3 unread · Preview saved"); assert.equal(presented.target.label, "Sam Example");
     pass("Each reminder email is recorded in the Audit Log with recipient, unread count and outcome only");
 
     // A paused reminder blocks further reminders until an Owner resumes it
@@ -121,6 +122,8 @@ async function main() {
     assert.equal(resolvedNotice.read, true); assert.equal(resolvedNotice.body, "Resumed by Owner Example");
     const resolution = (await audits("chat.email.review_resolve")).at(-1)!;
     assert.equal(resolution.actorUserId, owner.id); assert.deepEqual(resolution.metadata, { kind: "Unread reminder", personName: "Sam Example" });
+    const [resolvedRow] = await presentAuditEvents([resolution]);
+    assert.equal(resolvedRow.summary, "Reminder emails resumed for Sam Example."); assert.equal(resolvedRow.target.label, "Sam Example");
     await allowHourly(staff.id); await runUnreadReminderSweep();
     assert.equal((await reminders(staff.id)).length, 3, "Reminders flow again after resuming");
     await denied(() => resolveEmailReview(owner.id, "reminder", captured.id), 404);

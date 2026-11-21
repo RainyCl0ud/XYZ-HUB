@@ -89,11 +89,11 @@ assert.ok(notification.includes("blocked in this browser's site settings"));
 assert.ok(provider.includes("void releaseBackgroundPush(id)"));
 pass("My Account has one notification switch with inline browser guidance; Off releases previous background push without an extra settings screen.");
 
-assert.ok(reminders.includes('id="email-delivery"') && reminders.includes(">Email delivery</h3>"));
-assert.ok(reminders.includes('title: "Preview mode"') && reminders.includes("Daily email limit nearly reached") && reminders.includes("Sign-in codes are still sent."));
+const emailCopy = reminders + await source("src/pages/useEmailDelivery.ts");
+assert.ok(emailCopy.includes('title: "Preview mode"') && emailCopy.includes("Daily email limit nearly reached") && emailCopy.includes("Sign-in codes are still sent."));
 assert.ok(reminders.includes("Needs attention") && reminders.includes('"Resume reminders"') && reminders.includes('"Mark handled"'));
 assert.ok(reminders.includes("Check the person’s inbox first, so nobody gets the same email twice."));
-assert.ok(reminders.includes("with no message content") && !reminders.includes("previewEmail"));
+assert.ok(reminders.includes("with no message content") && !emailCopy.includes("previewEmail"));
 assert.ok(!chat.includes("Email reminder") && !chat.includes("ChatUnreadReminders"), "Chat no longer has an email reminder screen");
 pass("Owner email delivery leads with problems: status, daily-limit warning, paused deliveries with resume actions, and no per-email previews.");
 
