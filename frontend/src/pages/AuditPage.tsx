@@ -9,6 +9,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -133,6 +134,9 @@ function AuditPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const [channelsRefresh, setChannelsRefresh] = useState(0);
+  const [channelsLoading, setChannelsLoading] = useState(false);
+  const emailPanel = useRef<HTMLElement>(null);
+  const loadEmail = email.load;
   const tabs = [
     { id: "activity", label: "Activity" },
     ...(emailEnabled && !email.hidden ? [{ id: "email", label: "Email delivery" }] : []),
@@ -140,6 +144,14 @@ function AuditPage() {
   ];
   const requestedTab = searchParams.get("tab") ?? (location.hash === "#email-delivery" ? "email" : "activity");
   const tab = tabs.some((t) => t.id === requestedTab) ? requestedTab : "activity";
+  // Arriving at the Email tab (from the bell, or a tab click) shows fresh data.
+  // A bell visit also moves focus to the panel; tab clicks keep focus on the tab.
+  const fromTabClick = (location.state as { fromTab?: boolean } | null)?.fromTab === true;
+  useEffect(() => {
+    if (tab !== "email") return;
+    void loadEmail();
+    if (!fromTabClick) emailPanel.current?.focus();
+  }, [tab, location.key, fromTabClick, loadEmail]);
   const toast =
     useToast();
 
@@ -525,23 +537,23 @@ function AuditPage() {
             else if (tab === "channels") setChannelsRefresh((n) => n + 1);
             else void loadAudit();
           }}
-          disabled={tab === "email" ? email.loading : tab === "activity" && loading}
+          disabled={tab === "email" ? email.loading : tab === "channels" ? channelsLoading : loading}
         >
-          {(tab === "email" ? email.loading : tab === "activity" && loading) ? "Refreshing…" : "Refresh"}
+          {(tab === "email" ? email.loading : tab === "channels" ? channelsLoading : loading) ? "Refreshing…" : "Refresh"}
         </button>
       </header>
 
       {tabs.length > 1 && <AuditTabs tabs={tabs} active={tab} setSearchParams={setSearchParams}
         emailBadge={email.attentionTotal ? `! ${email.attentionTotal}` : email.problem ? "!" : ""} />}
 
-      {tab === "email" && <section id="audit-panel-email" role="tabpanel" aria-labelledby="audit-tab-email" className="content-card audit-tab-panel">
+      {tab === "email" && <section ref={emailPanel} tabIndex={-1} id="audit-panel-email" role="tabpanel" aria-labelledby="audit-tab-email" className="content-card audit-tab-panel">
         <AuditEmailDelivery state={email} />
       </section>}
       {tab === "channels" && <section id="audit-panel-channels" role="tabpanel" aria-labelledby="audit-tab-channels" className="content-card audit-tab-panel">
-        <AuditRetainedChannels refreshKey={channelsRefresh} />
+        <AuditRetainedChannels refreshKey={channelsRefresh} onLoadingChange={setChannelsLoading} />
       </section>}
 
-      {tab === "activity" && <div id="audit-panel-activity" role="tabpanel" aria-labelledby={tabs.length > 1 ? "audit-tab-activity" : undefined}>
+      {tab === "activity" && <div id="audit-panel-activity" {...(tabs.length > 1 ? { role: "tabpanel", "aria-labelledby": "audit-tab-activity" } : {})}>
       <section className="content-card audit-toolbar">
         <input
           className="search-input"
@@ -1114,7 +1126,7 @@ function AuditTabs({ tabs, active, setSearchParams, emailBadge }: { tabs: AuditT
       const next = new URLSearchParams(previous);
       if (id === "activity") next.delete("tab"); else next.set("tab", id);
       return next;
-    }, { replace: true });
+    }, { replace: true, state: { fromTab: true } });
     if (focus) window.setTimeout(() => document.getElementById("audit-tab-" + id)?.focus(), 0);
   };
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -1129,7 +1141,10 @@ function AuditTabs({ tabs, active, setSearchParams, emailBadge }: { tabs: AuditT
     {tabs.map((t) => <button key={t.id} type="button" role="tab" id={"audit-tab-" + t.id} aria-selected={active === t.id} aria-controls={"audit-panel-" + t.id}
       tabIndex={active === t.id ? 0 : -1} onClick={() => choose(t.id)}>
       {t.label}
-      {t.id === "email" && emailBadge && <span className="audit-tab-badge" aria-label={emailBadge === "!" ? "needs a look" : emailBadge.slice(2) + " need attention"}>{emailBadge}</span>}
+      {t.id === "email" && emailBadge && <>
+        <span className="audit-tab-badge" aria-hidden="true">{emailBadge}</span>
+        <span className="audit-sr">{emailBadge === "!" ? ", needs a look" : emailBadge === "! 1" ? ", 1 needs attention" : `, ${emailBadge.slice(2)} need attention`}</span>
+      </>}
     </button>)}
   </div>;
 }

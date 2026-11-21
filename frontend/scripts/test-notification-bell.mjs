@@ -70,6 +70,10 @@ try {
   assert.ok(push.includes('method: "DELETE"') && push.indexOf('method: "DELETE"') < push.indexOf("subscription?.unsubscribe()"), "Turning alerts off also removes the server record");
   assert.ok(!provider.includes("advanced settings"));
   await assert.rejects(read("src/components/BackgroundPushSettings.tsx"), "The unused background push panel is removed");
+  assert.ok(audit.includes("if (tab !== \"email\") return;") && audit.includes("void loadEmail();") && audit.includes("state: { fromTab: true }"), "Opening the Email tab reloads it; bell visits move focus there");
+  const auditCss = await read("src/pages/AuditPage.css");
+  assert.ok(auditCss.includes("outline-offset: -4px") && !auditCss.includes(".audit-retained-channels p {") && auditCss.includes(".audit-sr {"), "Focus ring is never clipped; screen readers get real text");
+  assert.ok(!audit.includes("aria-label={emailBadge") && audit.includes("className=\"audit-sr\""));
   pass("The Audit Log uses tabs with the activity log first; email notices open the Email delivery tab; turning notifications off also clears background push on the server");
   console.log(`${passed} notification bell groups passed.`);
 } finally { await vite.close(); }

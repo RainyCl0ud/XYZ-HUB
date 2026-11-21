@@ -30,6 +30,9 @@ export function useEmailDelivery(enabled: boolean) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  // A resolve failure stays visible; a later successful reload does not hide it.
+  const [actionError, setActionError] = useState("");
+  const resolving = useRef(false);
   const load = useCallback(async () => {
     if (!enabled) return;
     request.current?.abort();
@@ -50,19 +53,23 @@ export function useEmailDelivery(enabled: boolean) {
     return () => { window.clearTimeout(initial); request.current?.abort(); };
   }, [load]);
   const resolve = useCallback(async (item: Attention) => {
-    setBusy(item.id);
+    if (resolving.current) return;
+    resolving.current = true;
+    setBusy(item.id); setActionError("");
     try {
       await apiRequest("/api/chat/email-delivery/resolve", { method: "POST", body: JSON.stringify({ type: item.type, id: item.id }) });
       toast.success(item.type === "reminder" ? `Reminders resumed for ${item.personName}.` : "Marked as handled.");
       refreshHubNotifications();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "That delivery couldn’t be updated.");
+      setActionError(cause instanceof Error ? cause.message : "That delivery couldn’t be updated.");
     } finally {
-      // Reload either way: another Owner may already have handled it.
-      setBusy(null);
+      // Reload either way (another Owner may already have handled it), and
+      // keep the buttons disabled until the fresh list is on screen.
       await load();
+      setBusy(null);
+      resolving.current = false;
     }
   }, [load, toast]);
   const problem = !!data && STATUS[data.status].problem;
-  return { data, hidden, loading, error, busy, load, resolve, problem, attentionTotal: data?.attentionTotal ?? 0 };
+  return { data, hidden, loading, error: actionError || error, busy, load, resolve, problem, attentionTotal: data?.attentionTotal ?? 0 };
 }

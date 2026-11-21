@@ -5,7 +5,7 @@ import { formatCentralDateTime } from "../lib/time";
 type Channel = { id: string; name: string; workspace: string; cleanedUpAt: string };
 /** Owner panel in the Audit Log's Cleaned-up channels tab. The page's single
  * Refresh button reloads it by changing refreshKey. */
-export default function AuditRetainedChannels({ refreshKey = 0 }: { refreshKey?: number }) {
+export default function AuditRetainedChannels({ refreshKey = 0, onLoadingChange }: { refreshKey?: number; onLoadingChange?: (loading: boolean) => void }) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,6 +25,7 @@ export default function AuditRetainedChannels({ refreshKey = 0 }: { refreshKey?:
     const initial = window.setTimeout(() => void load(), 0);
     return () => { window.clearTimeout(initial); request.current?.abort(); };
   }, [load, refreshKey]);
+  useEffect(() => { onLoadingChange?.(busy); }, [busy, onLoadingChange]);
   return <div className="audit-retained-channels">
     <p className="audit-panel-note">Owner access to retained messages, message edit history and files. These channels stay hidden from the Chat list and message search.</p>
     {error && <p className="audit-email-error" role="alert">! {error} <button type="button" className="secondary-button" onClick={() => void load()}>Try again</button></p>}
