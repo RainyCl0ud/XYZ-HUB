@@ -87,7 +87,7 @@ export default function AccountTwoFactor() {
       <div>
         <h3 id="account-2fa-title">Two-step sign-in</h3>
         <p>{!status ? "Loading…" : enabled
-          ? `Authenticator app · on since ${formatCentralDateTime(status.authenticator.since)}`
+          ? (status.authenticator.since ? `Authenticator app · on since ${formatCentralDateTime(status.authenticator.since)}` : "Authenticator app · on")
           : "Sign-in codes come by email."}</p>
       </div>
       {status && step.kind === "idle" && (enabled
