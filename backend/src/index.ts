@@ -208,6 +208,12 @@ app.use(
   twoFactorRateLimit
 );
 
+// Sends an email, so it shares the sign-in limit.
+app.use(
+  "/api/auth/two-factor/email-instead",
+  loginRateLimit
+);
+
 app.use(
   "/api/auth/password-reset/request",
   passwordResetRateLimit

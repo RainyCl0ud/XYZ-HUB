@@ -231,6 +231,16 @@ export async function resetPersonTwoFactor(
             },
           });
 
+        // Recovery codes belong to the removed app.
+        await tx
+          .twoFactorRecoveryCode
+          .deleteMany({
+            where: {
+              userId:
+                user.id,
+            },
+          });
+
         await tx
           .userTwoFactorMethod
           .upsert({

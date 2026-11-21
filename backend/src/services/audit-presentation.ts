@@ -216,6 +216,10 @@ function actionLabel(
     "chat.private.create": "Private chat created",
     "chat.private.archive": "Private chat archived",
     "chat.unread_reminder.email": "Unread reminder email",
+    "auth.authenticator_enabled": "Authenticator app turned on",
+    "auth.authenticator_disabled": "Authenticator app turned off",
+    "auth.recovery_codes_regenerated": "New recovery codes issued",
+    "auth.recovery_code_used": "Signed in with a recovery code",
     "chat.email.review_resolve": "Paused email delivery resolved",
     "clock.correction.request": "Attendance correction requested",
     "clock.correction.approve": "Attendance correction approved",
@@ -1236,6 +1240,20 @@ function buildSummary(
       const details = asRecord(event.metadata);
       const unread = asNumber(details?.unreadCount);
       return ["To " + label, unread === null ? null : unread + " unread", asString(details?.outcome)].filter(Boolean).join(" · ");
+    }
+
+    case "auth.authenticator_enabled":
+      return label + " turned on an authenticator app for sign-in.";
+
+    case "auth.authenticator_disabled":
+      return label + " turned off their authenticator app.";
+
+    case "auth.recovery_codes_regenerated":
+      return label + " got new recovery codes; the old ones stopped working.";
+
+    case "auth.recovery_code_used": {
+      const left = asNumber(asRecord(event.metadata)?.recoveryCodesLeft);
+      return label + " signed in with a recovery code" + (left === null ? "." : " (" + left + " left).");
     }
 
     case "chat.email.review_resolve":

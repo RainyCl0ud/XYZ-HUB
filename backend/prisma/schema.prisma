@@ -74,6 +74,7 @@ model User {
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
   twoFactorMethods    UserTwoFactorMethod[]
+  twoFactorRecoveryCodes TwoFactorRecoveryCode[]
   twoFactorChallenges TwoFactorChallenge[]
 
   invites        Invite[] @relation("Invitee")
@@ -422,6 +423,9 @@ model UserTwoFactorMethod {
    * Reserved for future authenticator application support.
    */
   secretEncrypted String?
+
+  // Highest 30-second step already accepted; a code is never accepted twice.
+  lastUsedStep Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1271,4 +1275,17 @@ model EmailLimitWarning {
   startedAt DateTime @db.Timestamptz(3)
   endedAt DateTime? @db.Timestamptz(3)
   @@index([startedAt])
+}
+
+// One-time recovery codes for signing in without the authenticator app.
+// Only an HMAC of each code is stored; each code works once.
+model TwoFactorRecoveryCode {
+  id String @id @default(cuid())
+  userId String
+  codeHash String
+  usedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, codeHash])
+  @@index([userId])
 }

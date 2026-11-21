@@ -13,6 +13,10 @@ import {
   prisma,
 } from "../lib/prisma.js";
 
+import {
+  useAuthenticatorCode,
+} from "./authenticator.js";
+
 export const TWO_FACTOR_CODE_TTL_MS =
   10 * 60 * 1000;
 
@@ -164,6 +168,30 @@ export async function createEmailTwoFactorChallenge(
   };
 }
 
+/**
+ * Second step for someone with an authenticator app: no email is sent.
+ * Any earlier open challenge for this person is closed first. The stored
+ * hash is a random placeholder; these challenges are checked against the
+ * app (or a recovery code) instead.
+ */
+export async function createAuthenticatorTwoFactorChallenge(
+  userId: string
+) {
+  const now = new Date();
+  await prisma.twoFactorChallenge.updateMany({
+    where: { userId, consumedAt: null },
+    data: { consumedAt: now },
+  });
+  return prisma.twoFactorChallenge.create({
+    data: {
+      userId,
+      methodType: TwoFactorMethodType.AUTHENTICATOR,
+      codeHash: "authenticator:" + randomBytes(16).toString("hex"),
+      expiresAt: new Date(now.getTime() + TWO_FACTOR_CODE_TTL_MS),
+    },
+  });
+}
+
 export type TwoFactorVerifyResult =
   | "VERIFIED"
   | "INVALID"
@@ -261,11 +289,16 @@ export async function verifyTwoFactorChallenge(
     return "LOCKED";
   }
 
+  // Same attempt limit, expiry and single-use claim for both kinds; only
+  // the way the code is checked differs.
   const isValid =
-    verifyTwoFactorCodeHash(
-      code,
-      challenge.codeHash
-    );
+    challenge.methodType === TwoFactorMethodType.AUTHENTICATOR
+      ? (await useAuthenticatorCode(challenge.userId, code)).ok
+      : /^\d{6}$/.test(code) &&
+        verifyTwoFactorCodeHash(
+          code,
+          challenge.codeHash
+        );
 
   if (
     isValid

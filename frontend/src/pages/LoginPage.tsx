@@ -32,6 +32,11 @@ type LoginResponse = {
 
   expiresAt:
     string;
+
+  // AUTHENTICATOR: enter the app's code (email
+  // available as a backup). EMAIL: a code was sent.
+  method?:
+    "EMAIL" | "AUTHENTICATOR";
 };
 
 const SIGNED_OUT_MESSAGES = [
@@ -183,6 +188,13 @@ function LoginPage() {
         "xyz_pending_2fa_email",
 
         email.trim()
+      );
+
+      sessionStorage.setItem(
+        "xyz_pending_2fa_method",
+
+        result.method ??
+          "EMAIL"
       );
 
       sessionStorage.setItem(
