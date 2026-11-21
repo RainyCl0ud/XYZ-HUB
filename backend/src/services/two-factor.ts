@@ -13,6 +13,14 @@ import {
   prisma,
 } from "../lib/prisma.js";
 
+import {
+  APP_FAILURE_LIMIT,
+  recentAppFailures,
+  useAuthenticatorCode,
+} from "./authenticator.js";
+
+class InvalidAuthenticatorCode extends Error {}
+
 export const TWO_FACTOR_CODE_TTL_MS =
   10 * 60 * 1000;
 
@@ -164,6 +172,30 @@ export async function createEmailTwoFactorChallenge(
   };
 }
 
+/**
+ * Second step for someone with an authenticator app: no email is sent.
+ * Any earlier open challenge for this person is closed first. The stored
+ * hash is a random placeholder; these challenges are checked against the
+ * app (or a recovery code) instead.
+ */
+export async function createAuthenticatorTwoFactorChallenge(
+  userId: string
+) {
+  const now = new Date();
+  await prisma.twoFactorChallenge.updateMany({
+    where: { userId, consumedAt: null },
+    data: { consumedAt: now },
+  });
+  return prisma.twoFactorChallenge.create({
+    data: {
+      userId,
+      methodType: TwoFactorMethodType.AUTHENTICATOR,
+      codeHash: "authenticator:" + randomBytes(16).toString("hex"),
+      expiresAt: new Date(now.getTime() + TWO_FACTOR_CODE_TTL_MS),
+    },
+  });
+}
+
 export type TwoFactorVerifyResult =
   | "VERIFIED"
   | "INVALID"
@@ -261,7 +293,61 @@ export async function verifyTwoFactorChallenge(
     return "LOCKED";
   }
 
+  if (
+    challenge.methodType ===
+    TwoFactorMethodType.AUTHENTICATOR
+  ) {
+    /*
+     * Wrong app codes are also limited per person
+     * across sign-ins, so a known password can't be
+     * used to keep guessing on fresh challenges.
+     */
+    if (
+      (await recentAppFailures(challenge.userId)) >=
+      APP_FAILURE_LIMIT
+    ) {
+      await prisma.twoFactorChallenge.updateMany({
+        where: { id: challenge.id, consumedAt: null },
+        data: { consumedAt: now },
+      });
+      return "LOCKED";
+    }
+
+    /*
+     * The challenge and the code (app step or
+     * recovery code) are claimed in one transaction:
+     * if either claim fails, neither is spent.
+     */
+    const outcome =
+      await prisma.$transaction(async (tx) => {
+        const claimed =
+          await tx.twoFactorChallenge.updateMany({
+            where: {
+              id: challenge.id,
+              consumedAt: null,
+              expiresAt: { gt: now },
+              failedAttempts: { lt: TWO_FACTOR_MAX_ATTEMPTS },
+            },
+            data: { consumedAt: now },
+          });
+        if (!claimed.count) return "UNAVAILABLE" as const;
+        const check =
+          await useAuthenticatorCode(tx, challenge.userId, code);
+        if (!check.ok) throw new InvalidAuthenticatorCode();
+        return "VERIFIED" as const;
+      }).catch((error: unknown) => {
+        if (error instanceof InvalidAuthenticatorCode) return "INVALID" as const;
+        throw error;
+      });
+
+    if (outcome === "VERIFIED") return "VERIFIED";
+    if (outcome === "UNAVAILABLE") return getUnavailableResult(challenge.id);
+    // INVALID continues to the shared failed-attempt handling below.
+  }
+
   const isValid =
+    challenge.methodType === TwoFactorMethodType.EMAIL &&
+    /^\d{6}$/.test(code) &&
     verifyTwoFactorCodeHash(
       code,
       challenge.codeHash

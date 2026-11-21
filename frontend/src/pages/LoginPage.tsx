@@ -32,6 +32,15 @@ type LoginResponse = {
 
   expiresAt:
     string;
+
+  // AUTHENTICATOR: enter the app's code (email
+  // available as a backup). EMAIL: a code was sent.
+  method?:
+    "EMAIL" | "AUTHENTICATOR";
+
+  // Too many wrong app codes this hour: emailed instead.
+  appPaused?:
+    boolean;
 };
 
 const SIGNED_OUT_MESSAGES = [
@@ -184,6 +193,24 @@ function LoginPage() {
 
         email.trim()
       );
+
+      sessionStorage.setItem(
+        "xyz_pending_2fa_method",
+
+        result.method ??
+          "EMAIL"
+      );
+
+      if (result.appPaused) {
+        sessionStorage.setItem(
+          "xyz_pending_2fa_notice",
+          "app-paused"
+        );
+      } else {
+        sessionStorage.removeItem(
+          "xyz_pending_2fa_notice"
+        );
+      }
 
       sessionStorage.setItem(
         "xyz_after_login",

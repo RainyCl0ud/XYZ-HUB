@@ -452,3 +452,28 @@
 .account-page-header .account-header-notifications { margin: 0 0 0 auto; padding: 0; border: 0; background: transparent; display: grid; grid-template-columns: auto auto; align-items: center; gap: 12px; }
 .account-header-notifications h3 { margin: 0; font-size: 14px; }
 .account-header-notifications .account-notification-error { grid-column: 1 / -1; max-width: 300px; }
+
+/* Two-step sign-in (authenticator app). Monochrome, 2px corners. */
+.account-two-factor { margin-top: 16px; padding: 24px; }
+.account-2fa-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.account-2fa-heading h3 { margin: 0; font-size: 18px; font-weight: 800; }
+.account-2fa-heading p { margin: 4px 0 0; font-size: 13px; color: #CCCCCC; }
+.account-2fa-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.account-2fa-note { margin: 16px 0 0; font-size: 13px; line-height: 1.5; color: #999999; }
+.account-2fa-note.is-warning { color: #FFFFFF; font-weight: 700; }
+.account-2fa-error { margin: 16px 0 0; padding: 12px; font-size: 13px; font-weight: 700; border: 2px solid #FFFFFF; border-radius: 2px; }
+.account-2fa-step { display: grid; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #333333; max-width: 560px; }
+.account-2fa-steps { margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: #CCCCCC; }
+.account-2fa-steps a { color: #FFFFFF; text-decoration: underline; text-underline-offset: 3px; }
+.account-2fa-scan { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; }
+/* Scanners need dark modules on a light background. */
+.account-2fa-qr { display: block; padding: 8px; background: #FFFFFF; border-radius: 2px; }
+.account-2fa-key { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.account-2fa-key span { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #8E8E8E; }
+.account-2fa-key span:last-child { letter-spacing: normal; text-transform: none; font-weight: 400; font-size: 13px; color: #999999; }
+.account-2fa-key strong { font-size: 15px; letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+.account-2fa-codes { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 8px 32px; margin: 0; padding: 16px; list-style: none;
+  font-size: 15px; font-weight: 700; letter-spacing: .08em; font-variant-numeric: tabular-nums; background: #0D0D0D; border: 1px solid #666666; border-radius: 2px; }
+.account-2fa-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.account-2fa-danger { border: 2px solid #FFFFFF; }
+@media (max-width: 720px) { .account-two-factor { padding: 16px; } .account-2fa-codes { grid-template-columns: 1fr; } }

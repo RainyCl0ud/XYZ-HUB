@@ -47,9 +47,28 @@ import {
 } from "../services/session-cookie.js";
 
 import {
+  createAuthenticatorTwoFactorChallenge,
   createEmailTwoFactorChallenge,
+  TWO_FACTOR_MAX_ATTEMPTS,
   verifyTwoFactorChallenge,
 } from "../services/two-factor.js";
+
+import {
+  APP_FAILURE_LIMIT,
+  AuthenticatorError,
+  recentAppFailures,
+  authenticatorStatus,
+  confirmAuthenticatorSetup,
+  disableAuthenticator,
+  hasAuthenticator,
+  RECOVERY_CODE_PATTERN,
+  regenerateRecoveryCodes,
+  startAuthenticatorSetup,
+} from "../services/authenticator.js";
+
+import {
+  createRateLimit,
+} from "../middleware/rate-limit.js";
 
 import {
   sendEmailTwoFactorCode,
@@ -104,13 +123,62 @@ const verifyTwoFactorSchema =
         .string()
         .min(1),
 
+    // Six digits (emailed or from the app), or
+    // a one-time recovery code such as 7K4M-9QRT.
     code:
       z
         .string()
-        .regex(
-          /^\d{6}$/
+        .trim()
+        .refine(
+          (value) =>
+            /^\d{6}$/.test(value) ||
+            RECOVERY_CODE_PATTERN.test(value)
         ),
   });
+
+/*
+ * Sends a fresh emailed code. Never leaves an
+ * active challenge behind if delivery fails.
+ */
+async function issueEmailChallenge(user: {
+  id: string;
+  email: string;
+}) {
+  const {
+    challenge,
+    code,
+  } =
+    await createEmailTwoFactorChallenge(
+      user.id
+    );
+
+  try {
+    await sendEmailTwoFactorCode({
+      email:
+        user.email,
+      code,
+      expiresAt:
+        challenge.expiresAt,
+    });
+  } catch (error) {
+    await prisma.twoFactorChallenge.updateMany({
+      where: {
+        id:
+          challenge.id,
+        consumedAt:
+          null,
+      },
+      data: {
+        consumedAt:
+          new Date(),
+      },
+    });
+
+    throw error;
+  }
+
+  return challenge;
+}
 
   /*
  * Temporary password policy.
@@ -298,48 +366,67 @@ router.post(
        *
        * Now create the second authentication
        * factor instead of creating a session.
+       * Someone with an authenticator app enters
+       * its code; no email is sent. They can still
+       * ask for an emailed code instead.
        */
-      const {
-        challenge,
-        code,
-      } =
-        await createEmailTwoFactorChallenge(
+      const appUser =
+        await hasAuthenticator(
           user.id
         );
+      // After too many wrong app codes this hour,
+      // the code is emailed instead (the person
+      // sees the email, a signal if it wasn't them).
+      const appPaused =
+        appUser &&
+        (await recentAppFailures(user.id)) >=
+          APP_FAILURE_LIMIT;
 
-      try {
-        await sendEmailTwoFactorCode({
-          email:
-            user.email,
+      if (appPaused) {
+        await prisma.auditEvent.create({
+          data: {
+            occurredAt: new Date(),
+            action: "auth.authenticator_paused",
+            success: false,
+            statusCode: 429,
+            actorUserId: user.id,
+            actorLabel: user.name,
+            targetType: "user",
+            targetId: user.id,
+            metadata: { email: user.email },
+          },
+        });
+      }
 
-          code,
+      if (
+        appUser &&
+        !appPaused
+      ) {
+        const challenge =
+          await createAuthenticatorTwoFactorChallenge(
+            user.id
+          );
 
+        res.status(200).json({
+          status:
+            "TWO_FACTOR_REQUIRED",
+          challengeId:
+            challenge.id,
           expiresAt:
             challenge.expiresAt,
-        });
-      } catch (error) {
-        /*
-         * Never leave an active challenge
-         * behind when its code could not be
-         * delivered.
-         */
-        await prisma.twoFactorChallenge.updateMany({
-          where: {
-            id:
-              challenge.id,
-
-            consumedAt:
-              null,
-          },
-
-          data: {
-            consumedAt:
-              new Date(),
-          },
+          method:
+            "AUTHENTICATOR",
+          emailAvailable:
+            true,
         });
 
-        throw error;
+        return;
       }
+
+      const challenge =
+        await issueEmailChallenge(
+          user
+        );
 
       /*
        * Notice that the plain 2FA code is
@@ -348,6 +435,13 @@ router.post(
       res.status(200).json({
         status:
           "TWO_FACTOR_REQUIRED",
+
+        method:
+          "EMAIL",
+
+        ...(appPaused
+          ? { appPaused: true }
+          : {}),
 
         challengeId:
           challenge.id,
@@ -406,7 +500,7 @@ router.post(
           "INVALID_REQUEST",
 
         message:
-          "A challenge ID and six-digit code are required.",
+          "Enter the six-digit code, or a recovery code.",
       });
 
       return;
@@ -623,6 +717,172 @@ router.post(
       });
     }
   }
+);
+
+/*
+ * =========================================================
+ * POST /api/auth/two-factor/email-instead
+ * =========================================================
+ *
+ * Someone with an authenticator app who doesn't
+ * have it to hand asks for an emailed code. The
+ * open authenticator challenge (already behind a
+ * correct password) is closed and replaced.
+ */
+const emailInsteadSchema =
+  z.object({
+    challengeId:
+      z.string().min(1).max(100),
+  }).strict();
+
+router.post(
+  "/two-factor/email-instead",
+  async (req, res) => {
+    const parsed =
+      emailInsteadSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "INVALID_REQUEST",
+        message: "A challenge ID is required.",
+      });
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const open =
+        await prisma.twoFactorChallenge.findUnique({
+          where: { id: parsed.data.challengeId },
+          select: { id: true, userId: true, methodType: true, consumedAt: true, expiresAt: true, failedAttempts: true },
+        });
+
+      if (
+        !open ||
+        open.methodType !== "AUTHENTICATOR" ||
+        open.consumedAt ||
+        open.expiresAt <= now ||
+        open.failedAttempts >= TWO_FACTOR_MAX_ATTEMPTS
+      ) {
+        res.status(401).json({
+          error: "INVALID_TWO_FACTOR_CHALLENGE",
+          message: "This sign-in has expired. Sign in again.",
+        });
+        return;
+      }
+
+      const user =
+        await prisma.user.findUnique({
+          where: { id: open.userId },
+          select: { id: true, email: true, status: true },
+        });
+
+      if (!user || user.status !== UserStatus.ACTIVE) {
+        res.status(401).json({
+          error: "INVALID_TWO_FACTOR_CHALLENGE",
+          message: "This sign-in has expired. Sign in again.",
+        });
+        return;
+      }
+
+      // Send first: if the email fails, the app
+      // challenge stays open and the person can
+      // still use their app or try again.
+      const challenge =
+        await issueEmailChallenge(user);
+
+      await prisma.twoFactorChallenge.updateMany({
+        where: { id: open.id, consumedAt: null },
+        data: { consumedAt: new Date() },
+      });
+
+      res.status(200).json({
+        status: "TWO_FACTOR_REQUIRED",
+        method: "EMAIL",
+        challengeId: challenge.id,
+        expiresAt: challenge.expiresAt,
+      });
+    } catch (error) {
+      console.error("Email code request failed:", error);
+      res.status(500).json({
+        error: "TWO_FACTOR_EMAIL_FAILED",
+        message: "An emailed code couldn’t be sent. Try again in a moment.",
+      });
+    }
+  }
+);
+
+/*
+ * =========================================================
+ * /api/auth/two-factor (signed in): authenticator app
+ * =========================================================
+ *
+ * Status, setup (password, then a code from the
+ * app), new recovery codes and turning it off.
+ * Password checks are rate limited per person.
+ */
+const passwordBody =
+  z.object({ password: z.string().min(1).max(500) }).strict();
+const confirmBody =
+  z.object({ code: z.string().trim().regex(/^\d{6}$/) }).strict();
+const authenticatorLimit =
+  createRateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    keyPrefix: "authenticator",
+    getIdentity: (req) => (req as AuthenticatedRequest).userId ?? req.ip ?? "unknown",
+  });
+
+function authenticatorRoute(
+  handler: (req: AuthenticatedRequest) => Promise<unknown>
+) {
+  return async (req: AuthenticatedRequest, res: import("express").Response) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      res.json(await handler(req));
+    } catch (error) {
+      if (error instanceof AuthenticatorError) {
+        res.status(error.status).json({ error: error.code, message: error.message });
+        return;
+      }
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "INVALID_REQUEST", message: "Check the details and try again." });
+        return;
+      }
+      console.error("Authenticator request failed:", error);
+      res.status(500).json({ error: "AUTHENTICATOR_FAILED", message: "That didn’t work. Try again in a moment." });
+    }
+  };
+}
+
+router.get(
+  "/two-factor",
+  requireAuth,
+  authenticatorRoute((req) => authenticatorStatus(req.userId!))
+);
+router.post(
+  "/two-factor/authenticator/setup",
+  requireAuth,
+  authenticatorLimit,
+  authenticatorRoute((req) => startAuthenticatorSetup(req.userId!, passwordBody.parse(req.body ?? {}).password))
+);
+router.post(
+  "/two-factor/authenticator/confirm",
+  requireAuth,
+  authenticatorLimit,
+  authenticatorRoute((req) => confirmAuthenticatorSetup(req.userId!, confirmBody.parse(req.body ?? {}).code))
+);
+router.post(
+  "/two-factor/recovery-codes",
+  requireAuth,
+  authenticatorLimit,
+  authenticatorRoute((req) => regenerateRecoveryCodes(req.userId!, passwordBody.parse(req.body ?? {}).password))
+);
+router.post(
+  "/two-factor/authenticator/disable",
+  requireAuth,
+  authenticatorLimit,
+  authenticatorRoute((req) => disableAuthenticator(req.userId!, passwordBody.parse(req.body ?? {}).password))
 );
 
 /*

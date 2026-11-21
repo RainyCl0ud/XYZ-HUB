@@ -23,6 +23,7 @@ import {
 
 import UserAvatar from "../components/UserAvatar";
 import AccountNotificationToggle from "../components/AccountNotificationToggle";
+import AccountTwoFactor from "../components/AccountTwoFactor";
 import "./AccountPage.css";
 
 const CENTRAL_TIME_ZONE =
@@ -489,6 +490,8 @@ function AccountPage() {
 
         </div>
       </section>
+
+      <AccountTwoFactor />
 
       {avatarEditorOpen && (
         <div

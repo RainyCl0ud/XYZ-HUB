@@ -512,3 +512,37 @@
     padding-right: 50px;
   }
 }
+
+/* Authenticator sign-in alternatives: plain underlined text buttons. */
+.auth-alternatives {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.auth-text-button {
+  min-height: 32px;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: none;
+  border: 0;
+  border-radius: 2px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.auth-text-button:disabled {
+  color: #5C5C5C;
+  cursor: default;
+}
+
+.auth-text-button:focus-visible {
+  outline: 2px solid #FFFFFF;
+  outline-offset: 2px;
+}

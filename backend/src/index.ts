@@ -39,6 +39,8 @@ import {
 } from "./middleware/request-performance.js";
 
 import {
+  emailInsteadNetworkRateLimit,
+  emailInsteadRateLimit,
   loginRateLimit,
   passwordResetRateLimit,
   twoFactorRateLimit,
@@ -206,6 +208,13 @@ app.use(
 app.use(
   "/api/auth/verify-2fa",
   twoFactorRateLimit
+);
+
+// Sends an email: limited per sign-in attempt and per network.
+app.use(
+  "/api/auth/two-factor/email-instead",
+  emailInsteadNetworkRateLimit,
+  emailInsteadRateLimit
 );
 
 app.use(

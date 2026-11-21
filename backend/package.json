@@ -86,6 +86,7 @@
     "test:chat-mentions": "tsx scripts/test-chat-mentions.ts",
     "test:hub-notifications": "tsx scripts/test-hub-notifications.ts",
     "test:email-delivery": "tsx scripts/test-email-delivery.ts",
+    "test:authenticator": "tsx scripts/test-authenticator.ts",
     "test:chat-mentions-upgrade": "tsx scripts/test-chat-mentions-upgrade.ts"
   },
   "keywords": [],
@@ -100,6 +101,7 @@
     "google-auth-library": "^11.1.0",
     "nodemailer": "^10.0.10",
     "prisma": "^6.12.0",
+    "qrcode": "1.5.4",
     "sharp": "0.35.5",
     "web-push": "^4.0.0",
     "yazl": "3.3.1",
@@ -110,6 +112,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^22.20.1",
+    "@types/qrcode": "1.5.6",
     "@types/web-push": "^3.6.4",
     "@types/yazl": "3.3.0",
     "tsx": "^4.23.13",
