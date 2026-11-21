@@ -9,7 +9,10 @@ type AuthShellProps = {
 
   title: string;
 
-  description: string;
+  description: ReactNode;
+
+  // Extra class on the card, for one page's own layout.
+  className?: string;
 
   children: ReactNode;
 
@@ -22,13 +25,14 @@ function AuthShell({
   description,
   children,
   footer,
+  className,
 }: AuthShellProps) {
   return (
     <div className="auth-page">
       <div className="auth-background-glow auth-background-glow-one" />
       <div className="auth-background-glow auth-background-glow-two" />
 
-      <main className="auth-card">
+      <main className={className ? `auth-card ${className}` : "auth-card"}>
         <div className="auth-brand auth-brand-official">
           <img
             src={xyzManagementLogo}
