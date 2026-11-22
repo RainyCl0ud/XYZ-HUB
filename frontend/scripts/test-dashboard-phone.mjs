@@ -54,7 +54,8 @@ for (const selector of [
 }
 assert.ok(/\.agency-metric-card > span,[^{]*\{[^}]*font-size: 11px;[^}]*text-transform: uppercase;/.test(allWidths), "Card labels are 11px uppercase labels");
 assert.ok(/\.agency-metric-card > small \{[^}]*font-size: 13px;/.test(allWidths), "Card captions are 13px, not 8.5px");
-pass("Dashboard text is at least 11px at every width (13px names and helpers, 11px uppercase labels)");
+assert.ok(!/\.card-header h3 \{/.test(phone), "No phone heading size that the global !important rule would override");
+pass("The new rules raise Dashboard text to at least 11px at every width (13px names and helpers, 11px uppercase labels)");
 
 // 2. Phones: slim number cards, one line each, still links.
 assert.ok(/display: flex;\s*flex-direction: row;\s*align-items: center;/.test(rule(phone, ".agency-metric-card")) && /min-height: 44px;/.test(rule(phone, ".agency-metric-card")), "Each card is one 44px row");
@@ -84,7 +85,8 @@ assert.ok(/grid-column: auto;/.test(rule(phone, ".agency-person-meta")), "Status
 assert.ok(/flex-direction: row;\s*align-items: baseline;/.test(rule(phone, ".agency-model-stat")), '"2 incidents" reads on one line');
 assert.ok(page.includes('{model.incidentCount === 1\n                              ? "incident"\n                              : "incidents"}'), '"1 incident", not "1 incidents"');
 assert.ok(/grid-template-columns: minmax\(0, 1fr\) auto;/.test(rule(phone, ".agency-incident-row")) && /grid-row: 1 \/ 3;/.test(rule(phone, ".agency-incident-state")), "Incidents: person and rule left, severity right");
-assert.ok(/display: none;/.test(ruleIn(phone, ".agency-incident-violation span,\n  .agency-incident-state strong")), 'The repeated "Violation" and "Open incident" labels are hidden on phones');
+const incidentLabels = ruleIn(phone, ".agency-incident-violation span,\n  .agency-incident-state strong");
+assert.ok(/clip-path: inset\(50%\);/.test(incidentLabels) && /position: absolute;/.test(incidentLabels) && !/display: none;/.test(incidentLabels), 'The repeated "Violation" and "Open incident" labels are hidden on screen but still read by screen readers');
 assert.ok(rule(phone, ".agency-incident-person span::before").includes('content: "·" / "";'), "The separator dot is silent for screen readers");
 pass("Phones: people, creators and incidents each take one compact row");
 

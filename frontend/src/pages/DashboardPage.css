@@ -816,7 +816,8 @@
    Text follows the web kit scale at every width: 11px only for
    uppercase labels, 13px for names and helper text. Phones
    (720px and below) get slim number cards, one-line rows and
-   compact empty states. Nothing is removed or moved.
+   compact empty states, and list the 3 newest people (desktop
+   lists 5). Card order, links and permissions don't change.
    ========================================================= */
 
 .agency-metric-card > span,
@@ -947,10 +948,6 @@
     min-width: 0;
   }
 
-  .agency-dashboard-panel .card-header h3 {
-    font-size: 15px;
-  }
-
   .agency-dashboard-panel .card-header p {
     display: none;
   }
@@ -1040,9 +1037,20 @@
     grid-row: 2;
   }
 
+  /* The card title already says these are open incidents, so the labels
+     are hidden on screen but still read by screen readers. */
   .agency-incident-violation span,
   .agency-incident-state strong {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
   }
 
   .agency-incident-violation strong {

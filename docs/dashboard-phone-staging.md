@@ -8,17 +8,18 @@ On a phone, the Dashboard took about two screens of scrolling, and the first scr
 
 **Phones (720px and below)**
 
-- **Number cards:** each is one slim line, for example "7 Active people ›", in a 2×2 grid. They're 44px tall instead of 104px. The tiny caption is hidden. Every card still opens the same filtered list. The number used to be centred while its label sat on the left; both now line up.
+- **Number cards:** each is one slim line, for example "7 Active people ›", in a 2×2 grid. They're 44px tall instead of 104px; on the narrowest phones (320px) the label wraps to two lines. The tiny caption is hidden. Every card still opens the same filtered list. The number used to be centred while its label sat on the left; both now line up.
 - **Intro:** "AGENCY OVERVIEW / Dashboard" stays. The description sentence is hidden, since the header already names the page.
 - **Card headers:** the title and its link ("View people ›", "View creators ›", "View incidents ›") share one line. The description under each title is hidden.
 - **Recently added people:** name and role on the left, status and date on the right, so the status no longer wraps under the name. Phones show the 3 newest people; desktop still shows 5.
 - **Current creators:** "2 incidents" reads on one line on the right.
-- **Open QA incidents:** each incident is two lines: the person and creator, then the rule, with the severity on the right. The repeated "Violation" and "Open incident" labels are hidden. When there are none, "No open QA incidents" is one line (about 48px) instead of a 230px box.
+- **Open QA incidents:** each incident is two lines: the person and creator, then the rule, with the severity on the right. The repeated "Violation" and "Open incident" labels are hidden on screen, since the card title already says these are open incidents. Screen readers still read them. When there are none, "No open QA incidents" is one line (about 48px) instead of a 230px box.
 - **Coming later:** one line per item, for example "SCHEDULE … Coming later". Schedule, Revenue and Commission sheets all still say "coming later" (brief section 9).
 
 **Every width**
 
-- The Dashboard's 8–10px text is raised to the web kit scale. Names and helper text are 13px; labels are 11px uppercase (card labels, status tags, "Violation", the Coming later and Your account labels). The desktop layout is otherwise unchanged.
+- The Dashboard's 8–10px text is raised to the web kit scale. Names and helper text are 13px; labels are 11px uppercase (card labels, status tags, "Violation", the Coming later and Your account labels). The desktop layout is otherwise unchanged, though the number cards are a little taller because their text is larger.
+- Not included: the small "AGENCY OVERVIEW" label above the title stays at 10px. Every page shares it, so changing it belongs to a Hub-wide change.
 - "1 incident" instead of "1 incidents".
 
 **Unchanged:** the order of the cards, the header and creator picker, the confidentiality footer, who sees what, and where every link goes. Frontend only: no backend change, migration, flag or setting.
