@@ -733,7 +733,9 @@ function DashboardPage() {
                           </strong>
 
                           <span>
-                            incidents
+                            {model.incidentCount === 1
+                              ? "incident"
+                              : "incidents"}
                           </span>
                         </div>
                       </Link>
@@ -886,7 +888,7 @@ function DashboardPage() {
           </section>
         )}
         {hasPortalPermission(access, "dashboard.upcoming.view") && (
-          <section className="content-card agency-dashboard-panel agency-access-panel">
+          <section className="content-card agency-dashboard-panel agency-access-panel agency-upcoming-panel">
             <div className="card-header"><h3>Coming later</h3></div>
             <div className="agency-access-summary">
               <div><span>Schedule</span><strong>Coming later</strong></div>
