@@ -151,33 +151,21 @@ function formatCentralZone(
   );
 }
 
-function formatCentralDateZone(
+// Header date under the time, e.g. "Sun, Nov 22". The zone sits on the
+// time itself, and the full date is in the tooltip.
+function formatCentralDay(
   value:
-    Date
+    Date,
+  long = false
 ) {
-  const date =
-    new Intl.DateTimeFormat(
-      "en-US",
-      {
-        timeZone:
-          CENTRAL_TIME_ZONE,
-        month:
-          "short",
-        day:
-          "numeric",
-        year:
-          "numeric",
-      }
-    ).format(
-      value
-    );
-
-  const zone =
-    formatCentralZone(
-      value
-    );
-
-  return `${date} · ${zone}`;
+  return new Intl.DateTimeFormat(
+    "en-US",
+    long
+      ? { timeZone: CENTRAL_TIME_ZONE, weekday: "long", month: "long", day: "numeric", year: "numeric" }
+      : { timeZone: CENTRAL_TIME_ZONE, weekday: "short", month: "short", day: "numeric" }
+  ).format(
+    value
+  );
 }
 
 function AppLayout() {
@@ -752,10 +740,33 @@ function AppLayout() {
       ]
     );
 
-  const centralDateZone =
+  const centralDay =
     useMemo(
       () =>
-        formatCentralDateZone(
+        formatCentralDay(
+          now
+        ),
+      [
+        now,
+      ]
+    );
+
+  const centralDayLong =
+    useMemo(
+      () =>
+        formatCentralDay(
+          now,
+          true
+        ),
+      [
+        now,
+      ]
+    );
+
+  const centralZone =
+    useMemo(
+      () =>
+        formatCentralZone(
           now
         ),
       [
@@ -809,13 +820,13 @@ function AppLayout() {
         {showModelContext ? (
           <div className="portal-command-context portal-command-context-v2">
             <span className="portal-command-label">
-              Creator context
+              Creator
             </span>
 
             {canSwitchModelContext ? (
               <select
                 id="portal-model-context"
-                aria-label="Creator context"
+                aria-label="Creator"
                 value={
                   activeModelId
                 }
@@ -872,40 +883,22 @@ function AppLayout() {
 
         <div className="portal-command-meta">
           <NotificationBell />
-          <div
-            className="portal-command-role"
-            aria-label="Current signed-in role"
-          >
-            <strong
-              title={
-                roleNames
-              }
-            >
-              {roleNames}
-            </strong>
-
-            <span className="portal-command-label">
-              Role
-            </span>
-          </div>
-
           <div className="portal-command-time">
-            <span className="portal-command-label">
-              US Central
-            </span>
-
             <strong className="portal-clock-time">
               {centralClock}
               <span className="portal-clock-zone">
                 {" "}
-                {formatCentralZone(
-                  now
-                )}
+                {centralZone}
               </span>
             </strong>
 
-            <small className="portal-clock-date">
-              {centralDateZone}
+            <small
+              className="portal-clock-date"
+              title={
+                centralDayLong
+              }
+            >
+              {centralDay}
             </small>
           </div>
 
@@ -918,7 +911,7 @@ function AppLayout() {
             <button
               type="button"
               className="portal-account-avatar-button"
-              aria-label="Open account menu"
+              aria-label={`${user?.name ?? "Account"}, ${roleNames}: open account menu`}
               aria-haspopup="menu"
               aria-expanded={
                 accountMenuOpen
@@ -943,6 +936,33 @@ function AppLayout() {
                 }
                 className="portal-account-avatar"
               />
+
+              {/* Desktop shows who is signed in; phones keep the avatar only. */}
+              <span className="portal-account-identity">
+                <strong
+                  title={
+                    user?.name
+                  }
+                >
+                  {user?.name}
+                </strong>
+
+                <small
+                  title={
+                    roleNames
+                  }
+                >
+                  {roleNames}
+                </small>
+              </span>
+
+              <svg
+                className="portal-account-chevron"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
             </button>
 
             {accountMenuOpen && (
