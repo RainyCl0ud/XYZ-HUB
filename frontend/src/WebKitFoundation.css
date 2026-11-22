@@ -62,12 +62,6 @@
   --warning: #ffffff;
   --warning-bg: rgba(255, 255, 255, 0.08);
 
-  /*
-   * Destructive-action colors intentionally continue to inherit from
-   * the existing application theme until the People Management
-   * Danger Zone treatment is confirmed.
-   */
-
   --info: #ffffff;
   --info-bg: rgba(255, 255, 255, 0.08);
 

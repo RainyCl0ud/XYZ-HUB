@@ -121,6 +121,36 @@ function formatCentralClock(
   );
 }
 
+// Short US Central zone name for the header: CST or CDT.
+function formatCentralZone(
+  value:
+    Date
+) {
+  return (
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          CENTRAL_TIME_ZONE,
+        timeZoneName:
+          "short",
+      }
+    )
+      .formatToParts(
+        value
+      )
+      .find(
+        (
+          part
+        ) =>
+          part.type ===
+          "timeZoneName"
+      )
+      ?.value ??
+    "CT"
+  );
+}
+
 function formatCentralDateZone(
   value:
     Date
@@ -143,27 +173,9 @@ function formatCentralDateZone(
     );
 
   const zone =
-    new Intl.DateTimeFormat(
-      "en-US",
-      {
-        timeZone:
-          CENTRAL_TIME_ZONE,
-        timeZoneName:
-          "short",
-      }
-    )
-      .formatToParts(
-        value
-      )
-      .find(
-        (
-          part
-        ) =>
-          part.type ===
-          "timeZoneName"
-      )
-      ?.value ??
-    "CT";
+    formatCentralZone(
+      value
+    );
 
   return `${date} · ${zone}`;
 }
@@ -884,6 +896,12 @@ function AppLayout() {
 
             <strong className="portal-clock-time">
               {centralClock}
+              <span className="portal-clock-zone">
+                {" "}
+                {formatCentralZone(
+                  now
+                )}
+              </span>
             </strong>
 
             <small className="portal-clock-date">

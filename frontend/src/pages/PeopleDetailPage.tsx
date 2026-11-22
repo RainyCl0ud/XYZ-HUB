@@ -200,9 +200,6 @@ function formatStatus(
   return "Active";
 }
 
-
-
-
 function formatTexasDateTime(
   value:
     string |

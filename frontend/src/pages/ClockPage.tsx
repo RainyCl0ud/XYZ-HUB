@@ -145,7 +145,7 @@ export default function ClockPage() {
     {data && tab === "team" && <OwnerClockPage embedded />}
     {!data ? <p role="status">{loadError ? "Your attendance could not be loaded." : "Loading your attendance…"}</p> : <>
       {tab === "overview" && <div className="clock-workspace">
-      {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. If a recorded time needs changing, ask for a correction in <Link to="/clock?tab=requests">My requests</Link>.</p></div>}
+      {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do.{data.canRequestCorrections && <> If a recorded time needs changing, ask for a correction in <Link to="/clock?tab=requests">My requests</Link>.</>}</p></div>}
       <section className="clock-summary-section" aria-labelledby="current-shift-title">
         <header className="clock-section-heading">
           <h2 id="current-shift-title">Current shift</h2>

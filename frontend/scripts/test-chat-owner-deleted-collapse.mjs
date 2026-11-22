@@ -91,7 +91,7 @@ try {
   assert.ok(css.includes('margin-bottom: 10px;'));
   assert.ok(css.includes('.creator-chat .creator-chat-deleted-toggle {'));
   assert.ok(css.includes('.creator-chat-message-content .creator-chat-deleted-author {'));
-  assert.ok(css.includes('color: #F08080;'));
+  assert.ok(/\.creator-chat \.creator-chat-deleted-toggle \{[^}]*color: #CCCCCC;/.test(css) && !/#F08080|#FFAAAA/i.test(css), "The deleted-message toggle is grey, not salmon (monochrome clean-up)");
   assert.ok(css.includes('.creator-chat-message-content.is-deleted.is-expanded {'));
   assert.ok(!css.includes('rgba(138, 39, 39, .07)'));
   pass("Deleted author/time align with ordinary messages and expanded content has no oversized red panel.");
