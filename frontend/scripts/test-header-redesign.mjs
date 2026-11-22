@@ -17,8 +17,21 @@ assert.ok(header.includes('<span className="portal-command-label">\n            
 assert.ok(!header.includes("portal-command-role") && !header.includes(">\n              Role\n            </span>"), "The separate Role block is gone");
 assert.ok(!header.includes("US Central\n"), "The clock has no US Central label; the zone is on the time");
 const button = header.slice(header.indexOf('className="portal-account-avatar-button"'), header.indexOf("</button>", header.indexOf('className="portal-account-avatar-button"')));
-assert.ok(button.includes('<span className="portal-account-identity">') && button.includes("{user?.name}") && button.includes("{roleNames}") && button.includes('className="portal-account-chevron"'),
-  "The account button shows the signed-in person: avatar, name, role and a menu arrow");
+assert.ok(button.includes('<span className="portal-account-identity">') && /\{firstNameOf\(\s*user\?\.name\s*\)\}/.test(button) && button.includes("{roleNames}") && button.includes('className="portal-account-chevron"'),
+  "The account button shows the signed-in person: avatar, first name, role and a menu arrow");
+assert.ok(/<strong\s+title=\{\s*user\?\.name\s*\}\s*>\s*\{firstNameOf\(/.test(button), "Hovering the first name shows the full name");
+const firstStart = layout.indexOf("function firstNameOf(");
+const firstSource = layout.slice(firstStart, layout.indexOf("\n}\n", firstStart) + 2).replace(/name\?: string \| null/, "name");
+const firstNameOf = new Function(`${firstSource}; return firstNameOf;`)();
+assert.equal(firstNameOf("Rainheart - Developer - Test Account"), "Rainheart");
+assert.equal(firstNameOf("  Olivia Reed "), "Olivia");
+assert.equal(firstNameOf("Mary-Jane Watson"), "Mary-Jane");
+assert.equal(firstNameOf("Cher"), "Cher");
+assert.equal(firstNameOf("- Rainheart"), "Rainheart", "Leading punctuation is skipped");
+assert.equal(firstNameOf("Ana Lopez"), "Ana", "Non-breaking spaces separate words");
+assert.equal(firstNameOf("   "), "");
+assert.equal(firstNameOf(undefined), "");
+assert.equal(firstNameOf(null), "");
 assert.ok(button.includes('aria-label={`${user?.name ?? "Account"}, ${roleNames}: open account menu`}') && button.includes('aria-haspopup="menu"'), "The account button's spoken name includes the visible name and role (WCAG 2.5.3)");
 pass("Header markup: inline Creator label, no Role block or US Central label, and the person in the account button");
 
