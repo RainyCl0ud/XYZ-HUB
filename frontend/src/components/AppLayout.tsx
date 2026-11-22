@@ -121,6 +121,15 @@ function formatCentralClock(
   );
 }
 
+// The header button shows just the first name; the full name is in its
+// tooltip, its spoken label and the account menu.
+function firstNameOf(
+  name?: string | null
+) {
+  const first = (name ?? "").trim().split(/\s+/)[0];
+  return first || name || "";
+}
+
 // Short US Central zone name for the header: CST or CDT.
 function formatCentralZone(
   value:
@@ -944,7 +953,9 @@ function AppLayout() {
                     user?.name
                   }
                 >
-                  {user?.name}
+                  {firstNameOf(
+                    user?.name
+                  )}
                 </strong>
 
                 <small

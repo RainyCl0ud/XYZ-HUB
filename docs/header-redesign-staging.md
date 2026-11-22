@@ -10,7 +10,7 @@ The top bar was busy: three small caps labels ("Creator context", "Role", "US Ce
 
 - **Creator picker:** "CREATOR" sits beside a compact menu, about 160px wide (it was about 340px), and only as wide as it needs to be. Its ▾ arrow is drawn again; an older style had been hiding it.
 - **Clock:** one line plus a date, for example "6:25 AM CST" over "Sun, Nov 22". Hovering the date shows the full date. The "US Central" label is gone, since CST/CDT says the same thing.
-- **The signed-in person** now appears in the account button: avatar, name and role (for example "Rainheart / Owner"), plus a ▾ arrow. The design reference asks for this ("signed-in person on right"). Screen readers and voice control hear the same name and role, for example "Rainheart, Owner: open account menu". The separate "Owner / ROLE" block and its divider are gone.
+- **The signed-in person** now appears in the account button: avatar, first name and role (for example "Rainheart / Owner"), plus a ▾ arrow. Hovering the first name shows the full name, and the menu shows it too. The design reference asks for this ("signed-in person on right"). Screen readers and voice control hear the same name and role, for example "Rainheart, Owner: open account menu". The separate "Owner / ROLE" block and its divider are gone.
 - **One height:** the picker, bell and account button are all 32px, with the same #666666 control border and even spacing. The right side reads time, bell, person.
 - **721–1023px:** the account button shows the avatar only and the picker is capped at 180px, so nothing overlaps, even with long creator names. The menu still shows the name and role.
 
