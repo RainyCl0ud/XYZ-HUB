@@ -440,10 +440,6 @@ function DashboardPage() {
     <div className="page agency-dashboard-page">
       <header className="page-header agency-dashboard-header">
         <div>
-          <p className="page-eyebrow">
-            Agency overview
-          </p>
-
           <h2>
             Dashboard
           </h2>
