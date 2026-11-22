@@ -26,72 +26,6 @@
   font-size: 12px;
 }
 
-.agency-metric-grid {
-  display: grid;
-  grid-template-columns:
-    repeat(
-      4,
-      minmax(0, 1fr)
-    );
-
-  gap: 14px;
-
-  margin-bottom: 18px;
-}
-
-.agency-metric-card {
-  position: relative;
-
-  display: flex;
-  flex-direction: column;
-
-  min-height: 138px;
-
-  padding: 18px;
-
-  border: 1px solid var(--border);
-  border-radius: 2px;
-
-  background: var(--surface);
-
-  box-shadow: none;
-
-  transition:
-    border-color 140ms ease,
-    background 140ms ease;
-}
-
-.agency-metric-card:hover {
-  border-color: var(--border-strong);
-
-  background: var(--surface-hover);
-}
-
-.agency-metric-card > span {
-  color: var(--text-secondary);
-
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.agency-metric-card > strong {
-  margin-top: 14px;
-
-  color: #fff;
-
-  font-size: 31px;
-  line-height: 1;
-  font-weight: 700;
-}
-
-.agency-metric-card > small {
-  margin-top: auto;
-
-  color: var(--text-soft);
-
-  font-size: 8.5px;
-}
-
 .agency-dashboard-grid {
   display: grid;
   grid-template-columns:
@@ -498,14 +432,6 @@
 }
 
 @media (max-width: 1100px) {
-  .agency-metric-grid {
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0, 1fr)
-      );
-  }
-
   .agency-dashboard-grid {
     grid-template-columns:
       1fr;
@@ -523,22 +449,6 @@
 
   .agency-dashboard-welcome {
     display: none;
-  }
-
-  .agency-metric-grid {
-    grid-template-columns:
-      1fr 1fr;
-
-    gap: 10px;
-  }
-
-  .agency-metric-card {
-    min-height: 120px;
-    padding: 15px;
-  }
-
-  .agency-metric-card > strong {
-    font-size: 27px;
   }
 
   .agency-people-row {
@@ -600,74 +510,9 @@
   }
 }
 
-@media (max-width: 460px) {
-  .agency-metric-grid {
-    grid-template-columns:
-      1fr;
-  }
-}
-
-
 /* =========================================================
    CLIENT READINESS — DASHBOARD POLISH
    ========================================================= */
-
-.agency-metric-grid {
-  gap: 10px;
-
-  margin-bottom: 14px;
-}
-
-.agency-metric-card {
-  display: grid;
-
-  grid-template-columns:
-    minmax(0, 1fr)
-    auto;
-
-  grid-template-rows:
-    auto
-    auto;
-
-  align-items: center;
-
-  gap:
-    5px
-    14px;
-
-  min-height: 88px;
-
-  padding: 14px 16px;
-}
-
-.agency-metric-card > span {
-  grid-column: 1;
-  grid-row: 1;
-
-  font-size: 9px;
-}
-
-.agency-metric-card > strong {
-  grid-column: 2;
-  grid-row: 1 / 3;
-
-  align-self: center;
-
-  margin-top: 0;
-
-  font-size: 28px;
-
-  font-variant-numeric: tabular-nums;
-}
-
-.agency-metric-card > small {
-  grid-column: 1;
-  grid-row: 2;
-
-  margin-top: 0;
-
-  line-height: 1.35;
-}
 
 .agency-incident-list {
   display: flex;
@@ -751,40 +596,6 @@
 }
 
 @media (max-width: 720px) {
-  .agency-metric-grid {
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0, 1fr)
-      );
-
-    gap: 8px;
-  }
-
-  .agency-metric-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-
-    min-height: 104px;
-
-    padding: 13px 14px;
-  }
-
-  .agency-metric-card > strong {
-    order: 2;
-
-    margin-top: 7px;
-
-    font-size: 25px;
-  }
-
-  .agency-metric-card > small {
-    order: 3;
-
-    margin-top: auto;
-  }
-
   .agency-incident-row {
     grid-template-columns: 1fr;
 
@@ -800,27 +611,15 @@
   }
 }
 
-@media (max-width: 460px) {
-  .agency-metric-grid {
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0, 1fr)
-      );
-  }
-}
-
-
 /* =========================================================
    DASHBOARD — READABLE TEXT AND PHONE LAYOUT (22 Nov 2026)
    Text follows the web kit scale at every width: 11px only for
    uppercase labels, 13px for names and helper text. Phones
-   (720px and below) get slim number cards, one-line rows and
-   compact empty states, and list the 3 newest people (desktop
-   lists 5). Card order, links and permissions don't change.
+   (720px and below) get one-line rows and compact empty states,
+   and list the 3 newest people (desktop lists 5). The number
+   cards were replaced by the attention cards (23 Nov, below).
    ========================================================= */
 
-.agency-metric-card > span,
 .agency-access-summary span,
 .agency-incident-violation span {
   color: #CCCCCC;
@@ -828,11 +627,6 @@
   font-weight: 700;
   letter-spacing: var(--hub-label-tracking);
   text-transform: uppercase;
-}
-
-.agency-metric-card > small {
-  color: #999999;
-  font-size: 13px;
 }
 
 .agency-person-copy strong,
@@ -873,49 +667,7 @@
     font-size: 24px;
   }
 
-  /* Slim number cards: one line each, still a link to the full list. */
-  .agency-metric-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .agency-metric-card {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 6px 10px;
-    border-color: #666666;
-  }
-
-  .agency-metric-card > strong {
-    order: -1;
-    flex: none;
-    align-self: center;
-    min-width: 2ch;
-    margin: 0;
-    font-size: 20px;
-  }
-
-  .agency-metric-card > span {
-    flex: 1;
-    min-width: 0;
-    color: #CCCCCC;
-    font-size: 13px;
-    font-weight: 400;
-    line-height: 1.25;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  .agency-metric-card > small {
-    display: none;
-  }
-
   /* Drawn arrows: no text, so screen readers don't announce them. */
-  .agency-metric-card::after,
   .agency-dashboard-panel .card-header .text-button::after {
     content: "";
     flex: none;
@@ -924,11 +676,6 @@
     border-top: 2px solid currentColor;
     border-right: 2px solid currentColor;
     transform: rotate(45deg);
-  }
-
-  .agency-metric-card::after {
-    margin-right: 3px;
-    color: #999999;
   }
 
   /* Card headers: title and link on one line, no description. */
@@ -1100,5 +847,262 @@
 
   .agency-upcoming-panel .agency-access-summary strong {
     color: #CCCCCC;
+  }
+}
+
+
+/* =========================================================
+   DASHBOARD — ATTENTION FIRST (23 Nov 2026)
+   The four number cards are replaced by two cards at the top:
+   "Needs attention" (corrections to review, long shifts, open
+   QA incidents) and "On the clock now" (live attendance). Each
+   card and row appears only with the matching permission; a
+   card on its own takes the full width. The cards sit side by
+   side when each can be at least 400px wide, and stack below
+   that (as the panels below them do). Phones list 3 people on
+   the clock (desktop lists 5).
+   ========================================================= */
+
+.agency-attention-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.agency-clock-panel .card-header .text-button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.agency-attention-list,
+.agency-clock-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.agency-attention-row,
+.agency-clock-row {
+  border-bottom: 1px solid var(--border);
+  transition: background 120ms ease;
+}
+
+.agency-attention-row:last-child,
+.agency-clock-row:last-child {
+  border-bottom: 0;
+}
+
+a.agency-attention-row:hover,
+a.agency-clock-row:hover {
+  background: var(--surface-hover);
+}
+
+/* Needs attention: number, label and helper, then a drawn arrow. */
+.agency-attention-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 10px 18px;
+}
+
+.agency-attention-count {
+  flex: none;
+  min-width: 2ch;
+  color: #8E8E8E;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.agency-attention-row.has-items .agency-attention-count {
+  color: #FFFFFF;
+}
+
+.agency-attention-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.agency-attention-copy span {
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.agency-attention-copy small {
+  color: #999999;
+  font-size: 13px;
+}
+
+a.agency-attention-row::after {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-right: 3px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  color: #999999;
+  transform: rotate(45deg);
+}
+
+/* On the clock now: three counts, then the people to look at first. */
+.agency-clock-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.agency-clock-counts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 18px;
+  border-right: 1px solid var(--border);
+}
+
+.agency-clock-counts > div:last-child {
+  border-right: 0;
+}
+
+/* Plain 13px words fit a third of the card; spaced capitals wrap. */
+.agency-clock-counts dt {
+  color: #CCCCCC;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.agency-clock-counts dd {
+  order: -1;
+  margin: 0;
+  color: #FFFFFF;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.agency-clock-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 18px;
+}
+
+.agency-clock-person,
+.agency-clock-state {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agency-clock-person strong,
+.agency-clock-person span {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agency-clock-person strong {
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.agency-clock-person span {
+  color: #999999;
+}
+
+.agency-clock-state {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.agency-clock-state > span:first-child {
+  color: #CCCCCC;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.agency-clock-tag {
+  padding: 1px 6px;
+  border: 1px solid #666666;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* A shift open 14 hours or more gets the heavier white border. */
+.agency-clock-tag.long {
+  padding: 0 5px;
+  border: 2px solid #FFFFFF;
+}
+
+/* Loading, error and "no one clocked in" stay one short line. */
+.agency-clock-panel .dashboard-empty {
+  align-items: flex-start;
+  min-height: 0;
+  padding: 16px 18px;
+  text-align: left;
+}
+
+.agency-clock-error .text-button {
+  margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .agency-attention-grid {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .agency-attention-row {
+    gap: 12px;
+    min-height: 56px;
+    padding: 8px 14px;
+  }
+
+  .agency-attention-count {
+    font-size: 24px;
+  }
+
+  .agency-attention-copy span {
+    font-size: 13px;
+  }
+
+  .agency-clock-counts > div {
+    gap: 4px;
+    padding: 10px 12px;
+  }
+
+  .agency-clock-counts dd {
+    font-size: 20px;
+  }
+
+  .agency-clock-row {
+    min-height: 56px;
+    padding: 8px 14px;
+  }
+
+  .agency-clock-row:nth-child(n + 4) {
+    display: none;
+  }
+
+  .agency-clock-panel .dashboard-empty {
+    padding: 14px;
   }
 }

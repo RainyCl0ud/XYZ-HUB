@@ -4,6 +4,8 @@ import { ClockError, clockAllowed, clockDatabaseNow, clockViewerInclude } from "
 import { centralDayKey, elapsedSeconds } from "./clock-time.js";
 
 const PAGE_SIZE = 20;
+// Same 14-hour point at which the clock worker records an OPEN_SHIFT flag.
+const LONG_SHIFT_MS = 14 * 3600_000;
 
 /**
  * An explicitly permitted and rechecked attendance snapshot.
@@ -129,7 +131,7 @@ async function readClockOverview(userId: string, before?: string, offShiftBefore
       take: PAGE_SIZE + 1,
     });
 
-    const [offShiftRows, notClockedInCount, clockedInStaff, staffOnBreak, shiftsStartedToday, pendingReviewRequests] = await Promise.all([
+    const [offShiftRows, notClockedInCount, clockedInStaff, staffOnBreak, shiftsStartedToday, pendingReviewRequests, longShifts] = await Promise.all([
       tx.user.findMany({
         where: { AND: [notClockedInStaff, offShiftFilter] },
         select: { id: true, name: true, teamGroup: { select: { name: true } }, roleMemberships: { where: { role: { archivedAt: null } }, select: { role: { select: { name: true } } } } },
@@ -150,6 +152,11 @@ async function readClockOverview(userId: string, before?: string, offShiftBefore
             where: { status: "PENDING", OR: [{ userId: { not: userId } }, { userId: null }] },
           })
         : Promise.resolve(0),
+      // Shifts still open after 14 hours, counted across the whole roster
+      // rather than only the first page of active shifts.
+      tx.clockShift.count({
+        where: { AND: [openStaffShift, { startedAt: { lte: new Date(now.getTime() - LONG_SHIFT_MS) } }] },
+      }),
     ]);
 
     return {
@@ -163,6 +170,7 @@ async function readClockOverview(userId: string, before?: string, offShiftBefore
         staffOnBreak,
         shiftsStartedToday,
         pendingReviewRequests,
+        longShifts,
       },
       activeShifts: rows.slice(0, PAGE_SIZE).map((row) => ({
         id: row.id,

@@ -82,6 +82,24 @@ async function main() {
     assert.equal((await getAttendanceOverview(owner.id)).counts.notClockedInStaff, 2);
     pass("Owners and explicitly authorized Ops see agency-wide eligible attendance; legacy Owner endpoint stays Owner-only");
 
+    const longShifts = async (id: string) => (await getAttendanceOverview(id)).counts.longShifts;
+    assert.equal(await longShifts(owner.id), 0);
+    const chatterShift = await prisma.clockShift.findFirstOrThrow({ where: { userId: chatter.id, endedAt: null } });
+    const outsideShift = await prisma.clockShift.findFirstOrThrow({ where: { userId: outside.id, endedAt: null } });
+    await prisma.clockShift.update({ where: { id: chatterShift.id }, data: { startedAt: new Date(now.getTime() - 15 * 3600_000) } });
+    await prisma.clockShift.update({ where: { id: outsideShift.id }, data: { startedAt: new Date(now.getTime() - 13 * 3600_000) } });
+    assert.equal(await longShifts(owner.id), 1);
+    assert.equal((await getOwnerClockOverview(owner.id)).counts.longShifts, 1);
+    assert.equal(await longShifts(manager.id), 1);
+    assert.equal(await longShifts(qc.id), 1);
+    assert.equal(await longShifts(otherManager.id), 0, "A 13-hour shift is not a long shift");
+    await prisma.clockShift.update({ where: { id: outsideShift.id }, data: { startedAt: new Date(now.getTime() - 14 * 3600_000 - 60_000) } });
+    assert.equal(await longShifts(otherManager.id), 1);
+    assert.equal(await longShifts(manager.id), 1, "Long shifts outside the viewer's creators stay hidden");
+    assert.equal(await longShifts(owner.id), 2);
+    await prisma.clockShift.updateMany({ where: { id: { in: [chatterShift.id, outsideShift.id] } }, data: { startedAt: now } });
+    pass("Long shifts (open 14 hours or more) are counted within each viewer's attendance scope");
+
     const foreignShift = await prisma.clockShift.findFirstOrThrow({ where: { userId: outside.id, endedAt: null } });
     await denied(() => getAttendanceOverview(qc.id, foreignShift.id), 400);
     await denied(() => getAttendanceOverview(manager.id, foreignShift.id), 400);

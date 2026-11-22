@@ -32,8 +32,6 @@ for (const [, size] of block.matchAll(/font-size: (\d+(?:\.\d+)?)px/g)) {
   assert.ok(Number(size) >= 11, `No Dashboard text under 11px (found ${size}px)`);
 }
 for (const selector of [
-  ".agency-metric-card > span",
-  ".agency-metric-card > small",
   ".agency-person-copy strong",
   ".agency-person-copy span",
   ".agency-model-row > div:first-child strong",
@@ -52,21 +50,15 @@ for (const selector of [
 ]) {
   assert.ok(allWidths.includes(selector), `${selector} is raised at every width`);
 }
-assert.ok(/\.agency-metric-card > span,[^{]*\{[^}]*font-size: 11px;[^}]*text-transform: uppercase;/.test(allWidths), "Card labels are 11px uppercase labels");
-assert.ok(/\.agency-metric-card > small \{[^}]*font-size: 13px;/.test(allWidths), "Card captions are 13px, not 8.5px");
+assert.ok(/\.agency-access-summary span,[^{]*\{[^}]*font-size: 11px;[^}]*text-transform: uppercase;/.test(allWidths), "Labels are 11px uppercase labels");
 assert.ok(!/\.card-header h3 \{/.test(phone), "No phone heading size that the global !important rule would override");
 pass("The new rules raise Dashboard text to at least 11px at every width (13px names and helpers, 11px uppercase labels)");
 
-// 2. Phones: slim number cards, one line each, still links.
-assert.ok(/display: flex;\s*flex-direction: row;\s*align-items: center;/.test(rule(phone, ".agency-metric-card")) && /min-height: 44px;/.test(rule(phone, ".agency-metric-card")), "Each card is one 44px row");
-assert.ok(/order: -1;/.test(rule(phone, ".agency-metric-card > strong")) && /align-self: center;/.test(rule(phone, ".agency-metric-card > strong")), "The number comes first, vertically centred (the old rule centred it horizontally)");
-assert.ok(/display: none;/.test(rule(phone, ".agency-metric-card > small")), "The caption is hidden on phones");
-assert.ok(/content: "";/.test(ruleIn(phone, ".agency-metric-card::after,")), "The arrow is drawn, with no text for screen readers to read");
-for (const [path, label] of [["/people?status=ACTIVE", "Active people"], ["/people?status=PENDING_SETUP", "Pending setup"], ["/models", "Active creators"], ["/incidents", "Open incidents"]]) {
-  assert.ok(page.includes(`to="${path}"\n                className="agency-metric-card"`) || page.includes(`to="${path}"\n              className="agency-metric-card"`), `${label} still links to ${path}`);
-  assert.ok(page.includes(label), `${label} is still on the Dashboard`);
-}
-pass("Phones: the four number cards are slim one-line links (number, label, arrow) to the same lists");
+// 2. The number cards were replaced by the attention cards (23 Nov,
+// test:dashboard-attention); their old rules went with them.
+assert.ok(!page.includes("agency-metric") && !css.includes("agency-metric"), "No number-card markup or leftover rules");
+assert.ok(/content: "";/.test(rule(phone, ".agency-dashboard-panel .card-header .text-button::after")), "Card header links keep a drawn arrow, with no text for screen readers to read");
+pass("The number cards and their rules are gone; card header links keep their drawn arrow on phones");
 
 // 3. Card headers: title and link on one line, no description on phones.
 assert.ok(/flex-direction: row;\s*align-items: center;/.test(rule(phone, ".agency-dashboard-panel .card-header")), "Title and link share a line");
@@ -75,7 +67,7 @@ assert.ok(/min-height: 40px;/.test(rule(phone, ".agency-dashboard-panel .card-he
 assert.ok(/display: none;/.test(rule(phone, ".agency-dashboard-header .page-description")), "The intro sentence is hidden on phones; the header names the page");
 const intro = page.slice(page.indexOf('<header className="page-header agency-dashboard-header">'), page.indexOf("</header>"));
 assert.ok(!intro.includes("page-eyebrow") && !page.includes("Agency overview") && /<h2>\s*Dashboard\s*<\/h2>/.test(intro), 'The "Agency overview" label above the title is gone at every width');
-for (const text of ["Latest accounts added to People Management.", "Active creators and their current assignment load.", "A current view of people, creators, and quality activity available to your account."]) {
+for (const text of ["Latest accounts added to People Management.", "Active creators and their current assignment load.", "What needs attention across your people, attendance and quality."]) {
   assert.ok(page.includes(text), `"${text}" is kept for desktop`);
 }
 pass("Phones: card titles sit beside their View link, and the descriptions are kept for desktop only");
