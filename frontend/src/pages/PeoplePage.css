@@ -489,7 +489,8 @@
 
 .people-inline-error {
   padding: 12px 18px;
-  border-bottom: 1px solid rgba(229, 141, 135, 0.18);
+  border-bottom: 2px solid #FFFFFF;
+  font-weight: 700;
   background: var(--danger-bg);
   color: var(--danger);
   font-size: 11px;
@@ -936,7 +937,7 @@
 
 .people-account-action-card.warning,
 .people-danger-zone {
-  border-color: rgba(229, 141, 135, 0.2);
+  border-color: #FFFFFF;
   background: var(--danger-bg);
 }
 
@@ -1049,20 +1050,9 @@
 }
 
 .people-model-option.is-inactive {
-  border-color: rgba(229, 141, 135, 0.3);
-  background:
-    linear-gradient(
-      135deg,
-      rgba(229, 141, 135, 0.045) 25%,
-      transparent 25%,
-      transparent 50%,
-      rgba(229, 141, 135, 0.045) 50%,
-      rgba(229, 141, 135, 0.045) 75%,
-      transparent 75%,
-      transparent
-    ),
-    var(--surface-deep);
-  background-size: 12px 12px;
+  border-color: #333333;
+  border-style: dashed;
+  background: var(--surface-deep);
 }
 
 .people-model-option.is-inactive strong {
@@ -1204,7 +1194,7 @@
 
 .people-confirm-impact.delete,
 .people-confirm-impact.deactivate {
-  border-color: rgba(229, 141, 135, 0.22);
+  border-color: #FFFFFF;
   background: var(--danger-bg);
 }
 

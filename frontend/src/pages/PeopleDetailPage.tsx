@@ -38,6 +38,7 @@ import {
 import PeopleQaPanel from "../components/PeopleQaPanel";
 
 import "./PeoplePage.css";
+import { formatDataScope } from "../lib/data-scope";
 
 
 type PersonStatus =
@@ -200,38 +201,6 @@ function formatStatus(
 }
 
 
-function formatDataScope(
-  value:
-    string
-) {
-  if (
-    value ===
-      "ALL"
-  ) {
-    return "All data";
-  }
-
-  if (
-    value ===
-      "SELF_AND_TEAM"
-  ) {
-    return "Self + subordinates";
-  }
-
-  if (
-    value ===
-      "SELF"
-  ) {
-    return "Self only";
-  }
-
-  return value
-    .toLowerCase()
-    .replaceAll(
-      "_",
-      " "
-    );
-}
 
 
 function formatTexasDateTime(

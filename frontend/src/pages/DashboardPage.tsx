@@ -25,6 +25,7 @@ import {
 } from "../lib/api";
 
 import "./DashboardPage.css";
+import { formatDataScope } from "../lib/data-scope";
 
 type PersonStatus =
   | "PENDING_SETUP"
@@ -864,8 +865,9 @@ function DashboardPage() {
                 </span>
 
                 <strong>
-                  {access?.effectiveDataScope ??
-                    "—"}
+                  {access?.effectiveDataScope
+                    ? formatDataScope(access.effectiveDataScope)
+                    : "—"}
                 </strong>
               </div>
 

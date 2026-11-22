@@ -276,7 +276,8 @@
 }
 
 .auth-message-error {
-  border-color: rgba(229, 141, 135, 0.4);
+  border: 2px solid #FFFFFF;
+  font-weight: 700;
 
   background: var(--danger-bg);
   color: var(--danger-strong);

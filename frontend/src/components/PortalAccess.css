@@ -1763,3 +1763,47 @@
     font-size: 7.5px;
   }
 }
+
+/* ==========================================================================
+   Shell type minimum: nothing in the header, sidebar or account menu is
+   smaller than 11px (XYZ web kit). Earlier rules shrank labels to 6-10px.
+   These come last in the file, so they win at equal specificity.
+   ========================================================================== */
+.sidebar-model-context-label,
+.sidebar-model-context select,
+.sidebar-model-context-static,
+.sidebar-model-context small,
+.sidebar-nav-label,
+.portal-workspace-label,
+.portal-command-label,
+.portal-command-context-static,
+.portal-command-context-v2 .portal-command-context-static,
+.portal-command-role .portal-command-label,
+.portal-command-user strong,
+.portal-command-brand strong,
+.owner-rail-row span,
+.owner-rail-row strong,
+.owner-management-links span,
+.owner-management-links strong,
+.owner-current-module > span:last-child,
+.portal-account-avatar,
+.portal-account-dropdown-profile strong,
+.portal-account-dropdown-profile small,
+.portal-account-dropdown-profile span,
+.portal-account-dropdown-item,
+.portal-account-confirm p,
+.portal-clock-date {
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .portal-clock-time {
+    font-size: 11px !important;
+  }
+
+  /* The header is too narrow for a readable date on tablets and phones;
+     the time stays. */
+  .portal-clock-date {
+    display: none !important;
+  }
+}

@@ -92,6 +92,7 @@
 }
 
 .clock-callout > p { margin: 8px 0 0; }
+.clock-callout a { color: #FFFFFF; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .clock-break-details { min-width: 176px; }
 .clock-break-details summary { color: #FFFFFF; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
 .clock-break-details summary:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }

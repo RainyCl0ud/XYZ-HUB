@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, apiRequest } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
 import { CENTRAL_TIME_ZONE } from "../lib/time";
@@ -9,6 +9,13 @@ import ClockTabs from "../components/ClockTabs";
 import OwnerClockPage from "./OwnerClockPage";
 import { useToast } from "../components/ToastProvider";
 import "./ClockPage.css";
+
+// The week key is that week's Monday as YYYY-MM-DD (US Central). Show it as
+// "Nov 16" rather than the raw date.
+function weekLabel(key: string) {
+  const monday = new Date(key + "T12:00:00Z");
+  return Number.isNaN(monday.getTime()) ? key : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(monday);
+}
 
 type BreakKind = "SHORT_ONE" | "SHORT_TWO" | "MEAL";
 type ClockState = { serverNow: string; historyVersion: string; timeZone: string; canTrack: boolean; canRequestCorrections: boolean; canReviewCorrections: boolean; exempt: boolean; currentShift: Shift | null; history: Shift[]; hasMore: boolean; nextBefore: string | null; totals: { dayKey: string; weekKey: string; todaySeconds: number; weekSeconds: number } };
@@ -138,7 +145,7 @@ export default function ClockPage() {
     {data && tab === "team" && <OwnerClockPage embedded />}
     {!data ? <p role="status">{loadError ? "Your attendance could not be loaded." : "Loading your attendance…"}</p> : <>
       {tab === "overview" && <div className="clock-workspace">
-      {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. Use Time corrections below if a recorded time needs changing.</p></div>}
+      {shift && shiftSeconds >= 14 * 3600 && <div className="clock-callout" role="status"><strong>Your shift has been open for 14 hours.</strong><p>If you’ve finished, clock out. Your hours will keep recording until you do. If a recorded time needs changing, ask for a correction in <Link to="/clock?tab=requests">My requests</Link>.</p></div>}
       <section className="clock-summary-section" aria-labelledby="current-shift-title">
         <header className="clock-section-heading">
           <h2 id="current-shift-title">Current shift</h2>
@@ -169,10 +176,10 @@ export default function ClockPage() {
         <header className="clock-section-heading"><h2 id="hours-summary-title">Hours summary</h2></header>
         <div className="clock-table-scroll" role="region" aria-label="Personal hours summary" tabIndex={0}>
           <table className="clock-data-table clock-hours-table">
-            <thead><tr><th scope="col">Period</th><th scope="col" className="clock-number">Worked time</th><th scope="col">Counting rule</th></tr></thead>
+            <thead><tr><th scope="col">Period</th><th scope="col" className="clock-number">Worked time</th><th scope="col">Includes</th></tr></thead>
             <tbody>
               <tr><th scope="row">Today</th><td className="clock-number clock-hours-value">{duration(today)}</td><td>Shifts started today (US Central).</td></tr>
-              <tr><th scope="row">This week</th><td className="clock-number clock-hours-value">{duration(week)}</td><td>Week of {data.totals.weekKey}, Monday–Sunday (US Central).</td></tr>
+              <tr><th scope="row">This week</th><td className="clock-number clock-hours-value">{duration(week)}</td><td>Week of {weekLabel(data.totals.weekKey)}, Monday to Sunday (US Central).</td></tr>
             </tbody>
           </table>
         </div>
