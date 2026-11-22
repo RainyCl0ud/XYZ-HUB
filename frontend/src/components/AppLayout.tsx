@@ -911,7 +911,7 @@ function AppLayout() {
             <button
               type="button"
               className="portal-account-avatar-button"
-              aria-label="Open account menu"
+              aria-label={`${user?.name ?? "Account"}, ${roleNames}: open account menu`}
               aria-haspopup="menu"
               aria-expanded={
                 accountMenuOpen

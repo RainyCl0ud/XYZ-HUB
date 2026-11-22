@@ -19,7 +19,7 @@ assert.ok(!header.includes("US Central\n"), "The clock has no US Central label; 
 const button = header.slice(header.indexOf('className="portal-account-avatar-button"'), header.indexOf("</button>", header.indexOf('className="portal-account-avatar-button"')));
 assert.ok(button.includes('<span className="portal-account-identity">') && button.includes("{user?.name}") && button.includes("{roleNames}") && button.includes('className="portal-account-chevron"'),
   "The account button shows the signed-in person: avatar, name, role and a menu arrow");
-assert.ok(button.includes('aria-label="Open account menu"') && button.includes('aria-haspopup="menu"'), "The account button keeps its menu semantics");
+assert.ok(button.includes('aria-label={`${user?.name ?? "Account"}, ${roleNames}: open account menu`}') && button.includes('aria-haspopup="menu"'), "The account button's spoken name includes the visible name and role (WCAG 2.5.3)");
 pass("Header markup: inline Creator label, no Role block or US Central label, and the person in the account button");
 
 // 2. Clock: "6:25 AM CST" over "Sun, Nov 22", with the full date in the tooltip.
@@ -53,6 +53,9 @@ assert.ok(/\.portal-command-bar-v2 \{\s*grid-template-columns:\s*auto\s*minmax\(
 assert.ok(/\.portal-command-context-v2 \{\s*display: flex;\s*align-items: center;/.test(desktop), "The Creator label sits beside the menu");
 const narrow = v3.slice(v3.indexOf("@media (min-width: 721px) and (max-width: 1023px)"));
 assert.ok(/\.portal-account-identity,\s*\.portal-account-chevron \{\s*display: none;/.test(narrow) && /width: 32px;/.test(narrow), "721-1023px: avatar-only account button so nothing overlaps");
+assert.ok(/min-width: 140px;\s*max-width: 180px;/.test(narrow), "721-1023px: the picker is capped so long creator names can't push the time over it");
+assert.ok(!/border-color: #333333;/.test(desktop), "Header controls use the #666666 control border, like the bell");
+assert.ok(/\.portal-command-context-v2 select,\n\.portal-command-context-v2 \.portal-command-context-static \{\s*min-height: 40px;[^}]*background-color: var\(--surface\);/.test(css), "The picker keeps its drawn arrow (no background shorthand wiping it)");
 pass("Desktop header: one row at 32px, picker with an inline label, then time, bell and the person; avatar only below 1024px");
 
 // 4. Phones: one row (time, bell, avatar); the name stays hidden.

@@ -43,7 +43,7 @@ pass("Errors, the Sign out dialog, delete buttons, Strikes and Chat are white-on
 const portal = read("components/PortalAccess.css");
 const tail = portal.slice(portal.indexOf("Shell type minimum"));
 assert.ok(portal.indexOf("Shell type minimum") > portal.lastIndexOf("font-size: 5.9px"), "The minimum comes after the old tiny sizes");
-for (const selector of [".hub-nav-heading", ".portal-command-role .portal-command-label", ".portal-account-dropdown-item", ".portal-account-avatar", ".portal-clock-date"]) assert.ok(tail.includes(selector), selector + " is raised to 11px");
+for (const selector of [".hub-nav-heading",".portal-account-dropdown-item", ".portal-account-avatar", ".portal-clock-date"]) assert.ok(tail.includes(selector), selector + " is raised to 11px");
 for (const unused of [".sidebar-nav-label", ".owner-rail-row", ".portal-workspace-label"]) assert.ok(!tail.includes(unused), unused + " matches nothing, so it isn't listed");
 assert.ok(/\.hub-nav-heading \{[^}]*font-size: 11px;/.test(read("components/SidebarNavigation.css")), "Sidebar section headings are 11px where they're defined");
 assert.ok(/@media \(max-width: 720px\) \{\s*\.portal-clock-time \{\s*font-size: 11px !important;\s*\}[\s\S]*?\.portal-clock-date \{\s*display: none !important;/.test(tail), "On tablets and phones the time is 11px and the unreadable date is hidden");
