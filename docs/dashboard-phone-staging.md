@@ -9,7 +9,7 @@ On a phone, the Dashboard took about two screens of scrolling, and the first scr
 **Phones (720px and below)**
 
 - **Number cards:** each is one slim line, for example "7 Active people ›", in a 2×2 grid. They're 44px tall instead of 104px; on the narrowest phones (320px) the label wraps to two lines. The tiny caption is hidden. Every card still opens the same filtered list. The number used to be centred while its label sat on the left; both now line up.
-- **Intro:** "AGENCY OVERVIEW / Dashboard" stays. The description sentence is hidden, since the header already names the page.
+- **Intro:** just the "Dashboard" title. The description sentence is hidden, since the header already names the page.
 - **Card headers:** the title and its link ("View people ›", "View creators ›", "View incidents ›") share one line. The description under each title is hidden.
 - **Recently added people:** name and role on the left, status and date on the right, so the status no longer wraps under the name. Phones show the 3 newest people; desktop still shows 5.
 - **Current creators:** "2 incidents" reads on one line on the right.
@@ -19,7 +19,7 @@ On a phone, the Dashboard took about two screens of scrolling, and the first scr
 **Every width**
 
 - The Dashboard's 8–10px text is raised to the web kit scale. Names and helper text are 13px; labels are 11px uppercase (card labels, status tags, "Violation", the Coming later and Your account labels). The desktop layout is otherwise unchanged, though the number cards are a little taller because their text is larger.
-- Not included: the small "AGENCY OVERVIEW" label above the title stays at 10px. Every page shares it, so changing it belongs to a Hub-wide change.
+- The small 10px "AGENCY OVERVIEW" label above the title is removed (follow-up, same day). Other pages keep their own small labels for now.
 - "1 incident" instead of "1 incidents".
 
 **Unchanged:** the order of the cards, the header and creator picker, the confidentiality footer, who sees what, and where every link goes. Frontend only: no backend change, migration, flag or setting.

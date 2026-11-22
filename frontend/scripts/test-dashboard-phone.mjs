@@ -73,6 +73,8 @@ assert.ok(/flex-direction: row;\s*align-items: center;/.test(rule(phone, ".agenc
 assert.ok(/display: none;/.test(rule(phone, ".agency-dashboard-panel .card-header p")), "The description is hidden on phones");
 assert.ok(/min-height: 40px;/.test(rule(phone, ".agency-dashboard-panel .card-header .text-button")) && /font-size: 13px !important;/.test(rule(phone, ".agency-dashboard-panel .card-header .text-button")), "The link is a 40px, 13px target");
 assert.ok(/display: none;/.test(rule(phone, ".agency-dashboard-header .page-description")), "The intro sentence is hidden on phones; the header names the page");
+const intro = page.slice(page.indexOf('<header className="page-header agency-dashboard-header">'), page.indexOf("</header>"));
+assert.ok(!intro.includes("page-eyebrow") && !page.includes("Agency overview") && /<h2>\s*Dashboard\s*<\/h2>/.test(intro), 'The "Agency overview" label above the title is gone at every width');
 for (const text of ["Latest accounts added to People Management.", "Active creators and their current assignment load.", "A current view of people, creators, and quality activity available to your account."]) {
   assert.ok(page.includes(text), `"${text}" is kept for desktop`);
 }
