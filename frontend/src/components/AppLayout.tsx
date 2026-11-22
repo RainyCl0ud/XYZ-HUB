@@ -126,8 +126,8 @@ function formatCentralClock(
 function firstNameOf(
   name?: string | null
 ) {
-  const first = (name ?? "").trim().split(/\s+/)[0];
-  return first || name || "";
+  const first = (name ?? "").trim().split(/\s+/).find((word) => /[\p{L}\p{N}]/u.test(word));
+  return first ?? (name ?? "").trim();
 }
 
 // Short US Central zone name for the header: CST or CDT.

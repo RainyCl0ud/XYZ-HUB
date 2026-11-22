@@ -27,7 +27,11 @@ assert.equal(firstNameOf("Rainheart - Developer - Test Account"), "Rainheart");
 assert.equal(firstNameOf("  Olivia Reed "), "Olivia");
 assert.equal(firstNameOf("Mary-Jane Watson"), "Mary-Jane");
 assert.equal(firstNameOf("Cher"), "Cher");
+assert.equal(firstNameOf("- Rainheart"), "Rainheart", "Leading punctuation is skipped");
+assert.equal(firstNameOf("Ana Lopez"), "Ana", "Non-breaking spaces separate words");
+assert.equal(firstNameOf("   "), "");
 assert.equal(firstNameOf(undefined), "");
+assert.equal(firstNameOf(null), "");
 assert.ok(button.includes('aria-label={`${user?.name ?? "Account"}, ${roleNames}: open account menu`}') && button.includes('aria-haspopup="menu"'), "The account button's spoken name includes the visible name and role (WCAG 2.5.3)");
 pass("Header markup: inline Creator label, no Role block or US Central label, and the person in the account button");
 
