@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -23,6 +24,22 @@ import {
   MODEL_CONTEXT_CHANGED_EVENT,
   PEOPLE_CHANGED_EVENT,
 } from "../lib/api";
+
+import {
+  useClockReviewCount,
+} from "../components/ClockReviewCountContext";
+
+import {
+  buildAttentionRows,
+  failedAttendanceState,
+  type AttendanceOverview,
+  type AttendanceState,
+} from "../lib/dashboard-attention";
+
+import {
+  NeedsAttentionCard,
+  OnTheClockCard,
+} from "../components/DashboardAttention";
 
 import "./DashboardPage.css";
 import { formatDataScope } from "../lib/data-scope";
@@ -120,6 +137,22 @@ type QaDashboardResponse = {
 const CENTRAL_TIME_ZONE =
   "America/Chicago";
 
+const ATTENDANCE_REFRESH_MS =
+  60_000;
+
+const ATTENDANCE_OVERVIEW_PERMISSIONS = [
+  "clock.overview.agency",
+  "clock.overview.team",
+  "clock.overview.chatters",
+] as const;
+
+// Same list as ClockReviewCountProvider, which supplies the count.
+const CORRECTION_REVIEW_PERMISSIONS = [
+  "clock.corrections.assigned",
+  "clock.corrections.ops",
+  "clock.corrections.all",
+] as const;
+
 function formatCentralDate(
   value:
     string
@@ -164,6 +197,7 @@ function statusLabel(
 
 function DashboardPage() {
   const {
+    user,
     access,
   } =
     useAuth();
@@ -172,6 +206,288 @@ function DashboardPage() {
     getPortalCapabilities(
       access
     );
+
+  const reviewCount =
+    useClockReviewCount();
+
+  const clockEnabled =
+    import.meta.env.VITE_BLOCK2_CLOCK_ENABLED ===
+    "true";
+
+  const canViewAttendance =
+    clockEnabled &&
+    hasPortalPermission(
+      access,
+      "clock.access"
+    ) &&
+    ATTENDANCE_OVERVIEW_PERMISSIONS.some(
+      (
+        permission
+      ) =>
+        hasPortalPermission(
+          access,
+          permission
+        )
+    );
+
+  // Same rule as the sidebar's review badge (ClockReviewCountProvider),
+  // so the Dashboard and the badge always show the same number.
+  const canReviewCorrections =
+    clockEnabled &&
+    hasPortalPermission(
+      access,
+      "clock.self.view"
+    ) &&
+    CORRECTION_REVIEW_PERMISSIONS.some(
+      (
+        permission
+      ) =>
+        hasPortalPermission(
+          access,
+          permission
+        )
+    );
+
+  const isOwner =
+    access?.roles.some(
+      (
+        role
+      ) =>
+        role.systemKey ===
+        "OWNER"
+    ) ??
+    false;
+
+  // The Clock page needs clock.self.view. Owners open the agency
+  // overview; everyone else opens the Team tab of their own Clock page.
+  const attendanceHref =
+    clockEnabled &&
+    hasPortalPermission(
+      access,
+      "clock.self.view"
+    )
+      ? isOwner
+        ? "/clock"
+        : "/clock?tab=team"
+      : null;
+
+  // A snapshot belongs to one account and its access. After a different
+  // sign-in, role, permission or creator assignment it is never shown,
+  // and a fresh load starts straight away.
+  const attendanceScope =
+    canViewAttendance &&
+    access
+      ? [
+          user?.id ??
+            "",
+          access.roles
+            .map(
+              (
+                role
+              ) =>
+                `${role.id}:${role.systemKey ?? ""}`
+            )
+            .sort()
+            .join(
+              ","
+            ),
+          [
+            ...access.permissions,
+          ]
+            .sort()
+            .join(
+              ","
+            ),
+          [
+            ...access.assignedModelIds,
+          ]
+            .sort()
+            .join(
+              ","
+            ),
+        ].join(
+          "|"
+        )
+      : "";
+
+  const [
+    storedAttendance,
+    setStoredAttendance,
+  ] =
+    useState<{
+      scope: string;
+      state: AttendanceState;
+    }>({
+      scope:
+        "",
+      state: {
+        status:
+          "loading",
+      },
+    });
+
+  const attendance: AttendanceState =
+    storedAttendance.scope ===
+    attendanceScope
+      ? storedAttendance.state
+      : {
+          status:
+            "loading",
+        };
+
+  const attendanceRequest =
+    useRef<AbortController | null>(
+      null
+    );
+
+  const loadAttendance =
+    useCallback(
+      async () => {
+        if (
+          !attendanceScope
+        ) {
+          return;
+        }
+
+        attendanceRequest.current?.abort();
+
+        const controller =
+          new AbortController();
+
+        attendanceRequest.current =
+          controller;
+
+        try {
+          const data =
+            await apiRequest<AttendanceOverview>(
+              "/api/clock/overview",
+              {
+                signal:
+                  controller.signal,
+              }
+            );
+
+          if (
+            !controller.signal.aborted
+          ) {
+            setStoredAttendance({
+              scope:
+                attendanceScope,
+              state: {
+                status:
+                  "ready",
+                data,
+                stale:
+                  false,
+              },
+            });
+          }
+        } catch (
+          error
+        ) {
+          if (
+            controller.signal.aborted
+          ) {
+            return;
+          }
+
+          // 403/404 hide the card; other failures keep a loaded snapshot
+          // marked out of date, or show an error on a first load.
+          setStoredAttendance(
+            (
+              previous
+            ) => ({
+              scope:
+                attendanceScope,
+              state:
+                failedAttendanceState(
+                  previous.scope ===
+                    attendanceScope
+                    ? previous.state
+                    : {
+                        status:
+                          "loading",
+                      },
+                  error
+                ),
+            })
+          );
+        }
+      },
+      [
+        attendanceScope,
+      ]
+    );
+
+  useEffect(
+    () => {
+      if (
+        !attendanceScope
+      ) {
+        return;
+      }
+
+      const readIfVisible =
+        () => {
+          if (
+            document.visibilityState ===
+            "visible"
+          ) {
+            void loadAttendance();
+          }
+        };
+
+      const initial =
+        window.setTimeout(
+          () => {
+            void loadAttendance();
+          },
+          0
+        );
+
+      const interval =
+        window.setInterval(
+          readIfVisible,
+          ATTENDANCE_REFRESH_MS
+        );
+
+      window.addEventListener(
+        "focus",
+        readIfVisible
+      );
+
+      document.addEventListener(
+        "visibilitychange",
+        readIfVisible
+      );
+
+      return () => {
+        window.clearTimeout(
+          initial
+        );
+
+        window.clearInterval(
+          interval
+        );
+
+        window.removeEventListener(
+          "focus",
+          readIfVisible
+        );
+
+        document.removeEventListener(
+          "visibilitychange",
+          readIfVisible
+        );
+
+        attendanceRequest.current?.abort();
+      };
+    },
+    [
+      attendanceScope,
+      loadAttendance,
+    ]
+  );
 
   const [
     people,
@@ -361,23 +677,29 @@ function DashboardPage() {
     ]
   );
 
-  const activePeople =
-    people.filter(
-      (
-        person
-      ) =>
-        person.status ===
-        "ACTIVE"
-    ).length;
+  const showAttendance =
+    canViewAttendance &&
+    attendance.status !==
+      "unavailable";
 
-  const pendingPeople =
-    people.filter(
-      (
-        person
-      ) =>
-        person.status ===
-        "PENDING_SETUP"
-    ).length;
+  const attentionRows =
+    buildAttentionRows({
+      canReviewCorrections,
+      reviewCount,
+      showAttendance,
+      attendance:
+        attendance.status === "ready"
+          ? attendance.data
+          : null,
+      attendanceHref,
+      canViewQa:
+        capabilities.canViewQa,
+      // "—", not a reassuring 0, while the summary loads or if it failed.
+      openIncidents:
+        loading || !qa
+          ? null
+          : qa.counts.openIncidents,
+    });
 
   const activeCreators =
     models.filter(
@@ -445,7 +767,7 @@ function DashboardPage() {
           </h2>
 
           <p className="page-description">
-            A current view of people, creators, and quality activity available to your account.
+            What needs attention across your people, attendance and quality.
           </p>
         </div>
 
@@ -470,96 +792,205 @@ function DashboardPage() {
         </div>
       )}
 
-      {hasAgencyOverview && (
-        <section className="agency-metric-grid">
-          {capabilities.canManagePeople && (
-            <>
-              <Link
-                to="/people?status=ACTIVE"
-                className="agency-metric-card"
-              >
-                <span>
-                  Active people
-                </span>
-
-                <strong>
-                  {loading
-                    ? "—"
-                    : activePeople}
-                </strong>
-
-                <small>
-                  Current active accounts
-                </small>
-              </Link>
-
-              <Link
-                to="/people?status=PENDING_SETUP"
-                className="agency-metric-card"
-              >
-                <span>
-                  Pending setup
-                </span>
-
-                <strong>
-                  {loading
-                    ? "—"
-                    : pendingPeople}
-                </strong>
-
-                <small>
-                  Invitations awaiting completion
-                </small>
-              </Link>
-            </>
+      {(attentionRows.length > 0 ||
+        showAttendance) && (
+        <div className="agency-attention-grid">
+          {attentionRows.length > 0 && (
+            <NeedsAttentionCard
+              rows={
+                attentionRows
+              }
+            />
           )}
 
-          {capabilities.canManageModels && (
-            <Link
-              to="/models"
-              className="agency-metric-card"
-            >
-              <span>
-                Active creators
-              </span>
-
-              <strong>
-                {loading
-                  ? "—"
-                  : activeCreators.length}
-              </strong>
-
-              <small>
-                Available for assignments
-              </small>
-            </Link>
+          {showAttendance && (
+            <OnTheClockCard
+              state={
+                attendance
+              }
+              href={
+                attendanceHref
+              }
+              onRetry={() => {
+                void loadAttendance();
+              }}
+            />
           )}
-
-          {capabilities.canViewQa && (
-            <Link
-              to="/incidents"
-              className="agency-metric-card"
-            >
-              <span>
-                Open incidents
-              </span>
-
-              <strong>
-                {loading
-                  ? "—"
-                  : qa?.counts.openIncidents ??
-                    0}
-              </strong>
-
-              <small>
-                Quality items requiring attention
-              </small>
-            </Link>
-          )}
-        </section>
+        </div>
       )}
 
       <div className="agency-dashboard-grid">
+        {capabilities.canViewQa && (
+          <section className="content-card agency-dashboard-panel agency-dashboard-panel-wide">
+            <div className="card-header">
+              <div>
+                <h3>
+                  Open QA incidents
+                </h3>
+
+                <p>
+                  QA incidents requiring attention in your current creator access.
+                </p>
+              </div>
+
+              <Link
+                to="/incidents"
+                className="text-button"
+              >
+                View incidents
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="empty-state dashboard-empty">
+                <strong>
+                  Loading current incidents…
+                </strong>
+              </div>
+            ) : currentIncidents.length ===
+              0 ? (
+              <div className="empty-state dashboard-empty">
+                <strong>
+                  No open QA incidents
+                </strong>
+
+                <span>
+                  New QA records requiring attention will appear here.
+                </span>
+              </div>
+            ) : (
+              <div className="agency-incident-list">
+                {currentIncidents.map(
+                  (
+                    incident
+                  ) => (
+                    <Link
+                      key={
+                        incident.id
+                      }
+                      to="/incidents"
+                      className="agency-incident-row"
+                    >
+                      <div className="agency-incident-person">
+                        <strong>
+                          {incident.chatter.name}
+                        </strong>
+
+                        <span>
+                          {incident.agencyModel?.name ??
+                            "Unassigned creator"}
+                        </span>
+                      </div>
+
+                      <div className="agency-incident-violation">
+                        <span>
+                          Violation
+                        </span>
+
+                        <strong>
+                          {incident.ruleTitleSnapshot}
+                        </strong>
+                      </div>
+
+                      <div className="agency-incident-state">
+                        <strong>
+                          Open incident
+                        </strong>
+
+                        <span>
+                          {incident.severityNameSnapshot ??
+                            "No severity"}
+                        </span>
+                      </div>
+                    </Link>
+                  )
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {capabilities.canManageModels && (
+          <section className="content-card agency-dashboard-panel">
+            <div className="card-header">
+              <div>
+                <h3>
+                  Current creators
+                </h3>
+
+                <p>
+                  Active creators and their current assignment load.
+                </p>
+              </div>
+
+              <Link
+                to="/models"
+                className="text-button"
+              >
+                View creators
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="empty-state dashboard-empty">
+                <strong>
+                  Loading creators…
+                </strong>
+              </div>
+            ) : activeCreators.length ===
+              0 ? (
+              <div className="empty-state dashboard-empty">
+                <strong>
+                  No active creators
+                </strong>
+              </div>
+            ) : (
+              <div className="agency-model-list">
+                {activeCreators
+                  .slice(
+                    0,
+                    6
+                  )
+                  .map(
+                    (
+                      model
+                    ) => (
+                      <Link
+                        to="/models"
+                        key={
+                          model.id
+                        }
+                        className="agency-model-row"
+                      >
+                        <div>
+                          <strong>
+                            {model.name}
+                          </strong>
+
+                          <span>
+                            {model.peopleCount} assigned
+                          </span>
+                        </div>
+
+                        <div className="agency-model-stat">
+                          <strong>
+                            {model.incidentCount}
+                          </strong>
+
+                          <span>
+                            {model.incidentCount === 1
+                              ? "incident"
+                              : "incidents"}
+                          </span>
+                        </div>
+                      </Link>
+                    )
+                  )}
+              </div>
+            )}
+          </section>
+        )}
+
         {capabilities.canManagePeople && (
           <section className="content-card agency-dashboard-panel">
             <div className="card-header">
@@ -652,177 +1083,6 @@ function DashboardPage() {
                             person.createdAt
                           )}
                         </time>
-                      </div>
-                    </Link>
-                  )
-                )}
-              </div>
-            )}
-          </section>
-        )}
-
-        {capabilities.canManageModels && (
-          <section className="content-card agency-dashboard-panel">
-            <div className="card-header">
-              <div>
-                <h3>
-                  Current creators
-                </h3>
-
-                <p>
-                  Active creators and their current assignment load.
-                </p>
-              </div>
-
-              <Link
-                to="/models"
-                className="text-button"
-              >
-                View creators
-              </Link>
-            </div>
-
-            {loading ? (
-              <div className="empty-state dashboard-empty">
-                <strong>
-                  Loading creators…
-                </strong>
-              </div>
-            ) : activeCreators.length ===
-              0 ? (
-              <div className="empty-state dashboard-empty">
-                <strong>
-                  No active creators
-                </strong>
-              </div>
-            ) : (
-              <div className="agency-model-list">
-                {activeCreators
-                  .slice(
-                    0,
-                    6
-                  )
-                  .map(
-                    (
-                      model
-                    ) => (
-                      <Link
-                        to="/models"
-                        key={
-                          model.id
-                        }
-                        className="agency-model-row"
-                      >
-                        <div>
-                          <strong>
-                            {model.name}
-                          </strong>
-
-                          <span>
-                            {model.peopleCount} assigned
-                          </span>
-                        </div>
-
-                        <div className="agency-model-stat">
-                          <strong>
-                            {model.incidentCount}
-                          </strong>
-
-                          <span>
-                            {model.incidentCount === 1
-                              ? "incident"
-                              : "incidents"}
-                          </span>
-                        </div>
-                      </Link>
-                    )
-                  )}
-              </div>
-            )}
-          </section>
-        )}
-
-        {capabilities.canViewQa && (
-          <section className="content-card agency-dashboard-panel agency-dashboard-panel-wide">
-            <div className="card-header">
-              <div>
-                <h3>
-                  Open QA incidents
-                </h3>
-
-                <p>
-                  QA incidents requiring attention in your current creator access.
-                </p>
-              </div>
-
-              <Link
-                to="/incidents"
-                className="text-button"
-              >
-                View incidents
-              </Link>
-            </div>
-
-            {loading ? (
-              <div className="empty-state dashboard-empty">
-                <strong>
-                  Loading current incidents…
-                </strong>
-              </div>
-            ) : currentIncidents.length ===
-              0 ? (
-              <div className="empty-state dashboard-empty">
-                <strong>
-                  No open QA incidents
-                </strong>
-
-                <span>
-                  New QA records requiring attention will appear here.
-                </span>
-              </div>
-            ) : (
-              <div className="agency-incident-list">
-                {currentIncidents.map(
-                  (
-                    incident
-                  ) => (
-                    <Link
-                      key={
-                        incident.id
-                      }
-                      to="/incidents"
-                      className="agency-incident-row"
-                    >
-                      <div className="agency-incident-person">
-                        <strong>
-                          {incident.chatter.name}
-                        </strong>
-
-                        <span>
-                          {incident.agencyModel?.name ??
-                            "Unassigned creator"}
-                        </span>
-                      </div>
-
-                      <div className="agency-incident-violation">
-                        <span>
-                          Violation
-                        </span>
-
-                        <strong>
-                          {incident.ruleTitleSnapshot}
-                        </strong>
-                      </div>
-
-                      <div className="agency-incident-state">
-                        <strong>
-                          Open incident
-                        </strong>
-
-                        <span>
-                          {incident.severityNameSnapshot ??
-                            "No severity"}
-                        </span>
                       </div>
                     </Link>
                   )

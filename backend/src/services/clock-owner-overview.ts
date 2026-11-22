@@ -4,6 +4,10 @@ import { ClockError, clockAllowed, clockDatabaseNow, clockViewerInclude } from "
 import { centralDayKey, elapsedSeconds } from "./clock-time.js";
 
 const PAGE_SIZE = 20;
+// Same 14-hour point at which the clock worker records an OPEN_SHIFT flag.
+const LONG_SHIFT_MS = 14 * 3600_000;
+// How many long shifts and breaks the Dashboard can list.
+const ATTENTION_ROWS = 5;
 
 /**
  * An explicitly permitted and rechecked attendance snapshot.
@@ -99,6 +103,32 @@ async function readClockOverview(userId: string, before?: string, offShiftBefore
         { name: offShiftCursor.name, id: { gt: offShiftCursor.id } },
       ],
     } : {};
+    const shiftSelect = {
+      id: true,
+      personName: true,
+      startedAt: true,
+      breaks: {
+        where: { endedAt: null },
+        orderBy: { startedAt: "desc" },
+        take: 1,
+        select: { kind: true, startedAt: true },
+      },
+      user: {
+        select: { teamGroup: { select: { name: true } } },
+      },
+    } satisfies Prisma.ClockShiftSelect;
+    const toShift = (row: Prisma.ClockShiftGetPayload<{ select: typeof shiftSelect }>) => ({
+      id: row.id,
+      personName: row.personName,
+      teamName: row.user?.teamGroup?.name ?? "Unassigned",
+      startedAt: row.startedAt,
+      elapsedSeconds: elapsedSeconds(row.startedAt, now),
+      activeBreak: row.breaks[0]
+        ? { kind: row.breaks[0].kind, startedAt: row.breaks[0].startedAt }
+        : null,
+    });
+    const longShiftStart = new Date(now.getTime() - LONG_SHIFT_MS);
+    const firstPage = !before && !offShiftBefore;
     const rows = await tx.clockShift.findMany({
       where: {
         AND: [
@@ -111,25 +141,12 @@ async function readClockOverview(userId: string, before?: string, offShiftBefore
           }] : []),
         ],
       },
-      select: {
-        id: true,
-        personName: true,
-        startedAt: true,
-        breaks: {
-          where: { endedAt: null },
-          orderBy: { startedAt: "desc" },
-          take: 1,
-          select: { kind: true, startedAt: true },
-        },
-        user: {
-          select: { teamGroup: { select: { name: true } } },
-        },
-      },
+      select: shiftSelect,
       orderBy: [{ startedAt: "desc" }, { id: "desc" }],
       take: PAGE_SIZE + 1,
     });
 
-    const [offShiftRows, notClockedInCount, clockedInStaff, staffOnBreak, shiftsStartedToday, pendingReviewRequests] = await Promise.all([
+    const [offShiftRows, notClockedInCount, clockedInStaff, staffOnBreak, shiftsStartedToday, pendingReviewRequests, longShifts, longShiftRows, breakRows] = await Promise.all([
       tx.user.findMany({
         where: { AND: [notClockedInStaff, offShiftFilter] },
         select: { id: true, name: true, teamGroup: { select: { name: true } }, roleMemberships: { where: { role: { archivedAt: null } }, select: { role: { select: { name: true } } } } },
@@ -150,6 +167,29 @@ async function readClockOverview(userId: string, before?: string, offShiftBefore
             where: { status: "PENDING", OR: [{ userId: { not: userId } }, { userId: null }] },
           })
         : Promise.resolve(0),
+      // Shifts still open after 14 hours, counted across the whole roster
+      // rather than only the first page of active shifts.
+      tx.clockShift.count({
+        where: { AND: [openStaffShift, { startedAt: { lte: longShiftStart } }] },
+      }),
+      // The longest shifts and breaks, wherever they fall in the roster.
+      // Being the oldest, long shifts are usually past the first page.
+      firstPage
+        ? tx.clockShift.findMany({
+            where: { AND: [openStaffShift, { startedAt: { lte: longShiftStart } }] },
+            select: shiftSelect,
+            orderBy: [{ startedAt: "asc" }, { id: "asc" }],
+            take: ATTENTION_ROWS,
+          })
+        : Promise.resolve([]),
+      firstPage
+        ? tx.clockBreak.findMany({
+            where: { endedAt: null, shift: { is: openStaffShift } },
+            select: { shift: { select: shiftSelect } },
+            orderBy: [{ startedAt: "asc" }, { id: "asc" }],
+            take: ATTENTION_ROWS,
+          })
+        : Promise.resolve([]),
     ]);
 
     return {
@@ -163,17 +203,14 @@ async function readClockOverview(userId: string, before?: string, offShiftBefore
         staffOnBreak,
         shiftsStartedToday,
         pendingReviewRequests,
+        longShifts,
       },
-      activeShifts: rows.slice(0, PAGE_SIZE).map((row) => ({
-        id: row.id,
-        personName: row.personName,
-        teamName: row.user?.teamGroup?.name ?? "Unassigned",
-        startedAt: row.startedAt,
-        elapsedSeconds: elapsedSeconds(row.startedAt, now),
-        activeBreak: row.breaks[0]
-          ? { kind: row.breaks[0].kind, startedAt: row.breaks[0].startedAt }
-          : null,
-      })),
+      activeShifts: rows.slice(0, PAGE_SIZE).map(toShift),
+      // First page only: up to 5 long shifts (oldest first), then up to 5
+      // shifts on a break (longest break first), without duplicates.
+      attentionShifts: [...new Map(
+        [...longShiftRows, ...breakRows.map((row) => row.shift)].map((row) => [row.id, toShift(row)]),
+      ).values()],
       offShiftStaff: offShiftRows.slice(0, PAGE_SIZE).map((user) => ({
         id: user.id,
         personName: user.name,
