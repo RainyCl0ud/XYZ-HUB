@@ -97,8 +97,34 @@ async function main() {
     assert.equal(await longShifts(otherManager.id), 1);
     assert.equal(await longShifts(manager.id), 1, "Long shifts outside the viewer's creators stay hidden");
     assert.equal(await longShifts(owner.id), 2);
-    await prisma.clockShift.updateMany({ where: { id: { in: [chatterShift.id, outsideShift.id] } }, data: { startedAt: now } });
     pass("Long shifts (open 14 hours or more) are counted within each viewer's attendance scope");
+
+    // Twenty newer shifts push both long shifts off the first page; the
+    // attention list still returns them, oldest first, then the open break.
+    const attention = async (id: string) => (await getAttendanceOverview(id)).attentionShifts.map((r) => r.personName);
+    const trialShift = await prisma.clockShift.findFirstOrThrow({ where: { userId: trial.id, endedAt: null } });
+    const pause = await prisma.clockBreak.create({ data: { shiftId: trialShift.id, kind: "MEAL", startedAt: new Date(now.getTime() - 20 * 60_000), startRequestId: randomUUID() } });
+    const extras = await Promise.all(Array.from({ length: 20 }, (_, i) => prisma.user.create({ data: {
+      name: `${prefix} busy ${String(i).padStart(2, "0")}`, email: `${prefix}-busy-${i}@example.test`, status: "ACTIVE",
+    } })));
+    await prisma.clockShift.createMany({ data: extras.map((user, i) => ({ userId: user.id, personName: user.name,
+      startedAt: new Date(now.getTime() + (i + 1) * 1000), startDay: centralDayKey(now), startWeek: centralWeekKey(now), startRequestId: randomUUID() })) });
+    try {
+      const busy = await getAttendanceOverview(owner.id);
+      assert.ok(busy.hasMore && !busy.activeShifts.some((r) => r.personName === chatter.name || r.personName === outside.name), "Both long shifts are past the first page");
+      assert.deepEqual(busy.attentionShifts.map((r) => r.personName), [chatter.name, outside.name, trial.name]);
+      assert.equal(busy.attentionShifts[2].activeBreak?.kind, "MEAL");
+      assert.deepEqual(await attention(manager.id), [chatter.name, trial.name], "Scoped to the manager's team");
+      assert.deepEqual(await attention(otherManager.id), [outside.name], "Scoped to the other manager's team");
+      assert.deepEqual((await getAttendanceOverview(owner.id, busy.nextBefore!)).attentionShifts, [], "Later pages don't repeat the list");
+    } finally {
+      await prisma.clockShift.deleteMany({ where: { userId: { in: extras.map((u) => u.id) } } });
+      await prisma.user.deleteMany({ where: { id: { in: extras.map((u) => u.id) } } });
+      await prisma.clockBreak.delete({ where: { id: pause.id } });
+    }
+    await prisma.clockShift.updateMany({ where: { id: { in: [chatterShift.id, outsideShift.id] } }, data: { startedAt: now } });
+    assert.deepEqual(await attention(owner.id), [], "Nothing to list once shifts are short and breaks ended");
+    pass("The attention list returns long shifts and breaks past the first page, within each viewer's scope");
 
     const foreignShift = await prisma.clockShift.findFirstOrThrow({ where: { userId: outside.id, endedAt: null } });
     await denied(() => getAttendanceOverview(qc.id, foreignShift.id), 400);
@@ -142,6 +168,7 @@ async function main() {
     assert.deepEqual(remaining.offShiftStaff[0].roleNames, [custom.name]);
     pass("Inactive staff are excluded without exposing historic personal attendance");
   } finally {
+    await prisma.clockBreak.deleteMany({ where: { shift: { userId: { in: userIds } } } });
     await prisma.clockShift.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.userModelAssignment.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });

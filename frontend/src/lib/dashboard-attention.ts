@@ -1,8 +1,20 @@
-// Helpers for the Dashboard's "On the clock now" card. The data is the
-// scoped roster from /api/clock/overview: Owners see the agency, managers
-// their assigned team and QC their assigned chatters.
+// Helpers for the Dashboard's "Needs attention" and "On the clock now"
+// cards. Attendance is the scoped roster from /api/clock/overview: Owners
+// see the agency, managers their assigned team and QC their assigned
+// chatters.
+import { ApiError } from "./api";
+import { CENTRAL_TIME_ZONE } from "./time";
 
 export type BreakKind = "SHORT_ONE" | "SHORT_TWO" | "MEAL";
+
+type ActiveShift = {
+  id: string;
+  personName: string;
+  teamName: string;
+  startedAt: string;
+  elapsedSeconds: number;
+  activeBreak: { kind: BreakKind; startedAt: string } | null;
+};
 
 export type AttendanceOverview = {
   serverNow: string;
@@ -13,19 +25,31 @@ export type AttendanceOverview = {
     // Missing until the backend that counts long shifts is deployed.
     longShifts?: number;
   };
-  activeShifts: {
-    id: string;
-    personName: string;
-    teamName: string;
-    startedAt: string;
-    elapsedSeconds: number;
-    activeBreak: { kind: BreakKind; startedAt: string } | null;
-  }[];
+  // The first page of the roster, newest shift first.
+  activeShifts: ActiveShift[];
+  // Long shifts and breaks wherever they fall in the roster (newer backend).
+  attentionShifts?: ActiveShift[];
 };
 
-export type ShiftRow = AttendanceOverview["activeShifts"][number] & {
+export type AttendanceState =
+  | { status: "loading" }
+  // stale: the last refresh failed, so this snapshot is out of date.
+  | { status: "ready"; data: AttendanceOverview; stale: boolean }
+  | { status: "error" }
+  | { status: "unavailable" };
+
+export type ShiftRow = ActiveShift & {
   breakSeconds: number;
   isLong: boolean;
+};
+
+export type AttentionRow = {
+  key: string;
+  label: string;
+  helper: string;
+  // null while loading or when the source couldn't load.
+  count: number | null;
+  href: string | null;
 };
 
 // Same 14-hour point at which the clock flags a shift as still open.
@@ -44,6 +68,11 @@ export function formatDuration(seconds: number) {
   return hours > 0 ? `${hours} h ${minutes % 60} min` : `${minutes} min`;
 }
 
+/** "1:14 PM CST", for "Showing attendance from …". */
+export function formatSnapshotTime(value: string) {
+  return new Intl.DateTimeFormat("en-US", { timeZone: CENTRAL_TIME_ZONE, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(value));
+}
+
 const rank = (row: ShiftRow) => (row.isLong ? 0 : row.activeBreak ? 1 : 2);
 
 /**
@@ -52,7 +81,8 @@ const rank = (row: ShiftRow) => (row.isLong ? 0 : row.activeBreak ? 1 : 2);
  */
 export function attentionOrder(overview: AttendanceOverview): ShiftRow[] {
   const serverNow = Date.parse(overview.serverNow);
-  return overview.activeShifts
+  const shifts = [...new Map([...(overview.attentionShifts ?? []), ...overview.activeShifts].map((shift) => [shift.id, shift])).values()];
+  return shifts
     .map((shift, index) => ({
       index,
       row: {
@@ -78,4 +108,41 @@ export function describeShift(row: ShiftRow) {
       : `On shift · ${formatDuration(row.elapsedSeconds)}`,
     tag: row.isLong ? "Long shift" : row.activeBreak ? "Break" : null,
   };
+}
+
+/**
+ * After a failed attendance request: no access (403) or Clock off (404)
+ * hides the card; otherwise a loaded snapshot is kept but marked out of
+ * date, and a first load shows an error.
+ */
+export function failedAttendanceState(previous: AttendanceState, error: unknown): AttendanceState {
+  if (error instanceof ApiError && (error.status === 403 || error.status === 404)) return { status: "unavailable" };
+  return previous.status === "ready" ? { ...previous, stale: true } : { status: "error" };
+}
+
+/** The Needs attention rows this account may see, in display order. */
+export function buildAttentionRows(input: {
+  canReviewCorrections: boolean;
+  reviewCount: number;
+  // The account may see attendance and the card isn't hidden.
+  showAttendance: boolean;
+  attendance: AttendanceOverview | null;
+  attendanceHref: string | null;
+  canViewQa: boolean;
+  // null while the QA summary loads or if it failed.
+  openIncidents: number | null;
+}): AttentionRow[] {
+  const rows: AttentionRow[] = [];
+  if (input.canReviewCorrections) {
+    rows.push({ key: "corrections", label: "Corrections to review", helper: "Waiting for your approval", count: input.reviewCount, href: "/clock?tab=review" });
+  }
+  // Hidden only when a snapshot comes from a backend that doesn't count
+  // long shifts yet; "—" while attendance loads or fails.
+  if (input.showAttendance && (input.attendance === null || input.attendance.counts.longShifts !== undefined)) {
+    rows.push({ key: "long-shifts", label: "Long shifts", helper: "Clocked in 14 hours or more", count: input.attendance?.counts.longShifts ?? null, href: input.attendanceHref });
+  }
+  if (input.canViewQa) {
+    rows.push({ key: "incidents", label: "Open QA incidents", helper: "Across your creators", count: input.openIncidents, href: "/incidents" });
+  }
+  return rows;
 }

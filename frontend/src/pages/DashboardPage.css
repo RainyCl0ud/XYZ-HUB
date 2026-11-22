@@ -875,26 +875,61 @@
   white-space: nowrap;
 }
 
+/* Real lists, so screen readers announce how many items there are. */
 .agency-attention-list,
 .agency-clock-list {
   display: flex;
   flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.agency-attention-row,
-.agency-clock-row {
-  border-bottom: 1px solid var(--border);
+.agency-attention-list > li + li,
+.agency-clock-list > li + li {
+  border-top: 1px solid var(--border);
+}
+
+a.agency-attention-row {
   transition: background 120ms ease;
 }
 
-.agency-attention-row:last-child,
-.agency-clock-row:last-child {
-  border-bottom: 0;
+a.agency-attention-row:hover {
+  background: var(--surface-hover);
 }
 
-a.agency-attention-row:hover,
-a.agency-clock-row:hover {
-  background: var(--surface-hover);
+.agency-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Errors and out-of-date data: 2px white border and bold words. */
+.agency-clock-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 18px;
+  padding: 8px 8px 8px 12px;
+  border: 2px solid #FFFFFF;
+}
+
+.agency-clock-notice strong {
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agency-clock-notice .text-button {
+  flex: none;
 }
 
 /* Needs attention: number, label and helper, then a drawn arrow. */
@@ -1052,16 +1087,12 @@ a.agency-attention-row::after {
   border: 2px solid #FFFFFF;
 }
 
-/* Loading, error and "no one clocked in" stay one short line. */
+/* Loading and "no one clocked in" stay one short line. */
 .agency-clock-panel .dashboard-empty {
   align-items: flex-start;
   min-height: 0;
   padding: 16px 18px;
   text-align: left;
-}
-
-.agency-clock-error .text-button {
-  margin-top: 4px;
 }
 
 @media (max-width: 720px) {
@@ -1104,5 +1135,9 @@ a.agency-attention-row::after {
 
   .agency-clock-panel .dashboard-empty {
     padding: 14px;
+  }
+
+  .agency-clock-notice {
+    margin: 10px 14px;
   }
 }

@@ -20,7 +20,6 @@ import {
 } from "../auth/portalAccess";
 
 import {
-  ApiError,
   apiRequest,
   MODEL_CONTEXT_CHANGED_EVENT,
   PEOPLE_CHANGED_EVENT,
@@ -31,10 +30,16 @@ import {
 } from "../components/ClockReviewCountContext";
 
 import {
-  attentionOrder,
-  describeShift,
+  buildAttentionRows,
+  failedAttendanceState,
   type AttendanceOverview,
+  type AttendanceState,
 } from "../lib/dashboard-attention";
+
+import {
+  NeedsAttentionCard,
+  OnTheClockCard,
+} from "../components/DashboardAttention";
 
 import "./DashboardPage.css";
 import { formatDataScope } from "../lib/data-scope";
@@ -129,20 +134,11 @@ type QaDashboardResponse = {
   };
 };
 
-type AttendanceState =
-  | { status: "loading" }
-  | { status: "ready"; data: AttendanceOverview }
-  | { status: "error"; message: string }
-  | { status: "unavailable" };
-
 const CENTRAL_TIME_ZONE =
   "America/Chicago";
 
 const ATTENDANCE_REFRESH_MS =
   60_000;
-
-const ATTENDANCE_ROWS =
-  5;
 
 const ATTENDANCE_OVERVIEW_PERMISSIONS = [
   "clock.overview.agency",
@@ -201,6 +197,7 @@ function statusLabel(
 
 function DashboardPage() {
   const {
+    user,
     access,
   } =
     useAuth();
@@ -274,14 +271,69 @@ function DashboardPage() {
         : "/clock?tab=team"
       : null;
 
+  // A snapshot belongs to one account and its access. After a different
+  // sign-in, role, permission or creator assignment it is never shown,
+  // and a fresh load starts straight away.
+  const attendanceScope =
+    canViewAttendance &&
+    access
+      ? [
+          user?.id ??
+            "",
+          access.roles
+            .map(
+              (
+                role
+              ) =>
+                `${role.id}:${role.systemKey ?? ""}`
+            )
+            .sort()
+            .join(
+              ","
+            ),
+          [
+            ...access.permissions,
+          ]
+            .sort()
+            .join(
+              ","
+            ),
+          [
+            ...access.assignedModelIds,
+          ]
+            .sort()
+            .join(
+              ","
+            ),
+        ].join(
+          "|"
+        )
+      : "";
+
   const [
-    attendance,
-    setAttendance,
+    storedAttendance,
+    setStoredAttendance,
   ] =
-    useState<AttendanceState>({
-      status:
-        "loading",
+    useState<{
+      scope: string;
+      state: AttendanceState;
+    }>({
+      scope:
+        "",
+      state: {
+        status:
+          "loading",
+      },
     });
+
+  const attendance: AttendanceState =
+    storedAttendance.scope ===
+    attendanceScope
+      ? storedAttendance.state
+      : {
+          status:
+            "loading",
+        };
 
   const attendanceRequest =
     useRef<AbortController | null>(
@@ -292,7 +344,7 @@ function DashboardPage() {
     useCallback(
       async () => {
         if (
-          !canViewAttendance
+          !attendanceScope
         ) {
           return;
         }
@@ -318,10 +370,16 @@ function DashboardPage() {
           if (
             !controller.signal.aborted
           ) {
-            setAttendance({
-              status:
-                "ready",
-              data,
+            setStoredAttendance({
+              scope:
+                attendanceScope,
+              state: {
+                status:
+                  "ready",
+                data,
+                stale:
+                  false,
+              },
             });
           }
         } catch (
@@ -333,50 +391,38 @@ function DashboardPage() {
             return;
           }
 
-          if (
-            error instanceof ApiError &&
-            [
-              403,
-              404,
-            ].includes(
-              error.status
-            )
-          ) {
-            setAttendance({
-              status:
-                "unavailable",
-            });
-
-            return;
-          }
-
-          // A failed background refresh keeps the last good snapshot;
-          // the next refresh replaces it.
-          setAttendance(
+          // 403/404 hide the card; other failures keep a loaded snapshot
+          // marked out of date, or show an error on a first load.
+          setStoredAttendance(
             (
               previous
-            ) =>
-              previous.status ===
-              "ready"
-                ? previous
-                : {
-                    status:
-                      "error",
-                    message:
-                      "Attendance couldn't load.",
-                  }
+            ) => ({
+              scope:
+                attendanceScope,
+              state:
+                failedAttendanceState(
+                  previous.scope ===
+                    attendanceScope
+                    ? previous.state
+                    : {
+                        status:
+                          "loading",
+                      },
+                  error
+                ),
+            })
           );
         }
       },
       [
-        canViewAttendance,
+        attendanceScope,
       ]
     );
 
   useEffect(
     () => {
       if (
-        !canViewAttendance
+        !attendanceScope
       ) {
         return;
       }
@@ -438,7 +484,7 @@ function DashboardPage() {
       };
     },
     [
-      canViewAttendance,
+      attendanceScope,
       loadAttendance,
     ]
   );
@@ -631,96 +677,29 @@ function DashboardPage() {
     ]
   );
 
-  const attendanceData =
-    attendance.status === "ready"
-      ? attendance.data
-      : null;
-
-  const shiftRows =
-    useMemo(
-      () =>
-        attendanceData
-          ? attentionOrder(
-              attendanceData
-            )
-          : [],
-      [
-        attendanceData,
-      ]
-    );
-
   const showAttendance =
     canViewAttendance &&
     attendance.status !==
       "unavailable";
 
-  const attentionRows: {
-    key: string;
-    label: string;
-    helper: string;
-    count: number | null;
-    href: string | null;
-  }[] = [];
-
-  if (
-    canReviewCorrections
-  ) {
-    attentionRows.push({
-      key:
-        "corrections",
-      label:
-        "Corrections to review",
-      helper:
-        "Waiting for your approval",
-      count:
-        reviewCount,
-      href:
-        "/clock?tab=review",
-    });
-  }
-
-  // Shows "—" while attendance loads or fails, and stays hidden only if
-  // the snapshot comes from a backend that doesn't count long shifts yet.
-  if (
-    showAttendance &&
-    (attendanceData === null ||
-      attendanceData.counts.longShifts !==
-        undefined)
-  ) {
-    attentionRows.push({
-      key:
-        "long-shifts",
-      label:
-        "Long shifts",
-      helper:
-        "Clocked in 14 hours or more",
-      count:
-        attendanceData?.counts.longShifts ??
-        null,
-      href:
-        attendanceHref,
-    });
-  }
-
-  if (
-    capabilities.canViewQa
-  ) {
-    attentionRows.push({
-      key:
-        "incidents",
-      label:
-        "Open QA incidents",
-      helper:
-        "Across your creators",
-      count:
-        loading
+  const attentionRows =
+    buildAttentionRows({
+      canReviewCorrections,
+      reviewCount,
+      showAttendance,
+      attendance:
+        attendance.status === "ready"
+          ? attendance.data
+          : null,
+      attendanceHref,
+      canViewQa:
+        capabilities.canViewQa,
+      // "—", not a reassuring 0, while the summary loads or if it failed.
+      openIncidents:
+        loading || !qa
           ? null
-          : qa?.counts.openIncidents ??
-            0,
-      href:
-        "/incidents",
+          : qa.counts.openIncidents,
     });
-  }
 
   const activeCreators =
     models.filter(
@@ -817,246 +796,25 @@ function DashboardPage() {
         showAttendance) && (
         <div className="agency-attention-grid">
           {attentionRows.length > 0 && (
-            <section className="content-card agency-dashboard-panel agency-attention-panel">
-              <div className="card-header">
-                <div>
-                  <h3>
-                    Needs attention
-                  </h3>
-
-                  <p>
-                    What is waiting on you right now.
-                  </p>
-                </div>
-              </div>
-
-              <div className="agency-attention-list">
-                {attentionRows.map(
-                  (
-                    row
-                  ) => {
-                    const className =
-                      `agency-attention-row${row.count ? " has-items" : ""}`;
-
-                    const content = (
-                      <>
-                        <strong className="agency-attention-count">
-                          {row.count ??
-                            "—"}
-                        </strong>
-
-                        <span className="agency-attention-copy">
-                          <span>
-                            {row.label}
-                          </span>
-
-                          <small>
-                            {row.helper}
-                          </small>
-                        </span>
-                      </>
-                    );
-
-                    return row.href ? (
-                      <Link
-                        key={
-                          row.key
-                        }
-                        to={
-                          row.href
-                        }
-                        className={
-                          className
-                        }
-                      >
-                        {content}
-                      </Link>
-                    ) : (
-                      <div
-                        key={
-                          row.key
-                        }
-                        className={
-                          className
-                        }
-                      >
-                        {content}
-                      </div>
-                    );
-                  }
-                )}
-              </div>
-            </section>
+            <NeedsAttentionCard
+              rows={
+                attentionRows
+              }
+            />
           )}
 
           {showAttendance && (
-            <section className="content-card agency-dashboard-panel agency-clock-panel">
-              <div className="card-header">
-                <div>
-                  <h3>
-                    On the clock now
-                  </h3>
-
-                  <p>
-                    Who is working, on a break or not clocked in.
-                  </p>
-                </div>
-
-                {attendanceHref && (
-                  <Link
-                    to={
-                      attendanceHref
-                    }
-                    className="text-button"
-                  >
-                    View attendance
-                  </Link>
-                )}
-              </div>
-
-              {attendance.status ===
-              "loading" ? (
-                <div className="empty-state dashboard-empty">
-                  <strong>
-                    Loading attendance…
-                  </strong>
-                </div>
-              ) : attendance.status ===
-                "error" ? (
-                <div className="empty-state dashboard-empty agency-clock-error">
-                  <strong>
-                    {attendance.message}
-                  </strong>
-
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={() => {
-                      void loadAttendance();
-                    }}
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : attendanceData && (
-                <>
-                  <dl className="agency-clock-counts">
-                    <div>
-                      <dt>
-                        Clocked in
-                      </dt>
-
-                      <dd>
-                        {attendanceData.counts.clockedInStaff}
-                      </dd>
-                    </div>
-
-                    <div>
-                      <dt>
-                        On break
-                      </dt>
-
-                      <dd>
-                        {attendanceData.counts.staffOnBreak}
-                      </dd>
-                    </div>
-
-                    <div>
-                      <dt>
-                        Not clocked in
-                      </dt>
-
-                      <dd>
-                        {attendanceData.counts.notClockedInStaff}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  {shiftRows.length ===
-                  0 ? (
-                    <div className="empty-state dashboard-empty">
-                      <strong>
-                        No one is clocked in right now
-                      </strong>
-                    </div>
-                  ) : (
-                    <div className="agency-clock-list">
-                      {shiftRows
-                        .slice(
-                          0,
-                          ATTENDANCE_ROWS
-                        )
-                        .map(
-                          (
-                            row
-                          ) => {
-                            const {
-                              state,
-                              tag,
-                            } =
-                              describeShift(
-                                row
-                              );
-
-                            const content = (
-                              <>
-                                <span className="agency-clock-person">
-                                  <strong>
-                                    {row.personName}
-                                  </strong>
-
-                                  <span>
-                                    {row.teamName}
-                                  </span>
-                                </span>
-
-                                <span className="agency-clock-state">
-                                  <span>
-                                    {state}
-                                  </span>
-
-                                  {tag && (
-                                    <span
-                                      className={
-                                        `agency-clock-tag${row.isLong ? " long" : ""}`
-                                      }
-                                    >
-                                      {tag}
-                                    </span>
-                                  )}
-                                </span>
-                              </>
-                            );
-
-                            return attendanceHref ? (
-                              <Link
-                                key={
-                                  row.id
-                                }
-                                to={
-                                  attendanceHref
-                                }
-                                className="agency-clock-row"
-                              >
-                                {content}
-                              </Link>
-                            ) : (
-                              <div
-                                key={
-                                  row.id
-                                }
-                                className="agency-clock-row"
-                              >
-                                {content}
-                              </div>
-                            );
-                          }
-                        )}
-                    </div>
-                  )}
-                </>
-              )}
-            </section>
+            <OnTheClockCard
+              state={
+                attendance
+              }
+              href={
+                attendanceHref
+              }
+              onRetry={() => {
+                void loadAttendance();
+              }}
+            />
           )}
         </div>
       )}
