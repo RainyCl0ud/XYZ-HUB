@@ -26,6 +26,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastProvider";
 
 import "./PeoplePage.css";
+import { formatDataScope } from "../lib/data-scope";
 
 type PersonStatus = "PENDING_SETUP" | "ACTIVE" | "DEACTIVATED";
 
@@ -144,13 +145,6 @@ function formatStatus(status: PersonStatus) {
   if (status === "PENDING_SETUP") return "Pending setup";
   if (status === "DEACTIVATED") return "Deactivated";
   return "Active";
-}
-
-function formatDataScope(value: string) {
-  if (value === "ALL") return "All data";
-  if (value === "SELF_AND_TEAM") return "Self + subordinates";
-  if (value === "SELF") return "Self only";
-  return value.toLowerCase().replaceAll("_", " ");
 }
 
 function collectDescendants(

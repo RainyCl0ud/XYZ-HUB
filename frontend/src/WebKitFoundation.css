@@ -62,14 +62,14 @@
   --warning: #ffffff;
   --warning-bg: rgba(255, 255, 255, 0.08);
 
-  /*
-   * Destructive-action colors intentionally continue to inherit from
-   * the existing application theme until the People Management
-   * Danger Zone treatment is confirmed.
-   */
-
   --info: #ffffff;
   --info-bg: rgba(255, 255, 255, 0.08);
+
+  /* Errors and destructive states are monochrome too: white text and
+     borders, never red (XYZ web kit). */
+  --danger: #ffffff;
+  --danger-strong: #ffffff;
+  --danger-bg: rgba(255, 255, 255, 0.08);
 
   /* Shape */
   --radius-sm: 2px;
@@ -162,7 +162,7 @@ a:focus-visible {
 
   color: var(--text-muted);
 
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
   font-weight: 700;
   letter-spacing: var(--hub-label-tracking);
@@ -231,7 +231,7 @@ a:focus-visible {
 
   color: var(--text-muted);
 
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.4;
   font-weight: 700;
   letter-spacing: var(--hub-label-tracking);
@@ -242,7 +242,7 @@ a:focus-visible {
   width: 100%;
   margin-top: 28px;
 
-  font-size: 9px;
+  font-size: 11px;
   text-align: center;
 }
 
@@ -252,7 +252,9 @@ a:focus-visible {
       0
       14px;
 
-    font-size: 8px;
+    font-size: 11px;
+    /* Two lines fit in the 58px footer on a phone. */
+    letter-spacing: 0.08em;
   }
 }
 /* ==========================================================================

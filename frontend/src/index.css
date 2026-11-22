@@ -415,16 +415,17 @@ a:focus-visible {
 }
 
 .danger-button {
-  border: 1px solid #8a4946;
+  border: 2px solid #ffffff;
 
-  background: #6e3734;
-  color: #f7d6d3;
+  background: #000000;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .danger-button:hover:not(:disabled) {
-  border-color: #9f5450;
+  border-color: #ffffff;
 
-  background: #82413d;
+  background: #1a1a1a;
 }
 
 .primary-button:active:not(:disabled),
@@ -1017,7 +1018,7 @@ select:disabled {
 }
 
 .incident-status.voided {
-  border-color: rgba(229, 141, 135, 0.14);
+  border-color: #666666;
 
   background: var(--danger-bg);
   color: var(--danger);
@@ -1063,10 +1064,11 @@ select:disabled {
 }
 
 .alert-error {
-  border: 1px solid rgba(229, 141, 135, 0.23);
+  border: 2px solid #ffffff;
 
   background: var(--danger-bg);
-  color: #efaaa5;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .page-alert {
@@ -1528,7 +1530,7 @@ select:disabled {
 }
 
 .lifecycle-section.voided {
-  border-color: rgba(229, 141, 135, 0.2);
+  border-color: #666666;
 
   background: var(--danger-bg);
 }
@@ -2741,7 +2743,7 @@ body {
 
 .toast-error .toast-icon {
   border-color:
-    rgba(229, 141, 135, 0.22);
+    #666666;
 
   background: var(--danger-bg);
   color: var(--danger);

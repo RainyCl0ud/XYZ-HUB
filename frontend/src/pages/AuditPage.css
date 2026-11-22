@@ -42,7 +42,8 @@
 .audit-error {
   margin-bottom: 12px;
   padding: 11px 12px;
-  border: 1px solid rgba(229, 141, 135, 0.24);
+  border: 2px solid #FFFFFF;
+  font-weight: 700;
   border-radius: 2px;
   background: var(--danger-bg);
   color: var(--danger);
@@ -423,7 +424,7 @@
 }
 
 .audit-change-value.before {
-  border-color: rgba(229, 141, 135, 0.14);
+  border-color: #666666;
 }
 
 .audit-change-value.after {
@@ -514,7 +515,7 @@
 }
 
 .audit-delta-chip.removed {
-  border-color: rgba(229, 141, 135, 0.22);
+  border-color: #666666;
   background: var(--danger-bg);
   color: var(--danger);
 }

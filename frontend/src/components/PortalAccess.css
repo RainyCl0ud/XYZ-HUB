@@ -1763,3 +1763,61 @@
     font-size: 7.5px;
   }
 }
+
+/* ==========================================================================
+   Shell type minimum: nothing in the header, sidebar or account menu is
+   smaller than 11px (XYZ web kit). Earlier rules shrank labels to 6-10px.
+   These come last in the file, so they win at equal specificity.
+   ========================================================================== */
+.hub-nav-heading,
+.portal-command-label,
+.portal-command-context-static,
+.portal-command-context-v2 .portal-command-context-static,
+.portal-command-role .portal-command-label,
+.portal-account-avatar,
+.portal-account-dropdown-profile strong,
+.portal-account-dropdown-profile small,
+.portal-account-dropdown-profile span,
+.portal-account-dropdown-item,
+.portal-account-confirm p,
+.portal-clock-date {
+  font-size: 11px;
+}
+
+/* The zone shows next to the time only when the date (which carries it)
+   is hidden. */
+.portal-clock-zone {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .portal-clock-time {
+    font-size: 11px !important;
+  }
+
+  /* The header is too narrow for a readable date on tablets and phones;
+     the time stays, with its zone (CST/CDT) so it isn't read as local. */
+  .portal-clock-date {
+    display: none !important;
+  }
+
+  .portal-clock-zone {
+    display: inline;
+  }
+}
+
+@media (max-width: 430px) {
+  /* Room for "12:45 PM CST" at 11px beside the 32px account button. */
+  .portal-command-bar-v2 {
+    grid-template-columns:
+      40px
+      minmax(0, 1fr)
+      120px;
+  }
+
+  .portal-command-meta {
+    grid-template-columns:
+      minmax(76px, 1fr)
+      32px;
+  }
+}

@@ -35,7 +35,8 @@
     "test:chat-message-grouping": "node scripts/test-chat-message-grouping.mjs",
     "test:notification-bell": "node scripts/test-notification-bell.mjs",
     "test:authenticator-ui": "node scripts/test-authenticator-ui.mjs",
-    "test:no-alert-marks": "node scripts/test-no-alert-marks.mjs"
+    "test:no-alert-marks": "node scripts/test-no-alert-marks.mjs",
+    "test:cleanup-batch1": "node scripts/test-cleanup-batch1.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
