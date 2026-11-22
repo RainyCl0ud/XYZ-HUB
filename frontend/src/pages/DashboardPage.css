@@ -809,3 +809,296 @@
       );
   }
 }
+
+
+/* =========================================================
+   DASHBOARD — READABLE TEXT AND PHONE LAYOUT (22 Nov 2026)
+   Text follows the web kit scale at every width: 11px only for
+   uppercase labels, 13px for names and helper text. Phones
+   (720px and below) get slim number cards, one-line rows and
+   compact empty states, and list the 3 newest people (desktop
+   lists 5). Card order, links and permissions don't change.
+   ========================================================= */
+
+.agency-metric-card > span,
+.agency-access-summary span,
+.agency-incident-violation span {
+  color: #CCCCCC;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: var(--hub-label-tracking);
+  text-transform: uppercase;
+}
+
+.agency-metric-card > small {
+  color: #999999;
+  font-size: 13px;
+}
+
+.agency-person-copy strong,
+.agency-model-row > div:first-child strong,
+.agency-incident-person strong,
+.agency-incident-violation strong,
+.agency-incident-state strong {
+  font-size: 13px;
+}
+
+.agency-person-copy span,
+.agency-model-row > div:first-child span,
+.agency-incident-person span,
+.agency-incident-state span,
+.agency-access-summary strong {
+  font-size: 13px;
+}
+
+.agency-person-meta time,
+.agency-model-stat span {
+  color: #8E8E8E;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agency-person-status {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .agency-dashboard-header .page-description {
+    display: none;
+  }
+
+  .agency-dashboard-header h2 {
+    font-size: 24px;
+  }
+
+  /* Slim number cards: one line each, still a link to the full list. */
+  .agency-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .agency-metric-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 6px 10px;
+    border-color: #666666;
+  }
+
+  .agency-metric-card > strong {
+    order: -1;
+    flex: none;
+    align-self: center;
+    min-width: 2ch;
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .agency-metric-card > span {
+    flex: 1;
+    min-width: 0;
+    color: #CCCCCC;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.25;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .agency-metric-card > small {
+    display: none;
+  }
+
+  /* Drawn arrows: no text, so screen readers don't announce them. */
+  .agency-metric-card::after,
+  .agency-dashboard-panel .card-header .text-button::after {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-top: 2px solid currentColor;
+    border-right: 2px solid currentColor;
+    transform: rotate(45deg);
+  }
+
+  .agency-metric-card::after {
+    margin-right: 3px;
+    color: #999999;
+  }
+
+  /* Card headers: title and link on one line, no description. */
+  .agency-dashboard-grid {
+    gap: 12px;
+  }
+
+  .agency-dashboard-panel .card-header {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding: 4px 8px 4px 14px;
+  }
+
+  .agency-dashboard-panel .card-header > div {
+    min-width: 0;
+  }
+
+  .agency-dashboard-panel .card-header p {
+    display: none;
+  }
+
+  .agency-dashboard-panel .card-header .text-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    min-height: 40px;
+    padding: 0 8px;
+    color: #FFFFFF;
+    font-size: 13px !important;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .agency-dashboard-panel .card-header .text-button::after {
+    margin-right: 2px;
+  }
+
+  /* Recently added people: name and role left, status and date right. */
+  .agency-people-row {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 56px;
+    padding: 8px 14px;
+  }
+
+  .agency-people-row:nth-child(n + 4) {
+    display: none;
+  }
+
+  .agency-person-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .agency-person-meta {
+    grid-column: auto;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  /* Current creators: "1 incident" on one line. */
+  .agency-model-row {
+    gap: 12px;
+    min-height: 52px;
+    padding: 8px 14px;
+  }
+
+  .agency-model-stat {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .agency-model-stat strong {
+    font-size: 15px;
+  }
+
+  /* Open incidents: person and creator, then the rule; severity right. */
+  .agency-incident-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 12px;
+    min-height: 56px;
+    padding: 8px 14px;
+  }
+
+  .agency-incident-person {
+    grid-column: 1;
+    grid-row: 1;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .agency-incident-person span::before {
+    content: "·";
+    content: "·" / "";
+    margin-right: 6px;
+  }
+
+  .agency-incident-violation {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* The card title already says these are open incidents, so the labels
+     are hidden on screen but still read by screen readers. */
+  .agency-incident-violation span,
+  .agency-incident-state strong {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .agency-incident-violation strong {
+    color: #CCCCCC;
+    font-weight: 400;
+  }
+
+  .agency-incident-state {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .agency-incident-state span {
+    padding: 1px 6px;
+    border: 1px solid #666666;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Empty and loading states: one line instead of a 230px box. */
+  .agency-dashboard-panel .dashboard-empty {
+    align-items: flex-start;
+    min-height: 0;
+    padding: 14px;
+    text-align: left;
+  }
+
+  .agency-dashboard-panel .dashboard-empty span {
+    display: none;
+  }
+
+  /* Coming later: one line per item. */
+  .agency-upcoming-panel .agency-access-summary > div {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    padding: 0 14px;
+  }
+
+  .agency-upcoming-panel .agency-access-summary strong {
+    color: #CCCCCC;
+  }
+}

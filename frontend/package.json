@@ -37,7 +37,8 @@
     "test:authenticator-ui": "node scripts/test-authenticator-ui.mjs",
     "test:no-alert-marks": "node scripts/test-no-alert-marks.mjs",
     "test:cleanup-batch1": "node scripts/test-cleanup-batch1.mjs",
-    "test:header-redesign": "node scripts/test-header-redesign.mjs"
+    "test:header-redesign": "node scripts/test-header-redesign.mjs",
+    "test:dashboard-phone": "node scripts/test-dashboard-phone.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
