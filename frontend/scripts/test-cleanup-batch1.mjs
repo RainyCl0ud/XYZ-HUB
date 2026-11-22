@@ -48,8 +48,9 @@ for (const unused of [".sidebar-nav-label", ".owner-rail-row", ".portal-workspac
 assert.ok(/\.hub-nav-heading \{[^}]*font-size: 11px;/.test(read("components/SidebarNavigation.css")), "Sidebar section headings are 11px where they're defined");
 assert.ok(/@media \(max-width: 720px\) \{\s*\.portal-clock-time \{\s*font-size: 11px !important;\s*\}[\s\S]*?\.portal-clock-date \{\s*display: none !important;/.test(tail), "On tablets and phones the time is 11px and the unreadable date is hidden");
 const layout = read("components/AppLayout.tsx");
-assert.ok(layout.includes('<span className="portal-clock-zone">') && layout.includes("function formatCentralZone(") && /const zone =\s*formatCentralZone\(\s*value\s*\);/.test(layout), "The header time carries its zone");
-assert.ok(/\.portal-clock-zone \{\s*display: none;/.test(tail) && /\.portal-clock-zone \{\s*display: inline;/.test(tail), "The zone shows beside the time only when the date is hidden");
+assert.ok(layout.includes('<span className="portal-clock-zone">') && layout.includes("function formatCentralZone(") && /const centralZone =\s*useMemo\(\s*\(\) =>\s*formatCentralZone\(/.test(layout), "The header time carries its zone");
+// Header v3 shows the zone on the time at every width (it comes last in the file).
+assert.ok(tail.lastIndexOf(".portal-clock-zone {\n  display: inline;") > tail.lastIndexOf(".portal-clock-zone {\n  display: none;"), "The zone shows beside the time");
 assert.ok(/\.hub-confidentiality-footer \{[^}]*font-size: 11px;/.test(foundation) && /\.portal-persistent-footer \{[^}]*font-size: 11px;/.test(foundation) && /\.hub-confidentiality-footer-auth \{[^}]*font-size: 11px;/.test(foundation), "Confidentiality footers are 11px");
 assert.ok(!/\.portal-persistent-footer \{[^}]*font-size: 8px;/.test(foundation), "No 8px footer on phones");
 pass("Header labels, sidebar headings, the account menu and the confidentiality footer are at least 11px; phones show the time with CST/CDT");
