@@ -1,83 +1,73 @@
 # My Account on phones
 
-Staging candidate, 23 November 2026. Production is outside this release.
+Staging candidate, 24 November 2026. Production is outside this release.
 
-On a phone, My Account had several problems:
-
-- The title block was centred and indented, out of line with the cards. A phone rule stacks the header and this page's own rule centred it.
-- The Notification switch floated on its own line.
-- The profile repeated the email.
-- The role and status were squeezed under the picture.
-- The two-step button was cramped beside its title.
-- Most text was 10–11.5px.
+The first phone version (23 November) fixed alignment and text sizes but still showed a lot. Rainheart found it crowded, with too much text. The page now has its own short phone layout, built from the sketch Rainheart approved.
 
 ## What changes
 
 **Phones (720px and below)**
 
-- **Title:** "My Account" lines up with the cards. The small "PERSONAL ACCOUNT" label and the intro sentence are hidden, since the top bar already names the page.
-- **Notification:** one full-width row, with the label on the left and the switch on the right.
-  - The switch looks the same but has a 44px tap area.
-  - When the browser blocks notifications, the explanation sits under it at 13px.
-- **Profile:**
-  - The picture sits beside the name and email. The camera badge still opens the picture editor.
-  - Below them, the role tags wrap onto as many lines as needed, so several roles or long role names stay inside the card.
-  - Long names and emails wrap rather than being cut off.
-  - The "PROFILE" label is hidden.
-- **Account status and Last sign-in:** one row each, with the label on the left and the value on the right. On the narrowest phones (320px) the date drops below its label.
-- **Email:** appears once, under the name. The separate Email row is hidden on phones only.
-- **Two-step sign-in:** buttons sit below the title, full width and 44px tall, in every state:
-  - Set up authenticator app
-  - Continue and Cancel
-  - Get new recovery codes and Turn off
-  - Done
+From top to bottom:
 
-  Two buttons share a row when each can be at least 150px wide; otherwise they stack. The "I've saved my recovery codes" row is 44px tall.
-- **Picture editor:** the close button is 44px.
+1. **Profile, centred:** a larger picture (84px) with the camera badge, then the name, email and role tags. Long names, emails and role names wrap.
+2. **Settings card:** two 56px rows.
+   - **Notification:** the switch on the right, with a 44px tap area. The explanation appears only when the browser blocks notifications.
+   - **Two-step sign-in:** shows the current method, "Email codes" or "Authenticator app", with an arrow.
+     - Tap it to open the explanation and its buttons. Tap again to close it. The arrow points down while it's open.
+     - Once the authenticator is on, opening it shows when it was turned on, how many recovery codes are left, and the two buttons, Get new recovery codes and Turn off.
+     - During setup (password, QR code, recovery codes), or after an error, the row stays open and can't be folded away mid-step.
+3. **Last sign-in:** one grey line, for example "Last sign-in Nov 22, 2026, 9:51 AM CST".
 
-**Every width**
+**No longer shown on phones:**
 
-- **13px text:** the email, the status, the facts, the notification explanation, and the two-step title line, note and error. A global `!important` rule shrinks paragraphs inside cards (12.5px on desktop, 11.5px on phones); these now override it.
-- **11px uppercase:** the PROFILE, EMAIL and LAST SIGN-IN labels (now letter-spaced like other Hub labels) and the role tags.
-- **Role tags:** now uppercase with a grey border.
-- **Status box:** the border is grey (#666666) instead of tinted green, as the monochrome rule requires.
-- Otherwise the desktop layout is unchanged.
+- The "My Account" heading. The top bar already shows it, and screen readers still hear the heading.
+- The "PERSONAL ACCOUNT" label and the intro sentence.
+- The PROFILE label.
+- "Account status: Active". Anyone who can open the page is active.
+- The second email row.
+- The long two-step explanation, until the row is opened.
 
-**Not changed here:**
+**Other phone details:** buttons are full width and 44px tall; two share a row when each can be at least 150px wide. The picture editor's close button is 44px.
 
-- The small "PERSONAL ACCOUNT" label (also used in the picture editor) is 10px on desktop because of a site-wide rule.
-- The intro sentence is 12.5px on desktop, for the same reason.
-- Two-step form labels ("Enter your password to start") use the Hub's shared 11px field-label style.
+**Desktop is unchanged** from the 23 November release, including its larger text: 13px for the email, status, facts and two-step text, and 11px uppercase labels and role tags. The status border is grey.
 
-These belong to a site-wide clean-up.
+**How it's built:**
 
-**Unchanged:** the Notification label and switch, the profile picture editor, two-step sign-in and its steps, Reset 2FA (an Owner action on People), and who sees what. Frontend only: no backend change, migration, flag or setting.
+- At 720px and below the page renders a separate, shorter layout. Screen readers and the keyboard follow the same order you see.
+- The Notification switch and two-step sign-in are the same components as on desktop. The switch gains a "row" style, and two-step gains a compact mode that starts closed.
+- Frontend only. No backend change, migration, flag or setting.
+
+**Not changed here:** some text sizes come from site-wide rules and belong to a later clean-up:
+
+- the 10px "PERSONAL ACCOUNT" label (desktop and the picture editor)
+- the 12.5px desktop intro
+- the 11px two-step form labels
 
 ## Verification (local)
 
 - All 32 frontend suites, lint, the frontend build, and type checks with TypeScript 6.0.3 (as Railway builds) and 5.9.3.
-- **New `test:account-phone`** checks:
-  - the 13px and 11px sizes, including the override of the global card-paragraph rule
-  - the monochrome status border
-  - the aligned title, the Notification row and its 44px switch target
-  - the profile layout: picture, name and email, wrapping role tags, then the status and Last sign-in rows
-  - the email shown once
-  - the full-width 44px two-step buttons in each state
-- **Checked signed in, on a local copy.** The local frontend and API ran against an isolated loopback database with a fictional Owner, using a long display name.
-  - At 440px (the iPhone 16 Pro Max width in the report) the title now starts at the cards' edge, 17px from the screen edge instead of 66px, and the page fits on one screen.
-  - Checked at 320px, 375px, 440px and 1440px with no horizontal scroll.
-  - With three roles on the account (Owner, Ops Manager, Accountant), the tags wrap inside the card at 320px.
-  - The switch sits at the right edge of its row with a 44px tap area.
-  - Opening the two-step password step shows Continue and Cancel side by side at 44px. Nothing was submitted.
-  - The local browser blocks notifications, so the "blocked" explanation was checked. The switch itself wasn't turned on.
+- **`test:account-phone`** (rewritten) renders the page for a fictional account as a phone and as a desktop. It checks:
+  - **Phone:** the order of what's shown, what's no longer shown, the email shown once, and the two-step row starting closed.
+  - **Desktop:** the layout is unchanged.
+  - **Two-step row:** it stays open during setup.
+  - **Styles:** 11px only for uppercase labels, 13px otherwise, monochrome tokens, 56px rows, 44px targets, the arrow and the focus outline.
+- **Checked signed in, on a local copy.** The local frontend and API ran against an isolated loopback database with a fictional Owner and a long display name.
+  - At 440px (the iPhone 16 Pro Max width in the report) the whole page fits on one screen, with or without the two-step row open.
+  - Also checked at 320px, and at 1440px, where the desktop layout is unchanged.
+  - Two-step row:
+    - Opening and closing it worked by tap and by keyboard; the focus outline is 2px white.
+    - The password step kept it open with Continue and Cancel at 44px. Nothing was submitted.
+    - The "authenticator on" state was checked by having the browser tab return that status for display only. Nothing was saved.
+  - The picture editor opened from the picture, and its close button measured 44 × 44px.
+  - The local browser blocks notifications, so the "blocked" explanation was seen. The switch itself wasn't turned on.
 
   Staging itself was not checked signed in.
 
 ## Staging acceptance
 
-1. On a phone, open My Account. "My Account" lines up with the cards below it.
-2. Notification is one row with the switch on the right. It turns notifications on and off as before.
-3. The profile shows your picture beside your name and email, then your role tags, then "Account status: Active" and Last sign-in as two rows. The email appears once.
-4. "Set up authenticator app", or the buttons shown once it's on, spans the card.
-5. Tap the picture: the editor opens as before.
-6. On a desktop, the page looks as before, with larger text.
+1. On a phone, open My Account. You see your picture, name, email and role in the middle, then a card with Notification and Two-step sign-in, then one grey Last sign-in line. Nothing else.
+2. Notification turns notifications on and off as before.
+3. Two-step sign-in shows "Email codes" (or "Authenticator app"). Tap it: the explanation and button appear. Tap again: they fold away.
+4. Tap your picture: the editor opens as before.
+5. On a desktop, the page looks as before.

@@ -21,6 +21,11 @@ import {
   prepareProfileAvatar,
 } from "../lib/profile-avatar";
 
+import {
+  PHONE_QUERY,
+  useMediaQuery,
+} from "../lib/useMediaQuery";
+
 import UserAvatar from "../components/UserAvatar";
 import AccountNotificationToggle from "../components/AccountNotificationToggle";
 import AccountTwoFactor from "../components/AccountTwoFactor";
@@ -365,6 +370,262 @@ function AccountPage() {
     }
   }
 
+  const isPhone =
+    useMediaQuery(
+      PHONE_QUERY
+    );
+
+  const avatarButton = (
+    <button
+      type="button"
+      className="account-profile-avatar-button"
+      aria-label="Change profile picture"
+      title="Change profile picture"
+      onClick={() => {
+        setAvatarError(
+          null
+        );
+
+        setAvatarEditorOpen(
+          true
+        );
+      }}
+    >
+      <UserAvatar
+        name={
+          user?.name
+        }
+        src={
+          currentAvatarUrl
+        }
+        className="account-profile-avatar"
+      />
+
+      <span
+        className="account-profile-avatar-edit"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 24 24"
+        >
+          <path d="M9 6 10.3 4h3.4L15 6h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3Z" />
+          <circle
+            cx="12"
+            cy="12.5"
+            r="3.25"
+          />
+        </svg>
+      </span>
+    </button>
+  );
+
+  const avatarEditor =
+  avatarEditorOpen && (
+    <div
+      className="account-avatar-overlay"
+      role="presentation"
+      onMouseDown={(
+        event
+      ) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          closeAvatarEditor();
+        }
+      }}
+    >
+      <section
+        className="account-avatar-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="account-avatar-title"
+      >
+        <header className="account-avatar-modal-header">
+          <div>
+            <span className="page-eyebrow">
+              Personal account
+            </span>
+
+            <h3 id="account-avatar-title">
+              Edit profile picture
+            </h3>
+
+            <p>
+              Choose a photo and review the square preview before saving.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="account-avatar-close"
+            aria-label="Close profile picture editor"
+            onClick={() =>
+              closeAvatarEditor()
+            }
+            disabled={
+              avatarSaving
+            }
+          >
+            &times;
+          </button>
+        </header>
+
+        <div className="account-avatar-modal-body">
+          <UserAvatar
+            name={
+              user?.name
+            }
+            src={
+              previewUrl ??
+              currentAvatarUrl
+            }
+            className="account-avatar-preview"
+          />
+
+          <input
+            ref={
+              fileInputRef
+            }
+            className="account-avatar-file-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={
+              chooseAvatar
+            }
+            disabled={
+              avatarSaving
+            }
+          />
+
+          <button
+            type="button"
+            className="secondary-button account-avatar-select"
+            onClick={() =>
+              fileInputRef.current?.click()
+            }
+            disabled={
+              avatarSaving
+            }
+          >
+            Select a photo
+          </button>
+
+          <p className="account-avatar-help">
+            JPEG, PNG or WebP · Maximum 5 MB · The image will be center-cropped to a square.
+          </p>
+
+          {avatarError && (
+            <div className="auth-message auth-message-error account-avatar-error">
+              {avatarError}
+            </div>
+          )}
+        </div>
+
+        <footer className="account-avatar-modal-footer">
+          <div>
+            {user?.avatarUpdatedAt && (
+              <button
+                type="button"
+                className="secondary-button account-avatar-remove"
+                onClick={
+                  removeAvatar
+                }
+                disabled={
+                  avatarSaving
+                }
+              >
+                Remove photo
+              </button>
+            )}
+          </div>
+
+          <div className="account-avatar-modal-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                closeAvatarEditor()
+              }
+              disabled={
+                avatarSaving
+              }
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={
+                saveAvatar
+              }
+              disabled={
+                avatarSaving ||
+                !pendingAvatar
+              }
+            >
+              {avatarSaving
+                ? "Saving..."
+                : "Save photo"}
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+
+  const roleTags = roleNames.map(
+    (role) => (
+      <span key={role}>
+        {role}
+      </span>
+    )
+  );
+
+  // Phones: a centred profile, then Notification and Two-step sign-in as
+  // two settings rows (two-step opens on tap), then the last sign-in.
+  // The top bar names the page, so the heading is for screen readers.
+  if (isPhone) {
+    return (
+      <div className="page account-page account-page-phone">
+        <h2 className="account-sr-only">
+          My Account
+        </h2>
+
+        <section className="account-phone-profile" aria-label="Profile">
+          {avatarButton}
+
+          <h3>
+            {user?.name ?? "Account"}
+          </h3>
+
+          <p>
+            {user?.email}
+          </p>
+
+          <div className="account-role-list">
+            {roleTags}
+          </div>
+        </section>
+
+        <section className="account-phone-settings" aria-label="Settings">
+          {canManageChatNotifications && (
+            <AccountNotificationToggle variant="row" />
+          )}
+
+          <AccountTwoFactor compact />
+        </section>
+
+        <p className="account-phone-last-sign-in">
+          Last sign-in {formatCentralDateTime(user?.lastSignInAt)}
+        </p>
+
+        {avatarEditor}
+      </div>
+    );
+  }
+
   return (
     <div className="page account-page">
       <header className="page-header account-page-header">
@@ -386,47 +647,7 @@ function AccountPage() {
 
       <section className="content-card account-profile-card">
         <div className="account-profile-hero">
-          <button
-            type="button"
-            className="account-profile-avatar-button"
-            aria-label="Change profile picture"
-            title="Change profile picture"
-            onClick={() => {
-              setAvatarError(
-                null
-              );
-
-              setAvatarEditorOpen(
-                true
-              );
-            }}
-          >
-            <UserAvatar
-              name={
-                user?.name
-              }
-              src={
-                currentAvatarUrl
-              }
-              className="account-profile-avatar"
-            />
-
-            <span
-              className="account-profile-avatar-edit"
-              aria-hidden="true"
-            >
-              <svg
-                viewBox="0 0 24 24"
-              >
-                <path d="M9 6 10.3 4h3.4L15 6h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3Z" />
-                <circle
-                  cx="12"
-                  cy="12.5"
-                  r="3.25"
-                />
-              </svg>
-            </span>
-          </button>
+          {avatarButton}
 
           <div className="account-profile-copy">
             <span className="account-profile-label">
@@ -493,160 +714,7 @@ function AccountPage() {
 
       <AccountTwoFactor />
 
-      {avatarEditorOpen && (
-        <div
-          className="account-avatar-overlay"
-          role="presentation"
-          onMouseDown={(
-            event
-          ) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
-              closeAvatarEditor();
-            }
-          }}
-        >
-          <section
-            className="account-avatar-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="account-avatar-title"
-          >
-            <header className="account-avatar-modal-header">
-              <div>
-                <span className="page-eyebrow">
-                  Personal account
-                </span>
-
-                <h3 id="account-avatar-title">
-                  Edit profile picture
-                </h3>
-
-                <p>
-                  Choose a photo and review the square preview before saving.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="account-avatar-close"
-                aria-label="Close profile picture editor"
-                onClick={() =>
-                  closeAvatarEditor()
-                }
-                disabled={
-                  avatarSaving
-                }
-              >
-                &times;
-              </button>
-            </header>
-
-            <div className="account-avatar-modal-body">
-              <UserAvatar
-                name={
-                  user?.name
-                }
-                src={
-                  previewUrl ??
-                  currentAvatarUrl
-                }
-                className="account-avatar-preview"
-              />
-
-              <input
-                ref={
-                  fileInputRef
-                }
-                className="account-avatar-file-input"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={
-                  chooseAvatar
-                }
-                disabled={
-                  avatarSaving
-                }
-              />
-
-              <button
-                type="button"
-                className="secondary-button account-avatar-select"
-                onClick={() =>
-                  fileInputRef.current?.click()
-                }
-                disabled={
-                  avatarSaving
-                }
-              >
-                Select a photo
-              </button>
-
-              <p className="account-avatar-help">
-                JPEG, PNG or WebP · Maximum 5 MB · The image will be center-cropped to a square.
-              </p>
-
-              {avatarError && (
-                <div className="auth-message auth-message-error account-avatar-error">
-                  {avatarError}
-                </div>
-              )}
-            </div>
-
-            <footer className="account-avatar-modal-footer">
-              <div>
-                {user?.avatarUpdatedAt && (
-                  <button
-                    type="button"
-                    className="secondary-button account-avatar-remove"
-                    onClick={
-                      removeAvatar
-                    }
-                    disabled={
-                      avatarSaving
-                    }
-                  >
-                    Remove photo
-                  </button>
-                )}
-              </div>
-
-              <div className="account-avatar-modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    closeAvatarEditor()
-                  }
-                  disabled={
-                    avatarSaving
-                  }
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={
-                    saveAvatar
-                  }
-                  disabled={
-                    avatarSaving ||
-                    !pendingAvatar
-                  }
-                >
-                  {avatarSaving
-                    ? "Saving..."
-                    : "Save photo"}
-                </button>
-              </div>
-            </footer>
-          </section>
-        </div>
-      )}
+      {avatarEditor}
     </div>
   );
 }

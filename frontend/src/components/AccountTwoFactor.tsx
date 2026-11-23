@@ -16,7 +16,7 @@ const message = (e: unknown, fallback: string) => (e instanceof ApiError || e in
 /** My Account: sign in with an authenticator app instead of waiting for an
  * emailed code. Free apps work (Google Authenticator, Apple Passwords,
  * Bitwarden Authenticator). Emailed codes stay available as a backup. */
-export default function AccountTwoFactor() {
+export default function AccountTwoFactor({ compact = false }: { compact?: boolean }) {
   const toast = useToast();
   const [status, setStatus] = useState<Status | null>(null);
   const [step, setStep] = useState<Step>({ kind: "idle" });
@@ -25,6 +25,7 @@ export default function AccountTwoFactor() {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState(false);
 
   const load = useCallback(async () => {
     try { setStatus(await apiRequest<Status>("/api/auth/two-factor")); }
@@ -82,30 +83,23 @@ export default function AccountTwoFactor() {
 
   const enabled = !!status?.authenticator.enabled;
   const passwordStep = step.kind === "password" ? step : null;
-  return <section className="content-card account-two-factor" aria-labelledby="account-2fa-title">
-    <div className="account-2fa-heading">
-      <div>
-        <h3 id="account-2fa-title">Two-step sign-in</h3>
-        <p>{!status ? "Loading…" : enabled
-          ? (status.authenticator.since ? `Authenticator app · on since ${formatCentralDateTime(status.authenticator.since)}` : "Authenticator app · on")
-          : "Sign-in codes come by email."}</p>
+
+  const actions = status && step.kind === "idle" && (enabled
+    ? <div className="account-2fa-actions">
+        <button type="button" className="secondary-button" onClick={() => setStep({ kind: "password", purpose: "recovery" })}>Get new recovery codes</button>
+        <button type="button" className="secondary-button" onClick={() => setStep({ kind: "password", purpose: "disable" })}>Turn off</button>
       </div>
-      {status && step.kind === "idle" && (enabled
-        ? <div className="account-2fa-actions">
-            <button type="button" className="secondary-button" onClick={() => setStep({ kind: "password", purpose: "recovery" })}>Get new recovery codes</button>
-            <button type="button" className="secondary-button" onClick={() => setStep({ kind: "password", purpose: "disable" })}>Turn off</button>
-          </div>
-        : <button type="button" className="primary-button" onClick={() => setStep({ kind: "password", purpose: "setup" })}>Set up authenticator app</button>)}
-    </div>
+    : <button type="button" className="primary-button" onClick={() => setStep({ kind: "password", purpose: "setup" })}>Set up authenticator app</button>);
 
-    {error && <p className="account-2fa-error" role="alert">{error}</p>}
+  const errorMessage = error && <p className="account-2fa-error" role="alert">{error}</p>;
 
-    {status && step.kind === "idle" && (enabled
-      ? <p className={`account-2fa-note${status.recoveryCodesLeft <= 3 ? " is-warning" : ""}`}>
-          {status.recoveryCodesLeft} recovery {status.recoveryCodesLeft === 1 ? "code" : "codes"} left. If you lose your phone, sign in with a recovery code or an emailed code, or ask an Owner to reset two-step sign-in.
-        </p>
-      : <p className="account-2fa-note">Sign in faster with a free authenticator app such as Google Authenticator, Apple Passwords or Bitwarden Authenticator. Emailed codes stay available as a backup.</p>)}
+  const note = status && step.kind === "idle" && (enabled
+    ? <p className={`account-2fa-note${status.recoveryCodesLeft <= 3 ? " is-warning" : ""}`}>
+        {status.recoveryCodesLeft} recovery {status.recoveryCodesLeft === 1 ? "code" : "codes"} left. If you lose your phone, sign in with a recovery code or an emailed code, or ask an Owner to reset two-step sign-in.
+      </p>
+    : <p className="account-2fa-note">Sign in faster with a free authenticator app such as Google Authenticator, Apple Passwords or Bitwarden Authenticator. Emailed codes stay available as a backup.</p>);
 
+  const steps = <>
     {passwordStep && <form className="account-2fa-step" onSubmit={(event) => void submitPassword(event, passwordStep.purpose)}>
       <label className="form-field">
         <span>{passwordStep.purpose === "disable" ? "Enter your password to turn off the authenticator app" : passwordStep.purpose === "recovery" ? "Enter your password to get new recovery codes (the old ones stop working)" : "Enter your password to start"}</span>
@@ -154,5 +148,50 @@ export default function AccountTwoFactor() {
       <label className="account-2fa-check"><input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} /> I’ve saved my recovery codes</label>
       <button type="button" className="primary-button" disabled={!saved} onClick={() => { reset(); void load(); }}>Done</button>
     </div>}
+  </>;
+
+  // Phones: one settings row showing the current method; the explanation
+  // and buttons open below it. A step in progress, or an error, keeps it
+  // open so nothing half-done can be folded away.
+  if (compact) {
+    const settled = step.kind === "idle" && !error;
+    const open = expanded || !settled;
+    const row = <>
+      <span className="account-2fa-row-title">Two-step sign-in</span>
+      <span className="account-2fa-row-value">{!status ? "Loading…" : enabled ? "Authenticator app" : "Email codes"}</span>
+      {settled && <span className="account-2fa-row-chevron" aria-hidden="true" />}
+    </>;
+    return <section className="account-two-factor account-2fa-compact" aria-labelledby="account-2fa-title">
+      <h3 id="account-2fa-title" className="account-2fa-row-heading">
+        {settled
+          ? <button type="button" className="account-2fa-row" aria-expanded={open} aria-controls="account-2fa-panel" onClick={() => setExpanded((value) => !value)}>{row}</button>
+          : <span className="account-2fa-row">{row}</span>}
+      </h3>
+      {open && <div id="account-2fa-panel" className="account-2fa-panel">
+        {enabled && status?.authenticator.since && step.kind === "idle" && <p className="account-2fa-detail">On since {formatCentralDateTime(status.authenticator.since)}</p>}
+        {errorMessage}
+        {note}
+        {actions}
+        {steps}
+      </div>}
+    </section>;
+  }
+
+  return <section className="content-card account-two-factor" aria-labelledby="account-2fa-title">
+    <div className="account-2fa-heading">
+      <div>
+        <h3 id="account-2fa-title">Two-step sign-in</h3>
+        <p>{!status ? "Loading…" : enabled
+          ? (status.authenticator.since ? `Authenticator app · on since ${formatCentralDateTime(status.authenticator.since)}` : "Authenticator app · on")
+          : "Sign-in codes come by email."}</p>
+      </div>
+      {actions}
+    </div>
+
+    {errorMessage}
+
+    {note}
+
+    {steps}
   </section>;
 }
