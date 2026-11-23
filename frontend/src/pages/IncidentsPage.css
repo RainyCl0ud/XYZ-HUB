@@ -119,6 +119,13 @@
     font-size: 13px !important;
   }
 
+  /* Notices and the empty list reach 13px, above the global 12px rule. */
+  .incidents-page-phone .alert,
+  .incidents-page-phone .dependency-warning,
+  .incidents-page-phone .empty-state span {
+    font-size: 13px !important;
+  }
+
   /* ---------- One row per incident ---------- */
 
   .incident-phone-list {
@@ -384,6 +391,7 @@
   .incident-phone-detail .lifecycle-section {
     margin: 0;
     padding: 14px;
+    border-color: #333333;
   }
 
   .incident-phone-detail .lifecycle-section small {

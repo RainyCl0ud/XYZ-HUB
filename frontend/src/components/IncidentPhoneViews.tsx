@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 import {
   incidentStatusClass,
@@ -46,6 +46,7 @@ export function IncidentPhoneList<T extends IncidentPhoneItem>({
           <button
             type="button"
             className={`incident-phone-row${incident.status === "VOIDED" ? " incident-phone-row-voided" : ""}`}
+            data-incident-id={incident.id}
             onClick={() => onOpen(incident)}
           >
             {/* The spaces keep words apart when a screen reader reads the row as one button. */}
@@ -64,7 +65,10 @@ export function IncidentPhoneList<T extends IncidentPhoneItem>({
   );
 }
 
+const TITLE_ID = "incident-phone-detail-title";
+
 export function IncidentPhoneDetail({
+  backButtonRef,
   incident,
   loading,
   onBack,
@@ -72,6 +76,8 @@ export function IncidentPhoneDetail({
   evidence,
   children,
 }: {
+  /** The page focuses Back when the screen opens. */
+  backButtonRef?: Ref<HTMLButtonElement>;
   incident: IncidentPhoneDetailItem | null;
   loading: boolean;
   onBack: () => void;
@@ -84,10 +90,11 @@ export function IncidentPhoneDetail({
   return (
     <>
       <div className="incident-phone-detail-bar">
-        <button type="button" className="incident-phone-back" onClick={onBack} disabled={loading} aria-label="Back to incidents">
+        <button ref={backButtonRef} type="button" className="incident-phone-back" onClick={onBack} disabled={loading} aria-label="Back to incidents">
           <span className="incident-phone-back-arrow" aria-hidden="true" />
         </button>
-        <span className="incident-phone-detail-kicker">Incident</span>
+        {/* The screen is named by the rule title; "Incident" stands in while loading. */}
+        <span className="incident-phone-detail-kicker" id={loading || !incident ? TITLE_ID : undefined}>Incident</span>
         {incident && !loading && (
           <span className={incidentStatusClass(incident.status)}>{incidentStatusLabel(incident.status)}</span>
         )}
@@ -99,11 +106,11 @@ export function IncidentPhoneDetail({
         </div>
       ) : (
         <div className="incident-phone-detail">
-          <h3>{incident.ruleTitleSnapshot}</h3>
+          <h3 id={TITLE_ID}>{incident.ruleTitleSnapshot}</h3>
 
           <div className="incident-phone-detail-chatter">
             <span>{incident.chatter.name}</span>
-            <button type="button" className="incident-phone-link" onClick={onOpenQaProfile}>
+            <button type="button" className="incident-phone-link" onClick={onOpenQaProfile} aria-label={`QA profile for ${incident.chatter.name}`}>
               QA profile
             </button>
           </div>

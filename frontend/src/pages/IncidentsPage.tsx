@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -1647,6 +1648,66 @@ function IncidentsPage() {
    * =========================================================
    */
 
+  // Phones: the details screen takes focus when it opens (on Back), and
+  // focus returns to the row that opened it once every window is closed.
+  const phoneBackRef =
+    useRef<HTMLButtonElement>(null);
+  const phoneReturnFocusId =
+    useRef<string | null>(null);
+  const filtersButtonRef =
+    useRef<HTMLButtonElement>(null);
+  const selectedIncidentId =
+    selectedIncident?.id;
+  const anotherWindowOpen =
+    showLogModal ||
+    Boolean(actionType) ||
+    Boolean(pendingConfirmation);
+
+  useEffect(() => {
+    if (
+      isPhone &&
+      selectedIncidentId &&
+      !detailLoading
+    ) {
+      phoneBackRef.current?.focus();
+    }
+  }, [
+    isPhone,
+    selectedIncidentId,
+    detailLoading,
+  ]);
+
+  useEffect(() => {
+    const id =
+      phoneReturnFocusId.current;
+
+    if (
+      !id ||
+      selectedIncidentId ||
+      detailLoading ||
+      anotherWindowOpen
+    ) {
+      return;
+    }
+
+    phoneReturnFocusId.current = null;
+
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        ".incident-phone-row"
+      )
+    )
+      .find(
+        (row) =>
+          row.dataset.incidentId === id
+      )
+      ?.focus();
+  }, [
+    selectedIncidentId,
+    detailLoading,
+    anotherWindowOpen,
+  ]);
+
   // Shared by both layouts. Phones (720px and below) place them in a
   // shorter layout; desktop keeps the original header, toolbar and table.
   const logIncidentButton = (
@@ -2091,6 +2152,7 @@ function IncidentsPage() {
               {searchInput}
 
               <button
+                ref={filtersButtonRef}
                 type="button"
                 className={`secondary-button incidents-phone-filters-button${filterCount > 0 ? " is-set" : ""}`}
                 aria-expanded={filtersOpen}
@@ -2126,6 +2188,8 @@ function IncidentsPage() {
                     onClick={() => {
                       setChatterFilter("");
                       setRuleFilter("");
+                      // This button disappears; keep focus nearby.
+                      filtersButtonRef.current?.focus();
                     }}
                   >
                     Clear filters
@@ -2185,9 +2249,11 @@ function IncidentsPage() {
         ) : isPhone ? (
           <IncidentPhoneList
             incidents={paginatedIncidents}
-            onOpen={(incident) =>
-              void openIncidentDetails(incident)
-            }
+            onOpen={(incident) => {
+              phoneReturnFocusId.current =
+                incident.id;
+              void openIncidentDetails(incident);
+            }}
           />
         ) : (
           <div className="table-wrapper">
@@ -2751,6 +2817,9 @@ function IncidentsPage() {
         >
           <div
             className="modal modal-history incident-detail-modal-card"
+            role={isPhone ? "dialog" : undefined}
+            aria-modal={isPhone ? true : undefined}
+            aria-labelledby={isPhone ? "incident-phone-detail-title" : undefined}
             onMouseDown={(
               event
             ) =>
@@ -2761,6 +2830,7 @@ function IncidentsPage() {
             <div className="incident-detail-modal-content">
               {isPhone ? (
                 <IncidentPhoneDetail
+                  backButtonRef={phoneBackRef}
                   incident={selectedIncident}
                   loading={detailLoading}
                   onBack={closeIncidentDetails}

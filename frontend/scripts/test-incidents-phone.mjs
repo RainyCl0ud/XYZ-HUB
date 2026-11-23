@@ -81,7 +81,14 @@ try {
   assert.ok(list.includes('class="incident-phone-row-meta">Legacy / unassigned · Nov 22, 2026, 9:34 AM CST<'), "No severity is skipped; no creator reads Legacy / unassigned, as in the table");
   assert.ok(list.includes('class="incident-status resolved">Resolved<') && list.includes('class="incident-phone-row incident-phone-row-voided"') && list.includes('class="incident-status voided">Voided<'), "Resolved and Voided rows are marked");
   assert.ok(!list.includes("!"), "No ! markers");
-  pass("Phone rows: chatter and status, the rule, then creator · severity · time, one button per incident");
+  // The row component has no hooks, so its element tree can be walked and
+  // each row's tap handler called directly.
+  const opened = [];
+  const tree = IncidentPhoneList({ incidents: rows, onOpen: (row) => opened.push(row.id) });
+  for (const item of tree.props.children) item.props.children.props.onClick();
+  assert.deepEqual(opened, ["fictional-1", "fictional-2", "fictional-3"], "Tapping a row opens that incident");
+  assert.ok(list.includes('data-incident-id="fictional-1"') && list.includes('data-incident-id="fictional-3"'), "Rows carry their incident id, so focus can return to them");
+  pass("Phone rows: chatter and status, the rule, then creator · severity · time, one button per incident that opens it");
 
   // 2. Details on their own screen.
   const detail = renderToStaticMarkup(createElement(IncidentPhoneDetail, {
@@ -89,17 +96,19 @@ try {
   }, createElement("div", { className: "incident-detail-actions" }, "fictional-actions")));
   assert.ok(detail.startsWith('<div class="incident-phone-detail-bar"><button type="button" class="incident-phone-back" aria-label="Back to incidents">'), "A 44px back button comes first");
   assert.ok(detail.includes('<span class="incident-phone-detail-kicker">Incident</span><span class="incident-status open">Open</span>'), "The bar shows the status");
-  const steps = ["<h3>Replied after the 5-minute window</h3>", "<span>Quinn Harper</span>", ">QA profile</button>", "<dt>Model</dt><dd>Ava Stone</dd>", "<dt>Severity</dt><dd>Major</dd>", "<dt>Weight</dt><dd>None</dd>", "<dt>Occurred</dt><dd>Nov 22, 2026, 9:34 AM CST</dd>", "<h4>Details</h4><p>Fictional details.</p>", "<h4>Rule (v2)</h4><p>Fictional rule text.</p>", "<h4>Evidence</h4><p>No link added</p>", "fictional-actions"].map((needle) => {
+  const steps = ['<h3 id="incident-phone-detail-title">Replied after the 5-minute window</h3>', "<span>Quinn Harper</span>", ' aria-label="QA profile for Quinn Harper">QA profile</button>', "<dt>Model</dt><dd>Ava Stone</dd>", "<dt>Severity</dt><dd>Major</dd>", "<dt>Weight</dt><dd>None</dd>", "<dt>Occurred</dt><dd>Nov 22, 2026, 9:34 AM CST</dd>", "<h4>Details</h4><p>Fictional details.</p>", "<h4>Rule (v2)</h4><p>Fictional rule text.</p>", "<h4>Evidence</h4><p>No link added</p>", "fictional-actions"].map((needle) => {
     const at = detail.indexOf(needle);
     assert.ok(at >= 0, `${needle} renders`);
     return at;
   });
   assert.deepEqual([...steps].sort((a, b) => a - b), steps, "Title, chatter and QA profile, facts, details, rule, evidence, then the actions");
-  assert.equal((detail.match(/Quinn Harper/g) ?? []).length, 1, "The chatter's name appears once");
+  assert.equal((detail.match(/>Quinn Harper</g) ?? []).length, 1, "The chatter's name is shown once");
+  assert.equal((detail.match(/id="incident-phone-detail-title"/g) ?? []).length, 1, "Once loaded, the rule title alone names the screen");
   const linked = renderToStaticMarkup(createElement(IncidentPhoneDetail, { incident: incident({}), loading: false, onBack() {}, onOpenQaProfile() {}, evidence: createElement("a", { href: "https://example.test/fictional" }, "link") }));
   assert.ok(linked.includes('<h4>Evidence</h4><a href="https://example.test/fictional">link</a>') && !linked.includes("No link added"), "An evidence link replaces the fallback");
   const loading = renderToStaticMarkup(createElement(IncidentPhoneDetail, { incident: null, loading: true, onBack() {}, onOpenQaProfile() {}, evidence: null }));
   assert.ok(loading.includes('class="incident-phone-back" disabled="" aria-label="Back to incidents"') && loading.includes("Loading incident...") && !loading.includes("incident-status"), "While loading: Back waits, no status yet");
+  assert.ok(loading.includes('<span class="incident-phone-detail-kicker" id="incident-phone-detail-title">Incident</span>'), "While loading, \"Incident\" names the screen");
   pass("Phone details: back, status, title, chatter with QA profile, one list of facts, details, rule, evidence, then actions");
 
   // 3. The page on a phone and on a desktop (a server render shows loading).
@@ -130,7 +139,12 @@ try {
   // 4. The page's code: one layout, shared pieces, filters.
   assert.equal((page.match(/^ {2}return \(/gm) ?? []).length, 1, "One return for both layouts");
   assert.ok(page.includes(") : isPhone ? (\n          <IncidentPhoneList\n            incidents={paginatedIncidents}"), "Phones list the same page of incidents the table shows");
-  assert.ok(page.includes("{isPhone ? (\n                <IncidentPhoneDetail\n                  incident={selectedIncident}\n                  loading={detailLoading}\n                  onBack={closeIncidentDetails}"), "Phone details close the same way as the window");
+  assert.ok(page.includes("{isPhone ? (\n                <IncidentPhoneDetail\n                  backButtonRef={phoneBackRef}\n                  incident={selectedIncident}\n                  loading={detailLoading}\n                  onBack={closeIncidentDetails}"), "Phone details close the same way as the window");
+  assert.ok(page.includes('role={isPhone ? "dialog" : undefined}\n            aria-modal={isPhone ? true : undefined}\n            aria-labelledby={isPhone ? "incident-phone-detail-title" : undefined}'), "On phones the details screen is a modal dialog named by its title; desktop markup is untouched");
+  const focusIn = page.slice(page.indexOf("  useEffect(() => {\n    if (\n      isPhone &&\n      selectedIncidentId &&"), page.indexOf("  // Shared by both layouts."));
+  assert.ok(focusIn.includes("phoneBackRef.current?.focus();") && focusIn.includes("    isPhone,\n    selectedIncidentId,\n    detailLoading,\n  ]);"), "Opening the details focuses Back once the incident has loaded");
+  assert.ok(page.includes("phoneReturnFocusId.current =\n                incident.id;") && focusIn.includes("row.dataset.incidentId === id") && /!id \|\|\s+selectedIncidentId \|\|\s+detailLoading \|\|\s+anotherWindowOpen/.test(focusIn), "Focus returns to the row that opened the details, but only once Resolve, Void or Log Incident is closed too");
+  assert.ok(page.includes('setRuleFilter("");\n                      // This button disappears; keep focus nearby.\n                      filtersButtonRef.current?.focus();') && page.includes("ref={filtersButtonRef}"), "Clear filters hands focus to the Filters button as it disappears");
   for (const piece of ["{detailLifecycle}", "{detailActions}", "{searchInput}", "{statusFilterGroup}"]) {
     assert.equal((page.match(new RegExp(piece.replace(/[{}]/g, "\\$&"), "g")) ?? []).length, 2, `${piece} is defined once and placed by each layout`);
   }
@@ -143,8 +157,16 @@ try {
   pass("One layout: rows, details, filters and actions are shared, so desktop and phone stay in step");
 
   // 5. Styles.
-  const phoneCss = css.slice(css.indexOf("@media (max-width: 720px) {"));
-  assert.ok(css.indexOf("@media (max-width: 720px) {") > css.indexOf(".incidents-sr-only {") && !css.slice(0, css.indexOf("@media")).includes(".incident-phone") && !css.slice(0, css.indexOf("@media")).includes(".incidents-page-phone"), "Everything but the screen-reader class applies only at 720px and below");
+  const mediaStart = css.indexOf("@media (max-width: 720px) {");
+  let depth = 0, mediaEnd = -1;
+  for (let i = mediaStart; i < css.length; i += 1) {
+    if (css[i] === "{") depth += 1;
+    if (css[i] === "}" && --depth === 0) { mediaEnd = i; break; }
+  }
+  const phoneCss = css.slice(mediaStart, mediaEnd + 1);
+  const outside = (css.slice(0, mediaStart) + css.slice(mediaEnd + 1)).replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(mediaStart > 0 && mediaEnd > mediaStart && (css.match(/@media/g) ?? []).length === 1, "One phone block");
+  assert.deepEqual([...outside.matchAll(/([^{}]+)\{/g)].map(([, s]) => s.trim()), [".incidents-sr-only"], "Everything but the screen-reader class applies only at 720px and below");
   // Every phone rule that names the selector (alone or in a list), joined.
   const squash = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, " ").trim();
   const rule = (selector) => {
@@ -169,6 +191,16 @@ try {
   assert.ok(/width: 44px;/.test(rule(".incident-phone-back")) && /height: 44px;/.test(rule(".incident-phone-back")) && /width: 44px;/.test(rule(".incidents-page-phone .modal-close")) && /height: 44px;/.test(rule(".incidents-page-phone .modal-close")), "Back and close are 44 × 44px");
   assert.ok(/min-height: 56px;/.test(rule(".incident-phone-row")) && /outline: 2px solid #FFFFFF;/.test(rule(".incident-phone-row:focus-visible")), "Rows are at least 56px with a 2px white focus outline");
   assert.ok(/font-size: 16px !important;/.test(rule(".incidents-page-phone .incidents-phone-search-row .search-input")) && /font-size: 16px !important;/.test(rule(".incidents-page-phone .incidents-phone-filters .toolbar-select")) && /font-size: 16px !important;/.test(rule(".incidents-page-phone .modal .form-field input,\n  .incidents-page-phone .modal .form-field select,\n  .incidents-page-phone .modal .form-field textarea")), "Fields are 16px so iPhones don't zoom on focus");
+  // Site-wide rules force this text to 12px with !important; on phones the
+  // Incidents block must win with 13px !important and a longer selector.
+  const f4 = read("F4Usability.css");
+  const f4Small = f4.slice(0, f4.indexOf("font-size: 12px !important;"));
+  for (const cls of [".alert", ".dependency-warning", ".empty-state span", ".modal-header p", ".form-helper", ".confirmation-body", ".action-context"]) {
+    assert.ok(f4Small.includes(`\n${cls},`), `${cls} is in the site-wide 12px rule`);
+    const wins = [...phoneCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)].some(([, list, body]) => squash(list).split(",").some((s) => s.trim().startsWith(".incidents-page-phone") && s.trim().endsWith(cls)) && /font-size: 13px !important;/.test(body));
+    assert.ok(wins, `Phones lift ${cls} to 13px`);
+  }
+  assert.ok(/border-color: #333333;/.test(rule(".incident-phone-detail .lifecycle-section")), "Resolution and void notes have a grey border, not the old green one");
   assert.ok(/grid-template-columns: minmax\(0, 1fr\);/.test(rule(".incidents-phone-toolbar")) && /grid-template-columns: minmax\(0, 1fr\);/.test(rule(".incident-phone-detail")), "The toolbar and details shrink to a 320px screen");
   const sheet = rule(".incidents-page-phone .incident-detail-backdrop > .incident-detail-modal-card");
   assert.ok(/padding: 0;/.test(rule(".incidents-page-phone .incident-detail-backdrop")) && /height: 100%;/.test(sheet) && /max-width: none;/.test(sheet) && /max-height: none;/.test(sheet), "Details fill the screen above the footer");
