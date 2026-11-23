@@ -1,0 +1,478 @@
+/* =========================================================
+   INCIDENTS ON PHONES (24 Nov 2026)
+   At 720px and below the page shows a shorter layout: Log Incident,
+   search with a Filters button, the status tabs, one tappable row per
+   incident, and the details on their own screen. Desktop keeps the
+   header, toolbar, table and details window.
+   ========================================================= */
+
+.incidents-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  /* ---------- Header: only Log Incident is shown ---------- */
+
+  .incidents-phone-header {
+    margin: 0 0 12px;
+  }
+
+  .incidents-phone-header .primary-button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* ---------- Search, Filters and status tabs ---------- */
+
+  /* minmax(0, 1fr) lets the search row and tabs shrink to a 320px screen. */
+  .incidents-phone-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .incidents-phone-search-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* 16px so iPhones don't zoom in when the field gets focus. */
+  .incidents-page-phone .incidents-phone-search-row .search-input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  .incidents-phone-filters-button {
+    flex: none;
+    min-height: 44px;
+    padding: 0 14px;
+  }
+
+  .incidents-phone-filters-button.is-set {
+    border-color: #FFFFFF;
+    color: #FFFFFF;
+  }
+
+  .incidents-phone-filters {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .incidents-page-phone .incidents-phone-filters .form-field {
+    gap: 6px;
+  }
+
+  .incidents-page-phone .incidents-phone-filters .form-field > span {
+    color: #CCCCCC;
+    font-size: 13px !important;
+  }
+
+  .incidents-page-phone .incidents-phone-filters .toolbar-select {
+    width: 100%;
+    max-width: none;
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  .incidents-phone-clear {
+    justify-self: start;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #CCCCCC;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .incidents-page-phone .incidents-phone-toolbar .filter-group {
+    width: 100%;
+  }
+
+  .incidents-page-phone .incidents-phone-toolbar .filter-button {
+    flex: 1;
+    min-height: 44px;
+    padding: 0 6px;
+  }
+
+  .incidents-page-phone .incidents-phone-header .primary-button,
+  .incidents-page-phone .incidents-phone-filters-button,
+  .incidents-page-phone .incidents-phone-clear,
+  .incidents-page-phone .incidents-phone-toolbar .filter-button,
+  .incidents-page-phone .incident-pagination .secondary-button {
+    font-size: 13px !important;
+  }
+
+  /* ---------- One row per incident ---------- */
+
+  .incident-phone-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .incident-phone-list > li + li {
+    border-top: 1px solid var(--border);
+  }
+
+  .incident-phone-row {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    min-height: 56px;
+    margin: 0;
+    padding: 12px 14px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .incident-phone-row:active {
+    background: #1A1A1A;
+  }
+
+  .incident-phone-row:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: -4px;
+  }
+
+  .incident-phone-row-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .incident-phone-row-name {
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .incident-phone-row-rule {
+    color: #CCCCCC;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .incident-phone-row-meta {
+    color: #8E8E8E;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .incident-phone-row-voided .incident-phone-row-name,
+  .incident-phone-row-voided .incident-phone-row-rule {
+    color: #999999;
+  }
+
+  /* Status tags: Open is white, Resolved grey, Voided dim. */
+  .incidents-page-phone .incident-status {
+    flex: none;
+    min-height: 22px;
+    padding: 3px 7px;
+    border: 1px solid #666666;
+    background: transparent;
+    color: #CCCCCC;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .incidents-page-phone .incident-status.open {
+    border-color: #FFFFFF;
+    color: #FFFFFF;
+  }
+
+  .incidents-page-phone .incident-status.voided {
+    border-color: #333333;
+    color: #999999;
+  }
+
+  .incidents-page-phone .incident-pagination {
+    margin-top: 12px;
+    padding: 0;
+  }
+
+  .incidents-page-phone .incident-pagination .secondary-button {
+    min-height: 44px;
+  }
+
+  .incidents-page-phone .incident-pagination > span {
+    color: #999999;
+    font-size: 13px;
+  }
+
+  /* ---------- Details: their own screen ---------- */
+
+  .incidents-page-phone .incident-detail-backdrop {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .incidents-page-phone .incident-detail-backdrop > .incident-detail-modal-card {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    background: #000000;
+  }
+
+  .incident-phone-detail-bar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 56px;
+    padding: 6px 14px 6px 6px;
+    border-bottom: 1px solid var(--border);
+    background: #000000;
+  }
+
+  .incident-phone-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+  }
+
+  .incident-phone-back:focus-visible,
+  .incident-phone-link:focus-visible,
+  .incidents-phone-clear:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: 2px;
+  }
+
+  .incident-phone-back-arrow {
+    width: 11px;
+    height: 11px;
+    border-bottom: 2px solid currentColor;
+    border-left: 2px solid currentColor;
+    transform: translateX(2px) rotate(45deg);
+  }
+
+  .incident-phone-detail-kicker {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  /* minmax(0, 1fr): a long evidence link shortens instead of widening the screen. */
+  .incident-phone-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding: 18px 16px 24px;
+  }
+
+  .incident-phone-detail h3 {
+    margin: 0;
+    color: #FFFFFF;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .incident-phone-detail-chatter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: -12px;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+  }
+
+  .incidents-page-phone .incident-phone-link {
+    flex: none;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #CCCCCC;
+    font-size: 13px !important;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .incident-phone-facts {
+    margin: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .incident-phone-facts > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .incident-phone-facts dt {
+    flex: none;
+    color: #999999;
+    font-size: 13px;
+  }
+
+  .incident-phone-facts dd {
+    margin: 0;
+    color: #FFFFFF;
+    font-size: 13px;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .incident-phone-section h4,
+  .incident-phone-detail .lifecycle-section .detail-label {
+    display: block;
+    margin: 0 0 6px;
+    color: #999999;
+    font-size: 11px !important;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .incident-phone-section p,
+  .incident-phone-detail .lifecycle-section p {
+    margin: 0;
+    color: #CCCCCC;
+    font-size: 13px !important;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .incident-phone-detail .lifecycle-section {
+    margin: 0;
+    padding: 14px;
+  }
+
+  .incident-phone-detail .lifecycle-section small {
+    display: block;
+    margin-top: 8px;
+    color: #8E8E8E;
+    font-size: 13px;
+  }
+
+  .incidents-page-phone .incident-phone-section .incident-evidence-link {
+    min-height: 44px;
+  }
+
+  .incidents-page-phone .incident-phone-section .incident-evidence-url {
+    font-size: 13px;
+  }
+
+  /* Main action full width; Resolve and Void share a row. */
+  .incident-phone-detail .incident-detail-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 4px 0 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .incidents-page-phone .incident-phone-detail .incident-detail-actions > button {
+    flex: 1 1 120px;
+    width: auto;
+    min-height: 44px;
+    font-size: 13px !important;
+  }
+
+  .incidents-page-phone .incident-phone-detail .incident-detail-actions > .primary-button {
+    flex-basis: 100%;
+  }
+
+  /* ---------- Log Incident, Resolve, Void and confirmation ---------- */
+
+  .incidents-page-phone .modal-close {
+    width: 44px;
+    height: 44px;
+    margin: -8px -10px 0 0;
+  }
+
+  .incidents-page-phone .modal-close {
+    font-size: 22px !important;
+  }
+
+  /* Helper and summary text reaches 13px; short labels stay 11px uppercase. */
+  .incidents-page-phone .modal-header p,
+  .incidents-page-phone .modal .form-field > span,
+  .incidents-page-phone .modal .form-helper,
+  .incidents-page-phone .action-context,
+  .incidents-page-phone .action-context span,
+  .incidents-page-phone .action-context strong,
+  .incidents-page-phone .rule-preview p,
+  .incidents-page-phone .rule-preview-meta,
+  .incidents-page-phone .confirmation-body,
+  .incidents-page-phone .confirmation-body > p,
+  .incidents-page-phone .confirmation-summary strong {
+    font-size: 13px !important;
+  }
+
+  .incidents-page-phone .modal .optional-label,
+  .incidents-page-phone .modal .preview-label,
+  .incidents-page-phone .modal .version-badge,
+  .incidents-page-phone .confirmation-summary span {
+    font-size: 11px !important;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .incidents-page-phone .modal .form-field input,
+  .incidents-page-phone .modal .form-field select,
+  .incidents-page-phone .modal .form-field textarea {
+    font-size: 16px !important;
+  }
+
+  .incidents-page-phone .modal .form-field input,
+  .incidents-page-phone .modal .form-field select {
+    min-height: 44px;
+  }
+
+  .incidents-page-phone .modal-actions > button {
+    flex: 1;
+    min-height: 44px;
+    font-size: 13px !important;
+  }
+}
