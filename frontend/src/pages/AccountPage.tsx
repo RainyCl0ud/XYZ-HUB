@@ -468,7 +468,7 @@ function AccountPage() {
         </div>
 
         <div className="account-profile-facts">
-          <div>
+          <div className="account-fact-email">
             <span>
               Email
             </span>
@@ -477,7 +477,7 @@ function AccountPage() {
             </strong>
           </div>
 
-          <div>
+          <div className="account-fact-sign-in">
             <span>
               Last sign-in
             </span>
