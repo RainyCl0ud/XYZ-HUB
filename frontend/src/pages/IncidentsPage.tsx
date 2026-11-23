@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -34,6 +35,23 @@ import {
 import {
   getPortalCapabilities,
 } from "../auth/portalAccess";
+
+import {
+  PHONE_QUERY,
+  useMediaQuery,
+} from "../lib/useMediaQuery";
+
+import {
+  IncidentPhoneDetail,
+  IncidentPhoneList,
+} from "../components/IncidentPhoneViews";
+
+import {
+  incidentStatusClass,
+  incidentStatusLabel,
+} from "../lib/incident-status";
+
+import "./IncidentsPage.css";
 
 type IncidentStatus =
   | "OPEN"
@@ -235,6 +253,7 @@ function IncidentsPage() {
     );
 
   const { access } = useAuth();
+  const isPhone = useMediaQuery(PHONE_QUERY);
 
   const {
     canCreateQaIncidents,
@@ -301,6 +320,12 @@ function IncidentsPage() {
     search,
     setSearch,
   ] = useState("");
+
+  // Phones: Chatter and Rule sit behind a Filters button.
+  const [
+    filtersOpen,
+    setFiltersOpen,
+  ] = useState(false);
 
   const [
     incidentPage,
@@ -743,7 +768,7 @@ function IncidentsPage() {
 
             incident.status,
 
-            formatStatus(
+            incidentStatusLabel(
               incident.status
             ),
 
@@ -1619,91 +1644,471 @@ function IncidentsPage() {
 
   /*
    * =========================================================
-   * DISPLAY HELPERS
-   * =========================================================
-   */
-
-  function getStatusClass(
-    status: IncidentStatus
-  ) {
-    if (
-      status === "OPEN"
-    ) {
-      return "incident-status open";
-    }
-
-    if (
-      status === "RESOLVED"
-    ) {
-      return "incident-status resolved";
-    }
-
-    return "incident-status voided";
-  }
-
-  function formatStatus(
-    status: IncidentStatus
-  ) {
-    if (
-      status === "OPEN"
-    ) {
-      return "Open";
-    }
-
-    if (
-      status === "RESOLVED"
-    ) {
-      return "Resolved";
-    }
-
-    return "Voided";
-  }
-
-  /*
-   * =========================================================
    * PAGE
    * =========================================================
    */
 
-  return (
-    <div className="page">
-      <header className="page-header">
-        <div>
-          <p className="page-eyebrow">
-            QA Records
-          </p>
+  // Phones: the details screen takes focus when it opens (on Back), and
+  // focus returns to the row that opened it once every window is closed.
+  const phoneBackRef =
+    useRef<HTMLButtonElement>(null);
+  const phoneReturnFocusId =
+    useRef<string | null>(null);
+  const filtersButtonRef =
+    useRef<HTMLButtonElement>(null);
+  const selectedIncidentId =
+    selectedIncident?.id;
+  const anotherWindowOpen =
+    showLogModal ||
+    Boolean(actionType) ||
+    Boolean(pendingConfirmation);
 
-          <h2>
-            Incidents
-          </h2>
+  useEffect(() => {
+    if (
+      isPhone &&
+      selectedIncidentId &&
+      !detailLoading
+    ) {
+      phoneBackRef.current?.focus();
+    }
+  }, [
+    isPhone,
+    selectedIncidentId,
+    detailLoading,
+  ]);
 
-          <p className="page-description">
-            {canMutateQaIncidents ? "Manage" : "View"} chatter
-            incidents, preserve
-            historical rule data,
-            and track QA outcomes.
-          </p>
-        </div>
+  useEffect(() => {
+    const id =
+      phoneReturnFocusId.current;
 
-        {canCreateQaIncidents && (
-          <button
-            className="primary-button"
-            type="button"
-            onClick={
-              openLogIncident
+    if (
+      !id ||
+      selectedIncidentId ||
+      detailLoading ||
+      anotherWindowOpen
+    ) {
+      return;
+    }
+
+    phoneReturnFocusId.current = null;
+
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        ".incident-phone-row"
+      )
+    )
+      .find(
+        (row) =>
+          row.dataset.incidentId === id
+      )
+      ?.focus();
+  }, [
+    selectedIncidentId,
+    detailLoading,
+    anotherWindowOpen,
+  ]);
+
+  // Shared by both layouts. Phones (720px and below) place them in a
+  // shorter layout; desktop keeps the original header, toolbar and table.
+  const logIncidentButton = (
+    <button
+      className="primary-button"
+      type="button"
+      onClick={
+        openLogIncident
+      }
+      disabled={
+        dependenciesLoading ||
+        activeChatters.length ===
+          0 ||
+        activeRules.length ===
+          0
+      }
+    >
+      Log Incident
+    </button>
+  );
+
+  const searchInput = (
+    <input
+      className="search-input"
+      type="search"
+      value={search}
+      onChange={(event) =>
+        setSearch(
+          event.target.value
+        )
+      }
+      placeholder="Search incidents..."
+      aria-label="Search incidents"
+    />
+  );
+
+  const chatterSelect = (
+    <select
+      className="toolbar-select"
+      value={
+        chatterFilter
+      }
+      onChange={(event) =>
+        setChatterFilter(
+          event.target.value
+        )
+      }
+      aria-label="Filter by chatter"
+    >
+      <option value="">
+        All Chatters
+      </option>
+
+      {allChatters.map(
+        (chatter) => (
+          <option
+            key={
+              chatter.id
             }
-            disabled={
-              dependenciesLoading ||
-              activeChatters.length ===
-                0 ||
-              activeRules.length ===
-                0
+            value={
+              chatter.id
             }
           >
-            Log Incident
+            {
+              chatter.name
+            }
+
+            {chatter.status ===
+            "INACTIVE"
+              ? " (Inactive)"
+              : ""}
+          </option>
+        )
+      )}
+    </select>
+  );
+
+  const ruleSelect = (
+    <select
+      className="toolbar-select"
+      value={
+        ruleFilter
+      }
+      onChange={(event) =>
+        setRuleFilter(
+          event.target.value
+        )
+      }
+      aria-label="Filter by rule"
+    >
+      <option value="">
+        All Rules
+      </option>
+
+      {allRules.map(
+        (rule) => (
+          <option
+            key={
+              rule.id
+            }
+            value={
+              rule.id
+            }
+          >
+            {rule
+              .currentVersion
+              ?.title ??
+              "Untitled Rule"}
+
+            {!rule.isActive
+              ? " (Archived)"
+              : ""}
+          </option>
+        )
+      )}
+    </select>
+  );
+
+  const statusFilterGroup = (
+    <div className="filter-group">
+      {(
+        [
+          [
+            "ALL",
+            "All",
+          ],
+          [
+            "OPEN",
+            "Open",
+          ],
+          [
+            "RESOLVED",
+            "Resolved",
+          ],
+          [
+            "VOIDED",
+            "Voided",
+          ],
+        ] as const
+      ).map(
+        ([
+          value,
+          label,
+        ]) => (
+          <button
+            key={
+              value
+            }
+            type="button"
+            className={
+              statusFilter ===
+              value
+                ? "filter-button active"
+                : "filter-button"
+            }
+            onClick={() =>
+              setStatusFilter(
+                value
+              )
+            }
+          >
+            {label}
           </button>
-        )}
-      </header>
+        )
+      )}
+    </div>
+  );
+
+  const filterCount =
+    (chatterFilter ? 1 : 0) +
+    (ruleFilter ? 1 : 0);
+
+  function openSelectedQaProfile() {
+    if (!selectedIncident) {
+      return;
+    }
+
+    navigate(
+      `/chatters/${encodeURIComponent(
+        selectedIncident.chatter.id
+      )}?from=${encodeURIComponent(
+        "/incidents"
+      )}`
+    );
+  }
+
+  const evidenceLink = selectedIncident?.evidenceUrl ? (
+    <a
+      className="incident-evidence-link"
+      href={
+        selectedIncident.evidenceUrl
+      }
+      target="_blank"
+      rel="noreferrer"
+      title={
+        selectedIncident.evidenceUrl
+      }
+    >
+      <span className="incident-evidence-url">
+        {
+          selectedIncident.evidenceUrl
+        }
+      </span>
+
+      <svg
+        className="incident-evidence-icon"
+        viewBox="0 0 20 20"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M8 4H5.5A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5V12"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+
+        <path
+          d="M11 4h5v5M16 4l-7 7"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </a>
+  ) : null;
+
+  const detailLifecycle = selectedIncident ? (
+    <>
+      {selectedIncident.status ===
+        "RESOLVED" && (
+        <div className="detail-section lifecycle-section resolved">
+          <span className="detail-label">
+            Resolution
+          </span>
+
+          <p>
+            {selectedIncident
+              .resolutionNotes ||
+              "No resolution notes provided."}
+          </p>
+
+          {selectedIncident.resolvedAt && (
+            <small>
+              Resolved{" "}
+
+              {formatCentralDateTime(selectedIncident.resolvedAt)}
+            </small>
+          )}
+        </div>
+      )}
+
+      {selectedIncident.status ===
+        "VOIDED" && (
+        <div className="detail-section lifecycle-section voided">
+          <span className="detail-label">
+            Void Reason
+          </span>
+
+          <p>
+            {selectedIncident
+              .voidReason ||
+              "No void reason recorded."}
+          </p>
+
+          {selectedIncident.voidedAt && (
+            <small>
+              Voided{" "}
+
+              {formatCentralDateTime(selectedIncident.voidedAt)}
+            </small>
+          )}
+        </div>
+      )}
+    </>
+  ) : null;
+
+  const detailActions = selectedIncident ? (
+    <div className="incident-detail-actions">
+
+      {canViewStrikes &&
+        linkedStrike && (
+        <button
+          type="button"
+          className="primary-button"
+          onClick={
+            viewLinkedStrike
+          }
+        >
+          View Strike
+        </button>
+      )}
+
+      {canViewStrikes &&
+        linkedStrikeLoading && (
+        <button
+          type="button"
+          className="secondary-button"
+          disabled
+        >
+          Checking Strike...
+        </button>
+      )}
+
+      {canIssueStrikes &&
+        canViewStrikes &&
+        !linkedStrike &&
+        !linkedStrikeLoading &&
+        !linkedStrikeError &&
+        selectedIncident.status !==
+          "VOIDED" &&
+        Boolean(
+          selectedIncident
+            .chatter
+            .userId
+        ) && (
+        <button
+          type="button"
+          className="primary-button"
+          onClick={
+            issueStrikeFromIncident
+          }
+        >
+          Issue Strike
+        </button>
+      )}
+
+      {canResolveQaIncidents && selectedIncident.status ===
+        "OPEN" && (
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => {
+            const incident =
+              selectedIncident;
+
+            closeIncidentDetails();
+
+            openAction(
+              "resolve",
+              incident
+            );
+          }}
+        >
+          Resolve
+        </button>
+      )}
+
+      {canVoidQaIncidents && selectedIncident.status ===
+        "OPEN" && (
+        <button
+          type="button"
+          className="danger-button"
+          onClick={() => {
+            const incident =
+              selectedIncident;
+
+            closeIncidentDetails();
+
+            openAction(
+              "void",
+              incident
+            );
+          }}
+        >
+          Void Incident
+        </button>
+      )}
+    </div>
+  ) : null;
+
+  return (
+    <div className={`page incidents-page${isPhone ? " incidents-page-phone" : ""}`}>
+      {isPhone ? (
+        <header className="incidents-phone-header">
+          <h2 className="incidents-sr-only">Incidents</h2>
+          {canCreateQaIncidents && logIncidentButton}
+        </header>
+      ) : (
+        <header className="page-header">
+          <div>
+            <p className="page-eyebrow">
+              QA Records
+            </p>
+
+            <h2>
+              Incidents
+            </h2>
+
+            <p className="page-description">
+              {canMutateQaIncidents ? "Manage" : "View"} chatter
+              incidents, preserve
+              historical rule data,
+              and track QA outcomes.
+            </p>
+          </div>
+
+          {canCreateQaIncidents && logIncidentButton}
+        </header>
+      )}
 
       {!canMutateQaIncidents && (
         <div className="alert alert-info page-alert">
@@ -1740,162 +2145,83 @@ function IncidentsPage() {
           </div>
         )}
 
-      <section className="content-card">
-        <div className="card-header incident-toolbar">
-          <div>
-            <h3>
-              Incident Records
-            </h3>
+      <section className={isPhone ? "incidents-phone-records" : "content-card"}>
+        {isPhone ? (
+          <div className="incidents-phone-toolbar">
+            <div className="incidents-phone-search-row">
+              {searchInput}
 
-            <p>
-              Review current and
-              historical incident
-              records.
-            </p>
-          </div>
+              <button
+                ref={filtersButtonRef}
+                type="button"
+                className={`secondary-button incidents-phone-filters-button${filterCount > 0 ? " is-set" : ""}`}
+                aria-expanded={filtersOpen}
+                aria-controls={filtersOpen ? "incidents-phone-filters" : undefined}
+                onClick={() => setFiltersOpen((open) => !open)}
+              >
+                Filters
+                {filterCount > 0 && (
+                  <>
+                    <span aria-hidden="true"> · {filterCount}</span>
+                    <span className="incidents-sr-only">, {filterCount} set</span>
+                  </>
+                )}
+              </button>
+            </div>
 
-          <div className="incident-toolbar-controls">
-            <input
-              className="search-input"
-              type="search"
-              value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
-              }
-              placeholder="Search incidents..."
-              aria-label="Search incidents"
-            />
+            {filtersOpen && (
+              <div id="incidents-phone-filters" className="incidents-phone-filters">
+                <label className="form-field">
+                  <span>Chatter</span>
+                  {chatterSelect}
+                </label>
 
-            <select
-              className="toolbar-select"
-              value={
-                chatterFilter
-              }
-              onChange={(event) =>
-                setChatterFilter(
-                  event.target.value
-                )
-              }
-              aria-label="Filter by chatter"
-            >
-              <option value="">
-                All Chatters
-              </option>
+                <label className="form-field">
+                  <span>Rule</span>
+                  {ruleSelect}
+                </label>
 
-              {allChatters.map(
-                (chatter) => (
-                  <option
-                    key={
-                      chatter.id
-                    }
-                    value={
-                      chatter.id
-                    }
-                  >
-                    {
-                      chatter.name
-                    }
-
-                    {chatter.status ===
-                    "INACTIVE"
-                      ? " (Inactive)"
-                      : ""}
-                  </option>
-                )
-              )}
-            </select>
-
-            <select
-              className="toolbar-select"
-              value={
-                ruleFilter
-              }
-              onChange={(event) =>
-                setRuleFilter(
-                  event.target.value
-                )
-              }
-              aria-label="Filter by rule"
-            >
-              <option value="">
-                All Rules
-              </option>
-
-              {allRules.map(
-                (rule) => (
-                  <option
-                    key={
-                      rule.id
-                    }
-                    value={
-                      rule.id
-                    }
-                  >
-                    {rule
-                      .currentVersion
-                      ?.title ??
-                      "Untitled Rule"}
-
-                    {!rule.isActive
-                      ? " (Archived)"
-                      : ""}
-                  </option>
-                )
-              )}
-            </select>
-
-
-            <div className="filter-group">
-              {(
-                [
-                  [
-                    "ALL",
-                    "All",
-                  ],
-                  [
-                    "OPEN",
-                    "Open",
-                  ],
-                  [
-                    "RESOLVED",
-                    "Resolved",
-                  ],
-                  [
-                    "VOIDED",
-                    "Voided",
-                  ],
-                ] as const
-              ).map(
-                ([
-                  value,
-                  label,
-                ]) => (
+                {filterCount > 0 && (
                   <button
-                    key={
-                      value
-                    }
                     type="button"
-                    className={
-                      statusFilter ===
-                      value
-                        ? "filter-button active"
-                        : "filter-button"
-                    }
-                    onClick={() =>
-                      setStatusFilter(
-                        value
-                      )
-                    }
+                    className="incidents-phone-clear"
+                    onClick={() => {
+                      setChatterFilter("");
+                      setRuleFilter("");
+                      // This button disappears; keep focus nearby.
+                      filtersButtonRef.current?.focus();
+                    }}
                   >
-                    {label}
+                    Clear filters
                   </button>
-                )
-              )}
+                )}
+              </div>
+            )}
+
+            {statusFilterGroup}
+          </div>
+        ) : (
+          <div className="card-header incident-toolbar">
+            <div>
+              <h3>
+                Incident Records
+              </h3>
+
+              <p>
+                Review current and
+                historical incident
+                records.
+              </p>
+            </div>
+
+            <div className="incident-toolbar-controls">
+              {searchInput}
+              {chatterSelect}
+              {ruleSelect}
+              {statusFilterGroup}
             </div>
           </div>
-        </div>
+        )}
 
         {isLoading ? (
           <div className="empty-state">
@@ -1920,6 +2246,15 @@ function IncidentsPage() {
                 : "Incident records will appear here after they are logged."}
             </span>
           </div>
+        ) : isPhone ? (
+          <IncidentPhoneList
+            incidents={paginatedIncidents}
+            onOpen={(incident) => {
+              phoneReturnFocusId.current =
+                incident.id;
+              void openIncidentDetails(incident);
+            }}
+          />
         ) : (
           <div className="table-wrapper">
             <table className="data-table incidents-table">
@@ -2042,11 +2377,11 @@ function IncidentsPage() {
 
                         <td>
                           <span
-                            className={getStatusClass(
+                            className={incidentStatusClass(
                               incident.status
                             )}
                           >
-                            {formatStatus(
+                            {incidentStatusLabel(
                               incident.status
                             )}
                           </span>
@@ -2475,13 +2810,16 @@ function IncidentsPage() {
       {(selectedIncident ||
         detailLoading) && (
         <div
-          className="modal-backdrop"
+          className="modal-backdrop incident-detail-backdrop"
           onMouseDown={
             closeIncidentDetails
           }
         >
           <div
             className="modal modal-history incident-detail-modal-card"
+            role={isPhone ? "dialog" : undefined}
+            aria-modal={isPhone ? true : undefined}
+            aria-labelledby={isPhone ? "incident-phone-detail-title" : undefined}
             onMouseDown={(
               event
             ) =>
@@ -2490,371 +2828,205 @@ function IncidentsPage() {
           >
 
             <div className="incident-detail-modal-content">
-              <div className="modal-header">
-                <div>
-                  <h3>
-                    {selectedIncident
-                      ?.ruleTitleSnapshot ??
-                      "Incident Details"}
-                  </h3>
-
-                  <p>
-                    Incident record
-                    for{" "}
-
-                    <strong>
-                      {selectedIncident
-                        ?.chatter
-                        .name}
-                    </strong>
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  className="modal-close"
-                  onClick={
-                    closeIncidentDetails
-                  }
-                  disabled={
-                    detailLoading
-                  }
-                  aria-label="Close"
+              {isPhone ? (
+                <IncidentPhoneDetail
+                  backButtonRef={phoneBackRef}
+                  incident={selectedIncident}
+                  loading={detailLoading}
+                  onBack={closeIncidentDetails}
+                  onOpenQaProfile={openSelectedQaProfile}
+                  evidence={evidenceLink}
                 >
-                  &times;
-                </button>
-              </div>
-
-              {detailLoading ? (
-                <div className="empty-state">
-                  <strong>
-                    Loading incident...
-                  </strong>
-                </div>
+                  {detailLifecycle}
+                  {detailActions}
+                </IncidentPhoneDetail>
               ) : (
-                selectedIncident && (
-                  <div className="incident-detail">
-                    <div className="incident-detail-top">
-                      <div className="incident-detail-chatter-row">
-                        <div>
-                          <span className="detail-label">
-                            Chatter
-                          </span>
-
-                          <strong>
-                            {
-                              selectedIncident
-                                .chatter
-                                .name
-                            }
-                          </strong>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="secondary-button incident-qa-profile-button"
-                          onClick={() =>
-                            navigate(
-                              `/chatters/${encodeURIComponent(
-                                selectedIncident.chatter.id
-                              )}?from=${encodeURIComponent(
-                                "/incidents"
-                              )}`
-                            )
-                          }
-                        >
-                          View QA Profile
-                        </button>
-                      </div>
-
-                      <div className="incident-detail-statuses">
-                        <span
-                          className={getStatusClass(
-                            selectedIncident.status
-                          )}
-                          title="Incident workflow status"
-                        >
-                          {formatStatus(
-                            selectedIncident.status
-                          )}
-                        </span>
-
-                      </div>
-                    </div>
-
-                    <div className="detail-section">
-                      <span className="detail-label">
-                        Rule Snapshot
-                      </span>
-
-                      <h4>
-                        {
-                          selectedIncident
-                            .ruleTitleSnapshot
-                        }
-                      </h4>
+                <>
+                  <div className="modal-header">
+                    <div>
+                      <h3>
+                        {selectedIncident
+                          ?.ruleTitleSnapshot ??
+                          "Incident Details"}
+                      </h3>
 
                       <p>
-                        {
-                          selectedIncident
-                            .ruleDefinitionSnapshot
-                        }
-                      </p>
+                        Incident record
+                        for{" "}
 
-                      <div className="detail-meta-grid">
-                        <div>
-                          <span>
-                            Model
-                          </span>
-
-                          <strong>
-                            {selectedIncident.agencyModel?.name ??
-                              "Legacy / unassigned"}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Severity
-                          </span>
-
-                          <strong>
-                            {selectedIncident
-                              .severityNameSnapshot ??
-                              "None"}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Weight
-                          </span>
-
-                          <strong>
-                            {selectedIncident.weightNameSnapshot ??
-                              "None"}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Occurred
-                          </span>
-
-                          <strong>
-                            {formatCentralDateTime(selectedIncident.occurredAt)}
-                          </strong>
-                        </div>
-
-
-                      </div>
-                    </div>
-
-                    <div className="detail-section">
-                      <span className="detail-label">
-                        Incident Details
-                      </span>
-
-                      <p className="detail-body">
-                        {
-                          selectedIncident.details
-                        }
+                        <strong>
+                          {selectedIncident
+                            ?.chatter
+                            .name}
+                        </strong>
                       </p>
                     </div>
 
-                    <div className="detail-section">
-                      <span className="detail-label">
-                        Evidence
-                      </span>
-
-                      {selectedIncident.evidenceUrl ? (
-                        <a
-                          className="incident-evidence-link"
-                          href={
-                            selectedIncident.evidenceUrl
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                          title={
-                            selectedIncident.evidenceUrl
-                          }
-                        >
-                          <span className="incident-evidence-url">
-                            {
-                              selectedIncident.evidenceUrl
-                            }
-                          </span>
-
-                          <svg
-                            className="incident-evidence-icon"
-                            viewBox="0 0 20 20"
-                            fill="none"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M8 4H5.5A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5V12"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                            />
-
-                            <path
-                              d="M11 4h5v5M16 4l-7 7"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </a>
-                      ) : (
-                        <p className="detail-body">
-                          No evidence URL
-                          is included in
-                          this log.
-                        </p>
-                      )}
-                    </div>
-
-                    {selectedIncident.status ===
-                      "RESOLVED" && (
-                      <div className="detail-section lifecycle-section resolved">
-                        <span className="detail-label">
-                          Resolution
-                        </span>
-
-                        <p>
-                          {selectedIncident
-                            .resolutionNotes ||
-                            "No resolution notes provided."}
-                        </p>
-
-                        {selectedIncident.resolvedAt && (
-                          <small>
-                            Resolved{" "}
-
-                            {formatCentralDateTime(selectedIncident.resolvedAt)}
-                          </small>
-                        )}
-                      </div>
-                    )}
-
-                    {selectedIncident.status ===
-                      "VOIDED" && (
-                      <div className="detail-section lifecycle-section voided">
-                        <span className="detail-label">
-                          Void Reason
-                        </span>
-
-                        <p>
-                          {selectedIncident
-                            .voidReason ||
-                            "No void reason recorded."}
-                        </p>
-
-                        {selectedIncident.voidedAt && (
-                          <small>
-                            Voided{" "}
-
-                            {formatCentralDateTime(selectedIncident.voidedAt)}
-                          </small>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="incident-detail-actions">
-
-                      {canViewStrikes &&
-                        linkedStrike && (
-                        <button
-                          type="button"
-                          className="primary-button"
-                          onClick={
-                            viewLinkedStrike
-                          }
-                        >
-                          View Strike
-                        </button>
-                      )}
-
-                      {canViewStrikes &&
-                        linkedStrikeLoading && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled
-                        >
-                          Checking Strike...
-                        </button>
-                      )}
-
-                      {canIssueStrikes &&
-                        canViewStrikes &&
-                        !linkedStrike &&
-                        !linkedStrikeLoading &&
-                        !linkedStrikeError &&
-                        selectedIncident.status !==
-                          "VOIDED" &&
-                        Boolean(
-                          selectedIncident
-                            .chatter
-                            .userId
-                        ) && (
-                        <button
-                          type="button"
-                          className="primary-button"
-                          onClick={
-                            issueStrikeFromIncident
-                          }
-                        >
-                          Issue Strike
-                        </button>
-                      )}
-
-                      {canResolveQaIncidents && selectedIncident.status ===
-                        "OPEN" && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => {
-                            const incident =
-                              selectedIncident;
-
-                            closeIncidentDetails();
-
-                            openAction(
-                              "resolve",
-                              incident
-                            );
-                          }}
-                        >
-                          Resolve
-                        </button>
-                      )}
-
-                      {canVoidQaIncidents && selectedIncident.status ===
-                        "OPEN" && (
-                        <button
-                          type="button"
-                          className="danger-button"
-                          onClick={() => {
-                            const incident =
-                              selectedIncident;
-
-                            closeIncidentDetails();
-
-                            openAction(
-                              "void",
-                              incident
-                            );
-                          }}
-                        >
-                          Void Incident
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      className="modal-close"
+                      onClick={
+                        closeIncidentDetails
+                      }
+                      disabled={
+                        detailLoading
+                      }
+                      aria-label="Close"
+                    >
+                      &times;
+                    </button>
                   </div>
-                )
+
+                  {detailLoading ? (
+                    <div className="empty-state">
+                      <strong>
+                        Loading incident...
+                      </strong>
+                    </div>
+                  ) : (
+                    selectedIncident && (
+                      <div className="incident-detail">
+                        <div className="incident-detail-top">
+                          <div className="incident-detail-chatter-row">
+                            <div>
+                              <span className="detail-label">
+                                Chatter
+                              </span>
+
+                              <strong>
+                                {
+                                  selectedIncident
+                                    .chatter
+                                    .name
+                                }
+                              </strong>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="secondary-button incident-qa-profile-button"
+                              onClick={openSelectedQaProfile}
+                            >
+                              View QA Profile
+                            </button>
+                          </div>
+
+                          <div className="incident-detail-statuses">
+                            <span
+                              className={incidentStatusClass(
+                                selectedIncident.status
+                              )}
+                              title="Incident workflow status"
+                            >
+                              {incidentStatusLabel(
+                                selectedIncident.status
+                              )}
+                            </span>
+
+                          </div>
+                        </div>
+
+                        <div className="detail-section">
+                          <span className="detail-label">
+                            Rule Snapshot
+                          </span>
+
+                          <h4>
+                            {
+                              selectedIncident
+                                .ruleTitleSnapshot
+                            }
+                          </h4>
+
+                          <p>
+                            {
+                              selectedIncident
+                                .ruleDefinitionSnapshot
+                            }
+                          </p>
+
+                          <div className="detail-meta-grid">
+                            <div>
+                              <span>
+                                Model
+                              </span>
+
+                              <strong>
+                                {selectedIncident.agencyModel?.name ??
+                                  "Legacy / unassigned"}
+                              </strong>
+                            </div>
+
+                            <div>
+                              <span>
+                                Severity
+                              </span>
+
+                              <strong>
+                                {selectedIncident
+                                  .severityNameSnapshot ??
+                                  "None"}
+                              </strong>
+                            </div>
+
+                            <div>
+                              <span>
+                                Weight
+                              </span>
+
+                              <strong>
+                                {selectedIncident.weightNameSnapshot ??
+                                  "None"}
+                              </strong>
+                            </div>
+
+                            <div>
+                              <span>
+                                Occurred
+                              </span>
+
+                              <strong>
+                                {formatCentralDateTime(selectedIncident.occurredAt)}
+                              </strong>
+                            </div>
+
+
+                          </div>
+                        </div>
+
+                        <div className="detail-section">
+                          <span className="detail-label">
+                            Incident Details
+                          </span>
+
+                          <p className="detail-body">
+                            {
+                              selectedIncident.details
+                            }
+                          </p>
+                        </div>
+
+                        <div className="detail-section">
+                          <span className="detail-label">
+                            Evidence
+                          </span>
+
+                          {evidenceLink ?? (
+                            <p className="detail-body">
+                              No evidence URL
+                              is included in
+                              this log.
+                            </p>
+                          )}
+                        </div>
+
+                        {detailLifecycle}
+
+                        {detailActions}
+                      </div>
+                    )
+                  )}
+                </>
               )}
             </div>
           </div>
