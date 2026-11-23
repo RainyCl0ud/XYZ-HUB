@@ -477,3 +477,243 @@
 .account-2fa-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .account-2fa-danger { border: 2px solid #FFFFFF; }
 @media (max-width: 720px) { .account-two-factor { padding: 16px; } .account-2fa-codes { grid-template-columns: 1fr; } }
+
+/* =========================================================
+   MY ACCOUNT — READABLE TEXT AND PHONE LAYOUT (23 Nov 2026)
+   Text follows the web kit scale at every width: 11px only for
+   uppercase bold labels, 13px for the email, facts and helper
+   text in the cards. Phones (720px and below): the title lines
+   up with the cards, Notification is one full-width setting
+   row, the profile is a compact header (picture, name, email,
+   then the role tags), Account status and Last sign-in are one
+   row each, the email appears once, and the two-step buttons
+   are full width with 44px tap targets. Desktop keeps its
+   layout.
+   ========================================================= */
+
+.account-profile-label,
+.account-profile-facts span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: var(--hub-label-tracking);
+  text-transform: uppercase;
+}
+
+/* The global card-paragraph size is !important, so these are too. */
+.account-profile-card .account-profile-copy p,
+.account-two-factor .account-2fa-heading p,
+.account-two-factor .account-2fa-note,
+.account-two-factor .account-2fa-error {
+  font-size: 13px !important;
+}
+
+.account-role-list span {
+  min-height: 24px;
+  padding: 0 8px;
+  border-color: #666666;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Monochrome: no tinted border on the status. */
+.account-status-card {
+  border-color: #666666;
+}
+
+.account-status-card span,
+.account-status-card strong,
+.account-profile-facts strong,
+.account-notification-card .account-notification-error,
+.account-avatar-modal-header p,
+.account-avatar-help {
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  /* Title lines up with the cards; the top bar already names the page. */
+  .account-page-header {
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .account-page-header .page-eyebrow,
+  .account-page-header .page-description {
+    display: none;
+  }
+
+  .account-page-header h2 {
+    font-size: 24px;
+  }
+
+  /* Notification: one full-width setting row. */
+  .account-page-header .account-header-notifications {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    min-height: 56px;
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--surface);
+  }
+
+  .account-header-notifications h3 {
+    font-size: 15px;
+  }
+
+  /* An older rule makes this wrapper grow; keep the switch at the right. */
+  .account-header-notifications .account-notification-controls {
+    flex: 0 0 auto;
+  }
+
+  .account-header-notifications .account-notification-error {
+    max-width: none;
+    color: #999999;
+  }
+
+  /* The 34px switch gets a 44px tap area without changing its look. */
+  .account-header-notifications .account-notification-toggle::before {
+    content: "";
+    position: absolute;
+    inset: -5px -2px;
+  }
+
+  /* Profile: picture beside name and email, then the role tags (they
+     wrap, however many or long), then a status row like Last sign-in. */
+  .account-profile-hero {
+    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-areas:
+      "avatar name"
+      "avatar email"
+      "roles roles"
+      "status status";
+    align-items: center;
+    gap: 4px 14px;
+    padding: 16px 14px 0;
+  }
+
+  .account-profile-copy {
+    display: contents;
+  }
+
+  .account-profile-label {
+    display: none;
+  }
+
+  .account-profile-avatar-button {
+    grid-area: avatar;
+    width: 56px;
+    height: 56px;
+  }
+
+  .account-profile-copy h3 {
+    grid-area: name;
+    align-self: end;
+    font-size: 18px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .account-profile-copy p {
+    grid-area: email;
+    align-self: start;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .account-role-list {
+    grid-area: roles;
+    margin: 10px 0 12px;
+  }
+
+  .account-role-list span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .account-status-card {
+    grid-area: status;
+    justify-self: stretch;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    margin: 0 -14px;
+    padding: 10px 14px;
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .account-status-card span {
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: var(--hub-label-tracking);
+    text-transform: uppercase;
+  }
+
+  .account-status-card strong {
+    color: #FFFFFF;
+  }
+
+  /* The email is already under the name; Last sign-in is one row. */
+  .account-profile-facts .account-fact-email {
+    display: none;
+  }
+
+  .account-profile-facts > div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 12px;
+    min-height: 48px;
+    padding: 10px 14px;
+  }
+
+  /* On the narrowest phones the date drops below the label. */
+  .account-profile-facts span {
+    white-space: nowrap;
+  }
+
+  .account-profile-facts strong {
+    margin-top: 0;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  /* Two-step sign-in: buttons get the full width below the title. */
+  .account-2fa-heading {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  /* Two per row when each can be 150px wide, otherwise stacked. */
+  .account-2fa-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .account-2fa-heading > .primary-button,
+  .account-2fa-actions > button,
+  .account-2fa-step > .primary-button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .account-2fa-check {
+    min-height: 44px;
+  }
+
+  .account-avatar-close {
+    width: 44px;
+    height: 44px;
+  }
+}
