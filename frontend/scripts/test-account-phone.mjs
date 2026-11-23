@@ -68,7 +68,8 @@ try {
   }
   assert.equal((phone.match(/quinn\.harper@example\.test/g) ?? []).length, 1, "The email appears once");
   assert.ok(/Last sign-in Nov 22, 2026, 9:51 AM CST/.test(text(phone)), "Last sign-in is one line");
-  assert.ok(/<button type="button" class="account-2fa-row" aria-expanded="false" aria-controls="account-2fa-panel">/.test(phone) && !phone.includes('id="account-2fa-panel"'), "Two-step sign-in starts closed as a button row");
+  assert.ok(/<button type="button" class="account-2fa-row" aria-expanded="false">/.test(phone) && !phone.includes('id="account-2fa-panel"') && !phone.includes("aria-controls"), "Two-step sign-in starts closed as a button row, with no reference to a panel that isn't there");
+  assert.ok(!phone.includes('aria-label="Profile"') && !phone.includes('aria-label="Settings"'), "No extra landmark regions for screen readers to wade through");
   assert.ok(phone.includes('<span class="account-2fa-row-chevron" aria-hidden="true"></span>'), "The row's arrow is drawn and silent");
   assert.ok(!phone.includes("!"), "No ! markers");
   pass("Phones: picture, name, email and roles, then Notification and Two-step sign-in rows, then one last sign-in line; nothing else");
@@ -79,20 +80,33 @@ try {
     assert.ok(desktop.includes(kept), `Desktop keeps ${kept}`);
   }
   assert.ok(!desktop.includes("account-page-phone") && !desktop.includes("account-2fa-compact"), "Desktop doesn't use the phone layout");
-  pass("Desktop keeps its layout: header with Notification, profile card with status and facts, two-step card");
+  pass("Desktop keeps its pieces: header with Notification, profile card with status and facts, two-step card");
 
-  // 3. Two-step sign-in row: closed until tapped; stays open during a step.
+  // 3. Both layouts render two-step sign-in and the picture editor from one
+  // place, so crossing 720px (rotating, resizing, zooming) keeps their state.
+  const body = page.slice(page.indexOf("  return (\n    <div className={`page account-page"));
+  assert.ok(body.length < page.length, "The shared return is found");
+  assert.equal((page.match(/^ {2}return \(/gm) ?? []).length, 1, "One return for both layouts");
+  assert.equal((body.match(/<AccountTwoFactor /g) ?? []).length, 1, "Two-step sign-in is rendered from one place");
+  assert.ok(body.includes("<AccountTwoFactor compact={isPhone} />") && body.includes('<div className={isPhone ? "account-phone-settings" : "account-settings"}>'), "Same component, same parent, only the style changes");
+  assert.equal((body.match(/\{avatarEditor\}/g) ?? []).length, 1, "The picture editor is rendered from one place");
+  const lastLine = body.indexOf('{isPhone && (\n        <p className="account-phone-last-sign-in">');
+  assert.ok(lastLine > 0 && body.indexOf("{avatarEditor}") < lastLine, "The editor keeps its position; the phone-only line comes after it");
+  pass("Crossing 720px keeps a two-step step in progress and an open picture editor (same components, same place)");
+
+  // 4. Two-step sign-in row (source checks; a server render only shows loading).
   const compact = twoFactor.slice(twoFactor.indexOf("if (compact) {"), twoFactor.indexOf("return <section className=\"content-card account-two-factor\""));
   assert.ok(compact.includes('const settled = step.kind === "idle" && !error;') && compact.includes("const open = expanded || !settled;"), "A step in progress or an error keeps the row open");
   assert.ok(compact.includes(': <span className="account-2fa-row">{row}</span>'), "While a step is in progress the row is plain text, so it can't be folded away mid-setup");
   assert.ok(compact.includes('enabled ? "Authenticator app" : "Email codes"'), "The row shows the current method");
   assert.ok(!compact.includes("Sign-in codes come by email") && compact.indexOf("{note}") > compact.indexOf("{open && <div id=\"account-2fa-panel\""), "The long explanation sits inside the panel, shown only after tapping");
   assert.ok(compact.indexOf("{note}") < compact.indexOf("{actions}"), "Opened: the explanation, then the buttons");
-  assert.ok(hook.includes('export const PHONE_QUERY = "(max-width: 720px)";') && css.includes("@media (max-width: 720px) {"), "The phone layout switches at the same width as the phone styles");
-  assert.ok(page.indexOf("useMediaQuery(") < page.indexOf("if (isPhone) {"), "The width check runs before the phone layout returns");
-  pass("Two-step sign-in: one row showing the method, opening to the explanation and buttons; it stays open during setup");
+  assert.ok(compact.includes('!status ? (error ? "Not available" : "Loading…")') && compact.includes('{!status && error && <button type="button" className="secondary-button" onClick={() => { setError(""); void load(); }}>Try again</button>}'), "If the status can't load, the row says Not available and offers Try again");
+  assert.ok(compact.includes('aria-controls={open ? "account-2fa-panel" : undefined}'), "aria-controls only while the panel exists");
+  assert.ok(hook.includes('export const PHONE_QUERY = "(max-width: 720px)";') && css.slice(css.indexOf("MY ACCOUNT — READABLE TEXT")).includes("@media (max-width: 720px) {"), "The phone layout switches at the same width as the new phone styles");
+  pass("Two-step row (source): shows the method, opens to the explanation then buttons, stays open mid-step, recovers from a failed load");
 
-  // 4. Styles.
+  // 5. Styles.
   const block = css.slice(css.indexOf("MY ACCOUNT — READABLE TEXT"));
   const phoneCss = block.slice(block.indexOf("@media (max-width: 720px) {"));
   const rule = (source, selector) => {
@@ -113,7 +127,10 @@ try {
   assert.ok(/overflow-wrap: anywhere;/.test(rule(phoneCss, ".account-phone-profile h3")) && /overflow-wrap: anywhere;/.test(rule(phoneCss, ".account-phone-profile p")) && /overflow-wrap: anywhere;/.test(rule(phoneCss, ".account-phone-profile .account-role-list span")), "Long names, emails and roles wrap");
   assert.ok(/border-top: 1px solid var\(--border\);/.test(rule(phoneCss, ".account-phone-settings > * + *")), "The two settings rows share one card with a line between them");
   assert.ok(/min-height: 56px;/.test(rule(phoneCss, ".account-phone-settings .account-settings-row")) && /min-height: 56px;/.test(rule(phoneCss, ".account-2fa-row")), "Both rows are 56px tall");
-  assert.ok(/inset: -5px -2px;/.test(rule(phoneCss, ".account-settings-row .account-notification-toggle::before")), "The switch has a 44px tap area");
+  assert.ok(/inset: -6px -2px;/.test(rule(phoneCss, ".account-settings-row .account-notification-toggle::before")), "The switch has a 44px tap area (32px inner box + 6px above and below)");
+  assert.ok(/font-size: 16px !important;/.test(rule(phoneCss, ".account-page-phone .account-two-factor .form-field input")), "Inputs are 16px so iPhones don't zoom on focus");
+  assert.ok(/font-size: 13px !important;/.test(rule(phoneCss, ".account-page-phone .account-two-factor button,\n  .account-page-phone .account-avatar-modal-footer button,\n  .account-page-phone .account-avatar-select,\n  .account-page-phone .account-two-factor .form-field > span")), "Buttons and field labels are 13px, above the global caps");
+  assert.ok(/outline-offset: 9px;/.test(rule(phoneCss, ".account-phone-profile .account-profile-avatar-button:focus-visible")), "The picture's focus ring clears the camera badge");
   assert.ok(/rotate\(-45deg\)/.test(rule(phoneCss, ".account-2fa-row-chevron")) && /rotate\(45deg\)/.test(rule(phoneCss, '.account-2fa-row[aria-expanded="true"] .account-2fa-row-chevron')), "The arrow points right when closed, down when open");
   assert.ok(/outline: 2px solid #FFFFFF;/.test(rule(phoneCss, "button.account-2fa-row:focus-visible")), "Keyboard focus is a 2px white outline");
   const buttons = rule(phoneCss, ".account-2fa-panel > .primary-button,\n  .account-2fa-actions > button,\n  .account-2fa-step > .primary-button");

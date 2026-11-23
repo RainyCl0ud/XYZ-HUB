@@ -583,17 +583,39 @@ function AccountPage() {
     )
   );
 
-  // Phones: a centred profile, then Notification and Two-step sign-in as
-  // two settings rows (two-step opens on tap), then the last sign-in.
-  // The top bar names the page, so the heading is for screen readers.
-  if (isPhone) {
-    return (
-      <div className="page account-page account-page-phone">
+  // Phones (720px and below) get a shorter layout: a centred profile,
+  // Notification and Two-step sign-in as two rows (two-step opens on
+  // tap), then the last sign-in. The top bar names the page, so the
+  // phone heading is for screen readers. Both layouts render two-step
+  // sign-in and the picture editor from the same place, so rotating the
+  // phone or resizing the window mid-setup never resets them.
+  return (
+    <div className={`page account-page${isPhone ? " account-page-phone" : ""}`}>
+      {isPhone ? (
         <h2 className="account-sr-only">
           My Account
         </h2>
+      ) : (
+        <header className="page-header account-page-header">
+          <div>
+            <p className="page-eyebrow">
+              Personal account
+            </p>
 
-        <section className="account-phone-profile" aria-label="Profile">
+            <h2>
+              My Account
+            </h2>
+
+            <p className="page-description">
+              Review your profile and current XYZ Management access.
+            </p>
+          </div>
+          {canManageChatNotifications && <AccountNotificationToggle />}
+        </header>
+      )}
+
+      {isPhone ? (
+        <section className="account-phone-profile">
           {avatarButton}
 
           <h3>
@@ -608,113 +630,90 @@ function AccountPage() {
             {roleTags}
           </div>
         </section>
+      ) : (
+        <section className="content-card account-profile-card">
+          <div className="account-profile-hero">
+            {avatarButton}
 
-        <section className="account-phone-settings" aria-label="Settings">
-          {canManageChatNotifications && (
-            <AccountNotificationToggle variant="row" />
-          )}
+            <div className="account-profile-copy">
+              <span className="account-profile-label">
+                Profile
+              </span>
 
-          <AccountTwoFactor compact />
-        </section>
+              <h3>
+                {user?.name ?? "Account"}
+              </h3>
 
-        <p className="account-phone-last-sign-in">
-          Last sign-in {formatCentralDateTime(user?.lastSignInAt)}
-        </p>
+              <p>
+                {user?.email}
+              </p>
 
-        {avatarEditor}
-      </div>
-    );
-  }
+              <div className="account-role-list">
+                {roleNames.map(
+                  (role) => (
+                    <span key={role}>
+                      {role}
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
 
-  return (
-    <div className="page account-page">
-      <header className="page-header account-page-header">
-        <div>
-          <p className="page-eyebrow">
-            Personal account
-          </p>
-
-          <h2>
-            My Account
-          </h2>
-
-          <p className="page-description">
-            Review your profile and current XYZ Management access.
-          </p>
-        </div>
-        {canManageChatNotifications && <AccountNotificationToggle />}
-      </header>
-
-      <section className="content-card account-profile-card">
-        <div className="account-profile-hero">
-          {avatarButton}
-
-          <div className="account-profile-copy">
-            <span className="account-profile-label">
-              Profile
-            </span>
-
-            <h3>
-              {user?.name ?? "Account"}
-            </h3>
-
-            <p>
-              {user?.email}
-            </p>
-
-            <div className="account-role-list">
-              {roleNames.map(
-                (role) => (
-                  <span key={role}>
-                    {role}
-                  </span>
-                )
-              )}
+            <div
+              className="account-status-card"
+              aria-label={`Account status: ${user?.status === "ACTIVE" ? "Active" : user?.status ?? "Unknown"}`}
+            >
+              <span>
+                Account status:
+              </span>
+              <strong>
+                {user?.status === "ACTIVE"
+                  ? "Active"
+                  : user?.status ?? "Unknown"}
+              </strong>
             </div>
           </div>
 
-          <div
-            className="account-status-card"
-            aria-label={`Account status: ${user?.status === "ACTIVE" ? "Active" : user?.status ?? "Unknown"}`}
-          >
-            <span>
-              Account status:
-            </span>
-            <strong>
-              {user?.status === "ACTIVE"
-                ? "Active"
-                : user?.status ?? "Unknown"}
-            </strong>
+          <div className="account-profile-facts">
+            <div className="account-fact-email">
+              <span>
+                Email
+              </span>
+              <strong>
+                {user?.email ?? "Not available"}
+              </strong>
+            </div>
+
+            <div className="account-fact-sign-in">
+              <span>
+                Last sign-in
+              </span>
+              <strong>
+                {formatCentralDateTime(
+                  user?.lastSignInAt
+                )}
+              </strong>
+            </div>
+
           </div>
-        </div>
+        </section>
+      )}
 
-        <div className="account-profile-facts">
-          <div className="account-fact-email">
-            <span>
-              Email
-            </span>
-            <strong>
-              {user?.email ?? "Not available"}
-            </strong>
-          </div>
+      <div className={isPhone ? "account-phone-settings" : "account-settings"}>
+        {isPhone && canManageChatNotifications && (
+          <AccountNotificationToggle variant="row" />
+        )}
 
-          <div className="account-fact-sign-in">
-            <span>
-              Last sign-in
-            </span>
-            <strong>
-              {formatCentralDateTime(
-                user?.lastSignInAt
-              )}
-            </strong>
-          </div>
-
-        </div>
-      </section>
-
-      <AccountTwoFactor />
+        <AccountTwoFactor compact={isPhone} />
+      </div>
 
       {avatarEditor}
+
+      {isPhone && (
+        <p className="account-phone-last-sign-in">
+          Last sign-in {formatCentralDateTime(user?.lastSignInAt)}
+        </p>
+      )}
     </div>
   );
 }

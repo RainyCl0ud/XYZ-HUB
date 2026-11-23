@@ -158,18 +158,19 @@ export default function AccountTwoFactor({ compact = false }: { compact?: boolea
     const open = expanded || !settled;
     const row = <>
       <span className="account-2fa-row-title">Two-step sign-in</span>
-      <span className="account-2fa-row-value">{!status ? "Loading…" : enabled ? "Authenticator app" : "Email codes"}</span>
+      <span className="account-2fa-row-value">{!status ? (error ? "Not available" : "Loading…") : enabled ? "Authenticator app" : "Email codes"}</span>
       {settled && <span className="account-2fa-row-chevron" aria-hidden="true" />}
     </>;
     return <section className="account-two-factor account-2fa-compact" aria-labelledby="account-2fa-title">
       <h3 id="account-2fa-title" className="account-2fa-row-heading">
         {settled
-          ? <button type="button" className="account-2fa-row" aria-expanded={open} aria-controls="account-2fa-panel" onClick={() => setExpanded((value) => !value)}>{row}</button>
+          ? <button type="button" className="account-2fa-row" aria-expanded={open} aria-controls={open ? "account-2fa-panel" : undefined} onClick={() => setExpanded((value) => !value)}>{row}</button>
           : <span className="account-2fa-row">{row}</span>}
       </h3>
       {open && <div id="account-2fa-panel" className="account-2fa-panel">
         {enabled && status?.authenticator.since && step.kind === "idle" && <p className="account-2fa-detail">On since {formatCentralDateTime(status.authenticator.since)}</p>}
         {errorMessage}
+        {!status && error && <button type="button" className="secondary-button" onClick={() => { setError(""); void load(); }}>Try again</button>}
         {note}
         {actions}
         {steps}

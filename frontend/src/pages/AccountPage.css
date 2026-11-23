@@ -562,6 +562,11 @@
     font-size: 22px;
   }
 
+  /* The focus ring goes around the camera badge, not under it. */
+  .account-phone-profile .account-profile-avatar-button:focus-visible {
+    outline-offset: 9px;
+  }
+
   .account-phone-profile .account-profile-avatar-edit {
     right: -6px;
     bottom: -6px;
@@ -636,11 +641,12 @@
     color: #999999;
   }
 
-  /* The 34px switch gets a 44px tap area without changing its look. */
+  /* The switch is 34px tall with a 1px border, so its inner box is 32px;
+     6px above and below makes a 44px tap area without changing its look. */
   .account-settings-row .account-notification-toggle::before {
     content: "";
     position: absolute;
-    inset: -5px -2px;
+    inset: -6px -2px;
   }
 
   /* Two-step sign-in: a row showing the current method; it opens to
@@ -744,6 +750,20 @@
 
   .account-2fa-check {
     min-height: 44px;
+  }
+
+  /* Global rules cap buttons at 12.5px and field labels at 11px; inputs
+     go to 16px so iPhones don't zoom when the password or code field
+     gets focus. */
+  .account-page-phone .account-two-factor button,
+  .account-page-phone .account-avatar-modal-footer button,
+  .account-page-phone .account-avatar-select,
+  .account-page-phone .account-two-factor .form-field > span {
+    font-size: 13px !important;
+  }
+
+  .account-page-phone .account-two-factor .form-field input {
+    font-size: 16px !important;
   }
 
   .account-avatar-close {
