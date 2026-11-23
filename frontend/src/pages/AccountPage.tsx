@@ -21,6 +21,11 @@ import {
   prepareProfileAvatar,
 } from "../lib/profile-avatar";
 
+import {
+  PHONE_QUERY,
+  useMediaQuery,
+} from "../lib/useMediaQuery";
+
 import UserAvatar from "../components/UserAvatar";
 import AccountNotificationToggle from "../components/AccountNotificationToggle";
 import AccountTwoFactor from "../components/AccountTwoFactor";
@@ -365,287 +370,349 @@ function AccountPage() {
     }
   }
 
-  return (
-    <div className="page account-page">
-      <header className="page-header account-page-header">
-        <div>
-          <p className="page-eyebrow">
-            Personal account
-          </p>
+  const isPhone =
+    useMediaQuery(
+      PHONE_QUERY
+    );
 
-          <h2>
-            My Account
-          </h2>
+  const avatarButton = (
+    <button
+      type="button"
+      className="account-profile-avatar-button"
+      aria-label="Change profile picture"
+      title="Change profile picture"
+      onClick={() => {
+        setAvatarError(
+          null
+        );
 
-          <p className="page-description">
-            Review your profile and current XYZ Management access.
-          </p>
-        </div>
-        {canManageChatNotifications && <AccountNotificationToggle />}
-      </header>
+        setAvatarEditorOpen(
+          true
+        );
+      }}
+    >
+      <UserAvatar
+        name={
+          user?.name
+        }
+        src={
+          currentAvatarUrl
+        }
+        className="account-profile-avatar"
+      />
 
-      <section className="content-card account-profile-card">
-        <div className="account-profile-hero">
-          <button
-            type="button"
-            className="account-profile-avatar-button"
-            aria-label="Change profile picture"
-            title="Change profile picture"
-            onClick={() => {
-              setAvatarError(
-                null
-              );
+      <span
+        className="account-profile-avatar-edit"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 24 24"
+        >
+          <path d="M9 6 10.3 4h3.4L15 6h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3Z" />
+          <circle
+            cx="12"
+            cy="12.5"
+            r="3.25"
+          />
+        </svg>
+      </span>
+    </button>
+  );
 
-              setAvatarEditorOpen(
-                true
-              );
-            }}
-          >
-            <UserAvatar
-              name={
-                user?.name
-              }
-              src={
-                currentAvatarUrl
-              }
-              className="account-profile-avatar"
-            />
-
-            <span
-              className="account-profile-avatar-edit"
-              aria-hidden="true"
-            >
-              <svg
-                viewBox="0 0 24 24"
-              >
-                <path d="M9 6 10.3 4h3.4L15 6h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3Z" />
-                <circle
-                  cx="12"
-                  cy="12.5"
-                  r="3.25"
-                />
-              </svg>
+  const avatarEditor =
+  avatarEditorOpen && (
+    <div
+      className="account-avatar-overlay"
+      role="presentation"
+      onMouseDown={(
+        event
+      ) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          closeAvatarEditor();
+        }
+      }}
+    >
+      <section
+        className="account-avatar-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="account-avatar-title"
+      >
+        <header className="account-avatar-modal-header">
+          <div>
+            <span className="page-eyebrow">
+              Personal account
             </span>
-          </button>
 
-          <div className="account-profile-copy">
-            <span className="account-profile-label">
-              Profile
-            </span>
-
-            <h3>
-              {user?.name ?? "Account"}
+            <h3 id="account-avatar-title">
+              Edit profile picture
             </h3>
 
             <p>
-              {user?.email}
+              Choose a photo and review the square preview before saving.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="account-avatar-close"
+            aria-label="Close profile picture editor"
+            onClick={() =>
+              closeAvatarEditor()
+            }
+            disabled={
+              avatarSaving
+            }
+          >
+            &times;
+          </button>
+        </header>
+
+        <div className="account-avatar-modal-body">
+          <UserAvatar
+            name={
+              user?.name
+            }
+            src={
+              previewUrl ??
+              currentAvatarUrl
+            }
+            className="account-avatar-preview"
+          />
+
+          <input
+            ref={
+              fileInputRef
+            }
+            className="account-avatar-file-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={
+              chooseAvatar
+            }
+            disabled={
+              avatarSaving
+            }
+          />
+
+          <button
+            type="button"
+            className="secondary-button account-avatar-select"
+            onClick={() =>
+              fileInputRef.current?.click()
+            }
+            disabled={
+              avatarSaving
+            }
+          >
+            Select a photo
+          </button>
+
+          <p className="account-avatar-help">
+            JPEG, PNG or WebP · Maximum 5 MB · The image will be center-cropped to a square.
+          </p>
+
+          {avatarError && (
+            <div className="auth-message auth-message-error account-avatar-error">
+              {avatarError}
+            </div>
+          )}
+        </div>
+
+        <footer className="account-avatar-modal-footer">
+          <div>
+            {user?.avatarUpdatedAt && (
+              <button
+                type="button"
+                className="secondary-button account-avatar-remove"
+                onClick={
+                  removeAvatar
+                }
+                disabled={
+                  avatarSaving
+                }
+              >
+                Remove photo
+              </button>
+            )}
+          </div>
+
+          <div className="account-avatar-modal-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                closeAvatarEditor()
+              }
+              disabled={
+                avatarSaving
+              }
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={
+                saveAvatar
+              }
+              disabled={
+                avatarSaving ||
+                !pendingAvatar
+              }
+            >
+              {avatarSaving
+                ? "Saving..."
+                : "Save photo"}
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+
+  const roleTags = roleNames.map(
+    (role) => (
+      <span key={role}>
+        {role}
+      </span>
+    )
+  );
+
+  // Phones (720px and below) get a shorter layout: a centred profile,
+  // Notification and Two-step sign-in as two rows (two-step opens on
+  // tap), then the last sign-in. The top bar names the page, so the
+  // phone heading is for screen readers. Both layouts render two-step
+  // sign-in and the picture editor from the same place, so rotating the
+  // phone or resizing the window mid-setup never resets them.
+  return (
+    <div className={`page account-page${isPhone ? " account-page-phone" : ""}`}>
+      {isPhone ? (
+        <h2 className="account-sr-only">
+          My Account
+        </h2>
+      ) : (
+        <header className="page-header account-page-header">
+          <div>
+            <p className="page-eyebrow">
+              Personal account
             </p>
 
-            <div className="account-role-list">
-              {roleNames.map(
-                (role) => (
-                  <span key={role}>
-                    {role}
-                  </span>
-                )
-              )}
-            </div>
+            <h2>
+              My Account
+            </h2>
+
+            <p className="page-description">
+              Review your profile and current XYZ Management access.
+            </p>
           </div>
+          {canManageChatNotifications && <AccountNotificationToggle />}
+        </header>
+      )}
 
-          <div
-            className="account-status-card"
-            aria-label={`Account status: ${user?.status === "ACTIVE" ? "Active" : user?.status ?? "Unknown"}`}
-          >
-            <span>
-              Account status:
-            </span>
-            <strong>
-              {user?.status === "ACTIVE"
-                ? "Active"
-                : user?.status ?? "Unknown"}
-            </strong>
+      {isPhone ? (
+        <section className="account-phone-profile">
+          {avatarButton}
+
+          <h3>
+            {user?.name ?? "Account"}
+          </h3>
+
+          <p>
+            {user?.email}
+          </p>
+
+          <div className="account-role-list">
+            {roleTags}
           </div>
-        </div>
+        </section>
+      ) : (
+        <section className="content-card account-profile-card">
+          <div className="account-profile-hero">
+            {avatarButton}
 
-        <div className="account-profile-facts">
-          <div className="account-fact-email">
-            <span>
-              Email
-            </span>
-            <strong>
-              {user?.email ?? "Not available"}
-            </strong>
-          </div>
+            <div className="account-profile-copy">
+              <span className="account-profile-label">
+                Profile
+              </span>
 
-          <div className="account-fact-sign-in">
-            <span>
-              Last sign-in
-            </span>
-            <strong>
-              {formatCentralDateTime(
-                user?.lastSignInAt
-              )}
-            </strong>
-          </div>
+              <h3>
+                {user?.name ?? "Account"}
+              </h3>
 
-        </div>
-      </section>
-
-      <AccountTwoFactor />
-
-      {avatarEditorOpen && (
-        <div
-          className="account-avatar-overlay"
-          role="presentation"
-          onMouseDown={(
-            event
-          ) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
-              closeAvatarEditor();
-            }
-          }}
-        >
-          <section
-            className="account-avatar-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="account-avatar-title"
-          >
-            <header className="account-avatar-modal-header">
-              <div>
-                <span className="page-eyebrow">
-                  Personal account
-                </span>
-
-                <h3 id="account-avatar-title">
-                  Edit profile picture
-                </h3>
-
-                <p>
-                  Choose a photo and review the square preview before saving.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="account-avatar-close"
-                aria-label="Close profile picture editor"
-                onClick={() =>
-                  closeAvatarEditor()
-                }
-                disabled={
-                  avatarSaving
-                }
-              >
-                &times;
-              </button>
-            </header>
-
-            <div className="account-avatar-modal-body">
-              <UserAvatar
-                name={
-                  user?.name
-                }
-                src={
-                  previewUrl ??
-                  currentAvatarUrl
-                }
-                className="account-avatar-preview"
-              />
-
-              <input
-                ref={
-                  fileInputRef
-                }
-                className="account-avatar-file-input"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={
-                  chooseAvatar
-                }
-                disabled={
-                  avatarSaving
-                }
-              />
-
-              <button
-                type="button"
-                className="secondary-button account-avatar-select"
-                onClick={() =>
-                  fileInputRef.current?.click()
-                }
-                disabled={
-                  avatarSaving
-                }
-              >
-                Select a photo
-              </button>
-
-              <p className="account-avatar-help">
-                JPEG, PNG or WebP · Maximum 5 MB · The image will be center-cropped to a square.
+              <p>
+                {user?.email}
               </p>
 
-              {avatarError && (
-                <div className="auth-message auth-message-error account-avatar-error">
-                  {avatarError}
-                </div>
-              )}
-            </div>
-
-            <footer className="account-avatar-modal-footer">
-              <div>
-                {user?.avatarUpdatedAt && (
-                  <button
-                    type="button"
-                    className="secondary-button account-avatar-remove"
-                    onClick={
-                      removeAvatar
-                    }
-                    disabled={
-                      avatarSaving
-                    }
-                  >
-                    Remove photo
-                  </button>
+              <div className="account-role-list">
+                {roleNames.map(
+                  (role) => (
+                    <span key={role}>
+                      {role}
+                    </span>
+                  )
                 )}
               </div>
+            </div>
 
-              <div className="account-avatar-modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    closeAvatarEditor()
-                  }
-                  disabled={
-                    avatarSaving
-                  }
-                >
-                  Cancel
-                </button>
+            <div
+              className="account-status-card"
+              aria-label={`Account status: ${user?.status === "ACTIVE" ? "Active" : user?.status ?? "Unknown"}`}
+            >
+              <span>
+                Account status:
+              </span>
+              <strong>
+                {user?.status === "ACTIVE"
+                  ? "Active"
+                  : user?.status ?? "Unknown"}
+              </strong>
+            </div>
+          </div>
 
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={
-                    saveAvatar
-                  }
-                  disabled={
-                    avatarSaving ||
-                    !pendingAvatar
-                  }
-                >
-                  {avatarSaving
-                    ? "Saving..."
-                    : "Save photo"}
-                </button>
-              </div>
-            </footer>
-          </section>
-        </div>
+          <div className="account-profile-facts">
+            <div className="account-fact-email">
+              <span>
+                Email
+              </span>
+              <strong>
+                {user?.email ?? "Not available"}
+              </strong>
+            </div>
+
+            <div className="account-fact-sign-in">
+              <span>
+                Last sign-in
+              </span>
+              <strong>
+                {formatCentralDateTime(
+                  user?.lastSignInAt
+                )}
+              </strong>
+            </div>
+
+          </div>
+        </section>
+      )}
+
+      <div className={isPhone ? "account-phone-settings" : "account-settings"}>
+        {isPhone && canManageChatNotifications && (
+          <AccountNotificationToggle variant="row" />
+        )}
+
+        <AccountTwoFactor compact={isPhone} />
+      </div>
+
+      {avatarEditor}
+
+      {isPhone && (
+        <p className="account-phone-last-sign-in">
+          Last sign-in {formatCentralDateTime(user?.lastSignInAt)}
+        </p>
       )}
     </div>
   );

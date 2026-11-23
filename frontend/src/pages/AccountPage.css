@@ -479,16 +479,15 @@
 @media (max-width: 720px) { .account-two-factor { padding: 16px; } .account-2fa-codes { grid-template-columns: 1fr; } }
 
 /* =========================================================
-   MY ACCOUNT — READABLE TEXT AND PHONE LAYOUT (23 Nov 2026)
+   MY ACCOUNT — READABLE TEXT (23 Nov 2026) AND A QUIETER PHONE
+   LAYOUT (24 Nov 2026)
    Text follows the web kit scale at every width: 11px only for
    uppercase bold labels, 13px for the email, facts and helper
-   text in the cards. Phones (720px and below): the title lines
-   up with the cards, Notification is one full-width setting
-   row, the profile is a compact header (picture, name, email,
-   then the role tags), Account status and Last sign-in are one
-   row each, the email appears once, and the two-step buttons
-   are full width with 44px tap targets. Desktop keeps its
-   layout.
+   text in the cards. Phones (720px and below) get their own
+   short layout from AccountPage.tsx: a centred profile (picture,
+   name, email, role tags), Notification and Two-step sign-in as
+   the two rows of one settings card (two-step opens on tap), and
+   the last sign-in as one grey line. Desktop keeps its layout.
    ========================================================= */
 
 .account-profile-label,
@@ -530,26 +529,94 @@
   font-size: 13px;
 }
 
+/* The phone layout's page heading: the top bar shows the title. */
+.account-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (max-width: 720px) {
-  /* Title lines up with the cards; the top bar already names the page. */
-  .account-page-header {
-    align-items: stretch;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .account-page-header .page-eyebrow,
-  .account-page-header .page-description {
-    display: none;
-  }
-
-  .account-page-header h2 {
-    font-size: 24px;
-  }
-
-  /* Notification: one full-width setting row. */
-  .account-page-header .account-header-notifications {
+  /* Profile: centred picture, name, email and role tags. */
+  .account-phone-profile {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0 24px;
+    text-align: center;
+  }
+
+  .account-phone-profile .account-profile-avatar-button {
+    width: 84px;
+    height: 84px;
+  }
+
+  .account-phone-profile .account-profile-avatar {
+    font-size: 22px;
+  }
+
+  /* The focus ring goes around the camera badge, not under it. */
+  .account-phone-profile .account-profile-avatar-button:focus-visible {
+    outline-offset: 9px;
+  }
+
+  .account-phone-profile .account-profile-avatar-edit {
+    right: -6px;
+    bottom: -6px;
+    width: 28px;
+    height: 28px;
+    border-color: #666666;
+  }
+
+  .account-phone-profile h3 {
+    max-width: 100%;
+    margin: 14px 0 0;
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .account-phone-profile p {
+    max-width: 100%;
+    margin: 4px 0 0;
+    color: #999999;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  .account-phone-profile .account-role-list {
+    justify-content: center;
+    margin-top: 12px;
+  }
+
+  .account-phone-profile .account-role-list span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  /* Settings: Notification and Two-step sign-in, two rows of one card. */
+  .account-phone-settings {
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--surface);
+  }
+
+  .account-phone-settings > * + * {
+    border-top: 1px solid var(--border);
+  }
+
+  .account-phone-settings .account-settings-row {
+    display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
@@ -557,151 +624,124 @@
     min-height: 56px;
     margin: 0;
     padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    background: var(--surface);
   }
 
-  .account-header-notifications h3 {
+  .account-phone-settings .account-settings-row h3 {
+    flex: 1 1 auto;
+    margin: 0;
     font-size: 15px;
+    font-weight: 700;
   }
 
-  /* An older rule makes this wrapper grow; keep the switch at the right. */
-  .account-header-notifications .account-notification-controls {
+  .account-settings-row .account-notification-controls {
     flex: 0 0 auto;
   }
 
-  .account-header-notifications .account-notification-error {
-    max-width: none;
+  .account-settings-row .account-notification-error {
     color: #999999;
   }
 
-  /* The 34px switch gets a 44px tap area without changing its look. */
-  .account-header-notifications .account-notification-toggle::before {
+  /* The switch is 34px tall with a 1px border, so its inner box is 32px;
+     6px above and below makes a 44px tap area without changing its look. */
+  .account-settings-row .account-notification-toggle::before {
     content: "";
     position: absolute;
-    inset: -5px -2px;
+    inset: -6px -2px;
   }
 
-  /* Profile: picture beside name and email, then the role tags (they
-     wrap, however many or long), then a status row like Last sign-in. */
-  .account-profile-hero {
-    grid-template-columns: 56px minmax(0, 1fr);
-    grid-template-areas:
-      "avatar name"
-      "avatar email"
-      "roles roles"
-      "status status";
-    align-items: center;
-    gap: 4px 14px;
-    padding: 16px 14px 0;
-  }
-
-  .account-profile-copy {
-    display: contents;
-  }
-
-  .account-profile-label {
-    display: none;
-  }
-
-  .account-profile-avatar-button {
-    grid-area: avatar;
-    width: 56px;
-    height: 56px;
-  }
-
-  .account-profile-copy h3 {
-    grid-area: name;
-    align-self: end;
-    font-size: 18px;
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-  }
-
-  .account-profile-copy p {
-    grid-area: email;
-    align-self: start;
+  /* Two-step sign-in: a row showing the current method; it opens to
+     the explanation and buttons. */
+  .account-phone-settings .account-2fa-compact {
     margin: 0;
-    overflow-wrap: anywhere;
+    padding: 0;
   }
 
-  .account-role-list {
-    grid-area: roles;
-    margin: 10px 0 12px;
+  .account-2fa-row-heading {
+    margin: 0;
+    font-size: inherit;
   }
 
-  .account-role-list span {
-    max-width: 100%;
-    overflow-wrap: anywhere;
-  }
-
-  .account-status-card {
-    grid-area: status;
-    justify-self: stretch;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 48px;
-    margin: 0 -14px;
+  .account-2fa-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 56px;
     padding: 10px 14px;
     border: 0;
-    border-top: 1px solid var(--border);
     border-radius: 0;
     background: transparent;
-  }
-
-  .account-status-card span {
-    color: var(--text-soft);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: var(--hub-label-tracking);
-    text-transform: uppercase;
-  }
-
-  .account-status-card strong {
     color: #FFFFFF;
+    font: inherit;
+    text-align: left;
   }
 
-  /* The email is already under the name; Last sign-in is one row. */
-  .account-profile-facts .account-fact-email {
-    display: none;
+  button.account-2fa-row {
+    cursor: pointer;
   }
 
-  .account-profile-facts > div {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 4px 12px;
-    min-height: 48px;
-    padding: 10px 14px;
+  button.account-2fa-row:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: -4px;
   }
 
-  /* On the narrowest phones the date drops below the label. */
-  .account-profile-facts span {
-    white-space: nowrap;
+  .account-2fa-row-title {
+    flex: 1 1 auto;
+    font-size: 15px;
+    font-weight: 700;
   }
 
-  .account-profile-facts strong {
-    margin-top: 0;
-    margin-left: auto;
-    text-align: right;
+  .account-2fa-row-value {
+    color: #999999;
+    font-size: 13px;
+    font-weight: 400;
   }
 
-  /* Two-step sign-in: buttons get the full width below the title. */
-  .account-2fa-heading {
-    flex-direction: column;
-    align-items: stretch;
+  /* Drawn chevron: right when closed, down when open. */
+  .account-2fa-row-chevron {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin: 0 3px 3px 2px;
+    border-right: 2px solid #999999;
+    border-bottom: 2px solid #999999;
+    transform: rotate(-45deg);
+  }
+
+  .account-2fa-row[aria-expanded="true"] .account-2fa-row-chevron {
+    margin-bottom: 6px;
+    transform: rotate(45deg);
+  }
+
+  .account-2fa-panel {
+    display: grid;
     gap: 12px;
+    padding: 0 14px 16px;
   }
 
-  /* Two per row when each can be 150px wide, otherwise stacked. */
+  .account-2fa-panel > p,
+  .account-2fa-panel > .account-2fa-step {
+    margin: 0;
+  }
+
+  .account-2fa-panel > .account-2fa-step {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .account-2fa-detail {
+    color: #CCCCCC;
+    font-size: 13px;
+  }
+
+  /* Buttons: full width and 44px; two per row when each can be 150px. */
   .account-2fa-actions {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
-  .account-2fa-heading > .primary-button,
+  .account-2fa-panel > .primary-button,
   .account-2fa-actions > button,
   .account-2fa-step > .primary-button {
     width: 100%;
@@ -712,8 +752,31 @@
     min-height: 44px;
   }
 
+  /* Global rules cap buttons at 12.5px and field labels at 11px; inputs
+     go to 16px so iPhones don't zoom when the password or code field
+     gets focus. */
+  .account-page-phone .account-two-factor button,
+  .account-page-phone .account-avatar-modal-footer button,
+  .account-page-phone .account-avatar-select,
+  .account-page-phone .account-two-factor .form-field > span {
+    font-size: 13px !important;
+  }
+
+  .account-page-phone .account-two-factor .form-field input {
+    font-size: 16px !important;
+  }
+
   .account-avatar-close {
+    flex: none;
     width: 44px;
     height: 44px;
+  }
+
+  /* Last sign-in: one quiet line under the settings. */
+  .account-phone-last-sign-in {
+    margin: 16px 0 0;
+    color: #8E8E8E;
+    font-size: 13px;
+    text-align: center;
   }
 }

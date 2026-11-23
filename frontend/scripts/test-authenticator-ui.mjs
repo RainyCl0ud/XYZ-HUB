@@ -45,7 +45,8 @@ pass("The code screen is redesigned: six code boxes, a clear account line, one w
 
 const account = await read("src/pages/AccountPage.tsx");
 const card = await read("src/components/AccountTwoFactor.tsx");
-assert.ok(account.includes("<AccountTwoFactor />"));
+// My Account renders the two-step card (compact on phones, 24 Nov 2026).
+assert.ok(/<AccountTwoFactor(?: compact=\{isPhone\})? \/>/.test(account), "My Account renders two-step sign-in");
 for (const endpoint of ["/api/auth/two-factor", "/api/auth/two-factor/authenticator/setup", "/api/auth/two-factor/authenticator/confirm", "/api/auth/two-factor/recovery-codes", "/api/auth/two-factor/authenticator/disable"]) assert.ok(card.includes(`"${endpoint}"`), endpoint);
 assert.ok(card.includes('autoComplete="current-password"') && card.includes("Enter your password to start"), "Every change asks for the password");
 assert.ok(card.includes('alt="QR code to add XYZ Hub to your authenticator app"') && card.includes("step.setup.key") && card.includes("open it in your app"));

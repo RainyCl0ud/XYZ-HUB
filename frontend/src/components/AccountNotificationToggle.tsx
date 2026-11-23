@@ -1,6 +1,7 @@
 import { useBrowserNotifications } from "./BrowserNotificationsContext";
 
-export default function AccountNotificationToggle() {
+/** "header": top right of the desktop page header. "row": a settings row on phones. */
+export default function AccountNotificationToggle({ variant = "header" }: { variant?: "header" | "row" }) {
   const controls = useBrowserNotifications();
   const enabled = !!controls?.enabled && controls.permission === "granted";
   const help = controls?.error
@@ -8,7 +9,7 @@ export default function AccountNotificationToggle() {
       : controls && !controls.supported ? "Notifications aren't supported in this browser."
         : controls && !controls.available ? "Notifications are unavailable right now." : "");
 
-  return <section className="account-notification-card account-header-notifications" aria-labelledby="account-notification-title">
+  return <section className={`account-notification-card ${variant === "row" ? "account-settings-row" : "account-header-notifications"}`} aria-labelledby="account-notification-title">
     <h3 id="account-notification-title">Notification</h3>
     <div className="account-notification-controls">
       <button type="button" role="switch" className="account-notification-toggle"
