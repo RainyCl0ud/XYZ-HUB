@@ -12,6 +12,7 @@ import {
 } from "../lib/api";
 
 import {
+  formatCentralDateParts,
   formatCentralDateTime,
   formatCentralShortDate,
 } from "../lib/time";
@@ -25,9 +26,9 @@ import {
 } from "../lib/strike-status";
 
 import {
-  ProfilePhoneFacts,
   ProfilePhonePager,
-  ProfilePhoneRecords,
+  ProfilePhoneTable,
+  ProfilePhoneTiles,
 } from "./ProfilePhoneViews";
 
 import type {
@@ -505,10 +506,10 @@ export default function PeopleQaPanel({
     ) {
       return (
         <div className="people-profile-phone-tab">
-          <ProfilePhoneFacts
-            facts={[
+          <ProfilePhoneTiles
+            tiles={[
               {
-                label: "Incidents",
+                label: "Total incidents",
                 value: qa.totalIncidentCount,
               },
               {
@@ -521,22 +522,28 @@ export default function PeopleQaPanel({
             ]}
           />
 
-          <ProfilePhoneRecords
-            heading={`History · ${qa.totalIncidentCount}`}
+          <ProfilePhoneTable
+            title="QA history"
+            total={qa.totalIncidentCount}
+            columns={[
+              "QA record",
+              "Date",
+              "Status",
+            ]}
             emptyText="No QA records yet."
-            records={qa.recentIncidents.map(
+            rows={qa.recentIncidents.map(
               (incident) => ({
                 id: incident.id,
                 title: incident.ruleTitleSnapshot,
                 meta: [
-                  formatCentralShortDate(
-                    incident.occurredAt
-                  ),
                   incident.severityNameSnapshot,
                   incident.weightNameSnapshot,
                 ]
                   .filter(Boolean)
                   .join(" · "),
+                date: formatCentralShortDate(
+                  incident.occurredAt
+                ),
                 status: incidentStatusLabel(
                   incident.status
                 ),
@@ -863,49 +870,63 @@ export default function PeopleQaPanel({
         history.pageCount
       );
 
+    const nextExpiry =
+      formatCentralDateParts(
+        summary.nextExpiryAt
+      );
+
     return (
       <div className="people-profile-phone-tab">
-        <ProfilePhoneFacts
-          facts={[
+        <ProfilePhoneTiles
+          tiles={[
             {
-              label: "Standing",
+              label: "Current standing",
               value: summary.standingLabel,
+              note: `Ladder v${summary.ladderVersion}`,
             },
             {
               label: "Active strikes",
               value: summary.activeStrikeCount,
             },
             {
-              label: "Deduction",
+              label: "Current deduction",
               value: `${formatPercent(
                 summary.deductionPercent
               )}%`,
             },
             {
               label: "Next expiry",
-              value: summary.nextExpiryAt
-                ? formatCentralDateTime(
-                    summary.nextExpiryAt
-                  )
-                : "—",
-            },
-            {
-              label: "Ladder",
-              value: `v${summary.ladderVersion}`,
+              value:
+                summary.nextExpiryAt &&
+                nextExpiry
+                  ? formatCentralShortDate(
+                      summary.nextExpiryAt
+                    )
+                  : "—",
+              note: nextExpiry?.time,
             },
           ]}
         />
 
-        <ProfilePhoneRecords
-          heading={`History · ${history.total}`}
+        <ProfilePhoneTable
+          title="Strike history"
+          total={history.total}
+          columns={[
+            "Reason",
+            "Issued",
+            "Status",
+          ]}
           emptyText="No strikes yet."
-          records={history.records.map(
+          rows={history.records.map(
             (strike) => ({
               id: strike.id,
               title: strike.reasonNameSnapshot,
-              meta: `${formatCentralShortDate(
+              meta: `${strike.standingLabelSnapshot} · ${formatPercent(
+                strike.deductionPercentSnapshot
+              )}%`,
+              date: formatCentralShortDate(
                 strike.issuedAt
-              )} · ${strike.standingLabelSnapshot}`,
+              ),
               status: strikeStatusLabel(
                 strike.status
               ),

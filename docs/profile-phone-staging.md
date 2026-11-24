@@ -2,6 +2,8 @@
 
 Staging candidate, 24 November 2026. Production is outside this release.
 
+The profile's phone layout below was redesigned on 25 November 2026; see `profile-phone-redesign-staging.md`. The strike screen's list of the person's other strikes is unchanged.
+
 On a 375px phone the employee profile was partly unusable:
 
 - On the QA and Strikes tabs the profile was 796px wide inside a 375px screen, and the page cut it off. The history tables' Status and View columns and the Previous and Next buttons were off the right edge and couldn't be reached.

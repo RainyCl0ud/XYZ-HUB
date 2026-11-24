@@ -39,16 +39,17 @@ import {
 import PeopleQaPanel from "../components/PeopleQaPanel";
 
 import {
-  PhoneActionMenu,
-} from "../components/PhoneActionMenu";
+  ProfilePhoneSectionHead,
+  ProfilePhoneTiles,
+} from "../components/ProfilePhoneViews";
 
 import type {
-  PhoneActionMenuItem,
-} from "../components/PhoneActionMenu";
+  ProfilePhoneTile,
+} from "../components/ProfilePhoneViews";
 
 import {
-  ProfilePhoneFacts,
-} from "../components/ProfilePhoneViews";
+  formatCentralDateParts,
+} from "../lib/time";
 
 import {
   PHONE_QUERY,
@@ -333,9 +334,37 @@ function getReturnName(
 }
 
 
-// Phones: \u22ef in the header. Focus returns here when a window opened from it closes.
-const PHONE_MENU_BUTTON =
-  ".people-profile-phone-identity .phone-action-menu-button";
+// Phones: the Danger zone box on Account Access. Focus returns here when its
+// window, or a confirmation opened from it, closes.
+const DANGER_ZONE_BUTTON =
+  '[data-profile-action="danger-zone"]';
+
+
+// Phones: an Account Access tile with the date, and its time on a grey line.
+function phoneDateTile(
+  label:
+    string,
+  value:
+    string |
+    null |
+    undefined,
+  empty:
+    string
+): ProfilePhoneTile {
+  const parts =
+    formatCentralDateParts(
+      value
+    );
+
+  return {
+    label,
+    value:
+      parts?.date ??
+      empty,
+    note:
+      parts?.time,
+  };
+}
 
 
 function getProfileTab(
@@ -406,16 +435,17 @@ function PeopleDetailPage() {
       PHONE_QUERY
     );
 
+  // Phones: the Danger zone window, holding Deactivate and Permanently delete.
   const [
-    phoneMenuOpen,
-    setPhoneMenuOpen,
+    showDangerZone,
+    setShowDangerZone,
   ] =
     useState(
       false
     );
 
-  // Phones: where focus goes once a window opened from ⋯ or an
-  // Account Access row closes.
+  // Phones: where focus goes once a window opened from an Overview or
+  // Account Access button closes.
   const phoneReturnFocus =
     useRef<
       string |
@@ -846,18 +876,18 @@ function PeopleDetailPage() {
       ]
     );
 
-  // Phones: the ⋯ menu closes when the layout switches to desktop, so it
-  // doesn't reappear open later.
+  // Phones: the Danger zone window closes when the layout switches to
+  // desktop, which shows those actions on the page instead.
   useEffect(
     () => {
       if (
         !isPhone
       ) {
-        setPhoneMenuOpen(
+        setShowDangerZone(
           false
         );
 
-        // The phone row or ⋯ it pointed at is gone on desktop.
+        // The phone button it pointed at is gone on desktop.
         phoneReturnFocus.current =
           null;
       }
@@ -867,12 +897,42 @@ function PeopleDetailPage() {
     ]
   );
 
-  const anyWindowOpen =
-    showRoleEditor ||
-    showTeamEditor ||
+  // Phones: the Danger zone box shows when Deactivate or Permanently delete
+  // could be used, and never on your own profile, as on desktop.
+  const canDeactivateHere =
+    person?.status ===
+      "ACTIVE" &&
+    canChangeAccountStatus;
+
+  const showPhoneDangerZone =
     Boolean(
-      confirmAction
+      person &&
+      person.id !==
+        user?.id &&
+      (canDeactivateHere ||
+        options?.capabilities.canDelete)
     );
+
+  // Which window is open. A choice in the Danger zone window swaps it for
+  // its confirmation in one step, so this names the window rather than
+  // just saying one is open.
+  const openWindow =
+    showRoleEditor
+      ? "assignments"
+      : showTeamEditor
+        ? "team"
+        : confirmAction
+          ? `confirm-${confirmAction}`
+          : showDangerZone &&
+              isPhone &&
+              showPhoneDangerZone &&
+              options
+            ? "danger-zone"
+            : null;
+
+  const anyWindowOpen =
+    openWindow !==
+    null;
 
   // Phones: focus moves into a window when it opens, and once it closes
   // returns to what opened it (or to the chosen tab when that is gone, e.g.
@@ -880,7 +940,7 @@ function PeopleDetailPage() {
   useEffect(
     () => {
       if (
-        anyWindowOpen
+        openWindow
       ) {
         const overlay =
           isPhone
@@ -928,7 +988,7 @@ function PeopleDetailPage() {
       )?.focus();
     },
     [
-      anyWindowOpen,
+      openWindow,
       isPhone,
     ]
   );
@@ -1379,30 +1439,35 @@ function PeopleDetailPage() {
   const pageClassName =
     `page people-profile-page${isPhone ? " people-profile-page-phone" : ""}`;
 
-  // Phones: a small back link naming the page it returns to.
+  // Phones: a small back link naming the page it returns to, in a bar that
+  // stays at the top while the profile scrolls under it.
   const backButton =
     isPhone ? (
-      <button
-        type="button"
-        className="people-profile-phone-back"
-        onClick={
-          goBack
-        }
+      <div
+        className="people-profile-phone-backbar"
         inert={
           anyWindowOpen
             ? true
             : undefined
         }
-        aria-label={`Back to ${getReturnName(returnPath)}`}
       >
-        <span
-          className="people-profile-phone-back-arrow"
-          aria-hidden="true"
-        />
-        <span>
-          {getReturnName(returnPath)}
-        </span>
-      </button>
+        <button
+          type="button"
+          className="people-profile-phone-back"
+          onClick={
+            goBack
+          }
+          aria-label={`Back to ${getReturnName(returnPath)}`}
+        >
+          <span
+            className="people-profile-phone-back-arrow"
+            aria-hidden="true"
+          />
+          <span>
+            {getReturnName(returnPath)}
+          </span>
+        </button>
+      </div>
     ) : (
       <button
         type="button"
@@ -1415,56 +1480,42 @@ function PeopleDetailPage() {
       </button>
     );
 
-  // Phones: the Overview edits, in the ⋯ beside the name. Each shows only
-  // when it can be used (desktop's Edit also needs a team to open).
-  const canEditFromMenu =
+  // Phones: Overview's Edit and Change team, with desktop's permissions.
+  // Edit shows only once there's a team, because the editor needs one.
+  const canEditAssignments =
     Boolean(
       person &&
       options?.capabilities.canAssignRoles &&
       canManagePerson
     );
 
-  const phoneMenuItems: PhoneActionMenuItem[] = [
-    ...(canEditFromMenu &&
-    person?.teamGroup
-      ? [
-          {
-            key: "assignments",
-            label: "Edit assignments",
-            onSelect: () => {
-              phoneReturnFocus.current =
-                PHONE_MENU_BUTTON;
-              openRoleEditor();
-            },
-          },
-        ]
-      : []),
-    ...(canEditFromMenu
-      ? [
-          {
-            key: "team",
-            label: person?.teamGroup
-              ? "Change team"
-              : "Add to a team",
-            onSelect: () => {
-              // Like desktop's Change Team button, wait for a save to finish.
-              if (
-                saving
-              ) {
-                return;
-              }
+  // Phones: an Overview or Account Access button opens its window; focus
+  // comes back to that button afterwards.
+  function openPhoneWindow(
+    action:
+      | "assignments"
+      | "team"
+  ) {
+    // Like desktop's Change Team button, wait for a save to finish.
+    if (
+      saving
+    ) {
+      return;
+    }
 
-              phoneReturnFocus.current =
-                PHONE_MENU_BUTTON;
-              openTeamEditor();
-            },
-          },
-        ]
-      : []),
-  ];
+    phoneReturnFocus.current =
+      `[data-profile-action="${action}"]`;
 
-  // Phones: an Account Access row opens its confirmation; focus comes back
-  // to the row afterwards.
+    if (
+      action ===
+      "assignments"
+    ) {
+      openRoleEditor();
+    } else {
+      openTeamEditor();
+    }
+  }
+
   function requestPhoneAction(
     action:
       Exclude<
@@ -1474,6 +1525,32 @@ function PeopleDetailPage() {
   ) {
     phoneReturnFocus.current =
       `[data-profile-action="${action}"]`;
+    requestConfirmedAction(
+      action
+    );
+  }
+
+  // Phones: Deactivate and Permanently delete sit in the Danger zone window.
+  // Choosing one swaps the window for its usual confirmation; afterwards
+  // focus returns to the Danger zone box.
+  function openDangerZone() {
+    phoneReturnFocus.current =
+      DANGER_ZONE_BUTTON;
+    setShowDangerZone(
+      true
+    );
+  }
+
+  function requestDangerAction(
+    action:
+      | "deactivate"
+      | "delete"
+  ) {
+    phoneReturnFocus.current =
+      DANGER_ZONE_BUTTON;
+    setShowDangerZone(
+      false
+    );
     requestConfirmedAction(
       action
     );
@@ -1547,56 +1624,50 @@ function PeopleDetailPage() {
       >
         <div className="people-detail-header people-profile-header">
           {isPhone ? (
-            // Phones: initials, the name, one grey line, and ⋯ for the edits.
+            // Phones: initials, the name with its role tags, then the email
+            // on its own full-width line so it doesn't break mid-word.
             <div className="people-profile-phone-identity">
-              <UserAvatar
-                name={
-                  person.name
-                }
-                src={
-                  getPersonAvatarUrl(
-                    person.id,
-                    person.avatarUpdatedAt
-                  )
-                }
-                className="people-profile-avatar people-profile-phone-avatar"
-              />
+              <div className="people-profile-phone-identity-row">
+                <UserAvatar
+                  name={
+                    person.name
+                  }
+                  src={
+                    getPersonAvatarUrl(
+                      person.id,
+                      person.avatarUpdatedAt
+                    )
+                  }
+                  className="people-profile-avatar people-profile-phone-avatar"
+                />
 
-              <div className="people-profile-phone-copy">
-                <h3>
-                  {person.name}
-                </h3>
+                <div className="people-profile-phone-copy">
+                  <h3>
+                    {person.name}
+                  </h3>
 
-                <p>
-                  {[
-                    person.roles
-                      .map(
-                        (role) =>
-                          role.name
-                      )
-                      .join(", "),
-                    person.email,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
+                  {person.roles.length > 0 && (
+                    <div className="people-profile-phone-roles">
+                      {person.roles.map(
+                        (role) => (
+                          <span
+                            key={
+                              role.id
+                            }
+                            className="people-profile-phone-role"
+                          >
+                            {role.name}
+                          </span>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {canEditFromMenu && (
-                <PhoneActionMenu
-                  label="More employee actions"
-                  panelId="people-profile-phone-menu-panel"
-                  open={
-                    phoneMenuOpen
-                  }
-                  onOpenChange={
-                    setPhoneMenuOpen
-                  }
-                  items={
-                    phoneMenuItems
-                  }
-                />
-              )}
+              <p className="people-profile-phone-email">
+                {person.email}
+              </p>
             </div>
           ) : (
           <div className="people-profile-identity">
@@ -1689,7 +1760,8 @@ function PeopleDetailPage() {
 
 
         <div className="people-detail-body">
-          {/* Phones: one list for team, role and models; edits are in ⋯. */}
+          {/* Phones: team, role and models as cards, each edit beside what
+              it changes, as on desktop. */}
           {activeTab ===
             "overview" &&
             isPhone && (
@@ -1697,45 +1769,133 @@ function PeopleDetailPage() {
               className="people-profile-tab-panel people-profile-phone-tab"
               role="tabpanel"
             >
-              <ProfilePhoneFacts
-                facts={[
-                  {
-                    label: "Team",
-                    value:
-                      person.teamGroup?.name ??
-                      "Not assigned",
-                  },
-                  {
-                    label:
-                      person.roles.length > 1
-                        ? "Roles"
-                        : "Role",
-                    value:
-                      person.roles.length
-                        ? person.roles
-                            .map(
-                              (role) =>
-                                `${role.name} · ${formatDataScope(
-                                  role.dataScope
-                                )}`
-                            )
-                            .join(", ")
-                        : "No role",
-                  },
-                  {
-                    label: "Models",
-                    value:
-                      person.models.length
-                        ? person.models
-                            .map(
-                              (model) =>
-                                model.name
-                            )
-                            .join(", ")
-                        : "None",
-                  },
-                ]}
-              />
+              <section
+                className="people-profile-phone-section"
+                aria-labelledby="people-phone-assignments-title"
+              >
+                <ProfilePhoneSectionHead
+                  id="people-phone-assignments-title"
+                  title="Assignments"
+                  aside={
+                    canEditAssignments &&
+                    person.teamGroup ? (
+                      <button
+                        type="button"
+                        className="people-profile-phone-small-button"
+                        data-profile-action="assignments"
+                        onClick={() =>
+                          openPhoneWindow(
+                            "assignments"
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                      >
+                        Edit
+                      </button>
+                    ) : undefined
+                  }
+                />
+
+                <p className="people-profile-phone-section-note">
+                  Team, role and models. Role permissions are set in Role Settings.
+                </p>
+
+                <div className="people-profile-phone-card people-profile-phone-team-card">
+                  <div className="people-profile-phone-card-text">
+                    <span className="people-profile-phone-card-label">
+                      Team
+                    </span>{" "}
+                    <strong className="people-profile-phone-card-value">
+                      {person.teamGroup?.name ??
+                        "Not assigned"}
+                    </strong>
+                  </div>
+
+                  {canEditAssignments && (
+                    <button
+                      type="button"
+                      className="people-profile-phone-small-button"
+                      data-profile-action="team"
+                      onClick={() =>
+                        openPhoneWindow(
+                          "team"
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      {person.teamGroup
+                        ? "Change team"
+                        : "Add to a team"}
+                    </button>
+                  )}
+                </div>
+
+                <div className="people-profile-phone-card">
+                  <span className="people-profile-phone-card-label">
+                    {person.roles.length > 1
+                      ? "Roles"
+                      : "Role"}
+                  </span>
+
+                  {person.roles.length ? (
+                    person.roles.map(
+                      (role) => (
+                        <div
+                          key={
+                            role.id
+                          }
+                          className="people-profile-phone-card-text"
+                        >
+                          <strong className="people-profile-phone-card-value">
+                            {role.name}
+                          </strong>{" "}
+                          <span className="people-profile-phone-card-note">
+                            Data scope · {formatDataScope(
+                              role.dataScope
+                            )}
+                          </span>
+                        </div>
+                      )
+                    )
+                  ) : (
+                    <span className="people-profile-phone-card-empty">
+                      No role assignments
+                    </span>
+                  )}
+                </div>
+
+                <div className="people-profile-phone-card">
+                  <span className="people-profile-phone-card-label">
+                    {person.models.length
+                      ? `Models · ${person.models.length}`
+                      : "Models"}
+                  </span>
+
+                  {person.models.length ? (
+                    <ul className="people-profile-phone-chips">
+                      {person.models.map(
+                        (model) => (
+                          <li
+                            key={
+                              model.id
+                            }
+                          >
+                            {model.name}
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  ) : (
+                    <span className="people-profile-phone-card-empty">
+                      No model assignments
+                    </span>
+                  )}
+                </div>
+              </section>
 
               {!canManagePerson && (
                 <p className="people-scope-note">
@@ -1925,8 +2085,9 @@ function PeopleDetailPage() {
           )}
 
 
-          {/* Phones: the account facts, actions as rows, and the risky ones as
-              quiet links at the bottom. Each still asks for confirmation. */}
+          {/* Phones: the account facts as tiles, each security action as a
+              card with its button, and Deactivate and Delete behind the
+              Danger zone box. Each still asks for the same confirmation. */}
           {activeTab ===
             "account-access" &&
             isPhone && (
@@ -1934,36 +2095,31 @@ function PeopleDetailPage() {
               className="people-profile-tab-panel people-profile-phone-tab"
               role="tabpanel"
             >
-              <ProfilePhoneFacts
-                facts={[
+              <ProfilePhoneTiles
+                size="compact"
+                tiles={[
                   {
                     label: "Status",
                     value: formatStatus(
                       person.status
                     ),
                   },
-                  {
-                    label: "Created",
-                    value: formatTexasDateTime(
-                      person.createdAt
-                    ),
-                  },
-                  {
-                    label: "Email verified",
-                    value: person.emailVerifiedAt
-                      ? formatTexasDateTime(
-                          person.emailVerifiedAt
-                        )
-                      : "Not verified",
-                  },
-                  {
-                    label: "Last sign-in",
-                    value: formatTexasDateTime(
-                      person.security
-                        ?.lastSignInAt ??
-                        null
-                    ),
-                  },
+                  phoneDateTile(
+                    "Last sign-in",
+                    person.security
+                      ?.lastSignInAt,
+                    "—"
+                  ),
+                  phoneDateTile(
+                    "Created",
+                    person.createdAt,
+                    "—"
+                  ),
+                  phoneDateTile(
+                    "Email verified",
+                    person.emailVerifiedAt,
+                    "Not verified"
+                  ),
                 ]}
               />
 
@@ -1976,150 +2132,141 @@ function PeopleDetailPage() {
                   "DEACTIVATED" &&
                   canChangeAccountStatus)
               ) && (
-                <div className="people-profile-phone-actions">
+                <section
+                  className="people-profile-phone-section"
+                  aria-labelledby="people-phone-security-title"
+                >
+                  <ProfilePhoneSectionHead
+                    id="people-phone-security-title"
+                    title="Security and sign-in"
+                  />
+
                   {person.status ===
                     "PENDING_SETUP" &&
                     options.capabilities.canCreatePeople && (
-                    <button
-                      type="button"
-                      className="people-profile-phone-action"
-                      data-profile-action="resend-invite"
-                      onClick={() => {
-                        void resendInvite();
-                      }}
-                      disabled={
-                        saving ||
-                        !canManagePerson ||
-                        !options
-                          .capabilities
-                          .invitesAvailable
-                      }
-                    >
-                      <span className="people-profile-phone-action-text">
-                        <span className="people-profile-phone-action-title">
-                          Resend invitation
-                        </span>{" "}
-                        <span className="people-profile-phone-action-note">
-                          If the first one was missed or expired
+                    <div className="people-profile-phone-card">
+                      <div className="people-profile-phone-card-text">
+                        <strong className="people-profile-phone-card-title">
+                          Invitation pending
+                        </strong>{" "}
+                        <span className="people-profile-phone-card-note">
+                          Send a fresh invitation if the original email was missed or expired.
                         </span>
-                      </span>
-                    </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="people-profile-phone-card-button"
+                        data-profile-action="resend-invite"
+                        onClick={() => {
+                          void resendInvite();
+                        }}
+                        disabled={
+                          saving ||
+                          !canManagePerson ||
+                          !options
+                            .capabilities
+                            .invitesAvailable
+                        }
+                      >
+                        Resend invitation
+                      </button>
+                    </div>
                   )}
 
                   {options
                     .capabilities
                     .canResetTwoFactor && (
-                    <button
-                      type="button"
-                      className="people-profile-phone-action"
-                      data-profile-action="reset-2fa"
-                      onClick={() =>
-                        requestPhoneAction(
-                          "reset-2fa"
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                    >
-                      <span className="people-profile-phone-action-text">
-                        <span className="people-profile-phone-action-title">
-                          Reset 2FA
-                        </span>{" "}
-                        <span className="people-profile-phone-action-note">
-                          If they can't complete verification
+                    <div className="people-profile-phone-card">
+                      <div className="people-profile-phone-card-text">
+                        <strong className="people-profile-phone-card-title">
+                          Reset two-factor authentication
+                        </strong>{" "}
+                        <span className="people-profile-phone-card-note">
+                          Use this if the employee can no longer complete verification.
                         </span>
-                      </span>
-                      <span
-                        className="people-profile-phone-chevron"
-                        aria-hidden="true"
-                      />
-                    </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="people-profile-phone-card-button"
+                        data-profile-action="reset-2fa"
+                        onClick={() =>
+                          requestPhoneAction(
+                            "reset-2fa"
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                      >
+                        Reset 2FA
+                      </button>
+                    </div>
                   )}
 
                   {person.status ===
                     "DEACTIVATED" &&
                     canChangeAccountStatus && (
-                    <button
-                      type="button"
-                      className="people-profile-phone-action"
-                      data-profile-action="reactivate"
-                      onClick={() =>
-                        requestPhoneAction(
-                          "reactivate"
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                    >
-                      <span className="people-profile-phone-action-text">
-                        <span className="people-profile-phone-action-title">
+                    <div className="people-profile-phone-card">
+                      <div className="people-profile-phone-card-text">
+                        <strong className="people-profile-phone-card-title">
                           Reactivate account
-                        </span>{" "}
-                        <span className="people-profile-phone-action-note">
-                          Restores sign-in. Revoked sessions stay revoked.
+                        </strong>{" "}
+                        <span className="people-profile-phone-card-note">
+                          Restores sign-in access. Previously revoked sessions stay revoked.
                         </span>
-                      </span>
-                      <span
-                        className="people-profile-phone-chevron"
-                        aria-hidden="true"
-                      />
-                    </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="people-profile-phone-card-button"
+                        data-profile-action="reactivate"
+                        onClick={() =>
+                          requestPhoneAction(
+                            "reactivate"
+                          )
+                        }
+                        disabled={
+                          saving
+                        }
+                      >
+                        Reactivate account
+                      </button>
+                    </div>
                   )}
-                </div>
+                </section>
               )}
 
-              {person.id !==
-                user?.id &&
-                (
-                  (person.status ===
-                    "ACTIVE" &&
-                    canChangeAccountStatus) ||
-                  options.capabilities.canDelete
-                ) && (
-                <div className="people-profile-phone-danger">
-                  {person.status ===
-                    "ACTIVE" &&
-                    canChangeAccountStatus && (
-                    <button
-                      type="button"
-                      className="people-profile-phone-quiet-link"
-                      data-profile-action="deactivate"
-                      onClick={() =>
-                        requestPhoneAction(
-                          "deactivate"
-                        )
-                      }
-                      disabled={
-                        saving ||
-                        (options.capabilities.isOwner && !canManagePerson)
-                      }
-                    >
-                      Deactivate account
-                    </button>
-                  )}
-
-                  {options
-                    .capabilities
-                    .canDelete && (
-                    <button
-                      type="button"
-                      className="people-profile-phone-quiet-link"
-                      data-profile-action="delete"
-                      onClick={() =>
-                        requestPhoneAction(
-                          "delete"
-                        )
-                      }
-                      disabled={
-                        saving
-                      }
-                    >
-                      Permanently delete account
-                    </button>
-                  )}
-                </div>
+              {/* Never on your own profile, as on desktop. */}
+              {showPhoneDangerZone && (
+                <button
+                  type="button"
+                  className="people-profile-phone-danger-zone"
+                  data-profile-action="danger-zone"
+                  aria-haspopup="dialog"
+                  onClick={
+                    openDangerZone
+                  }
+                >
+                  <span className="people-profile-phone-card-text">
+                    <span className="people-profile-phone-danger-title">
+                      Danger zone
+                    </span>{" "}
+                    <span className="people-profile-phone-card-note">
+                      {canDeactivateHere &&
+                      options.capabilities.canDelete
+                        ? "Deactivate or permanently delete this account."
+                        : canDeactivateHere
+                          ? "Deactivate this account."
+                          : "Permanently delete this account."}
+                    </span>
+                  </span>
+                  <span
+                    className="people-profile-phone-chevron"
+                    aria-hidden="true"
+                  />
+                </button>
               )}
             </div>
           )}
@@ -2679,6 +2826,128 @@ function PeopleDetailPage() {
         </div>
       )}
 
+
+      {/* Phones: the Danger zone window. Choosing an action swaps it for
+          that action's usual confirmation. */}
+      {isPhone &&
+        showDangerZone &&
+        showPhoneDangerZone &&
+        options && (
+        <div className="people-overlay">
+          <section
+            className="people-confirm-modal people-danger-window"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="people-danger-window-title"
+          >
+            <div className="people-modal-header">
+              <div>
+                <span className="page-eyebrow">
+                  Account access
+                </span>
+
+                <h3 id="people-danger-window-title">
+                  Danger zone
+                </h3>
+
+                <p>
+                  High-risk account actions are kept apart from routine security controls.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="people-close"
+                aria-label="Close danger zone"
+                onClick={() =>
+                  setShowDangerZone(
+                    false
+                  )
+                }
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="people-confirm-body">
+              {canDeactivateHere && (
+                <div className="people-profile-phone-card">
+                  <div className="people-profile-phone-card-text">
+                    <strong className="people-profile-phone-card-title">
+                      Deactivate account
+                    </strong>{" "}
+                    <span className="people-profile-phone-card-note">
+                      Immediately blocks sign-in and revokes active sessions while preserving assignments and history.
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="people-profile-phone-card-button is-danger"
+                    data-profile-action="deactivate"
+                    onClick={() =>
+                      requestDangerAction(
+                        "deactivate"
+                      )
+                    }
+                    disabled={
+                      saving ||
+                      (options.capabilities.isOwner && !canManagePerson)
+                    }
+                  >
+                    Deactivate account
+                  </button>
+                </div>
+              )}
+
+              {options
+                .capabilities
+                .canDelete && (
+                <div className="people-profile-phone-card">
+                  <div className="people-profile-phone-card-text">
+                    <strong className="people-profile-phone-card-title">
+                      Permanently delete account
+                    </strong>{" "}
+                    <span className="people-profile-phone-card-note">
+                      Deletes the account and tied QA history. This cannot be undone and requires the account email as confirmation.
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="people-profile-phone-card-button is-danger"
+                    data-profile-action="delete"
+                    onClick={() =>
+                      requestDangerAction(
+                        "delete"
+                      )
+                    }
+                    disabled={
+                      saving
+                    }
+                  >
+                    Permanently delete
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="people-modal-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setShowDangerZone(
+                    false
+                  )
+                }
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {confirmAction && (
         <div className="people-overlay">
