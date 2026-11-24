@@ -49,6 +49,26 @@ Rainheart approved the drawn proposal. The first drawing had Rename and Deactiva
 - Who can add, rename, deactivate or reactivate, and every confirmation.
 - No backend change, migration, flag or setting.
 
+## Review fixes
+
+An independent review found no blocking problems. It confirmed that permissions and confirmations match desktop and that desktop is unchanged. These items from it are fixed:
+
+- **Add window:** while it is open, the list behind it can't be reached, as already happened behind the creator screen.
+- **Dialog role:** it sits on each window's overlay instead of on a `<form>`, which accessibility checkers reject.
+- **Rotating past 720px:** focus no longer jumps to a stale target when a window was open as the phone rotated.
+- **Closed creators stay closed:** if a reload no longer lists the open creator, its screen closes for good instead of possibly reopening later.
+- **Focus fallback:** if the creator's row has left the current tab (say, after deactivating it on Active), Back puts focus on Add or the chosen tab, never on nothing.
+- **Error messages:** the creator screen and windows now sit at z-index 300 and 310, above the header (90) and the menu (120) but below error and success messages (500). On older iPhones without the Popover API, those messages now stay visible.
+
+These were checked again on the local copy:
+
+- Add made the list unreachable while open.
+- Each window was a dialog on its overlay.
+- The screen still covered the top bar.
+- After deactivating "Iris Moreau" from the Active tab, Back put focus on Add. "Iris Moreau" was then reactivated.
+
+The Android system Back button steps through browser history rather than closing the creator screen, as in Strike Management.
+
 ## How it's built
 
 - `components/CreatorPhoneViews.tsx` holds the rows and the creator screen. It has no hooks, so the test renders it directly.

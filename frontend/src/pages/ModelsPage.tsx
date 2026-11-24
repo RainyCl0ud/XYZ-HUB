@@ -442,6 +442,23 @@ function ModelsPage() {
         ) ?? null
       : null;
 
+  // A reload that no longer lists the open creator (say, access changed)
+  // closes its screen for good, so it can't reopen by itself later.
+  // (Adjusted while rendering, like the 720px reset above.)
+  if (
+    phoneCreatorId &&
+    !loading &&
+    !models.some(
+      (model) =>
+        model.id ===
+        phoneCreatorId
+    )
+  ) {
+    setPhoneCreatorId(
+      null
+    );
+  }
+
   // Which window is open, matching each window's own render condition, so
   // the creator screen is never left inert with nothing over it.
   const phoneWindow =
@@ -463,6 +480,10 @@ function ModelsPage() {
       if (
         !isPhone
       ) {
+        // The phone button it pointed at is gone on desktop.
+        phoneReturnFocus.current =
+          null;
+
         return;
       }
 
@@ -500,14 +521,18 @@ function ModelsPage() {
         phoneReturnFocus.current =
           null;
 
-        // If that button is gone, focus Add (or nothing) rather than the
-        // search, which would raise the keyboard.
+        // If that button is gone (say, the row left the current tab), focus
+        // Add or the chosen tab rather than the search, which would raise
+        // the keyboard.
         (
           document.querySelector<HTMLElement>(
             selector
           ) ??
           document.querySelector<HTMLElement>(
             ".creator-phone-add"
+          ) ??
+          document.querySelector<HTMLElement>(
+            ".creator-phone-tabs .filter-button.active"
           )
         )?.focus();
 
@@ -830,11 +855,12 @@ function ModelsPage() {
             Creator Management
           </h2>
 
-          {/* While a creator's screen covers it, the list can't be reached by Tab or a screen reader. */}
+          {/* While a creator's screen or a window covers it, the list can't be reached by Tab or a screen reader. */}
           <section
             className="creator-phone-records"
             inert={
-              phoneCreator
+              phoneCreator ||
+              phoneWindow
                 ? true
                 : undefined
             }
@@ -1337,15 +1363,17 @@ function ModelsPage() {
       )}
 
       {canCreateModels && createOpen && (
-        <div className="models-overlay">
+        <div
+          className="models-overlay"
+          role={isPhone ? "dialog" : undefined}
+          aria-modal={isPhone ? true : undefined}
+          aria-labelledby={isPhone ? "models-create-title" : undefined}
+        >
           <form
             className="models-modal"
             onSubmit={
               createModel
             }
-            role={isPhone ? "dialog" : undefined}
-            aria-modal={isPhone ? true : undefined}
-            aria-labelledby={isPhone ? "models-create-title" : undefined}
           >
             <div className="models-modal-header">
               <div>
@@ -1443,15 +1471,17 @@ function ModelsPage() {
       )}
 
       {canEditModels && editModel && (
-        <div className="models-overlay">
+        <div
+          className="models-overlay"
+          role={isPhone ? "dialog" : undefined}
+          aria-modal={isPhone ? true : undefined}
+          aria-labelledby={isPhone ? "models-rename-title" : undefined}
+        >
           <form
             className="models-modal"
             onSubmit={
               renameModel
             }
-            role={isPhone ? "dialog" : undefined}
-            aria-modal={isPhone ? true : undefined}
-            aria-labelledby={isPhone ? "models-rename-title" : undefined}
           >
             <div className="models-modal-header">
               <div>
@@ -1549,13 +1579,13 @@ function ModelsPage() {
       )}
 
       {canManageModelStatus && statusModel && (
-        <div className="models-overlay">
-          <section
-            className="models-modal models-confirm-modal"
-            role={isPhone ? "dialog" : undefined}
-            aria-modal={isPhone ? true : undefined}
-            aria-labelledby={isPhone ? "models-status-title" : undefined}
-          >
+        <div
+          className="models-overlay"
+          role={isPhone ? "dialog" : undefined}
+          aria-modal={isPhone ? true : undefined}
+          aria-labelledby={isPhone ? "models-status-title" : undefined}
+        >
+          <section className="models-modal models-confirm-modal">
             <div className="models-modal-header">
               <div>
                 <span className="page-eyebrow">

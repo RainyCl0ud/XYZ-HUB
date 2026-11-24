@@ -459,7 +459,7 @@
   .creator-phone-screen-backdrop {
     position: fixed;
     inset: 0 0 var(--portal-footer-height, 0px) 0;
-    z-index: 1000;
+    z-index: 300;
     overflow-y: auto;
     background: #000000;
   }
@@ -635,10 +635,10 @@
 
   /* ---------- Add, Rename and the status confirmation ---------- */
 
-  /* Above the creator screen, and clear of the fixed footer. */
+  /* Above the creator screen and the app header (90) and menu drawer (120), below toasts (500), and clear of the fixed footer. */
   .models-page-phone .models-overlay {
     inset: 0 0 var(--portal-footer-height, 0px) 0;
-    z-index: 1010;
+    z-index: 310;
     padding: 8px;
     backdrop-filter: none;
   }
