@@ -826,11 +826,61 @@ function AppLayout() {
       ]
     );
 
+  // In a page's slot (Chatters on phones) the box is narrow, so it shows
+  // a small "Creator" label over a short choice; the real menu lies over
+  // it, invisible, and still opens the full list.
+  const pickerInPage =
+    Boolean(modelPickerSlot);
+
+  const chosenModel =
+    models.find(
+      (model) =>
+        model.id ===
+        activeModelId
+    );
+
+  const compactPickerValue =
+    chosenModel
+      ? chosenModel.name
+      : "All";
+
+  // A narrow box would cut "(Inactive)" off the name, so on an inactive
+  // creator the small label says Inactive instead of Creator.
+  const compactPickerLabel =
+    pickerInPage &&
+    canSwitchModelContext &&
+    chosenModel &&
+    !chosenModel.isActive
+      ? "Inactive"
+      : "Creator";
+
   const modelPicker = (
-    <div className="portal-command-context portal-command-context-v2">
-      <span className="portal-command-label">
-        Creator
+    <div
+      className={`portal-command-context portal-command-context-v2${pickerInPage
+        ? " portal-command-context-compact"
+        : ""}`}
+    >
+      <span
+        className="portal-command-label"
+        aria-hidden={
+          pickerInPage &&
+          canSwitchModelContext
+            ? true
+            : undefined
+        }
+      >
+        {compactPickerLabel}
       </span>
+
+      {pickerInPage &&
+        canSwitchModelContext && (
+        <span
+          className="portal-command-context-value"
+          aria-hidden="true"
+        >
+          {compactPickerValue}
+        </span>
+      )}
 
       {canSwitchModelContext ? (
         <select
