@@ -271,3 +271,451 @@
     overflow-x: auto;
   }
 }
+
+
+/* =========================================================
+   CREATOR MANAGEMENT ON PHONES (25 Nov 2026)
+   At 720px and below: search with Add, three tabs with counts, then one
+   row per creator that opens the creator on its own screen (tiles, then
+   Rename and Deactivate or Reactivate as one row of buttons). Windows
+   stop above the footer. Desktop keeps its header, cards and table.
+   ========================================================= */
+
+@media (max-width: 720px) {
+  .models-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ---------- Search, Add and the tabs ---------- */
+
+  .creator-phone-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .creator-phone-search-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* 16px so iPhones don't zoom in when the field gets focus. */
+  .models-page-phone .creator-phone-search-row .search-input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  .models-page-phone .creator-phone-add {
+    flex: none;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 16px;
+    border: 1px solid #FFFFFF;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    font-size: 13px !important;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .models-page-phone .creator-phone-tabs {
+    display: flex;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .models-page-phone .creator-phone-tabs .filter-button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 6px;
+    font-size: 13px !important;
+    font-weight: 700;
+  }
+
+  .creator-phone-tab-count {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- One row per creator ---------- */
+
+  .creator-phone-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid #333333;
+  }
+
+  .creator-phone-list > li {
+    border-bottom: 1px solid #333333;
+  }
+
+  .models-page-phone .creator-phone-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 64px;
+    margin: 0;
+    padding: 10px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .creator-phone-row-text {
+    display: grid;
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .creator-phone-row-name {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .creator-phone-row-meta {
+    color: #999999;
+    font-size: 13px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .creator-phone-row.is-inactive .creator-phone-row-name {
+    color: #999999;
+  }
+
+  /* Status tags: Active white, Inactive dim. */
+  .creator-phone-tag {
+    flex: none;
+    padding: 3px 7px;
+    border: 1px solid #FFFFFF;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .creator-phone-tag.is-inactive {
+    border-color: #333333;
+    color: #999999;
+  }
+
+  .creator-phone-chevron {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-top: 2px solid #666666;
+    border-right: 2px solid #666666;
+    transform: translateX(-2px) rotate(45deg);
+  }
+
+  .models-page-phone .creator-phone-note {
+    margin: 14px 0 0;
+    color: #999999;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  /* Loading, empty and error notes. */
+  .models-page-phone .empty-state,
+  .models-page-phone .empty-state strong,
+  .models-page-phone .empty-state span {
+    font-size: 13px !important;
+  }
+
+  .models-page-phone .models-inline-error {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid #FFFFFF;
+    background: #1A1A1A;
+    color: #FFFFFF;
+    font-size: 13px;
+  }
+
+  /* ---------- A creator's screen ---------- */
+
+  .creator-phone-screen-backdrop {
+    position: fixed;
+    inset: 0 0 var(--portal-footer-height, 0px) 0;
+    z-index: 1000;
+    overflow-y: auto;
+    background: #000000;
+  }
+
+  .creator-phone-screen {
+    min-height: 100%;
+    background: #000000;
+  }
+
+  .creator-phone-screen-bar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 56px;
+    padding: 6px 14px 6px 6px;
+    border-bottom: 1px solid #333333;
+    background: #000000;
+  }
+
+  .models-page-phone .creator-phone-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+  }
+
+  .creator-phone-back-arrow {
+    width: 11px;
+    height: 11px;
+    border-bottom: 2px solid currentColor;
+    border-left: 2px solid currentColor;
+    transform: translateX(2px) rotate(45deg);
+  }
+
+  .creator-phone-screen-kicker {
+    flex: 1;
+    color: #FFFFFF;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .creator-phone-screen-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 18px 16px 32px;
+  }
+
+  .models-page-phone .creator-phone-screen-body h3 {
+    margin: 0;
+    color: #FFFFFF;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .models-page-phone .creator-phone-screen-body h3.is-inactive {
+    color: #999999;
+  }
+
+  .models-page-phone .creator-phone-account {
+    margin: 4px 0 0;
+    color: #999999;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .creator-phone-tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+  }
+
+  .creator-phone-tile {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #333333;
+    background: #0D0D0D;
+  }
+
+  .creator-phone-tile dt {
+    color: #999999;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .creator-phone-tile dd {
+    display: grid;
+    gap: 2px;
+    margin: 6px 0 0;
+  }
+
+  .creator-phone-tile-value {
+    color: #FFFFFF;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .creator-phone-tile-value.is-date {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .creator-phone-tile-note {
+    color: #999999;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  /* Rename and Deactivate (or Reactivate) share one row; one alone fills it. */
+  .creator-phone-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .models-page-phone .creator-phone-action {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid #FFFFFF;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    font-size: 13px !important;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* Deactivate: the thick outline desktop's danger buttons have. */
+  .models-page-phone .creator-phone-action.is-danger {
+    border-width: 2px;
+  }
+
+  .creator-phone-row:active,
+  .creator-phone-add:active,
+  .creator-phone-action:active {
+    background: #1A1A1A;
+  }
+
+  .creator-phone-row:focus-visible,
+  .creator-phone-back:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: -2px;
+  }
+
+  .creator-phone-add:focus-visible,
+  .creator-phone-action:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: 2px;
+  }
+
+  /* ---------- Add, Rename and the status confirmation ---------- */
+
+  /* Above the creator screen, and clear of the fixed footer. */
+  .models-page-phone .models-overlay {
+    inset: 0 0 var(--portal-footer-height, 0px) 0;
+    z-index: 1010;
+    padding: 8px;
+    backdrop-filter: none;
+  }
+
+  .models-page-phone .models-modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: calc(100dvh - var(--portal-footer-height, 0px) - 16px);
+  }
+
+  .models-page-phone .models-modal-header {
+    flex: none;
+    padding: 14px 14px 14px 16px;
+  }
+
+  .models-page-phone .models-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .models-page-phone .models-modal-footer {
+    flex: none;
+    padding: 12px 16px;
+  }
+
+  .models-page-phone .models-modal-footer button {
+    min-height: 44px;
+    font-size: 13px !important;
+  }
+
+  .models-page-phone .models-close {
+    width: 44px;
+    height: 44px;
+    font-size: 22px !important;
+  }
+
+  .models-page-phone .models-modal-header h3 {
+    font-size: 17px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .models-page-phone .models-overlay .page-eyebrow {
+    font-size: 11px !important;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .models-page-phone .models-overlay .form-field > span,
+  .models-page-phone .models-help,
+  .models-page-phone .models-confirm-copy {
+    font-size: 13px !important;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  /* 16px so iPhones don't zoom in when the field gets focus. */
+  .models-page-phone .models-overlay input {
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  /* The kept-assignments note, monochrome like the rest of the phone page. */
+  .models-page-phone .models-warning-box {
+    border-color: #666666;
+    background: transparent;
+  }
+
+  .models-page-phone .models-warning-box strong {
+    color: #FFFFFF;
+    font-size: 13px;
+  }
+
+  .models-page-phone .models-warning-box span {
+    color: #CCCCCC;
+    font-size: 13px;
+  }
+}

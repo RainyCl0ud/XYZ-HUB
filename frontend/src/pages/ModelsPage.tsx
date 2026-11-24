@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -26,6 +27,16 @@ import {
 import {
   getPortalCapabilities,
 } from "../auth/portalAccess";
+
+import {
+  CreatorPhoneList,
+  CreatorPhoneScreen,
+} from "../components/CreatorPhoneViews";
+
+import {
+  PHONE_QUERY,
+  useMediaQuery,
+} from "../lib/useMediaQuery";
 
 import "./ModelsPage.css";
 
@@ -192,6 +203,58 @@ function ModelsPage() {
       null
     );
 
+  const isPhone =
+    useMediaQuery(
+      PHONE_QUERY
+    );
+
+  // Phones: the creator open on its own screen.
+  const [
+    phoneCreatorId,
+    setPhoneCreatorId,
+  ] =
+    useState<
+      string | null
+    >(
+      null
+    );
+
+  // The creator screen belongs to phones: crossing 720px closes it, so it
+  // doesn't reappear later. (Adjusted while rendering, not in an effect.)
+  const [
+    creatorLayoutIsPhone,
+    setCreatorLayoutIsPhone,
+  ] =
+    useState(
+      isPhone
+    );
+
+  if (
+    creatorLayoutIsPhone !==
+    isPhone
+  ) {
+    setCreatorLayoutIsPhone(
+      isPhone
+    );
+
+    setPhoneCreatorId(
+      null
+    );
+  }
+
+  const phoneBackRef =
+    useRef<HTMLButtonElement>(
+      null
+    );
+
+  // Phones: where focus goes once the creator screen or a window closes.
+  const phoneReturnFocus =
+    useRef<
+      string | null
+    >(
+      null
+    );
+
   const loadModels =
     useCallback(
       async () => {
@@ -328,6 +391,200 @@ function ModelsPage() {
         statusFilter,
       ]
     );
+
+  // Phones: the tab counts follow the search, as in Strike Management.
+  const phoneCounts =
+    useMemo(
+      () => {
+        const query =
+          search
+            .trim()
+            .toLowerCase();
+
+        const matched =
+          models.filter(
+            (model) =>
+              !query ||
+              model.name
+                .toLowerCase()
+                .includes(
+                  query
+                )
+          );
+
+        const active =
+          matched.filter(
+            (model) =>
+              model.isActive
+          ).length;
+
+        return {
+          ALL: matched.length,
+          ACTIVE: active,
+          INACTIVE:
+            matched.length -
+            active,
+        };
+      },
+      [
+        models,
+        search,
+      ]
+    );
+
+  const phoneCreator =
+    isPhone &&
+    phoneCreatorId
+      ? models.find(
+          (model) =>
+            model.id ===
+            phoneCreatorId
+        ) ?? null
+      : null;
+
+  // Which window is open, matching each window's own render condition, so
+  // the creator screen is never left inert with nothing over it.
+  const phoneWindow =
+    canCreateModels &&
+    createOpen
+      ? "create"
+      : canEditModels &&
+          editModel
+        ? "rename"
+        : canManageModelStatus &&
+            statusModel
+          ? "status"
+          : null;
+
+  // Phones: focus goes to Back when the creator screen opens, into a window
+  // when one opens, and back to what opened it once it closes.
+  useEffect(
+    () => {
+      if (
+        !isPhone
+      ) {
+        return;
+      }
+
+      if (
+        phoneWindow
+      ) {
+        const overlay =
+          document.querySelector<HTMLElement>(
+            ".models-page-phone .models-overlay"
+          );
+
+        // The name fields already take focus themselves.
+        if (
+          overlay &&
+          !overlay.contains(
+            document.activeElement
+          )
+        ) {
+          overlay
+            .querySelector<HTMLElement>(
+              "input, button"
+            )
+            ?.focus();
+        }
+
+        return;
+      }
+
+      const selector =
+        phoneReturnFocus.current;
+
+      if (
+        selector
+      ) {
+        phoneReturnFocus.current =
+          null;
+
+        // If that button is gone, focus Add (or nothing) rather than the
+        // search, which would raise the keyboard.
+        (
+          document.querySelector<HTMLElement>(
+            selector
+          ) ??
+          document.querySelector<HTMLElement>(
+            ".creator-phone-add"
+          )
+        )?.focus();
+
+        return;
+      }
+
+      if (
+        phoneCreatorId
+      ) {
+        phoneBackRef.current?.focus();
+      }
+    },
+    [
+      isPhone,
+      phoneCreatorId,
+      phoneWindow,
+    ]
+  );
+
+  // Escape closes the creator screen when no window is open over it.
+  useEffect(
+    () => {
+      if (
+        !phoneCreator ||
+        phoneWindow
+      ) {
+        return;
+      }
+
+      const creatorId =
+        phoneCreator.id;
+
+      const closeOnEscape = (
+        event: KeyboardEvent
+      ) => {
+        if (
+          event.key ===
+          "Escape"
+        ) {
+          phoneReturnFocus.current =
+            `[data-creator-id="${creatorId}"]`;
+
+          setPhoneCreatorId(
+            null
+          );
+        }
+      };
+
+      document.addEventListener(
+        "keydown",
+        closeOnEscape
+      );
+
+      return () =>
+        document.removeEventListener(
+          "keydown",
+          closeOnEscape
+        );
+    },
+    [
+      phoneCreator,
+      phoneWindow,
+    ]
+  );
+
+  function closePhoneCreator() {
+    if (
+      phoneCreatorId
+    ) {
+      phoneReturnFocus.current =
+        `[data-creator-id="${phoneCreatorId}"]`;
+    }
+
+    setPhoneCreatorId(
+      null
+    );
+  }
 
   async function createModel(
     event:
@@ -565,7 +822,199 @@ function ModelsPage() {
   }
 
   return (
-    <div className="page models-page">
+    <div className={`page models-page${isPhone ? " models-page-phone" : ""}`}>
+      {isPhone ? (
+        <>
+          {/* Phones: the top bar already says Creators; the heading stays for screen readers. */}
+          <h2 className="models-sr-only">
+            Creator Management
+          </h2>
+
+          {/* While a creator's screen covers it, the list can't be reached by Tab or a screen reader. */}
+          <section
+            className="creator-phone-records"
+            inert={
+              phoneCreator
+                ? true
+                : undefined
+            }
+          >
+            <div className="creator-phone-toolbar">
+              <div className="creator-phone-search-row">
+                <input
+                  className="search-input"
+                  type="search"
+                  placeholder="Search creators"
+                  aria-label="Search creators"
+                  value={
+                    search
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setSearch(
+                      event.target.value
+                    )
+                  }
+                />
+
+                {canCreateModels && (
+                  <button
+                    type="button"
+                    className="creator-phone-add"
+                    aria-label="Add creator"
+                    onClick={() => {
+                      phoneReturnFocus.current =
+                        ".creator-phone-add";
+
+                      setCreateOpen(
+                        true
+                      );
+                    }}
+                  >
+                    Add
+                  </button>
+                )}
+              </div>
+
+              {/* The number cards and filters become these tabs: tap one to filter. */}
+              <div className="filter-group creator-phone-tabs">
+                {(
+                  [
+                    "ALL",
+                    "ACTIVE",
+                    "INACTIVE",
+                  ] as const
+                ).map(
+                  (value) => (
+                    <button
+                      key={
+                        value
+                      }
+                      type="button"
+                      className={
+                        statusFilter ===
+                        value
+                          ? "filter-button active"
+                          : "filter-button"
+                      }
+                      aria-pressed={
+                        statusFilter ===
+                        value
+                      }
+                      onClick={() =>
+                        setStatusFilter(
+                          value
+                        )
+                      }
+                    >
+                      {value ===
+                      "ALL"
+                        ? "All"
+                        : value ===
+                            "ACTIVE"
+                          ? "Active"
+                          : "Inactive"}{" "}
+                      <span className="creator-phone-tab-count">
+                        {phoneCounts[value]}
+                      </span>
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+
+            {pageError && (
+              <div className="models-inline-error">
+                {pageError}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="empty-state">
+                <strong>
+                  Loading creators…
+                </strong>
+              </div>
+            ) : filteredModels.length ===
+              0 ? (
+              <div className="empty-state">
+                <strong>
+                  No matching creators
+                </strong>
+
+                <span>
+                  Try another search or tab.
+                </span>
+              </div>
+            ) : (
+              <CreatorPhoneList
+                creators={
+                  filteredModels
+                }
+                onOpen={(
+                  creator
+                ) =>
+                  setPhoneCreatorId(
+                    creator.id
+                  )
+                }
+              />
+            )}
+
+            <p className="creator-phone-note">
+              {totalAssignments} user assignment{totalAssignments === 1 ? "" : "s"} in total. Creators are never deleted; deactivating keeps assignments and history.
+            </p>
+          </section>
+
+          {phoneCreator && (
+            <CreatorPhoneScreen
+              key={
+                phoneCreator.id
+              }
+              creator={
+                phoneCreator
+              }
+              covered={
+                Boolean(
+                  phoneWindow
+                )
+              }
+              backButtonRef={
+                phoneBackRef
+              }
+              onBack={
+                closePhoneCreator
+              }
+              onRename={
+                canEditModels
+                  ? () => {
+                      phoneReturnFocus.current =
+                        '[data-creator-action="rename"]';
+
+                      openRename(
+                        phoneCreator
+                      );
+                    }
+                  : undefined
+              }
+              onChangeStatus={
+                canManageModelStatus
+                  ? () => {
+                      phoneReturnFocus.current =
+                        '[data-creator-action="status"]';
+
+                      setStatusModel(
+                        phoneCreator
+                      );
+                    }
+                  : undefined
+              }
+            />
+          )}
+        </>
+      ) : (
+      <>
       <header className="page-header">
         <div>
           <p className="page-eyebrow">
@@ -884,6 +1333,8 @@ function ModelsPage() {
           Deactivating a creator keeps existing user assignments and historical incident relationships intact. Inactive creators cannot be newly assigned until they are reactivated.
         </span>
       </div>
+      </>
+      )}
 
       {canCreateModels && createOpen && (
         <div className="models-overlay">
@@ -892,6 +1343,9 @@ function ModelsPage() {
             onSubmit={
               createModel
             }
+            role={isPhone ? "dialog" : undefined}
+            aria-modal={isPhone ? true : undefined}
+            aria-labelledby={isPhone ? "models-create-title" : undefined}
           >
             <div className="models-modal-header">
               <div>
@@ -899,7 +1353,7 @@ function ModelsPage() {
                   Creator catalog
                 </span>
 
-                <h3>
+                <h3 id={isPhone ? "models-create-title" : undefined}>
                   Add creator
                 </h3>
               </div>
@@ -995,6 +1449,9 @@ function ModelsPage() {
             onSubmit={
               renameModel
             }
+            role={isPhone ? "dialog" : undefined}
+            aria-modal={isPhone ? true : undefined}
+            aria-labelledby={isPhone ? "models-rename-title" : undefined}
           >
             <div className="models-modal-header">
               <div>
@@ -1002,7 +1459,7 @@ function ModelsPage() {
                   Creator catalog
                 </span>
 
-                <h3>
+                <h3 id={isPhone ? "models-rename-title" : undefined}>
                   Rename creator
                 </h3>
               </div>
@@ -1093,14 +1550,19 @@ function ModelsPage() {
 
       {canManageModelStatus && statusModel && (
         <div className="models-overlay">
-          <section className="models-modal models-confirm-modal">
+          <section
+            className="models-modal models-confirm-modal"
+            role={isPhone ? "dialog" : undefined}
+            aria-modal={isPhone ? true : undefined}
+            aria-labelledby={isPhone ? "models-status-title" : undefined}
+          >
             <div className="models-modal-header">
               <div>
                 <span className="page-eyebrow">
                   Confirmation
                 </span>
 
-                <h3>
+                <h3 id={isPhone ? "models-status-title" : undefined}>
                   {statusModel.isActive
                     ? "Deactivate creator?"
                     : "Reactivate creator?"}
