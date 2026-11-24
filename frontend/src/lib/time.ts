@@ -120,3 +120,59 @@ export function formatCentralShortDate(
         date
       );
 }
+
+const centralTime =
+  new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone:
+        CENTRAL_TIME_ZONE,
+      hour:
+        "numeric",
+      minute:
+        "2-digit",
+      timeZoneName:
+        "short",
+    }
+  );
+
+/**
+ * A Central date and its time on two lines, for phone tiles:
+ * { date: "Nov 21, 2026", time: "2:08 AM CST" }. Null when missing or bad.
+ */
+export function formatCentralDateParts(
+  value:
+    string |
+    null |
+    undefined
+) {
+  if (
+    !value
+  ) {
+    return null;
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    date:
+      centralShortDateWithYear.format(
+        date
+      ),
+    time:
+      centralTime.format(
+        date
+      ),
+  };
+}
