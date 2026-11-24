@@ -108,7 +108,7 @@ Staging itself was not checked signed in.
 ## Staging acceptance
 
 1. On a phone, open Creators. You see search with Add, three tabs with counts, and one row per creator. Nothing scrolls sideways.
-2. Tap a creator. Its screen shows the tiles and one row with Rename and Deactivate (or Reactivate).
+2. Tap a creator. Its screen shows the tiles, with Rename and Deactivate (or Reactivate) in one row pinned to the bottom, just above the footer. Check this on a real iPhone (Safari) as well as Android, since the pinned row was only checked locally.
 3. Open Rename and cancel. Open Deactivate and cancel; it asks the same as on desktop. Don't confirm on a real creator.
 4. Back returns to the list.
 5. On a desktop, Creator Management looks as before.

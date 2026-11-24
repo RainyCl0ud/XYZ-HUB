@@ -461,6 +461,8 @@
     inset: 0 0 var(--portal-footer-height, 0px) 0;
     z-index: 300;
     overflow-y: auto;
+    /* Keeps what a screen reader moves to clear of the pinned top bar and button row. */
+    scroll-padding-block: 64px 76px;
     background: #000000;
   }
 
