@@ -13,7 +13,9 @@ const header = layout.slice(layout.indexOf('<header className="portal-command-ba
 
 // 1. Markup: inline creator label, no Role block, no "US Central" label,
 //    and the person (name + role) inside the account button.
-assert.ok(header.includes('<span className="portal-command-label">\n              Creator\n            </span>') && header.includes('aria-label="Creator"'), "The picker label is just Creator");
+// The picker is one constant the top bar draws (Chatters draws it beside its search on phones).
+const picker = layout.slice(layout.indexOf("  const modelPicker = (\n"), layout.indexOf("\n  );\n", layout.indexOf("  const modelPicker = (\n")));
+assert.ok(picker.includes('<span className="portal-command-label">\n        Creator\n      </span>') && picker.includes('aria-label="Creator"') && header.includes("{showModelContext && !modelPickerSlot ? (\n          modelPicker\n"), "The picker label is just Creator, and the top bar draws the picker");
 assert.ok(!header.includes("portal-command-role") && !header.includes(">\n              Role\n            </span>"), "The separate Role block is gone");
 assert.ok(!header.includes("US Central\n"), "The clock has no US Central label; the zone is on the time");
 const button = header.slice(header.indexOf('className="portal-account-avatar-button"'), header.indexOf("</button>", header.indexOf('className="portal-account-avatar-button"')));

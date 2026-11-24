@@ -1,9 +1,14 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+
+import {
+  createPortal,
+} from "react-dom";
 
 import {
   Outlet,
@@ -36,6 +41,7 @@ import xyzManagementLogo from "../assets/xyz-management-logo.svg";
 import "./PortalAccess.css";
 import { CENTRAL_TIME_ZONE } from "../lib/central-time";
 import SidebarNavigation from "./SidebarNavigation";
+import { ModelPickerSlotContext } from "../lib/model-picker-slot";
 
 const MODEL_CONTEXT_STORAGE_KEY =
   "xyz_active_model_id";
@@ -688,6 +694,13 @@ function AppLayout() {
     value:
       string
   ) {
+    // In a page's slot the picker is rebuilt when the page reloads for the
+    // new creator; give it focus back once it is drawn again.
+    if (modelPickerSlot) {
+      refocusPickerAfterSwitch.current =
+        true;
+    }
+
     setActiveModelId(
       value
     );
@@ -709,6 +722,36 @@ function AppLayout() {
       )
     );
   }
+
+  // A page may draw the creator picker inside itself (Chatters on phones).
+  const [
+    modelPickerSlot,
+    setModelPickerSlot,
+  ] =
+    useState<HTMLElement | null>(null);
+
+  const refocusPickerAfterSwitch =
+    useRef(false);
+
+  useLayoutEffect(() => {
+    if (
+      !modelPickerSlot ||
+      !refocusPickerAfterSwitch.current
+    ) {
+      return;
+    }
+
+    refocusPickerAfterSwitch.current =
+      false;
+
+    document
+      .getElementById(
+        "portal-model-context"
+      )
+      ?.focus();
+  }, [
+    modelPickerSlot,
+  ]);
 
   const supportsCreatorContext =
     location.pathname ===
@@ -783,10 +826,75 @@ function AppLayout() {
       ]
     );
 
+  const modelPicker = (
+    <div className="portal-command-context portal-command-context-v2">
+      <span className="portal-command-label">
+        Creator
+      </span>
+
+      {canSwitchModelContext ? (
+        <select
+          id="portal-model-context"
+          aria-label="Creator"
+          value={
+            activeModelId
+          }
+          onChange={(
+            event
+          ) =>
+            changeModelContext(
+              event.target.value
+            )
+          }
+        >
+          {(access?.canSeeAllModels ||
+            models.length >
+              1) && (
+            <option value="ALL">
+              {access?.canSeeAllModels
+                ? "All creators"
+                : "All assigned creators"}
+            </option>
+          )}
+
+          {models.map(
+            (
+              model
+            ) => (
+              <option
+                key={
+                  model.id
+                }
+                value={
+                  model.id
+                }
+              >
+                {model.name}
+                {model.isActive
+                  ? ""
+                  : " (Inactive)"}
+              </option>
+            )
+          )}
+        </select>
+      ) : fixedModel ? (
+        <div
+          className="portal-command-context-static"
+          title={`${fixedModel.name}${fixedModel.isActive ? "" : " (Inactive)"}`}
+        >
+          {fixedModel.name}
+          {fixedModel.isActive
+            ? ""
+            : " (Inactive)"}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <div
       className={
-        `app-shell portal-shell${showModelContext
+        `app-shell portal-shell${showModelContext && !modelPickerSlot
           ? " portal-shell-context"
           : ""}`
       }
@@ -826,66 +934,8 @@ function AppLayout() {
           </strong>
         </div>
 
-        {showModelContext ? (
-          <div className="portal-command-context portal-command-context-v2">
-            <span className="portal-command-label">
-              Creator
-            </span>
-
-            {canSwitchModelContext ? (
-              <select
-                id="portal-model-context"
-                aria-label="Creator"
-                value={
-                  activeModelId
-                }
-                onChange={(
-                  event
-                ) =>
-                  changeModelContext(
-                    event.target.value
-                  )
-                }
-              >
-                {(access?.canSeeAllModels ||
-                  models.length >
-                    1) && (
-                  <option value="ALL">
-                    {access?.canSeeAllModels
-                      ? "All creators"
-                      : "All assigned creators"}
-                  </option>
-                )}
-
-                {models.map(
-                  (
-                    model
-                  ) => (
-                    <option
-                      key={
-                        model.id
-                      }
-                      value={
-                        model.id
-                      }
-                    >
-                      {model.name}
-                      {model.isActive
-                        ? ""
-                        : " (Inactive)"}
-                    </option>
-                  )
-                )}
-              </select>
-            ) : fixedModel ? (
-              <div className="portal-command-context-static">
-                {fixedModel.name}
-                {fixedModel.isActive
-                  ? ""
-                  : " (Inactive)"}
-              </div>
-            ) : null}
-          </div>
+        {showModelContext && !modelPickerSlot ? (
+          modelPicker
         ) : (
           <div className="portal-command-context-spacer" />
         )}
@@ -1235,6 +1285,7 @@ function AppLayout() {
       )}
 
       <main className="main-content">
+        <ModelPickerSlotContext.Provider value={setModelPickerSlot}>
         {modelContextReady ? (
           <Outlet
             key={
@@ -1252,7 +1303,10 @@ function AppLayout() {
             </div>
           </div>
         )}
+        </ModelPickerSlotContext.Provider>
       </main>
+
+      {showModelContext && modelPickerSlot && createPortal(modelPicker, modelPickerSlot)}
 
       <footer
         className="hub-confidentiality-footer portal-persistent-footer"

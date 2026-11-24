@@ -226,6 +226,23 @@ async function main() {
     assert.equal(ownerAllowed.status, 200);
     assert.equal(ownerAllowed.body.data.status, "ACTIVE");
     console.log("✓ Manager in-scope writes and Owner global writes still succeed");
+
+    // Chatters come from People (Chatter or Trial Chatter role). A name-only
+    // record has no person behind it, so the API no longer creates one.
+    for (const role of ["OWNER", "MANAGER"]) {
+      const created = await request("/api/chatters", {
+        method: "POST",
+        role,
+        body: { name: `QA route name-only ${suffix}` },
+      });
+      assert.equal(created.status, 405);
+      assert.match(String(created.body.message), /added in People/);
+    }
+    assert.equal(
+      await prisma.chatter.count({ where: { name: { startsWith: "QA route name-only" } } }),
+      0
+    );
+    console.log("✓ name-only chatters can't be created; People adds chatters");
     console.log("All Step 1 QA route-scope regression tests passed.");
   } finally {
     await new Promise<void>((resolve, reject) => {
