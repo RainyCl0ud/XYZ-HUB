@@ -36,12 +36,30 @@ import {
   useToast,
 } from "../components/ToastProvider";
 
-import "./StrikesPage.css";
+import {
+  PhoneActionMenu,
+} from "../components/PhoneActionMenu";
 
-type StrikeStatus =
-  | "ACTIVE"
-  | "EXPIRED"
-  | "VOIDED";
+import {
+  StrikePhoneList,
+  StrikePhoneScreen,
+} from "../components/StrikePhoneViews";
+
+import {
+  strikeStatusClass,
+  strikeStatusLabel,
+} from "../lib/strike-status";
+
+import type {
+  StrikeStatus,
+} from "../lib/strike-status";
+
+import {
+  PHONE_QUERY,
+  useMediaQuery,
+} from "../lib/useMediaQuery";
+
+import "./StrikesPage.css";
 
 type StrikeRecord = {
   id: string;
@@ -191,34 +209,6 @@ type StatusFilter =
 
 const STRIKES_PAGE_SIZE =
   8;
-
-function getStatusLabel(
-  status:
-    StrikeStatus
-) {
-  switch (
-    status
-  ) {
-    case "ACTIVE":
-      return "Active";
-
-    case "EXPIRED":
-      return "Expired";
-
-    case "VOIDED":
-      return "Voided";
-
-    default:
-      return status;
-  }
-}
-
-function getStatusClass(
-  status:
-    StrikeStatus
-) {
-  return `strike-status strike-status-${status.toLowerCase()}`;
-}
 
 function StrikesPage() {
   const navigate =
@@ -497,6 +487,118 @@ function StrikesPage() {
       false
     );
 
+  const isPhone =
+    useMediaQuery(PHONE_QUERY);
+
+  const [
+    phoneMenuOpen,
+    setPhoneMenuOpen,
+  ] = useState(false);
+
+  const phoneBackRef =
+    useRef<HTMLButtonElement>(null);
+
+  const phoneReturnFocusId =
+    useRef<string | null>(null);
+
+  // Phones: the strike open on its own screen.
+  const phoneStrikeOpenId =
+    isPhone && selectedStrike
+      ? selectedStrike.id
+      : null;
+
+  const anotherWindowOpen =
+    Boolean(voidTarget) ||
+    issueOpen;
+
+  // Focus goes to Back when the strike screen opens (or a window over it
+  // closes), and back to the strike's row once the screen closes.
+  useEffect(() => {
+    if (anotherWindowOpen) {
+      return;
+    }
+
+    if (phoneStrikeOpenId) {
+      phoneBackRef.current?.focus();
+      return;
+    }
+
+    const id =
+      phoneReturnFocusId.current;
+
+    if (!id) {
+      return;
+    }
+
+    phoneReturnFocusId.current = null;
+
+    // If the row is no longer on this page, focus ⋯ (or nothing, when
+    // there is no menu) rather than the search, which raises the keyboard.
+    const row =
+      Array.from(
+        document.querySelectorAll<HTMLButtonElement>(
+          ".strike-phone-row"
+        )
+      ).find(
+        (candidate) =>
+          candidate.dataset.strikeId === id
+      );
+
+    (
+      row ??
+      document.querySelector<HTMLElement>(
+        ".strikes-phone-search-row .phone-action-menu-button"
+      )
+    )?.focus();
+  }, [
+    phoneStrikeOpenId,
+    anotherWindowOpen,
+  ]);
+
+  // Escape closes the strike screen when nothing is open over it.
+  useEffect(() => {
+    if (
+      !phoneStrikeOpenId ||
+      anotherWindowOpen
+    ) {
+      return;
+    }
+
+    const closeOnEscape = (
+      event: KeyboardEvent
+    ) => {
+      if (event.key === "Escape") {
+        setSelectedStrike(null);
+      }
+    };
+
+    document.addEventListener(
+      "keydown",
+      closeOnEscape
+    );
+
+    return () =>
+      document.removeEventListener(
+        "keydown",
+        closeOnEscape
+      );
+  }, [
+    phoneStrikeOpenId,
+    anotherWindowOpen,
+  ]);
+
+  // The ⋯ menu belongs to phones: crossing 720px closes it, so it doesn't
+  // reappear open later. (Adjusted while rendering, not in an effect.)
+  const [
+    menuLayoutIsPhone,
+    setMenuLayoutIsPhone,
+  ] = useState(isPhone);
+
+  if (menuLayoutIsPhone !== isPhone) {
+    setMenuLayoutIsPhone(isPhone);
+    setPhoneMenuOpen(false);
+  }
+
   const loadStrikes =
     useCallback(
       async () => {
@@ -729,7 +831,11 @@ function StrikesPage() {
               return false;
             }
 
+            // Phones have no Employee or Reason dropdowns (the search
+            // covers both), so a choice made on a wider screen doesn't
+            // apply there.
             if (
+              !isPhone &&
               employeeFilter !==
                 "ALL" &&
               strike.userEmailSnapshot !==
@@ -739,6 +845,7 @@ function StrikesPage() {
             }
 
             if (
+              !isPhone &&
               reasonFilter !==
                 "ALL" &&
               strike.reasonId !==
@@ -783,6 +890,7 @@ function StrikesPage() {
         statusFilter,
         employeeFilter,
         reasonFilter,
+        isPhone,
       ]
     );
 
@@ -1804,296 +1912,411 @@ function StrikesPage() {
         issueReasonId
     ) ?? null;
 
+  // Shared by both layouts.
+  const searchInput = (
+  <input
+    type="search"
+    className="search-input strikes-search"
+  placeholder={isPhone ? "Search strikes" : "Search employee, reason, issuer, or details"}
+    aria-label="Search Strikes"
+    value={
+      search
+    }
+    onChange={(
+      event
+    ) => {
+      setSearch(
+        event.target.value
+      );
+
+      setStrikePage(
+        1
+      );
+    }}
+  />
+  );
+
+  // Phones: the four number cards become tab counts.
+  const statusCounts = {
+    ALL: strikes.length,
+    ACTIVE: activeCount,
+    EXPIRED: expiredCount,
+    VOIDED: voidedCount,
+  };
+
+  // Phones: Issue strike, Strike reasons and Strike ladder sit in one small
+  // menu; each person sees only what they can use today.
+  const phoneMenuItems = [
+    ...(capabilities.canIssueStrikes
+      ? [
+          {
+            key: "issue",
+            label: "Issue strike",
+            onSelect: () => {
+              void openIssueModal();
+            },
+          },
+        ]
+      : []),
+    ...(capabilities.canViewStrikeReasons
+      ? [
+          {
+            key: "reasons",
+            label: "Strike reasons",
+            onSelect: () =>
+              navigate("/strikes/reasons"),
+          },
+        ]
+      : []),
+    ...(capabilities.canViewStrikeLadder
+      ? [
+          {
+            key: "ladder",
+            label: "Strike ladder",
+            onSelect: () =>
+              navigate("/strikes/settings"),
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <div className="page strikes-page">
-      <header className="page-header strikes-page-header">
-        <div>
-          <p className="page-eyebrow">
-            Disciplinary management
-          </p>
+    <div className={`page strikes-page${isPhone ? " strikes-page-phone" : ""}`}>
+      {isPhone ? (
+        <h2 className="strikes-sr-only">Strike Management</h2>
+      ) : (
+        <header className="page-header strikes-page-header">
+          <div>
+            <p className="page-eyebrow">
+              Disciplinary management
+            </p>
 
-          <h2>
-            Strike Management
-          </h2>
+            <h2>
+              Strike Management
+            </h2>
 
-          <p className="page-description">
-            Issue and review disciplinary Strikes independently from Quality & Incidents.
-          </p>
-        </div>
+            <p className="page-description">
+              Issue and review disciplinary Strikes independently from Quality & Incidents.
+            </p>
+          </div>
 
-        {(capabilities.canIssueStrikes ||
-          capabilities.canViewStrikeReasons ||
-          capabilities.canViewStrikeLadder) && (
-          <div className="strikes-header-actions">
-            {capabilities.canIssueStrikes && (
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => {
-                  void openIssueModal();
-                }}
-              >
-                Issue Strike
-              </button>
-            )}
-            {(capabilities.canViewStrikeReasons ||
-              capabilities.canViewStrikeLadder) && (
-              <>
+          {(capabilities.canIssueStrikes ||
+            capabilities.canViewStrikeReasons ||
+            capabilities.canViewStrikeLadder) && (
+            <div className="strikes-header-actions">
+              {capabilities.canIssueStrikes && (
                 <button
                   type="button"
-                  className="secondary-button"
-                  hidden={
-                    !capabilities.canViewStrikeReasons
-                  }
-                  onClick={() =>
-                    navigate(
-                      "/strikes/reasons"
-                    )
-                  }
+                  className="primary-button"
+                  onClick={() => {
+                    void openIssueModal();
+                  }}
                 >
-                  Reasons
+                  Issue Strike
                 </button>
-
-                <button
-                  type="button"
-                  className="secondary-button"
-                  hidden={
-                    !capabilities.canViewStrikeLadder
-                  }
-                  onClick={() =>
-                    navigate(
-                      "/strikes/settings"
-                    )
-                  }
-                  aria-label="Strike Ladder settings"
-                  title="Strike Ladder settings"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="18"
-                    height="18"
-                    aria-hidden="true"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+              )}
+              {(capabilities.canViewStrikeReasons ||
+                capabilities.canViewStrikeLadder) && (
+                <>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    hidden={
+                      !capabilities.canViewStrikeReasons
+                    }
+                    onClick={() =>
+                      navigate(
+                        "/strikes/reasons"
+                      )
+                    }
                   >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="3"
-                    />
+                    Reasons
+                  </button>
 
-                    <path
-                      d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z"
-                    />
-                  </svg>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    hidden={
+                      !capabilities.canViewStrikeLadder
+                    }
+                    onClick={() =>
+                      navigate(
+                        "/strikes/settings"
+                      )
+                    }
+                    aria-label="Strike Ladder settings"
+                    title="Strike Ladder settings"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="18"
+                      height="18"
+                      aria-hidden="true"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="3"
+                      />
+
+                      <path
+                        d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z"
+                      />
+                    </svg>
+                  </button>
+                </>
+              )}
+
+            </div>
+          )}
+        </header>
+      )}
+
+      {!isPhone && (
+        <section className="strikes-summary-grid">
+          <article className="stat-card">
+            <span className="stat-label">
+              Total records
+            </span>
+
+            <strong className="stat-value">
+              {strikes.length}
+            </strong>
+
+            <span className="stat-help">
+              All visible disciplinary Strike records.
+            </span>
+          </article>
+
+          <article className="stat-card">
+            <span className="stat-label">
+              Active
+            </span>
+
+            <strong className="stat-value">
+              {activeCount}
+            </strong>
+
+            <span className="stat-help">
+              Currently counting toward disciplinary standing.
+            </span>
+          </article>
+
+          <article className="stat-card">
+            <span className="stat-label">
+              Expired
+            </span>
+
+            <strong className="stat-value">
+              {expiredCount}
+            </strong>
+
+            <span className="stat-help">
+              Preserved history outside the active window.
+            </span>
+          </article>
+
+          <article className="stat-card">
+            <span className="stat-label">
+              Voided
+            </span>
+
+            <strong className="stat-value">
+              {voidedCount}
+            </strong>
+
+            <span className="stat-help">
+              Cancelled records retained for audit history.
+            </span>
+          </article>
+        </section>
+      )}
+
+      {/* While a strike's screen covers it, the list can't be reached by Tab or a screen reader. */}
+      <section
+        className={isPhone ? "strikes-phone-records" : "content-card strikes-content-card"}
+        inert={phoneStrikeOpenId ? true : undefined}
+      >
+        {isPhone ? (
+          <div className="strikes-phone-toolbar">
+            <div className="strikes-phone-search-row">
+              {searchInput}
+
+              {phoneMenuItems.length > 0 && (
+                <PhoneActionMenu
+                  label="More strike actions"
+                  panelId="strike-phone-menu-panel"
+                  open={phoneMenuOpen}
+                  onOpenChange={setPhoneMenuOpen}
+                  items={phoneMenuItems}
+                />
+              )}
+            </div>
+
+            {/* The four number cards become these tabs: tap one to filter. */}
+            <div className="filter-group strikes-phone-tabs">
+              {(
+                [
+                  "ALL",
+                  "ACTIVE",
+                  "EXPIRED",
+                  "VOIDED",
+                ] as const
+              ).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={
+                    statusFilter === value
+                      ? "filter-button active"
+                      : "filter-button"
+                  }
+                  aria-pressed={
+                    statusFilter === value
+                  }
+                  onClick={() => {
+                    setStatusFilter(value);
+                    setStrikePage(1);
+                  }}
+                >
+                  <span className="strikes-phone-tab-count">
+                    {statusCounts[value]}
+                  </span>{" "}
+                  <span className="strikes-phone-tab-label">
+                    {value === "ALL"
+                      ? "All"
+                      : strikeStatusLabel(value)}
+                  </span>
                 </button>
-              </>
-            )}
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="strikes-toolbar">
+            {searchInput}
 
+            <select
+              className="strikes-filter-select"
+              aria-label="Filter by employee"
+              value={
+                employeeFilter
+              }
+              onChange={(
+                event
+              ) => {
+                setEmployeeFilter(
+                  event.target.value
+                );
+
+                setStrikePage(
+                  1
+                );
+              }}
+            >
+              <option value="ALL">
+                All employees
+              </option>
+
+              {employees.map(
+                (
+                  employee
+                ) => (
+                  <option
+                    key={
+                      employee.email
+                    }
+                    value={
+                      employee.email
+                    }
+                  >
+                    {employee.name}
+                  </option>
+                )
+              )}
+            </select>
+
+            <select
+              className="strikes-filter-select"
+              aria-label="Filter by reason"
+              value={
+                reasonFilter
+              }
+              onChange={(
+                event
+              ) => {
+                setReasonFilter(
+                  event.target.value
+                );
+
+                setStrikePage(
+                  1
+                );
+              }}
+            >
+              <option value="ALL">
+                All reasons
+              </option>
+
+              {reasonOptions.map(
+                (
+                  reason
+                ) => (
+                  <option
+                    key={
+                      reason.id
+                    }
+                    value={
+                      reason.id
+                    }
+                  >
+                    {reason.name}
+                  </option>
+                )
+              )}
+            </select>
+
+            <select
+              className="strikes-filter-select"
+              aria-label="Filter by Strike status"
+              value={
+                statusFilter
+              }
+              onChange={(
+                event
+              ) => {
+                setStatusFilter(
+                  event.target.value as
+                    StatusFilter
+                );
+
+                setStrikePage(
+                  1
+                );
+              }}
+            >
+              <option value="ALL">
+                All statuses
+              </option>
+
+              <option value="ACTIVE">
+                Active
+              </option>
+
+              <option value="EXPIRED">
+                Expired
+              </option>
+
+              <option value="VOIDED">
+                Voided
+              </option>
+            </select>
           </div>
         )}
-      </header>
-
-      <section className="strikes-summary-grid">
-        <article className="stat-card">
-          <span className="stat-label">
-            Total records
-          </span>
-
-          <strong className="stat-value">
-            {strikes.length}
-          </strong>
-
-          <span className="stat-help">
-            All visible disciplinary Strike records.
-          </span>
-        </article>
-
-        <article className="stat-card">
-          <span className="stat-label">
-            Active
-          </span>
-
-          <strong className="stat-value">
-            {activeCount}
-          </strong>
-
-          <span className="stat-help">
-            Currently counting toward disciplinary standing.
-          </span>
-        </article>
-
-        <article className="stat-card">
-          <span className="stat-label">
-            Expired
-          </span>
-
-          <strong className="stat-value">
-            {expiredCount}
-          </strong>
-
-          <span className="stat-help">
-            Preserved history outside the active window.
-          </span>
-        </article>
-
-        <article className="stat-card">
-          <span className="stat-label">
-            Voided
-          </span>
-
-          <strong className="stat-value">
-            {voidedCount}
-          </strong>
-
-          <span className="stat-help">
-            Cancelled records retained for audit history.
-          </span>
-        </article>
-      </section>
-
-      <section className="content-card strikes-content-card">
-        <div className="strikes-toolbar">
-          <input
-            type="search"
-            className="search-input strikes-search"
-            placeholder="Search employee, reason, issuer, or details"
-            aria-label="Search Strikes"
-            value={
-              search
-            }
-            onChange={(
-              event
-            ) => {
-              setSearch(
-                event.target.value
-              );
-
-              setStrikePage(
-                1
-              );
-            }}
-          />
-
-          <select
-            className="strikes-filter-select"
-            aria-label="Filter by employee"
-            value={
-              employeeFilter
-            }
-            onChange={(
-              event
-            ) => {
-              setEmployeeFilter(
-                event.target.value
-              );
-
-              setStrikePage(
-                1
-              );
-            }}
-          >
-            <option value="ALL">
-              All employees
-            </option>
-
-            {employees.map(
-              (
-                employee
-              ) => (
-                <option
-                  key={
-                    employee.email
-                  }
-                  value={
-                    employee.email
-                  }
-                >
-                  {employee.name}
-                </option>
-              )
-            )}
-          </select>
-
-          <select
-            className="strikes-filter-select"
-            aria-label="Filter by reason"
-            value={
-              reasonFilter
-            }
-            onChange={(
-              event
-            ) => {
-              setReasonFilter(
-                event.target.value
-              );
-
-              setStrikePage(
-                1
-              );
-            }}
-          >
-            <option value="ALL">
-              All reasons
-            </option>
-
-            {reasonOptions.map(
-              (
-                reason
-              ) => (
-                <option
-                  key={
-                    reason.id
-                  }
-                  value={
-                    reason.id
-                  }
-                >
-                  {reason.name}
-                </option>
-              )
-            )}
-          </select>
-
-          <select
-            className="strikes-filter-select"
-            aria-label="Filter by Strike status"
-            value={
-              statusFilter
-            }
-            onChange={(
-              event
-            ) => {
-              setStatusFilter(
-                event.target.value as
-                  StatusFilter
-              );
-
-              setStrikePage(
-                1
-              );
-            }}
-          >
-            <option value="ALL">
-              All statuses
-            </option>
-
-            <option value="ACTIVE">
-              Active
-            </option>
-
-            <option value="EXPIRED">
-              Expired
-            </option>
-
-            <option value="VOIDED">
-              Voided
-            </option>
-          </select>
-        </div>
 
         {pageError && (
           <div className="strikes-inline-error">
@@ -2118,6 +2341,18 @@ function StrikesPage() {
               Try another search or filter selection.
             </span>
           </div>
+        ) : isPhone ? (
+          <StrikePhoneList
+            strikes={paginatedStrikes}
+            onOpen={(strike) => {
+              phoneReturnFocusId.current =
+                strike.id;
+              setPhoneMenuOpen(false);
+              setSelectedStrike(
+                strike
+              );
+            }}
+          />
         ) : (
           <div className="strikes-table-wrap">
             <div className="strikes-table strikes-table-head">
@@ -2218,12 +2453,12 @@ function StrikesPage() {
                   <div>
                     <span
                       className={
-                        getStatusClass(
+                        strikeStatusClass(
                           strike.status
                         )
                       }
                     >
-                      {getStatusLabel(
+                      {strikeStatusLabel(
                         strike.status
                       )}
                     </span>
@@ -2248,8 +2483,11 @@ function StrikesPage() {
           </div>
         )}
 
+        {/* Phones show the pager only when there is more than one page. */}
         {filteredStrikes.length >
-          0 && (
+          0 &&
+          (!isPhone ||
+            strikePageCount > 1) && (
           <div
             className="strikes-pagination"
             aria-label="Strike records pagination"
@@ -2308,7 +2546,43 @@ function StrikesPage() {
         )}
       </section>
 
-      {selectedStrike && (
+      {/* Phones: the strike on its own screen. The void form opens over it. */}
+      {selectedStrike && isPhone && (
+        <StrikePhoneScreen
+          strike={selectedStrike}
+          backButtonRef={phoneBackRef}
+          onBack={() =>
+            setSelectedStrike(null)
+          }
+          onEmployeeStrikes={
+            selectedStrike.currentUser &&
+            capabilities.canViewPeopleProfiles
+              ? () =>
+                  openEmployeeStrikeProfile(
+                    selectedStrike,
+                    true
+                  )
+              : undefined
+          }
+          onVoid={
+            capabilities.canVoidStrikes &&
+            selectedStrike.status !==
+              "VOIDED" &&
+            (
+              selectedStrike.currentUser !==
+                null ||
+              capabilities.isOwner
+            )
+              ? () =>
+                  openVoidModal(
+                    selectedStrike
+                  )
+              : undefined
+          }
+        />
+      )}
+
+      {selectedStrike && !isPhone && (
         <div
           className="strikes-overlay"
           role="presentation"
@@ -2369,12 +2643,12 @@ function StrikesPage() {
 
                   <strong
                     className={
-                      getStatusClass(
+                      strikeStatusClass(
                         selectedStrike.status
                       )
                     }
                   >
-                    {getStatusLabel(
+                    {strikeStatusLabel(
                       selectedStrike.status
                     )}
                   </strong>

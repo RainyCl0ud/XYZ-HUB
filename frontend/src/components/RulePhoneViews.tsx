@@ -1,9 +1,8 @@
-import { useEffect, useRef } from "react";
 import type { Ref } from "react";
 
 /*
- * Rules on phones (24 Nov 2026): a quiet list with one "⋯" menu beside the
- * search, one row per rule, and a rule screen with Edit in its top bar and
+ * Rules on phones (24 Nov 2026): a quiet list (with the shared "⋯" menu,
+ * PhoneActionMenu, beside the search), one row per rule, and a rule screen with Edit in its top bar and
  * Archive as a link at the bottom. Desktop keeps the table.
  */
 
@@ -64,92 +63,6 @@ export function RulePhoneList<T extends RulePhoneItem>({
         </li>
       ))}
     </ul>
-  );
-}
-
-export type RulePhoneMenuItem = {
-  key: string;
-  label: string;
-  onSelect: () => void;
-};
-
-/*
- * A small disclosure: the "⋯" button shows a short list of actions right
- * under it. Escape, a tap elsewhere or choosing an action closes it.
- */
-export function RulePhoneMenu({
-  open,
-  onOpenChange,
-  items,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  items: RulePhoneMenuItem[];
-}) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOutside = (event: PointerEvent) => {
-      if (!wrapRef.current?.contains(event.target as Node)) onOpenChange(false);
-    };
-    // Escape only acts while focus is in the menu, so it never clears the
-    // search or moves focus from somewhere else.
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || !wrapRef.current?.contains(document.activeElement)) return;
-      onOpenChange(false);
-      buttonRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open, onOpenChange]);
-
-  return (
-    <div
-      className="rule-phone-menu"
-      ref={wrapRef}
-      // Tabbing out of the menu closes it. A tap (no new focus target) is
-      // left to the outside-tap check, so Safari taps on an item still land.
-      onBlur={(event) => {
-        const next = event.relatedTarget as Node | null;
-        if (open && next && !event.currentTarget.contains(next)) onOpenChange(false);
-      }}
-    >
-      <button
-        ref={buttonRef}
-        type="button"
-        className="rule-phone-menu-button"
-        aria-label="More rule actions"
-        aria-expanded={open}
-        aria-controls={open ? "rule-phone-menu-panel" : undefined}
-        onClick={() => onOpenChange(!open)}
-      >
-        <span className="rule-phone-menu-dots" aria-hidden="true">⋯</span>
-      </button>
-
-      {open && (
-        <div id="rule-phone-menu-panel" className="rule-phone-menu-panel">
-          {items.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className="rule-phone-menu-item"
-              onClick={() => {
-                onOpenChange(false);
-                item.onSelect();
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 

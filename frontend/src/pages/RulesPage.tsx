@@ -34,9 +34,12 @@ import {
 
 import {
   RulePhoneList,
-  RulePhoneMenu,
   RulePhoneScreen,
 } from "../components/RulePhoneViews";
+
+import {
+  PhoneActionMenu,
+} from "../components/PhoneActionMenu";
 
 import {
   PHONE_QUERY,
@@ -1198,7 +1201,7 @@ function RulesPage() {
     (
       row ??
       document.querySelector<HTMLButtonElement>(
-        ".rule-phone-menu-button"
+        ".rules-phone-toolbar .phone-action-menu-button"
       )
     )?.focus();
   }, [
@@ -1337,7 +1340,9 @@ function RulesPage() {
           <div className="rules-phone-toolbar">
             {searchInput}
 
-            <RulePhoneMenu
+            <PhoneActionMenu
+              label="More rule actions"
+              panelId="rule-phone-menu-panel"
               open={phoneMenuOpen}
               onOpenChange={setPhoneMenuOpen}
               items={phoneMenuItems}
