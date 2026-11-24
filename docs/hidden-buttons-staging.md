@@ -34,7 +34,8 @@ The `hidden` attribute now always hides. Text buttons such as Creator Management
 
 **Unchanged:**
 
-- Buttons that people can use look and behave the same; nothing else uses the `hidden` attribute.
+- Buttons that people can use look and behave the same. The only other `hidden` element is Chat's file picker input, which was already hidden.
+- **One small visible difference:** Employee Management's "Invite person" now appears once the page's options have loaded, instead of showing disabled before that. It also stays hidden if that request fails, but it couldn't be used in either case.
 - Phone layouts don't depend on it.
 - No backend change, migration, flag or setting.
 
@@ -42,9 +43,9 @@ The `hidden` attribute now always hides. Text buttons such as Creator Management
 
 - **Automated:** all 39 frontend suites, lint and the build, and type checks with TypeScript 6.0.3 (as Railway builds) and 5.9.3.
 - **New `test:hidden-controls` checks that:**
-  - `index.css` has the rule with `!important`, in the reset
+  - `index.css` has the rule with `!important`
   - no stylesheet gives `[hidden]` elements a visible display
-  - the styled buttons that rely on it are the ones listed above
+  - no `display: … !important` rule targets a class that a hidden button uses, since such a rule would bring the button back. Adding one on purpose made the test fail and name the affected pages.
 - **Checked signed in, on a local copy with fictional accounts, at 1440px:**
   - **A fictional Dev account with Creators access but no permission to add creators** (granted locally for the check, then removed):
     - "Add creator" had `display: none`.
