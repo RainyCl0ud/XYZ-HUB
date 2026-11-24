@@ -45,7 +45,8 @@
     "test:chatters-phone": "node scripts/test-chatters-phone.mjs",
     "test:rules-phone": "node scripts/test-rules-phone.mjs",
     "test:strikes-phone": "node scripts/test-strikes-phone.mjs",
-    "test:profile-phone": "node scripts/test-profile-phone.mjs"
+    "test:profile-phone": "node scripts/test-profile-phone.mjs",
+    "test:creators-phone": "node scripts/test-creators-phone.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
