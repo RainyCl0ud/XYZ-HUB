@@ -96,6 +96,11 @@ try {
   const refocus = layout.slice(layout.indexOf("  useLayoutEffect(() => {"), layout.indexOf("  const supportsCreatorContext ="));
   assert.ok(refocus.includes('"portal-model-context"') && refocus.includes("?.focus();") && /refocusPickerAfterSwitch\.current =\s*false;/.test(refocus) && /\}, \[\s*modelPickerSlot,\s*\]\);/.test(refocus), "Once the reloaded page offers its place again, the picker gets focus back");
   assert.ok(layout.includes('title={`${fixedModel.name}${fixedModel.isActive ? "" : " (Inactive)"}`}'), "A fixed creator's name has a tooltip with the full name");
+  // In the page the box shows a short choice; desktop markup is untouched.
+  assert.ok(layout.includes("const pickerInPage =\n    Boolean(modelPickerSlot);") && /const compactPickerValue =\s*chosenModel\s*\?\s*`\$\{chosenModel\.name\}\$\{chosenModel\.isActive \? "" : " \(Inactive\)"\}`\s*:\s*"All";/.test(layout), "The box shows the chosen creator's name, or All");
+  assert.ok(layout.includes('className={`portal-command-context portal-command-context-v2${pickerInPage\n        ? " portal-command-context-compact"\n        : ""}`}'), "Only the in-page box gets the compact class");
+  assert.ok(/aria-hidden=\{\s*pickerInPage &&\s*canSwitchModelContext\s*\?\s*true\s*:\s*undefined\s*\}/.test(layout), "Beside a menu (already named Creator) the label is silent; beside a fixed creator it is read");
+  assert.ok(/\{pickerInPage &&\s*canSwitchModelContext && \(\s*<span\s*className="portal-command-context-value"\s*aria-hidden="true"\s*>\s*\{compactPickerValue\}/.test(layout), "The short choice is drawn only in the page, and screen readers hear the menu's full option instead");
   const phoneBranch = page.slice(page.indexOf('<div className="chatters-phone-toolbar">'), page.indexOf('<div className="card-header chatter-table-header">'));
   assert.ok(phoneBranch.includes('className="chatters-phone-creator"\n                ref={setModelPickerSlot}'), "Only the phone layout offers the place");
   assert.equal((page.match(/ref={setModelPickerSlot}/g) ?? []).length, 1, "Desktop never takes the picker from the top bar");
@@ -141,12 +146,21 @@ try {
   for (const hex of ours.match(/#[0-9a-f]{3,8}\b/gi) ?? []) assert.ok(["#FFFFFF", "#CCCCCC", "#999999", "#8E8E8E", "#666666", "#333333", "#1A1A1A", "#141414"].includes(hex.toUpperCase()), `Monochrome token only (${hex})`);
   assert.ok(/flex: 1 1 70%;/.test(rule(".chatters-page-phone .chatters-phone-search-row .search-input")) && /flex: 0 0 calc\(30% - 8px\);/.test(rule(".chatters-phone-creator")), "Search takes 70% of the line and the picker the rest");
   assert.ok(/display: none;/.test(rule(".chatters-phone-creator:empty")), "With no picker to show, search fills the line");
-  assert.ok(/display: block;/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2")) && /display: none;/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2:has(select) .portal-command-label")), "The picker shows in the page, without its top-bar label beside a menu");
-  assert.ok(/clip: rect\(0 0 0 0\);/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-label")), "Beside a fixed creator, screen readers still hear Creator");
+  // The creator box: a small Creator label over a short choice, with the
+  // real menu lying over it, invisible.
+  const creatorBox = rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2");
+  assert.ok(/position: relative;/.test(creatorBox) && /display: flex;/.test(creatorBox) && /flex-direction: column;/.test(creatorBox) && /min-height: 44px;/.test(creatorBox) && /border: 1px solid #666666;/.test(creatorBox), "The creator box is a 44px bordered box with the label above the choice");
+  const creatorLabel = rule(".chatters-page-phone .chatters-phone-creator .portal-command-label");
+  assert.ok(/display: block;/.test(creatorLabel) && /font-size: 11px !important;/.test(creatorLabel) && /text-transform: uppercase;/.test(creatorLabel) && /white-space: nowrap;/.test(creatorLabel), "The Creator label shows, small and uppercase, on one line");
+  const creatorValue = rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-value");
+  assert.ok(/font-size: 13px;/.test(creatorValue) && /text-overflow: ellipsis;/.test(creatorValue) && /white-space: nowrap;/.test(creatorValue) && /padding-right: 16px;/.test(creatorValue), "The choice is 13px and ends in an ellipsis instead of being cut mid-letter, clear of the arrow");
+  const realMenu = rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2 select");
+  assert.ok(/position: absolute;/.test(realMenu) && /inset: 0;/.test(realMenu) && /opacity: 0;/.test(realMenu) && /font-size: 16px !important;/.test(realMenu), "The real menu covers the box, invisible, and stays 16px so iPhones don't zoom");
+  assert.ok(/border-top-color: #999999;/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2:has(select)::after")) && /pointer-events: none;/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2:has(select)::after")), "The arrow is drawn on the box and doesn't block taps");
+  assert.ok(/outline: 2px solid #FFFFFF;/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2:has(select:focus-visible)")), "Keyboard focus on the invisible menu shows a 2px white outline on the box");
   const fixed = [...phoneCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, list]) => squash(list) === ".chatters-page-phone .chatters-phone-creator .portal-command-context-v2 .portal-command-context-static").map(([, , body]) => body).join("\n");
-  assert.ok(/font-size: 13px !important;/.test(fixed) && /white-space: normal;/.test(fixed) && /height: auto;/.test(fixed) && /overflow-wrap: anywhere;/.test(fixed), "A fixed creator's name wraps and the box grows, instead of being cut off");
-  const picker = rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2 select");
-  assert.ok(/font-size: 16px !important;/.test(picker) && /min-height: 44px;/.test(picker) && /font-size: 16px !important;/.test(rule(".chatters-page-phone .chatters-phone-search-row .search-input")), "Search and picker are 44px tall with 16px text, so iPhones don't zoom");
+  assert.ok(/font-size: 13px !important;/.test(fixed) && /white-space: normal;/.test(fixed) && /height: auto;/.test(fixed) && /overflow-wrap: anywhere;/.test(fixed) && /border: 0;/.test(fixed) && /background: transparent;/.test(fixed), "A fixed creator's name sits under the label, wrapping, and the box grows instead of cutting it off");
+  assert.ok(/font-size: 16px !important;/.test(rule(".chatters-page-phone .chatters-phone-search-row .search-input")), "Search is 16px so iPhones don't zoom");
   for (const selector of [".chatters-page-phone .chatters-phone-toolbar .filter-button", ".chatters-page-phone .compact-table-pagination .secondary-button"]) {
     assert.ok(/min-height: 44px;/.test(rule(selector)), `44px tap height (${selector})`);
   }
