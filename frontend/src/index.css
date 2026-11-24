@@ -72,6 +72,13 @@
   box-sizing: border-box;
 }
 
+/* The hidden attribute always hides. Without this, a class that sets a
+   display (like .primary-button's inline-flex) overrides it, and buttons
+   hidden for people without the permission still show and do nothing. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   min-width: 320px;
   min-height: 100%;
