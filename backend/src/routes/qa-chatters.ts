@@ -550,6 +550,31 @@ router.patch(
   }
 );
 
+/*
+ * Chatters are added in People: giving someone the Chatter or Trial Chatter
+ * role creates their QA profile. A name-only chatter, with no person behind
+ * it, can't receive strikes or appear in a creator's roster, so one is no
+ * longer created here (24 Nov 2026).
+ */
+router.post(
+  "/",
+  (
+    _req,
+    res
+  ) => {
+    res
+      .status(405)
+      .set(
+        "Allow",
+        "GET"
+      )
+      .json({
+        message:
+          "Chatters are added in People. Give the person the Chatter or Trial Chatter role.",
+      });
+  }
+);
+
 /* Deactivate/reactivate continue through the existing scoped legacy handlers. */
 router.use(
   legacyChatterRoutes

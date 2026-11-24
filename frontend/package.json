@@ -41,7 +41,8 @@
     "test:dashboard-phone": "node scripts/test-dashboard-phone.mjs",
     "test:dashboard-attention": "node scripts/test-dashboard-attention.mjs",
     "test:account-phone": "node scripts/test-account-phone.mjs",
-    "test:incidents-phone": "node scripts/test-incidents-phone.mjs"
+    "test:incidents-phone": "node scripts/test-incidents-phone.mjs",
+    "test:chatters-phone": "node scripts/test-chatters-phone.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

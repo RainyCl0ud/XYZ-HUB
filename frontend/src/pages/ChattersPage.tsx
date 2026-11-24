@@ -1,11 +1,11 @@
 ﻿import {
   useCallback,
+  useContext,
   useEffect,
   useState,
 } from "react";
 
 import type {
-  FormEvent,
   KeyboardEvent,
 } from "react";
 
@@ -20,16 +20,21 @@ import {
 } from "../lib/api";
 
 import {
-  useAuth,
-} from "../auth/AuthContext";
-
-import {
-  getPortalCapabilities,
-} from "../auth/portalAccess";
-
-import {
   useToast,
 } from "../components/ToastProvider";
+
+import {
+  ChatterPhoneList,
+} from "../components/ChatterPhoneList";
+
+import {
+  ModelPickerSlotContext,
+} from "../lib/model-picker-slot";
+
+import {
+  PHONE_QUERY,
+  useMediaQuery,
+} from "../lib/useMediaQuery";
 
 import "./ChattersPage.css";
 
@@ -47,11 +52,6 @@ type Chatter = {
 
 type ChatterListResponse = {
   data: Chatter[];
-};
-
-type ChatterMutationResponse = {
-  message: string;
-  data: Chatter;
 };
 
 type StatusFilter =
@@ -128,15 +128,12 @@ function ChattersPage() {
   ] =
     useSearchParams();
 
-  const {
-    access,
-  } =
-    useAuth();
+  const isPhone =
+    useMediaQuery(PHONE_QUERY);
 
-  const canManageQaProfiles =
-    getPortalCapabilities(
-      access
-    ).canManageQaProfiles;
+  // Phones: the top bar's creator picker is drawn beside the search.
+  const setModelPickerSlot =
+    useContext(ModelPickerSlotContext);
 
   const [
     chatters,
@@ -209,39 +206,6 @@ function ChattersPage() {
     setModelContextRevision,
   ] =
     useState(0);
-
-  const [
-    showForm,
-    setShowForm,
-  ] =
-    useState(false);
-
-  const [
-    name,
-    setName,
-  ] =
-    useState("");
-
-  const [
-    formError,
-    setFormError,
-  ] =
-    useState("");
-
-  const [
-    isSaving,
-    setIsSaving,
-  ] =
-    useState(false);
-
-  const [
-    pendingAdd,
-    setPendingAdd,
-  ] =
-    useState<
-      string |
-      null
-    >(null);
 
   useEffect(
     () => {
@@ -542,19 +506,25 @@ function ChattersPage() {
       : "/chatters";
   }
 
+  function chatterProfilePath(
+    chatter:
+      Pick<Chatter, "id">
+  ) {
+    return `/chatters/${encodeURIComponent(
+      chatter.id
+    )}?from=${encodeURIComponent(
+      buildListPath()
+    )}`;
+  }
+
   function openChatter(
     chatter:
       Chatter
   ) {
-    const from =
-      buildListPath();
-
     navigate(
-      `/chatters/${encodeURIComponent(
-        chatter.id
-      )}?from=${encodeURIComponent(
-        from
-      )}`
+      chatterProfilePath(
+        chatter
+      )
     );
   }
 
@@ -578,179 +548,100 @@ function ChattersPage() {
     }
   }
 
-  function openAddForm() {
-    setName(
-      ""
-    );
-
-    setFormError(
-      ""
-    );
-
-    setPageError(
-      ""
-    );
-
-    setShowForm(
-      true
-    );
-  }
-
-  function closeForm() {
-    if (
-      isSaving
-    ) {
-      return;
-    }
-
-    setShowForm(
-      false
-    );
-
-    setPendingAdd(
-      null
-    );
-
-    setName(
-      ""
-    );
-
-    setFormError(
-      ""
-    );
-  }
-
-  function handleSubmit(
-    event:
-      FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    const trimmed =
-      name.trim();
-
-    if (
-      !trimmed
-    ) {
-      setFormError(
-        "Chatter name is required."
-      );
-
-      return;
-    }
-
-    setFormError(
-      ""
-    );
-
-    setPendingAdd(
-      trimmed
-    );
-  }
-
-  async function addChatter() {
-    if (
-      !pendingAdd
-    ) {
-      return;
-    }
-
-    try {
-      setIsSaving(
-        true
-      );
-
-      const response =
-        await apiRequest<ChatterMutationResponse>(
-          "/api/chatters",
-          {
-            method:
-              "POST",
-
-            body:
-              JSON.stringify({
-                name:
-                  pendingAdd,
-              }),
-          }
+  // Shared by both layouts. Phones (720px and below) place them in a
+  // shorter layout; desktop keeps the original header and table.
+  const searchInput = (
+    <input
+      className="search-input"
+      type="search"
+      value={search}
+      onChange={(
+        event
+      ) => {
+        setSearch(
+          event.target
+            .value
         );
 
-      toast.success(
-        response.message,
-        "Chatter added"
-      );
+        setChatterPage(
+          1
+        );
+      }}
+      placeholder="Search chatters..."
+      aria-label="Search chatters"
+      maxLength={150}
+    />
+  );
 
-      setPendingAdd(
-        null
-      );
+  const statusFilterGroup = (
+    <div className="filter-group">
+      {(
+        [
+          "ALL",
+          "ACTIVE",
+          "INACTIVE",
+        ] as const
+      ).map(
+        (
+          value
+        ) => (
+          <button
+            key={
+              value
+            }
+            type="button"
+            className={
+              statusFilter ===
+              value
+                ? "filter-button active"
+                : "filter-button"
+            }
+            onClick={() => {
+              setStatusFilter(
+                value
+              );
 
-      setShowForm(
-        false
-      );
-
-      setName(
-        ""
-      );
-
-      await loadChatters();
-    } catch (
-      error
-    ) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to save chatter";
-
-      setPendingAdd(
-        null
-      );
-
-      setFormError(
-        message
-      );
-
-      toast.error(
-        message,
-        "Chatter not saved"
-      );
-    } finally {
-      setIsSaving(
-        false
-      );
-    }
-  }
+              setChatterPage(
+                1
+              );
+            }}
+          >
+            {value ===
+            "ALL"
+              ? "All"
+              : value ===
+                  "ACTIVE"
+                ? "Active"
+                : "Inactive"}
+          </button>
+        )
+      )}
+    </div>
+  );
 
   return (
-    <div className="page">
-      <header className="page-header">
-        <div>
-          <p className="page-eyebrow">
-            Team Management
-          </p>
+    <div className={`page chatters-page${isPhone ? " chatters-page-phone" : ""}`}>
+      {isPhone ? (
+        <h2 className="chatters-sr-only">Chatters</h2>
+      ) : (
+        <header className="page-header">
+          <div>
+            <p className="page-eyebrow">
+              Team Management
+            </p>
 
-          <h2>
-            Chatters
-          </h2>
+            <h2>
+              Chatters
+            </h2>
 
-          <p className="page-description">
-            Manage chatter records
-            and review their QA
-            incident history.
-          </p>
-        </div>
-
-        {canManageQaProfiles && (
-          <button
-            className="primary-button"
-            type="button"
-            onClick={
-              openAddForm
-            }
-          >
-            Add Chatter
-          </button>
-        )}
-      </header>
+            <p className="page-description">
+              Manage chatter records
+              and review their QA
+              incident history.
+            </p>
+          </div>
+        </header>
+      )}
 
       {pageError && (
         <div className="alert alert-error page-alert">
@@ -758,87 +649,42 @@ function ChattersPage() {
         </div>
       )}
 
-      <section className="content-card">
-        <div className="card-header chatter-table-header">
-          <div>
-            <h3>
-              Chatter Records
-            </h3>
+      <section className={isPhone ? "chatters-phone-records" : "content-card"}>
+        {isPhone ? (
+          <div className="chatters-phone-toolbar">
+            <div className="chatters-phone-search-row">
+              {searchInput}
 
-            <p>
-              Select a chatter to
-              open their QA profile
-              and incident history.
-            </p>
+              {/* The top bar's creator picker is drawn here on phones. */}
+              <div
+                className="chatters-phone-creator"
+                ref={setModelPickerSlot}
+              />
+            </div>
+
+            {statusFilterGroup}
           </div>
+        ) : (
+          <div className="card-header chatter-table-header">
+            <div>
+              <h3>
+                Chatter Records
+              </h3>
 
-          <div className="toolbar-controls">
-            <input
-              className="search-input"
-              type="search"
-              value={search}
-              onChange={(
-                event
-              ) => {
-                setSearch(
-                  event.target
-                    .value
-                );
+              <p>
+                Select a chatter to
+                open their QA profile
+                and incident history.
+              </p>
+            </div>
 
-                setChatterPage(
-                  1
-                );
-              }}
-              placeholder="Search chatters..."
-              aria-label="Search chatters"
-              maxLength={150}
-            />
+            <div className="toolbar-controls">
+              {searchInput}
 
-            <div className="filter-group">
-              {(
-                [
-                  "ALL",
-                  "ACTIVE",
-                  "INACTIVE",
-                ] as const
-              ).map(
-                (
-                  value
-                ) => (
-                  <button
-                    key={
-                      value
-                    }
-                    type="button"
-                    className={
-                      statusFilter ===
-                      value
-                        ? "filter-button active"
-                        : "filter-button"
-                    }
-                    onClick={() => {
-                      setStatusFilter(
-                        value
-                      );
-
-                      setChatterPage(
-                        1
-                      );
-                    }}
-                  >
-                    {value ===
-                    "ALL"
-                      ? "All"
-                      : value ===
-                          "ACTIVE"
-                        ? "Active"
-                        : "Inactive"}
-                  </button>
-                )
-              )}
+              {statusFilterGroup}
             </div>
           </div>
-        </div>
+        )}
 
         {isLoading ? (
           <div className="empty-state">
@@ -858,9 +704,17 @@ function ChattersPage() {
             <span>
               {search.trim()
                 ? "Try another search or adjust the status filter."
-                : "Add a chatter or choose a different status filter."}
+                : statusFilter !== "ALL"
+                  ? "Try another status filter."
+                  : "Chatters appear here once someone in People has the Chatter or Trial Chatter role."}
             </span>
           </div>
+        ) : isPhone ? (
+          <ChatterPhoneList
+            chatters={paginatedChatters}
+            profilePath={chatterProfilePath}
+            formatAdded={formatTexasDate}
+          />
         ) : (
           <div className="table-wrapper">
             <table className="data-table chatter-table">
@@ -1014,204 +868,6 @@ function ChattersPage() {
           </div>
         )}
       </section>
-
-      {showForm &&
-        canManageQaProfiles && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={
-            closeForm
-          }
-        >
-          <div
-            className="modal"
-            onMouseDown={(
-              event
-            ) =>
-              event.stopPropagation()
-            }
-          >
-            <div className="modal-header">
-              <div>
-                <h3>
-                  Add Chatter
-                </h3>
-
-                <p>
-                  Create a chatter
-                  record for QA
-                  incident tracking.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                onClick={
-                  closeForm
-                }
-                aria-label="Close"
-                disabled={
-                  isSaving
-                }
-              >
-                ×
-              </button>
-            </div>
-
-            <form
-              className="modal-form"
-              onSubmit={
-                handleSubmit
-              }
-            >
-              <label className="form-field">
-                <span>
-                  Chatter Name
-                </span>
-
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(
-                    event
-                  ) => {
-                    setName(
-                      event.target
-                        .value
-                    );
-
-                    if (
-                      formError
-                    ) {
-                      setFormError(
-                        ""
-                      );
-                    }
-                  }}
-                  placeholder="Enter chatter name"
-                  autoFocus
-                  maxLength={100}
-                  disabled={
-                    isSaving
-                  }
-                />
-              </label>
-
-              {formError && (
-                <div className="alert alert-error">
-                  {formError}
-                </div>
-              )}
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={
-                    closeForm
-                  }
-                  disabled={
-                    isSaving
-                  }
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={
-                    isSaving
-                  }
-                >
-                  {isSaving
-                    ? "Saving..."
-                    : "Add Chatter"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {pendingAdd && (
-        <div
-          className="modal-backdrop confirmation-backdrop"
-          onMouseDown={() => {
-            if (
-              !isSaving
-            ) {
-              setPendingAdd(
-                null
-              );
-            }
-          }}
-        >
-          <div
-            className="modal confirmation-modal"
-            onMouseDown={(
-              event
-            ) =>
-              event.stopPropagation()
-            }
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="modal-header">
-              <div>
-                <h3>
-                  Add Chatter?
-                </h3>
-
-                <p>
-                  Please confirm
-                  before continuing.
-                </p>
-              </div>
-            </div>
-
-            <div className="confirmation-body">
-              <p>
-                Add "{pendingAdd}" as
-                a new chatter?
-              </p>
-            </div>
-
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={
-                  isSaving
-                }
-                onClick={() =>
-                  setPendingAdd(
-                    null
-                  )
-                }
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="primary-button"
-                disabled={
-                  isSaving
-                }
-                onClick={() =>
-                  void addChatter()
-                }
-              >
-                {isSaving
-                  ? "Processing..."
-                  : "Add Chatter"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
