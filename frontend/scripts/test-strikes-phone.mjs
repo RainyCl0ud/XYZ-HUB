@@ -73,7 +73,7 @@ try {
   const other = strike({ id: "fictional-4", status: "EXPIRED", reasonNameSnapshot: "Late reply to fans", issuedAt: `${thisYear}-11-20T15:00:00.000Z` });
   const full = screen({ otherStrikes: [other], onEmployeeProfile() {}, onVoid() {} },{ evidenceUrl: "https://example.test/fictional", reasonDescriptionSnapshot: "Fictional reason." });
   assert.ok(full.includes('<div class="strike-phone-screen" role="dialog" aria-modal="true" aria-labelledby="strike-phone-screen-title">') && full.includes('<h3 id="strike-phone-screen-title">Quinn Harper</h3>'), "A dialog named by the person");
-  const order = ['aria-label="Back to strikes"', '<span class="strike-phone-screen-kicker">Strike</span>', ">Active</span>", '<p class="strike-phone-email">quinn.harper@example.test</p>', "<dt>Reason</dt><dd>Missed shift handover</dd>", "<dt>Standing</dt><dd>Final warning</dd>", "<dt>Deduction</dt><dd>10% deduction</dd>", "<dt>Strike</dt><dd>#2 at issue</dd>", "<dt>Issued</dt>", "<dt>Issued by</dt><dd>Fictional Manager</dd>", "<dt>Expires</dt>", "<dt>Ladder</dt><dd>v1</dd>", "<h4>Details</h4><p>Fictional details.</p>", "<h4>Reason at issue</h4>", 'href="https://example.test/fictional"', '<section class="strike-phone-person" aria-labelledby="strike-phone-person-title"><h4 id="strike-phone-person-title">Quinn Harper · 1 other strike</h4>', 'data-other-strike-id="fictional-4"', "<span>Employee profile</span>", 'class="strike-phone-void-link">Void this strike</button>'].map((needle) => {
+  const order = ['aria-label="Back to strikes"', '<span class="strike-phone-screen-kicker">Strike</span>', ">Active</span>", '<p class="strike-phone-email">quinn.harper@example.test</p>', "<dt>Reason</dt><dd>Missed shift handover</dd>", "<dt>Standing</dt><dd>Final warning</dd>", "<dt>Deduction</dt><dd>10% deduction</dd>", "<dt>Strike</dt><dd>#2 at issue</dd>", "<dt>Issued</dt>", "<dt>Issued by</dt><dd>Fictional Manager</dd>", "<dt>Expires</dt>", "<dt>Ladder</dt><dd>v1</dd>", "<h4>Details</h4><p>Fictional details.</p>", "<h4>Reason at issue</h4>", 'href="https://example.test/fictional"', '<section class="strike-phone-person" aria-labelledby="strike-phone-person-title"><h4 id="strike-phone-person-title">Quinn Harper · 1 other strike</h4>', 'data-other-strike-id="fictional-4"', "<p class=\"strike-phone-employee-note\" id=\"strike-phone-employee-note\">Their standing, deduction and full strike history are on their profile.</p>", "<button type=\"button\" class=\"strike-phone-employee\" aria-describedby=\"strike-phone-employee-note\">View employee strikes</button>", 'class="strike-phone-void-link">Void this strike</button>'].map((needle) => {
     const at = full.indexOf(needle);
     assert.ok(at >= 0, `${needle} renders`);
     return at;
@@ -99,8 +99,14 @@ try {
   const screenTree = StrikePhoneScreen({ strike: strike({}), otherStrikes: [other], onBack() {}, onOpenStrike: (row) => openedOther.push(row.id) });
   find(screenTree, (el) => el.props?.["data-other-strike-id"] === "fictional-4").props.onClick();
   assert.deepEqual(openedOther, ["fictional-4"], "Tapping another strike opens it in place");
+  const openedProfile = [];
+  find(StrikePhoneScreen({ strike: strike({}), otherStrikes: [other], onBack() {}, onOpenStrike() {}, onEmployeeProfile: () => openedProfile.push("profile") }), (el) => el.props?.className === "strike-phone-employee").props.onClick();
+  assert.deepEqual(openedProfile, ["profile"], "View employee strikes opens their profile");
+  const alone = screen({ onEmployeeProfile() {} });
+  assert.ok(alone.includes(">Quinn Harper · No other strikes</h4><p class=\"strike-phone-employee-note\"") && !alone.includes("strike-phone-person-list") && alone.includes(">View employee strikes</button></section>"), "With no other strikes, the box holds the label, the note and the button");
+  assert.ok(/>\s*View Employee Strikes\s*<\/button>/.test(read("pages/StrikesPage.tsx")), "Desktop names the same place View Employee Strikes, so phones and desktop match");
   const viewer = screen({});
-  assert.ok(!viewer.includes("Void this strike") && !viewer.includes("Employee profile") && viewer.includes(">Quinn Harper · No other strikes</h4>") && !viewer.includes("strike-phone-person-list") && viewer.includes("<dt>Deduction</dt><dd>10% deduction</dd>"), "Without permission (or a current account) there is no Void and no profile row; the label says when there are no other strikes");
+  assert.ok(!viewer.includes("Void this strike") && !viewer.includes("View employee strikes") && !viewer.includes("strike-phone-employee-note") && viewer.includes(">Quinn Harper · No other strikes</h4>") && !viewer.includes("strike-phone-person-list") && viewer.includes("<dt>Deduction</dt><dd>10% deduction</dd>"), "Without permission (or a current account) there is no Void and no View employee strikes button or note; the label says when there are no other strikes");
   const voided = screen({ onEmployeeProfile() {} },{ status: "VOIDED", deductionPercentSnapshot: 0, voidedAt: "2026-11-24T15:00:00.000Z", voidedByNameSnapshot: "Fictional Owner", voidReason: "Fictional void reason." });
   assert.ok(voided.includes("<dt>Deduction</dt><dd>No deduction</dd>") && voided.includes('<section class="strike-phone-section strike-phone-void"><h4>Voided</h4>') && voided.includes("by Fictional Owner") && voided.includes("<p>Fictional void reason.</p>") && voided.includes(">Voided</span>"), "A voided strike shows when, by whom and why");
   pass("Strike screen: status in the bar, the facts, details, the person's other strikes, and Void as a link at the bottom");
@@ -179,7 +185,7 @@ try {
     if (Number(size[1]) === 11) assert.ok(/text-transform: uppercase;/.test(body), `11px only for uppercase labels (${squash(selector)})`);
     else assert.ok(Number(size[1]) >= 13, `Text is 13px or larger (${squash(selector)}: ${size[1]}px)`);
   }
-  for (const hex of ours.match(/#[0-9a-f]{3,8}\b/gi) ?? []) assert.ok(["#000000", "#1A1A1A", "#FFFFFF", "#CCCCCC", "#999999", "#8E8E8E", "#666666", "#333333"].includes(hex.toUpperCase()), `Monochrome token only (${hex})`);
+  for (const hex of ours.match(/#[0-9a-f]{3,8}\b/gi) ?? []) assert.ok(["#000000", "#0D0D0D", "#1A1A1A", "#FFFFFF", "#CCCCCC", "#999999", "#8E8E8E", "#666666", "#333333"].includes(hex.toUpperCase()), `Monochrome token only (${hex})`);
   assert.ok(!/box-shadow|gradient/.test(ours), "No shadows or gradients");
   for (const selector of [".strikes-page-phone .strike-phone-row", ".strikes-page-phone .strike-phone-person-row",".strikes-page-phone .strikes-phone-tabs .filter-button", ".strikes-page-phone .strike-phone-employee", ".strikes-page-phone .strike-phone-void-link", ".strikes-page-phone .strike-phone-evidence", ".strikes-page-phone .strikes-pagination .secondary-button", ".strikes-page-phone .strikes-modal-footer > button"]) {
     assert.ok(/min-height: (44|52|56)px;/.test(rule(selector)), `44px tap height or more (${selector})`);
@@ -204,7 +210,10 @@ try {
     assert.ok(base.includes(cls), `${cls} still exists in the older rules`);
   }
   assert.ok(/max-height: calc\(100dvh - var\(--portal-footer-height, 0px\) - 16px\);/.test(rule(".strikes-page-phone .strikes-modal")), "Forms fit the space above the footer, so their buttons stay reachable");
-  assert.ok(/overflow-wrap: anywhere;/.test(rule(".strikes-page-phone .strikes-modal .strikes-detail-section p")) && /overflow-wrap: anywhere;/.test(rule(".strike-phone-employee > span:first-child")), "Long links and names wrap");
+  assert.ok(/overflow-wrap: anywhere;/.test(rule(".strikes-page-phone .strikes-modal .strikes-detail-section p")) && /overflow-wrap: anywhere;/.test(rule(".strike-phone-person h4")), "Long links and names wrap");
+  assert.ok(/border: 1px solid #333333;/.test(rule(".strike-phone-person")) && /background: #0D0D0D;/.test(rule(".strike-phone-person")), "The person's other strikes sit in one box");
+  const viewButton = rule(".strikes-page-phone .strike-phone-employee");
+  assert.ok(/width: 100%;/.test(viewButton) && /border: 1px solid #FFFFFF;/.test(viewButton) && /text-align: center;/.test(viewButton) && !/strike-phone-chevron/.test(ours), "View employee strikes is a full-width outlined button, not a row with a chevron");
   assert.ok(/position: sticky;/.test(rule(".strike-phone-screen-bar")) && /text-decoration: underline;/.test(rule(".strikes-page-phone .strike-phone-void-link")) && /color: #999999;/.test(rule(".strikes-page-phone .strike-phone-void-link")), "The bar stays at the top; Void is a quiet grey link");
   assert.ok(/text-transform: uppercase;/.test(rule(".strikes-page-phone .strikes-phone-tab-label")) && /font-size: 16px;/.test(rule(".strikes-page-phone .strikes-phone-tab-count")), "Tabs: the count large, the status as a small uppercase label");
   pass("Phone styles: 44px targets, 16px fields, 13px text, monochrome, screens clear of the footer");

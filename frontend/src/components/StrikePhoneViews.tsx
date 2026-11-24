@@ -189,7 +189,8 @@ export function StrikePhoneScreen<T extends StrikePhoneItem>({
             </section>
           )}
 
-          {/* The person's other strikes, so they can be read without leaving the page. */}
+          {/* The person's other strikes, so they can be read without leaving the page,
+              then the way to their full strike history (named as on desktop). */}
           <section className="strike-phone-person" aria-labelledby="strike-phone-person-title">
             <h4 id="strike-phone-person-title">
               {strike.userNameSnapshot} · {otherStrikesLabel(otherStrikes.length)}
@@ -217,10 +218,19 @@ export function StrikePhoneScreen<T extends StrikePhoneItem>({
             )}
 
             {onEmployeeProfile && (
-              <button type="button" className="strike-phone-employee" onClick={onEmployeeProfile}>
-                <span>Employee profile</span>
-                <span className="strike-phone-chevron" aria-hidden="true" />
-              </button>
+              <>
+                <p className="strike-phone-employee-note" id="strike-phone-employee-note">
+                  Their standing, deduction and full strike history are on their profile.
+                </p>
+                <button
+                  type="button"
+                  className="strike-phone-employee"
+                  aria-describedby="strike-phone-employee-note"
+                  onClick={onEmployeeProfile}
+                >
+                  View employee strikes
+                </button>
+              </>
             )}
           </section>
 
