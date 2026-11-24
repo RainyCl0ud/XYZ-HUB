@@ -210,6 +210,43 @@ type StatusFilter =
 const STRIKES_PAGE_SIZE =
   8;
 
+// The search looks through employee, reason, issuer, details and standing.
+// Shared by the list and the phone tab counts.
+function strikeMatchesSearch(
+  strike:
+    StrikeRecord,
+  query:
+    string
+) {
+  if (
+    !query
+  ) {
+    return true;
+  }
+
+  return [
+    strike.userNameSnapshot,
+    strike.userEmailSnapshot,
+    strike.reasonNameSnapshot,
+    strike.issuedByNameSnapshot,
+    strike.details,
+    strike.standingLabelSnapshot,
+  ]
+    .filter(
+      Boolean
+    )
+    .some(
+      (
+        value
+      ) =>
+        value
+          .toLowerCase()
+          .includes(
+            query
+          )
+    );
+}
+
 function StrikesPage() {
   const navigate =
     useNavigate();
@@ -854,33 +891,10 @@ function StrikesPage() {
               return false;
             }
 
-            if (
-              !query
-            ) {
-              return true;
-            }
-
-            return [
-              strike.userNameSnapshot,
-              strike.userEmailSnapshot,
-              strike.reasonNameSnapshot,
-              strike.issuedByNameSnapshot,
-              strike.details,
-              strike.standingLabelSnapshot,
-            ]
-              .filter(
-                Boolean
-              )
-              .some(
-                (
-                  value
-                ) =>
-                  value
-                    .toLowerCase()
-                    .includes(
-                      query
-                    )
-              );
+            return strikeMatchesSearch(
+              strike,
+              query
+            );
           }
         );
       },
@@ -891,6 +905,32 @@ function StrikesPage() {
         employeeFilter,
         reasonFilter,
         isPhone,
+      ]
+    );
+
+  // Phones: the tab counts follow the search, so a tab never promises
+  // strikes the list then can't show.
+  const searchMatchedStrikes =
+    useMemo(
+      () => {
+        const query =
+          search
+            .trim()
+            .toLowerCase();
+
+        return strikes.filter(
+          (
+            strike
+          ) =>
+            strikeMatchesSearch(
+              strike,
+              query
+            )
+        );
+      },
+      [
+        strikes,
+        search,
       ]
     );
 
@@ -1329,6 +1369,10 @@ function StrikesPage() {
         strike:
           StrikeRecord
       ) => {
+        // Phones: when this screen closes, focus goes to the strike's row.
+        phoneReturnFocusId.current =
+          strike.id;
+
         setSelectedStrike(
           strike
         );
@@ -1737,15 +1781,23 @@ function StrikesPage() {
 
   function openVoidModal(
     strike:
-      StrikeRecord
+      StrikeRecord,
+    // Phones keep the strike's screen under the void form, so Cancel
+    // returns to it and a confirmed void shows on it.
+    keepStrikeOpen =
+      false
   ) {
     /*
      * Do not leave the record-detail dialog mounted
      * underneath the destructive confirmation dialog.
      */
-    setSelectedStrike(
-      null
-    );
+    if (
+      !keepStrikeOpen
+    ) {
+      setSelectedStrike(
+        null
+      );
+    }
 
     setVoidTarget(
       strike
@@ -1937,11 +1989,19 @@ function StrikesPage() {
   );
 
   // Phones: the four number cards become tab counts.
+  const countStatus = (
+    status: StrikeStatus
+  ) =>
+    searchMatchedStrikes.filter(
+      (strike) =>
+        strike.status === status
+    ).length;
+
   const statusCounts = {
-    ALL: strikes.length,
-    ACTIVE: activeCount,
-    EXPIRED: expiredCount,
-    VOIDED: voidedCount,
+    ALL: searchMatchedStrikes.length,
+    ACTIVE: countStatus("ACTIVE"),
+    EXPIRED: countStatus("EXPIRED"),
+    VOIDED: countStatus("VOIDED"),
   };
 
   // Phones: Issue strike, Strike reasons and Strike ladder sit in one small
@@ -1953,6 +2013,9 @@ function StrikesPage() {
             key: "issue",
             label: "Issue strike",
             onSelect: () => {
+              // When the form closes, focus returns to ⋯ (no row matches this).
+              phoneReturnFocusId.current =
+                "issue";
               void openIssueModal();
             },
           },
@@ -2575,7 +2638,8 @@ function StrikesPage() {
             )
               ? () =>
                   openVoidModal(
-                    selectedStrike
+                    selectedStrike,
+                    true
                   )
               : undefined
           }

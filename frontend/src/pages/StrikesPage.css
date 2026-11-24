@@ -1095,6 +1095,11 @@
     text-align: left;
   }
 
+  .strike-phone-employee > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .strike-phone-chevron {
     flex: none;
     width: 8px;
@@ -1144,12 +1149,38 @@
     font-size: 13px !important;
   }
 
-  /* The forms' small uppercase labels ("Disciplinary correction", "Optional"). */
+  /*
+   * The forms' small labels: "Disciplinary correction", "Optional", and the
+   * Issue preview and confirmation labels ("After issue", "Expires", ...).
+   */
   .strikes-page-phone .strikes-modal .page-eyebrow,
-  .strikes-page-phone .strikes-modal .form-field > span small {
+  .strikes-page-phone .strikes-modal .form-field > span small,
+  .strikes-page-phone .strikes-modal .strikes-preview-grid span,
+  .strikes-page-phone .strikes-modal .strikes-detail-grid span,
+  .strikes-page-phone .strikes-modal .strikes-detail-section > span {
     font-size: 11px !important;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+  }
+
+  .strikes-page-phone .strikes-modal .strikes-preview-meta,
+  .strikes-page-phone .strikes-modal .strikes-preview-loading {
+    font-size: 13px;
+  }
+
+  /* A long link or detail wraps instead of widening the sheet. */
+  .strikes-page-phone .strikes-modal .strikes-detail-section p,
+  .strikes-page-phone .strikes-modal .strikes-detail-grid strong {
+    overflow-wrap: anywhere;
+  }
+
+  /* The sheet fits the space above the footer, so its buttons stay reachable. */
+  .strikes-page-phone .strikes-overlay:not(.strike-phone-screen-backdrop) {
+    padding: 8px;
+  }
+
+  .strikes-page-phone .strikes-modal {
+    max-height: calc(100dvh - var(--portal-footer-height, 0px) - 16px);
   }
 
   .strikes-page-phone .strikes-modal .form-field input,

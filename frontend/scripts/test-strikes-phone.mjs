@@ -107,9 +107,15 @@ try {
   // 4. The page's code.
   assert.equal((page.match(/^ {2}return \(/gm) ?? []).length, 1, "One return for both layouts");
   assert.ok(/const phoneMenuItems = \[\s*\.\.\.\(capabilities\.canIssueStrikes[\s\S]*?label: "Issue strike",[\s\S]*?void openIssueModal\(\);[\s\S]*?\.\.\.\(capabilities\.canViewStrikeReasons[\s\S]*?label: "Strike reasons",[\s\S]*?"\/strikes\/reasons"[\s\S]*?\.\.\.\(capabilities\.canViewStrikeLadder[\s\S]*?label: "Strike ladder",[\s\S]*?"\/strikes\/settings"/.test(page), "Each menu action appears only with the permission its desktop button needs");
-  assert.ok(/const statusCounts = \{\s*ALL: strikes\.length,\s*ACTIVE: activeCount,\s*EXPIRED: expiredCount,\s*VOIDED: voidedCount,\s*\};/.test(page), "The tab counts are the same numbers the desktop cards show");
+  assert.ok(/const statusCounts = \{\s*ALL: searchMatchedStrikes\.length,\s*ACTIVE: countStatus\("ACTIVE"\),\s*EXPIRED: countStatus\("EXPIRED"\),\s*VOIDED: countStatus\("VOIDED"\),\s*\};/.test(page) && /searchMatchedStrikes\.filter\(\s*\(strike\) =>\s*strike\.status === status\s*\)\.length/.test(page), "The tab counts follow the search, so a tab never promises strikes the list can't show");
+  assert.ok(/return strikes\.filter\(\s*\(\s*strike\s*\) =>\s*strikeMatchesSearch\(\s*strike,\s*query\s*\)\s*\);/.test(page) && (page.match(/strikeMatchesSearch\(/g) ?? []).length === 3, "The list and the counts use one search function (defined once, used twice)");
+  assert.ok(/\{activeCount\}/.test(page) && /\{strikes\.length\}/.test(page), "Desktop cards keep their unfiltered totals");
   assert.ok(page.includes(") : isPhone ? (\n          <StrikePhoneList\n            strikes={paginatedStrikes}"), "Phones list the same page of strikes as the table");
-  assert.ok(/onVoid=\{\s*capabilities\.canVoidStrikes &&\s*selectedStrike\.status !==\s*"VOIDED" &&\s*\(\s*selectedStrike\.currentUser !==\s*null \|\|\s*capabilities\.isOwner\s*\)\s*\?\s*\(\) =>\s*openVoidModal\(/.test(page), "Void appears under the same conditions as on desktop, and opens the same void form");
+  assert.ok(/onVoid=\{\s*capabilities\.canVoidStrikes &&\s*selectedStrike\.status !==\s*"VOIDED" &&\s*\(\s*selectedStrike\.currentUser !==\s*null \|\|\s*capabilities\.isOwner\s*\)\s*\?\s*\(\) =>\s*openVoidModal\(\s*selectedStrike,\s*true\s*\)/.test(page), "Void appears under the same conditions as on desktop, and opens the same void form over the strike's screen");
+  assert.ok(/if \(\s*!keepStrikeOpen\s*\) \{\s*setSelectedStrike\(\s*null\s*\);\s*\}/.test(page) && /keepStrikeOpen =\s*false/.test(page), "Desktop still closes its details window before the void form; phones keep the screen");
+  assert.ok(/openStrikeFromHandoff =\s*useEffectEvent\([\s\S]{0,200}?phoneReturnFocusId\.current =\s*strike\.id;/.test(page), "A strike opened from a link (?strikeId=) also returns focus to its row");
+  assert.ok(/label: "Issue strike",\s*onSelect: \(\) => \{[\s\S]{0,160}?phoneReturnFocusId\.current =\s*"issue";\s*void openIssueModal\(\);/.test(page), "After Issue strike closes, focus returns to ⋯");
+  assert.ok(read("lib/useMediaQuery.ts").includes('export const PHONE_QUERY = "(max-width: 720px)";') && css.includes("@media (max-width: 720px) {"), "The layout switch and the phone styles use the same 720px breakpoint");
   assert.ok(/onEmployeeStrikes=\{\s*selectedStrike\.currentUser &&\s*capabilities\.canViewPeopleProfiles\s*\?/.test(page), "All strikes for the person needs their current account and People access, as on desktop");
   assert.ok(page.includes("{selectedStrike && isPhone && (") && page.includes("{selectedStrike && !isPhone && ("), "The same selected strike shows as a screen on phones and the window on desktop");
   assert.ok(/!isPhone &&\s*employeeFilter !==/.test(page) && /!isPhone &&\s*reasonFilter !==/.test(page), "Hidden Employee and Reason filters don't apply on phones");
@@ -157,6 +163,22 @@ try {
   }
   assert.ok(/font-size: 16px !important;/.test(rule(".strikes-page-phone .strikes-phone-search-row .search-input")) && /font-size: 16px !important;/.test(rule(".strikes-page-phone .strikes-modal .form-field input")), "Fields are 16px so iPhones don't zoom");
   assert.ok(/inset: 0 0 var\(--portal-footer-height, 0px\) 0;/.test(rule(".strikes-page-phone .strikes-overlay")), "The strike screen and forms stop above the fixed footer");
+  // Older Strikes rules size these in rem (under 13px); the phone block must override each.
+  for (const [selector, check] of [
+    [".strikes-page-phone .strikes-modal .strikes-preview-grid span", /font-size: 11px !important;[\s\S]*text-transform: uppercase;/],
+    [".strikes-page-phone .strikes-modal .strikes-detail-grid span", /font-size: 11px !important;[\s\S]*text-transform: uppercase;/],
+    [".strikes-page-phone .strikes-modal .strikes-detail-section > span", /font-size: 11px !important;[\s\S]*text-transform: uppercase;/],
+    [".strikes-page-phone .strikes-modal .strikes-preview-meta", /font-size: 13px;/],
+    [".strikes-page-phone .strikes-modal .strikes-preview-loading", /font-size: 13px;/],
+  ]) {
+    assert.ok(check.test(rule(selector)), `Phones resize ${selector}`);
+  }
+  const base = css.slice(0, css.indexOf("STRIKE MANAGEMENT ON PHONES (24 Nov 2026)"));
+  for (const cls of [".strikes-preview-grid span", ".strikes-detail-grid span", ".strikes-detail-section > span", ".strikes-preview-meta", ".strikes-preview-loading"]) {
+    assert.ok(base.includes(cls), `${cls} still exists in the older rules`);
+  }
+  assert.ok(/max-height: calc\(100dvh - var\(--portal-footer-height, 0px\) - 16px\);/.test(rule(".strikes-page-phone .strikes-modal")), "Forms fit the space above the footer, so their buttons stay reachable");
+  assert.ok(/overflow-wrap: anywhere;/.test(rule(".strikes-page-phone .strikes-modal .strikes-detail-section p")) && /overflow-wrap: anywhere;/.test(rule(".strike-phone-employee > span:first-child")), "Long links and names wrap");
   assert.ok(/position: sticky;/.test(rule(".strike-phone-screen-bar")) && /text-decoration: underline;/.test(rule(".strikes-page-phone .strike-phone-void-link")) && /color: #999999;/.test(rule(".strikes-page-phone .strike-phone-void-link")), "The bar stays at the top; Void is a quiet grey link");
   assert.ok(/text-transform: uppercase;/.test(rule(".strikes-page-phone .strikes-phone-tab-label")) && /font-size: 16px;/.test(rule(".strikes-page-phone .strikes-phone-tab-count")), "Tabs: the count large, the status as a small uppercase label");
   pass("Phone styles: 44px targets, 16px fields, 13px text, monochrome, screens clear of the footer");
