@@ -43,7 +43,8 @@
     "test:account-phone": "node scripts/test-account-phone.mjs",
     "test:incidents-phone": "node scripts/test-incidents-phone.mjs",
     "test:chatters-phone": "node scripts/test-chatters-phone.mjs",
-    "test:rules-phone": "node scripts/test-rules-phone.mjs"
+    "test:rules-phone": "node scripts/test-rules-phone.mjs",
+    "test:strikes-phone": "node scripts/test-strikes-phone.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

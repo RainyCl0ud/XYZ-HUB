@@ -19,7 +19,7 @@
 }
 
 @media (max-width: 720px) {
-  /* ---------- Search and the ⋯ menu ---------- */
+  /* ---------- Search and the ⋯ menu (styled in PhoneActionMenu.css) ---------- */
 
   .rules-phone-toolbar {
     display: flex;
@@ -37,62 +37,6 @@
     font-size: 16px !important;
   }
 
-  .rule-phone-menu {
-    position: relative;
-    flex: none;
-  }
-
-  .rules-page-phone .rule-phone-menu-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border: 1px solid var(--border);
-    border-radius: 0;
-    background: var(--surface);
-    color: #FFFFFF;
-    font-size: 20px !important;
-    line-height: 1;
-  }
-
-  .rule-phone-menu-button[aria-expanded="true"] {
-    border-color: #FFFFFF;
-  }
-
-  .rule-phone-menu-panel {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    z-index: 20;
-    display: grid;
-    width: 210px;
-    border: 1px solid #666666;
-    background: #141414;
-  }
-
-  .rules-page-phone .rule-phone-menu-item {
-    min-height: 44px;
-    padding: 0 14px;
-    border: 0;
-    border-top: 1px solid #333333;
-    border-radius: 0;
-    background: transparent;
-    color: #FFFFFF;
-    font-size: 13px !important;
-    text-align: left;
-  }
-
-  .rule-phone-menu-item:first-child {
-    border-top: 0;
-  }
-
-  .rule-phone-menu-item:active {
-    background: #1A1A1A;
-  }
-
-  .rule-phone-menu-button:focus-visible,
   .rule-phone-back:focus-visible,
   .rule-phone-bar-action:focus-visible,
   .rule-phone-history:focus-visible,
@@ -101,7 +45,6 @@
     outline-offset: 2px;
   }
 
-  .rule-phone-menu-item:focus-visible,
   .rule-phone-row:focus-visible {
     outline: 2px solid #FFFFFF;
     outline-offset: -4px;
