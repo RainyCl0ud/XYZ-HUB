@@ -2100,3 +2100,484 @@
 .people-org-node.drop-after > .people-org-item::after { content:""; position:absolute; left:3px; right:3px; height:3px; border-radius:3px; background:var(--text, #fff); pointer-events:none; z-index:5; }
 .people-org-node.drop-before > .people-org-item::before { top:-2px; }
 .people-org-node.drop-after > .people-org-item::after { bottom:-2px; }
+
+
+/* =========================================================
+   EMPLOYEE PROFILE ON PHONES (24 Nov 2026)
+   At 720px and below the profile is a quiet page: a small back link,
+   the initials, name and one grey line with ⋯ for the edits, four tabs
+   that fit the screen, then plain lists instead of cards and tables.
+   Account actions are rows; Deactivate and Delete are quiet links at
+   the bottom. Desktop keeps its cards, tables and buttons.
+   ========================================================= */
+
+@media (max-width: 720px) {
+  .people-profile-page-phone {
+    gap: 4px;
+  }
+
+  /* ---------- Back: a small word, not a boxed button ---------- */
+
+  .people-profile-page-phone .people-profile-phone-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 44px;
+    margin: 0 0 0 -6px;
+    padding: 0 8px 0 6px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #CCCCCC;
+    font-size: 13px !important;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .people-profile-phone-back-arrow {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-bottom: 2px solid currentColor;
+    border-left: 2px solid currentColor;
+    transform: translateX(2px) rotate(45deg);
+  }
+
+  /* ---------- The profile: no card, nothing wider than the screen ---------- */
+
+  .people-profile-page-phone .people-detail-panel {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .people-profile-page-phone .people-profile-header {
+    display: block;
+    padding: 6px 0 14px;
+    border-bottom: 0;
+  }
+
+  .people-profile-phone-identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .people-profile-page-phone .people-profile-phone-avatar {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+  }
+
+  .people-profile-phone-copy {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .people-profile-page-phone .people-profile-phone-copy h3 {
+    margin: 0;
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .people-profile-page-phone .people-profile-phone-copy p {
+    margin: 2px 0 0;
+    color: #8E8E8E;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- Four tabs that fit the screen ---------- */
+
+  .people-profile-page-phone .people-profile-tabs {
+    gap: 0;
+    padding: 0;
+    overflow: visible;
+    background: transparent;
+  }
+
+  .people-profile-page-phone .people-profile-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 4px;
+    font-size: 13px !important;
+  }
+
+  .people-profile-page-phone .people-profile-tab.active::after {
+    right: 6px;
+    left: 6px;
+  }
+
+  .people-profile-page-phone .people-profile-tab:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: -2px;
+  }
+
+  .people-profile-page-phone .people-detail-body {
+    padding: 0 0 24px;
+  }
+
+  /* ---------- Facts: one label-and-value list ---------- */
+
+  .people-profile-phone-tab {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .people-profile-phone-facts {
+    margin: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Right under the tabs, their line is the top of the list. */
+  .people-profile-phone-tab > .people-profile-phone-facts:first-child {
+    border-top: 0;
+  }
+
+  .people-profile-phone-facts > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .people-profile-phone-facts dt {
+    flex: none;
+    color: #999999;
+    font-size: 13px;
+  }
+
+  .people-profile-phone-facts dd {
+    min-width: 0;
+    margin: 0;
+    color: #FFFFFF;
+    font-size: 13px;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- History: one row per record ---------- */
+
+  .people-profile-phone-label {
+    margin: 0 0 6px;
+    color: #999999;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .people-profile-phone-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .people-profile-phone-list > li {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .people-profile-page-phone .people-profile-phone-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 56px;
+    margin: 0;
+    padding: 8px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .people-profile-phone-row:active {
+    background: #1A1A1A;
+  }
+
+  .people-profile-phone-row-text {
+    display: grid;
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .people-profile-phone-row-title {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .people-profile-phone-row-meta {
+    color: #8E8E8E;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  .people-profile-phone-row.is-dimmed .people-profile-phone-row-title {
+    color: #999999;
+  }
+
+  /* Status tags: Active / Open white, Expired / Resolved grey, Voided dim. */
+  .people-profile-phone-tag {
+    flex: none;
+    padding: 3px 7px;
+    border: 1px solid #666666;
+    color: #CCCCCC;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .people-profile-phone-tag.is-strong {
+    border-color: #FFFFFF;
+    color: #FFFFFF;
+  }
+
+  .people-profile-phone-tag.is-dim {
+    border-color: #333333;
+    color: #999999;
+  }
+
+  .people-profile-phone-empty {
+    margin: 0;
+    color: #999999;
+    font-size: 13px;
+  }
+
+  .people-profile-phone-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: -6px;
+  }
+
+  .people-profile-page-phone .people-profile-phone-pager .secondary-button {
+    min-height: 44px;
+    font-size: 13px !important;
+  }
+
+  .people-profile-phone-pager > span {
+    color: #999999;
+    font-size: 13px;
+  }
+
+  /* Loading, empty and permission notes. */
+  .people-profile-page-phone .people-qa-empty,
+  .people-profile-page-phone .people-qa-empty strong,
+  .people-profile-page-phone .people-qa-empty span,
+  .people-profile-page-phone .people-scope-note,
+  .people-profile-page-phone .empty-state,
+  .people-profile-page-phone .empty-state strong,
+  .people-profile-page-phone .people-profile-route-error strong,
+  .people-profile-page-phone .people-profile-route-error span {
+    font-size: 13px !important;
+  }
+
+  .people-profile-page-phone .people-qa-empty {
+    padding: 16px 0;
+    border: 0;
+    background: transparent;
+  }
+
+  /* ---------- Account Access: rows, then quiet links ---------- */
+
+  .people-profile-phone-actions {
+    border-top: 1px solid var(--border);
+  }
+
+  .people-profile-page-phone .people-profile-phone-action {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    margin: 0;
+    padding: 8px 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .people-profile-phone-action:active {
+    background: #1A1A1A;
+  }
+
+  .people-profile-page-phone .people-profile-phone-action:disabled {
+    cursor: default;
+  }
+
+  .people-profile-phone-action:disabled .people-profile-phone-action-title {
+    color: #777777;
+  }
+
+  .people-profile-phone-action-text {
+    display: grid;
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .people-profile-phone-action-title {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .people-profile-phone-action-note {
+    color: #8E8E8E;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .people-profile-phone-chevron {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-right: 2px;
+    border-top: 2px solid #666666;
+    border-right: 2px solid #666666;
+    transform: rotate(45deg);
+  }
+
+  .people-profile-phone-danger {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    margin-top: 6px;
+  }
+
+  .people-profile-page-phone .people-profile-phone-quiet-link {
+    min-height: 44px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #999999;
+    font-size: 13px !important;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .people-profile-page-phone .people-profile-phone-quiet-link:disabled {
+    color: #555555;
+    cursor: default;
+  }
+
+  .people-profile-phone-back:focus-visible,
+  .people-profile-phone-row:focus-visible,
+  .people-profile-phone-action:focus-visible,
+  .people-profile-phone-quiet-link:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: -2px;
+  }
+
+  /* ---------- Edit, team and confirmation windows ---------- */
+
+  .people-profile-page-phone .people-overlay {
+    inset: 0 0 var(--portal-footer-height, 0px) 0;
+    padding: 8px;
+  }
+
+  .people-profile-page-phone .people-form-modal,
+  .people-profile-page-phone .people-confirm-modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: calc(100dvh - var(--portal-footer-height, 0px) - 16px);
+  }
+
+  .people-profile-page-phone .people-modal-header {
+    flex: none;
+    padding: 14px 14px 14px 16px;
+  }
+
+  .people-profile-page-phone .people-form-body,
+  .people-profile-page-phone .people-confirm-body {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .people-profile-page-phone .people-modal-footer {
+    flex: none;
+    padding: 12px 16px;
+  }
+
+  .people-profile-page-phone .people-modal-footer button {
+    min-height: 44px;
+    font-size: 13px !important;
+  }
+
+  .people-profile-page-phone .people-close {
+    width: 44px;
+    height: 44px;
+    font-size: 22px !important;
+  }
+
+  .people-profile-page-phone .people-modal-header h3 {
+    font-size: 17px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .people-profile-page-phone .people-modal-header p,
+  .people-profile-page-phone .people-form-field > span,
+  .people-profile-page-phone .people-overlay .form-field > span,
+  .people-profile-page-phone .people-overlay .form-field > small,
+  .people-profile-page-phone .people-overlay .people-scope-note,
+  .people-profile-page-phone .people-option-heading small,
+  .people-profile-page-phone .people-check-option strong,
+  .people-profile-page-phone .people-check-option small,
+  .people-profile-page-phone .people-confirm-impact strong,
+  .people-profile-page-phone .people-confirm-impact p {
+    font-size: 13px !important;
+  }
+
+  .people-profile-page-phone .people-overlay .page-eyebrow,
+  .people-profile-page-phone .people-overlay .people-section-label {
+    font-size: 11px !important;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* 16px so iPhones don't zoom in when a field gets focus. */
+  .people-profile-page-phone .people-overlay select,
+  .people-profile-page-phone .people-overlay input:not([type="checkbox"]) {
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  .people-profile-page-phone .people-check-option {
+    min-height: 44px;
+  }
+
+  .people-profile-page-phone .people-confirm-impact,
+  .people-profile-page-phone .people-confirm-impact p,
+  .people-profile-page-phone .people-confirm-body .form-field > span {
+    overflow-wrap: anywhere;
+  }
+}

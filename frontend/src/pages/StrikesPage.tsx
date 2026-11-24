@@ -548,6 +548,37 @@ function StrikesPage() {
     Boolean(voidTarget) ||
     issueOpen;
 
+  // Phones: the same person's other strikes, newest first, shown on the
+  // strike screen. Matched by account, or by email once the account is gone.
+  const phoneOtherStrikes =
+    useMemo(() => {
+      if (!phoneStrikeOpenId || !selectedStrike) {
+        return [];
+      }
+
+      const email =
+        selectedStrike.userEmailSnapshot.toLowerCase();
+
+      return strikes
+        .filter(
+          (strike) =>
+            strike.id !== selectedStrike.id &&
+            (selectedStrike.userId
+              ? strike.userId === selectedStrike.userId
+              : !strike.userId &&
+                strike.userEmailSnapshot.toLowerCase() === email)
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.issuedAt).getTime() -
+            new Date(a.issuedAt).getTime()
+        );
+    }, [
+      phoneStrikeOpenId,
+      selectedStrike,
+      strikes,
+    ]);
+
   // Focus goes to Back when the strike screen opens (or a window over it
   // closes), and back to the strike's row once the screen closes.
   useEffect(() => {
@@ -2612,12 +2643,18 @@ function StrikesPage() {
       {/* Phones: the strike on its own screen. The void form opens over it. */}
       {selectedStrike && isPhone && (
         <StrikePhoneScreen
+          // A new strike gets a fresh screen: scrolled to the top, focus on Back.
+          key={selectedStrike.id}
           strike={selectedStrike}
+          otherStrikes={phoneOtherStrikes}
           backButtonRef={phoneBackRef}
           onBack={() =>
             setSelectedStrike(null)
           }
-          onEmployeeStrikes={
+          onOpenStrike={(strike) =>
+            setSelectedStrike(strike)
+          }
+          onEmployeeProfile={
             selectedStrike.currentUser &&
             capabilities.canViewPeopleProfiles
               ? () =>

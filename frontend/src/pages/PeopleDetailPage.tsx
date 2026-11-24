@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -36,6 +37,23 @@ import {
 } from "../components/ToastProvider";
 
 import PeopleQaPanel from "../components/PeopleQaPanel";
+
+import {
+  PhoneActionMenu,
+} from "../components/PhoneActionMenu";
+
+import type {
+  PhoneActionMenuItem,
+} from "../components/PhoneActionMenu";
+
+import {
+  ProfilePhoneFacts,
+} from "../components/ProfilePhoneViews";
+
+import {
+  PHONE_QUERY,
+  useMediaQuery,
+} from "../lib/useMediaQuery";
 
 import "./PeoplePage.css";
 import { formatDataScope } from "../lib/data-scope";
@@ -290,6 +308,36 @@ function getReturnLabel(
 }
 
 
+// Phones: the page the back link returns to, shown as a small word.
+function getReturnName(
+  returnPath:
+    string
+) {
+  if (
+    returnPath.startsWith(
+      "/incidents"
+    )
+  ) {
+    return "Incidents";
+  }
+
+  if (
+    returnPath.startsWith(
+      "/strikes"
+    )
+  ) {
+    return "Strike Management";
+  }
+
+  return "Employee Management";
+}
+
+
+// Phones: \u22ef in the header. Focus returns here when a window opened from it closes.
+const PHONE_MENU_BUTTON =
+  ".people-profile-phone-identity .phone-action-menu-button";
+
+
 function getProfileTab(
   value:
     string |
@@ -351,6 +399,29 @@ function PeopleDetailPage() {
       searchParams.get(
         "tab"
       )
+    );
+
+  const isPhone =
+    useMediaQuery(
+      PHONE_QUERY
+    );
+
+  const [
+    phoneMenuOpen,
+    setPhoneMenuOpen,
+  ] =
+    useState(
+      false
+    );
+
+  // Phones: where focus goes once a window opened from ⋯ or an
+  // Account Access row closes.
+  const phoneReturnFocus =
+    useRef<
+      string |
+      null
+    >(
+      null
     );
 
   const [
@@ -774,6 +845,66 @@ function PeopleDetailPage() {
         teamById,
       ]
     );
+
+  // Phones: the ⋯ menu closes when the layout switches to desktop, so it
+  // doesn't reappear open later.
+  useEffect(
+    () => {
+      if (
+        !isPhone
+      ) {
+        setPhoneMenuOpen(
+          false
+        );
+      }
+    },
+    [
+      isPhone,
+    ]
+  );
+
+  const anyWindowOpen =
+    showRoleEditor ||
+    showTeamEditor ||
+    Boolean(
+      confirmAction
+    );
+
+  // Phones: once the window closes, focus returns to what opened it (or to
+  // the chosen tab when that is gone, e.g. after deactivating).
+  useEffect(
+    () => {
+      if (
+        anyWindowOpen
+      ) {
+        return;
+      }
+
+      const selector =
+        phoneReturnFocus.current;
+
+      if (
+        !selector
+      ) {
+        return;
+      }
+
+      phoneReturnFocus.current =
+        null;
+
+      (
+        document.querySelector<HTMLElement>(
+          selector
+        ) ??
+        document.querySelector<HTMLElement>(
+          ".people-profile-tab.active"
+        )
+      )?.focus();
+    },
+    [
+      anyWindowOpen,
+    ]
+  );
 
   function toggleSelection(
     current:
@@ -1218,20 +1349,104 @@ function PeopleDetailPage() {
   }
 
 
+  const pageClassName =
+    `page people-profile-page${isPhone ? " people-profile-page-phone" : ""}`;
+
+  // Phones: a small back link naming the page it returns to.
+  const backButton =
+    isPhone ? (
+      <button
+        type="button"
+        className="people-profile-phone-back"
+        onClick={
+          goBack
+        }
+        aria-label={`Back to ${getReturnName(returnPath)}`}
+      >
+        <span
+          className="people-profile-phone-back-arrow"
+          aria-hidden="true"
+        />
+        <span>
+          {getReturnName(returnPath)}
+        </span>
+      </button>
+    ) : (
+      <button
+        type="button"
+        className="secondary-button people-profile-page-back"
+        onClick={
+          goBack
+        }
+      >
+        {getReturnLabel(returnPath)}
+      </button>
+    );
+
+  // Phones: the Overview edits, in the ⋯ beside the name. Each shows only
+  // when it can be used (desktop's Edit also needs a team to open).
+  const canEditFromMenu =
+    Boolean(
+      person &&
+      options?.capabilities.canAssignRoles &&
+      canManagePerson
+    );
+
+  const phoneMenuItems: PhoneActionMenuItem[] = [
+    ...(canEditFromMenu &&
+    person?.teamGroup
+      ? [
+          {
+            key: "assignments",
+            label: "Edit assignments",
+            onSelect: () => {
+              phoneReturnFocus.current =
+                PHONE_MENU_BUTTON;
+              openRoleEditor();
+            },
+          },
+        ]
+      : []),
+    ...(canEditFromMenu
+      ? [
+          {
+            key: "team",
+            label: person?.teamGroup
+              ? "Change team"
+              : "Add to a team",
+            onSelect: () => {
+              phoneReturnFocus.current =
+                PHONE_MENU_BUTTON;
+              openTeamEditor();
+            },
+          },
+        ]
+      : []),
+  ];
+
+  // Phones: an Account Access row opens its confirmation; focus comes back
+  // to the row afterwards.
+  function requestPhoneAction(
+    action:
+      Exclude<
+        ConfirmAction,
+        null
+      >
+  ) {
+    phoneReturnFocus.current =
+      `[data-profile-action="${action}"]`;
+    requestConfirmedAction(
+      action
+    );
+  }
+
+
   if (
     loading
   ) {
     return (
-      <div className="page people-profile-page">
-        <button
-          type="button"
-          className="secondary-button people-profile-page-back"
-          onClick={
-            goBack
-          }
-        >
-          {getReturnLabel(returnPath)}
-        </button>
+      <div className={pageClassName}>
+        {backButton}
 
         <div className="empty-state">
           <strong>
@@ -1249,16 +1464,8 @@ function PeopleDetailPage() {
     !options
   ) {
     return (
-      <div className="page people-profile-page">
-        <button
-          type="button"
-          className="secondary-button people-profile-page-back"
-          onClick={
-            goBack
-          }
-        >
-          {getReturnLabel(returnPath)}
-        </button>
+      <div className={pageClassName}>
+        {backButton}
 
         <section className="content-card people-profile-route-error">
           <strong>
@@ -1276,16 +1483,8 @@ function PeopleDetailPage() {
 
 
   return (
-    <div className="page people-profile-page">
-      <button
-        type="button"
-        className="secondary-button people-profile-page-back"
-        onClick={
-          goBack
-        }
-      >
-        {getReturnLabel(returnPath)}
-      </button>
+    <div className={pageClassName}>
+      {backButton}
 
       <section
         className={`people-detail-panel${profileTeamColor ? " team-colored" : ""}`}
@@ -1301,6 +1500,59 @@ function PeopleDetailPage() {
         aria-label="Employee details"
       >
         <div className="people-detail-header people-profile-header">
+          {isPhone ? (
+            // Phones: initials, the name, one grey line, and ⋯ for the edits.
+            <div className="people-profile-phone-identity">
+              <UserAvatar
+                name={
+                  person.name
+                }
+                src={
+                  getPersonAvatarUrl(
+                    person.id,
+                    person.avatarUpdatedAt
+                  )
+                }
+                className="people-profile-avatar people-profile-phone-avatar"
+              />
+
+              <div className="people-profile-phone-copy">
+                <h3>
+                  {person.name}
+                </h3>
+
+                <p>
+                  {[
+                    person.roles
+                      .map(
+                        (role) =>
+                          role.name
+                      )
+                      .join(", "),
+                    person.email,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+
+              {canEditFromMenu && (
+                <PhoneActionMenu
+                  label="More employee actions"
+                  panelId="people-profile-phone-menu-panel"
+                  open={
+                    phoneMenuOpen
+                  }
+                  onOpenChange={
+                    setPhoneMenuOpen
+                  }
+                  items={
+                    phoneMenuItems
+                  }
+                />
+              )}
+            </div>
+          ) : (
           <div className="people-profile-identity">
             <UserAvatar
               name={
@@ -1348,6 +1600,7 @@ function PeopleDetailPage() {
               </p>
             </div>
           </div>
+          )}
 
         </div>
 
@@ -1378,7 +1631,11 @@ function PeopleDetailPage() {
                   )
                 }
               >
-                {tab.label}
+                {isPhone &&
+                tab.id ===
+                  "account-access"
+                  ? "Access"
+                  : tab.label}
               </button>
             )
           )}
@@ -1386,8 +1643,67 @@ function PeopleDetailPage() {
 
 
         <div className="people-detail-body">
+          {/* Phones: one list for team, role and models; edits are in ⋯. */}
           {activeTab ===
-            "overview" && (
+            "overview" &&
+            isPhone && (
+            <div
+              className="people-profile-tab-panel people-profile-phone-tab"
+              role="tabpanel"
+            >
+              <ProfilePhoneFacts
+                facts={[
+                  {
+                    label: "Team",
+                    value:
+                      person.teamGroup?.name ??
+                      "Not assigned",
+                  },
+                  {
+                    label:
+                      person.roles.length > 1
+                        ? "Roles"
+                        : "Role",
+                    value:
+                      person.roles.length
+                        ? person.roles
+                            .map(
+                              (role) =>
+                                `${role.name} · ${formatDataScope(
+                                  role.dataScope
+                                )}`
+                            )
+                            .join(", ")
+                        : "No role",
+                  },
+                  {
+                    label: "Models",
+                    value:
+                      person.models.length
+                        ? person.models
+                            .map(
+                              (model) =>
+                                model.name
+                            )
+                            .join(", ")
+                        : "None",
+                  },
+                ]}
+              />
+
+              {!canManagePerson && (
+                <p className="people-scope-note">
+                  {isSelf
+                    ? "Your own role assignment cannot be changed from Employee Management."
+                    : "This profile is visible to you, but this employee's role assignment is outside the scope you may manage."}
+                </p>
+              )}
+            </div>
+          )}
+
+          {activeTab ===
+            "overview" &&
+            !isPhone && (
             <div
               className="people-profile-tab-panel"
               role="tabpanel"
@@ -1531,6 +1847,11 @@ function PeopleDetailPage() {
                   person.id
                 }
                 view="qa"
+                layout={
+                  isPhone
+                    ? "phone"
+                    : "desktop"
+                }
               />
             </div>
           )}
@@ -1548,13 +1869,218 @@ function PeopleDetailPage() {
                   person.id
                 }
                 view="strikes"
+                layout={
+                  isPhone
+                    ? "phone"
+                    : "desktop"
+                }
               />
             </div>
           )}
 
 
+          {/* Phones: the account facts, actions as rows, and the risky ones as
+              quiet links at the bottom. Each still asks for confirmation. */}
           {activeTab ===
-            "account-access" && (
+            "account-access" &&
+            isPhone && (
+            <div
+              className="people-profile-tab-panel people-profile-phone-tab"
+              role="tabpanel"
+            >
+              <ProfilePhoneFacts
+                facts={[
+                  {
+                    label: "Status",
+                    value: formatStatus(
+                      person.status
+                    ),
+                  },
+                  {
+                    label: "Created",
+                    value: formatTexasDateTime(
+                      person.createdAt
+                    ),
+                  },
+                  {
+                    label: "Email verified",
+                    value: person.emailVerifiedAt
+                      ? formatTexasDateTime(
+                          person.emailVerifiedAt
+                        )
+                      : "Not verified",
+                  },
+                  {
+                    label: "Last sign-in",
+                    value: formatTexasDateTime(
+                      person.security
+                        ?.lastSignInAt ??
+                        null
+                    ),
+                  },
+                ]}
+              />
+
+              {(
+                (person.status ===
+                  "PENDING_SETUP" &&
+                  options.capabilities.canCreatePeople) ||
+                options.capabilities.canResetTwoFactor ||
+                (person.status ===
+                  "DEACTIVATED" &&
+                  canChangeAccountStatus)
+              ) && (
+                <div className="people-profile-phone-actions">
+                  {person.status ===
+                    "PENDING_SETUP" &&
+                    options.capabilities.canCreatePeople && (
+                    <button
+                      type="button"
+                      className="people-profile-phone-action"
+                      data-profile-action="resend-invite"
+                      onClick={() => {
+                        void resendInvite();
+                      }}
+                      disabled={
+                        saving ||
+                        !canManagePerson ||
+                        !options
+                          .capabilities
+                          .invitesAvailable
+                      }
+                    >
+                      <span className="people-profile-phone-action-text">
+                        <span className="people-profile-phone-action-title">
+                          Resend invitation
+                        </span>{" "}
+                        <span className="people-profile-phone-action-note">
+                          If the first one was missed or expired
+                        </span>
+                      </span>
+                    </button>
+                  )}
+
+                  {options
+                    .capabilities
+                    .canResetTwoFactor && (
+                    <button
+                      type="button"
+                      className="people-profile-phone-action"
+                      data-profile-action="reset-2fa"
+                      onClick={() =>
+                        requestPhoneAction(
+                          "reset-2fa"
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      <span className="people-profile-phone-action-text">
+                        <span className="people-profile-phone-action-title">
+                          Reset 2FA
+                        </span>{" "}
+                        <span className="people-profile-phone-action-note">
+                          If they can't complete verification
+                        </span>
+                      </span>
+                      <span
+                        className="people-profile-phone-chevron"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  )}
+
+                  {person.status ===
+                    "DEACTIVATED" &&
+                    canChangeAccountStatus && (
+                    <button
+                      type="button"
+                      className="people-profile-phone-action"
+                      data-profile-action="reactivate"
+                      onClick={() =>
+                        requestPhoneAction(
+                          "reactivate"
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      <span className="people-profile-phone-action-text">
+                        <span className="people-profile-phone-action-title">
+                          Reactivate account
+                        </span>{" "}
+                        <span className="people-profile-phone-action-note">
+                          Restores sign-in. Revoked sessions stay revoked.
+                        </span>
+                      </span>
+                      <span
+                        className="people-profile-phone-chevron"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {person.id !==
+                user?.id &&
+                (
+                  (person.status ===
+                    "ACTIVE" &&
+                    canChangeAccountStatus) ||
+                  options.capabilities.canDelete
+                ) && (
+                <div className="people-profile-phone-danger">
+                  {person.status ===
+                    "ACTIVE" &&
+                    canChangeAccountStatus && (
+                    <button
+                      type="button"
+                      className="people-profile-phone-quiet-link"
+                      data-profile-action="deactivate"
+                      onClick={() =>
+                        requestPhoneAction(
+                          "deactivate"
+                        )
+                      }
+                      disabled={
+                        saving ||
+                        (options.capabilities.isOwner && !canManagePerson)
+                      }
+                    >
+                      Deactivate account
+                    </button>
+                  )}
+
+                  {options
+                    .capabilities
+                    .canDelete && (
+                    <button
+                      type="button"
+                      className="people-profile-phone-quiet-link"
+                      data-profile-action="delete"
+                      onClick={() =>
+                        requestPhoneAction(
+                          "delete"
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      Permanently delete account
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab ===
+            "account-access" &&
+            !isPhone && (
             <div
               className="people-profile-tab-panel"
               role="tabpanel"

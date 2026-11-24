@@ -1077,7 +1077,70 @@
     text-underline-offset: 3px;
   }
 
-  /* All strikes for this person: one row, like a link. */
+  /* The person's other strikes: a label, one row per strike (opening it in
+     place of this one), then the profile as a row like a link. */
+  .strike-phone-person {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 8px;
+  }
+
+  .strike-phone-person h4 {
+    margin: 0 0 6px;
+    color: #999999;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    overflow-wrap: anywhere;
+    text-transform: uppercase;
+  }
+
+  .strike-phone-person-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .strike-phone-person-list > li {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .strikes-page-phone .strike-phone-person-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 52px;
+    margin: 0;
+    padding: 8px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .strike-phone-person-row:active {
+    background: #1A1A1A;
+  }
+
+  .strike-phone-person-reason {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .strike-phone-person-row-voided .strike-phone-person-reason {
+    color: #999999;
+  }
+
+  .strike-phone-person-list + .strike-phone-employee {
+    border-top: 0 !important;
+  }
+
   .strikes-page-phone .strike-phone-employee {
     display: flex;
     align-items: center;
@@ -1123,6 +1186,11 @@
     font-size: 13px !important;
     text-decoration: underline;
     text-underline-offset: 3px;
+  }
+
+  .strike-phone-person-row:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: -2px;
   }
 
   .strike-phone-back:focus-visible,

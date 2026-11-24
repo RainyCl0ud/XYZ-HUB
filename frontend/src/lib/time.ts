@@ -43,3 +43,35 @@ export function formatCentralDateTime(
     date
   );
 }
+
+const centralShortDate =
+  new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone:
+        CENTRAL_TIME_ZONE,
+      month:
+        "short",
+      day:
+        "numeric",
+    }
+  );
+
+/** "Nov 23" in Central time, for one-line rows on phones. */
+export function formatCentralShortDate(
+  value:
+    string
+) {
+  const date =
+    new Date(
+      value
+    );
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? "—"
+    : centralShortDate.format(
+        date
+      );
+}
