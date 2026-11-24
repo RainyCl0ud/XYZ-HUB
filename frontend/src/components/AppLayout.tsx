@@ -841,8 +841,18 @@ function AppLayout() {
 
   const compactPickerValue =
     chosenModel
-      ? `${chosenModel.name}${chosenModel.isActive ? "" : " (Inactive)"}`
+      ? chosenModel.name
       : "All";
+
+  // A narrow box would cut "(Inactive)" off the name, so on an inactive
+  // creator the small label says Inactive instead of Creator.
+  const compactPickerLabel =
+    pickerInPage &&
+    canSwitchModelContext &&
+    chosenModel &&
+    !chosenModel.isActive
+      ? "Inactive"
+      : "Creator";
 
   const modelPicker = (
     <div
@@ -859,7 +869,7 @@ function AppLayout() {
             : undefined
         }
       >
-        Creator
+        {compactPickerLabel}
       </span>
 
       {pickerInPage &&
