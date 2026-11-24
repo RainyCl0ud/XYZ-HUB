@@ -1099,7 +1099,7 @@
     text-transform: uppercase;
   }
 
-  /* With no rows under it, the label sits closer to the note. */
+  /* When the box holds only the label, its padding stays even. */
   .strike-phone-person h4:last-child {
     margin-bottom: 0;
   }

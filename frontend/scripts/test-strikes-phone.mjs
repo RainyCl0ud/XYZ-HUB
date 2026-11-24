@@ -78,7 +78,7 @@ try {
     assert.ok(at >= 0, `${needle} renders`);
     return at;
   });
-  assert.deepEqual([...order].sort((a, b) => a - b), order, "Back and status in the bar; person; facts; details; evidence; the person's other strikes and profile; Void last");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "Back and status in the bar; person; facts; details; evidence; the person's other strikes, the note and View employee strikes; Void last");
   const otherRow = full.slice(full.indexOf("<button", full.indexOf('<ul class="strike-phone-person-list">')));
   assert.equal(text(otherRow.slice(0, otherRow.indexOf("</button>"))), "Late reply to fans Nov 20 Expired", "Another strike's row: reason, date and status (no repeated name)");
   assert.ok(screen({ otherStrikes: [other, strike({ id: "fictional-5" })] }).includes(">Quinn Harper · 2 other strikes</h4>"), "The label counts the other strikes");
@@ -146,7 +146,7 @@ try {
   assert.ok(/openStrikeFromHandoff =\s*useEffectEvent\([\s\S]{0,200}?phoneReturnFocusId\.current =\s*strike\.id;/.test(page), "A strike opened from a link (?strikeId=) also returns focus to its row");
   assert.ok(/label: "Issue strike",\s*onSelect: \(\) => \{[\s\S]{0,160}?phoneReturnFocusId\.current =\s*"issue";\s*void openIssueModal\(\);/.test(page), "After Issue strike closes, focus returns to ⋯");
   assert.ok(read("lib/useMediaQuery.ts").includes('export const PHONE_QUERY = "(max-width: 720px)";') && css.includes("@media (max-width: 720px) {"), "The layout switch and the phone styles use the same 720px breakpoint");
-  assert.ok(/onEmployeeProfile=\{\s*selectedStrike\.currentUser &&\s*capabilities\.canViewPeopleProfiles\s*\?\s*\(\) =>\s*openEmployeeStrikeProfile\(\s*selectedStrike,\s*true\s*\)/.test(page), "The profile row needs the person's current account and People access, as on desktop, and opens their Strikes tab");
+  assert.ok(/onEmployeeProfile=\{\s*selectedStrike\.currentUser &&\s*capabilities\.canViewPeopleProfiles\s*\?\s*\(\) =>\s*openEmployeeStrikeProfile\(\s*selectedStrike,\s*true\s*\)/.test(page), "View employee strikes needs the person's current account and People access, as on desktop, and opens their Strikes tab");
   assert.ok(/const phoneOtherStrikes =\s*useMemo\(\(\) => \{\s*if \(!phoneStrikeOpenId \|\| !selectedStrike\) \{\s*return \[\];\s*\}/.test(page) && /strike\.id !== selectedStrike\.id &&\s*\(selectedStrike\.userId\s*\?\s*strike\.userId === selectedStrike\.userId\s*:\s*!strike\.userId &&\s*strike\.userEmailSnapshot\.toLowerCase\(\) === email\)/.test(page) && /new Date\(b\.issuedAt\)\.getTime\(\) -\s*new Date\(a\.issuedAt\)\.getTime\(\)/.test(page), "Other strikes: the same account (or email once the account is gone), not this one, newest first, from the strikes already loaded");
   assert.ok(/key=\{selectedStrike\.id\}\s*strike=\{selectedStrike\}\s*otherStrikes=\{phoneOtherStrikes\}/.test(page) && /onOpenStrike=\{\(strike\) =>\s*setSelectedStrike\(strike\)\s*\}/.test(page), "Opening another strike swaps the screen (a fresh one, scrolled to the top, focus on Back)");
   assert.ok(page.includes("{selectedStrike && isPhone && (") && page.includes("{selectedStrike && !isPhone && ("), "The same selected strike shows as a screen on phones and the window on desktop");
