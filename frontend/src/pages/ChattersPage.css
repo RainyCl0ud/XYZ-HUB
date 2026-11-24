@@ -1680,9 +1680,21 @@
     margin: 0;
   }
 
-  /* The select is already named "Creator" for screen readers. */
-  .chatters-page-phone .chatters-phone-creator .portal-command-label {
+  /* The select is already named "Creator"; a fixed creator keeps the word for screen readers. */
+  .chatters-page-phone .chatters-phone-creator .portal-command-context-v2:has(select) .portal-command-label {
     display: none;
+  }
+
+  .chatters-page-phone .chatters-phone-creator .portal-command-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   /* 16px so iPhones don't zoom in when the picker gets focus. */
@@ -1703,6 +1715,22 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /*
+   * Someone with one creator sees its name, not a menu. It can't be tapped,
+   * so it wraps at 13px, and the box grows for a long name instead of
+   * cutting it off.
+   */
+  .chatters-page-phone .chatters-phone-creator .portal-command-context-v2 .portal-command-context-static {
+    display: flex;
+    align-items: center;
+    height: auto;
+    padding: 4px 8px;
+    font-size: 13px !important;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .chatters-page-phone .chatters-phone-toolbar .filter-group {

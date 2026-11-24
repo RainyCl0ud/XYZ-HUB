@@ -72,7 +72,8 @@ try {
   const phone = render(true);
   assert.ok(phone.startsWith('<div class="page chatters-page chatters-page-phone"><h2 class="chatters-sr-only">Chatters</h2>'), "Phones: the heading is kept for screen readers only");
   assert.ok(/<div class="chatters-phone-search-row"><input class="search-input" type="search"[^>]*aria-label="Search chatters"[^>]*\/><div class="chatters-phone-creator"><\/div><\/div>/.test(phone), "Search and the creator picker's place share one line");
-  assert.ok(/<div class="filter-group">(<button type="button" class="filter-button( active)?">(All|Active|Inactive)<\/button>){3}<\/div>/.test(phone), "The status tabs stay");
+  assert.ok(/<div class="filter-group">(<button type="button" class="filter-button( active)?" aria-pressed="(true|false)">(All|Active|Inactive)<\/button>){3}<\/div>/.test(phone), "The status tabs stay");
+  assert.ok(phone.includes('<button type="button" class="filter-button active" aria-pressed="true">All</button>') && (phone.match(/aria-pressed="false"/g) ?? []).length === 2, "Screen readers hear which status tab is chosen");
   for (const removed of ["page-eyebrow", "Team Management", "page-description", "Chatter Records", "content-card", "Add Chatter"]) {
     assert.ok(!phone.includes(removed), `Phones don't show ${removed}`);
   }
@@ -89,6 +90,12 @@ try {
   assert.ok(layout.includes("{showModelContext && modelPickerSlot && createPortal(modelPicker, modelPickerSlot)}"), "Otherwise it is drawn into the page's place");
   assert.ok(layout.includes("`app-shell portal-shell${showModelContext && !modelPickerSlot\n          ? \" portal-shell-context\""), "The top bar drops its second row while the picker is in the page");
   assert.ok(layout.includes("<ModelPickerSlotContext.Provider value={setModelPickerSlot}>") && layout.indexOf("<ModelPickerSlotContext.Provider") < layout.indexOf("<Outlet"), "Pages can offer a place for it");
+  const switchStart = layout.indexOf("  function changeModelContext(");
+  const switchFn = layout.slice(switchStart, layout.indexOf("\n  }\n", switchStart));
+  assert.ok(/if \(modelPickerSlot\) \{\s*refocusPickerAfterSwitch\.current =\s*true;/.test(switchFn), "Switching creator from the page's picker asks for focus back");
+  const refocus = layout.slice(layout.indexOf("  useLayoutEffect(() => {"), layout.indexOf("  const supportsCreatorContext ="));
+  assert.ok(refocus.includes('"portal-model-context"') && refocus.includes("?.focus();") && /refocusPickerAfterSwitch\.current =\s*false;/.test(refocus) && /\}, \[\s*modelPickerSlot,\s*\]\);/.test(refocus), "Once the reloaded page offers its place again, the picker gets focus back");
+  assert.ok(layout.includes('title={`${fixedModel.name}${fixedModel.isActive ? "" : " (Inactive)"}`}'), "A fixed creator's name has a tooltip with the full name");
   const phoneBranch = page.slice(page.indexOf('<div className="chatters-phone-toolbar">'), page.indexOf('<div className="card-header chatter-table-header">'));
   assert.ok(phoneBranch.includes('className="chatters-phone-creator"\n                ref={setModelPickerSlot}'), "Only the phone layout offers the place");
   assert.equal((page.match(/ref={setModelPickerSlot}/g) ?? []).length, 1, "Desktop never takes the picker from the top bar");
@@ -97,6 +104,8 @@ try {
   // 4. Add Chatter is gone; chatters come from People.
   assert.ok(!/Add Chatter|addChatter|openAddForm|pendingAdd|showForm|canManageQaProfiles/.test(page), "The page has no Add Chatter button, form or confirmation");
   assert.ok(page.includes('"Chatters appear here once someone in People has the Chatter or Trial Chatter role."') && page.includes('"Try another status filter."'), "An empty list says where chatters come from");
+  assert.ok(page.includes(': oneCreatorSelected\n                    ? "No chatters are assigned to this creator yet."') && page.includes('return Boolean(saved && saved !== "ALL");') && page.includes("MODEL_CONTEXT_STORAGE_KEY"), "With one creator chosen, an empty list says none are assigned to that creator");
+  assert.ok(page.includes("chatters={paginatedChatters}") && page.includes("formatAdded={formatTexasDate}"), "Phones list the same page of chatters, with the same dates, as the table");
   assert.ok(page.includes("profilePath={chatterProfilePath}") && page.includes("navigate(\n      chatterProfilePath("), "Phone links and table rows open the same profile address");
   assert.ok(!/router\.post\(/.test(legacyRoutes), "The old name-only create handler is removed");
   const block = qaRoutes.slice(qaRoutes.indexOf("router.post(\n  \"/\","), qaRoutes.indexOf("router.use(\n  legacyChatterRoutes"));
@@ -132,7 +141,10 @@ try {
   for (const hex of ours.match(/#[0-9a-f]{3,8}\b/gi) ?? []) assert.ok(["#FFFFFF", "#CCCCCC", "#999999", "#8E8E8E", "#666666", "#333333", "#1A1A1A", "#141414"].includes(hex.toUpperCase()), `Monochrome token only (${hex})`);
   assert.ok(/flex: 1 1 70%;/.test(rule(".chatters-page-phone .chatters-phone-search-row .search-input")) && /flex: 0 0 calc\(30% - 8px\);/.test(rule(".chatters-phone-creator")), "Search takes 70% of the line and the picker the rest");
   assert.ok(/display: none;/.test(rule(".chatters-phone-creator:empty")), "With no picker to show, search fills the line");
-  assert.ok(/display: block;/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2")) && /display: none;/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-label")), "The picker shows in the page, without its top-bar label");
+  assert.ok(/display: block;/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2")) && /display: none;/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2:has(select) .portal-command-label")), "The picker shows in the page, without its top-bar label beside a menu");
+  assert.ok(/clip: rect\(0 0 0 0\);/.test(rule(".chatters-page-phone .chatters-phone-creator .portal-command-label")), "Beside a fixed creator, screen readers still hear Creator");
+  const fixed = [...phoneCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, list]) => squash(list) === ".chatters-page-phone .chatters-phone-creator .portal-command-context-v2 .portal-command-context-static").map(([, , body]) => body).join("\n");
+  assert.ok(/font-size: 13px !important;/.test(fixed) && /white-space: normal;/.test(fixed) && /height: auto;/.test(fixed) && /overflow-wrap: anywhere;/.test(fixed), "A fixed creator's name wraps and the box grows, instead of being cut off");
   const picker = rule(".chatters-page-phone .chatters-phone-creator .portal-command-context-v2 select");
   assert.ok(/font-size: 16px !important;/.test(picker) && /min-height: 44px;/.test(picker) && /font-size: 16px !important;/.test(rule(".chatters-page-phone .chatters-phone-search-row .search-input")), "Search and picker are 44px tall with 16px text, so iPhones don't zoom");
   for (const selector of [".chatters-page-phone .chatters-phone-toolbar .filter-button", ".chatters-page-phone .compact-table-pagination .secondary-button"]) {

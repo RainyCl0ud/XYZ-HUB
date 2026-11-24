@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -693,6 +694,13 @@ function AppLayout() {
     value:
       string
   ) {
+    // In a page's slot the picker is rebuilt when the page reloads for the
+    // new creator; give it focus back once it is drawn again.
+    if (modelPickerSlot) {
+      refocusPickerAfterSwitch.current =
+        true;
+    }
+
     setActiveModelId(
       value
     );
@@ -721,6 +729,29 @@ function AppLayout() {
     setModelPickerSlot,
   ] =
     useState<HTMLElement | null>(null);
+
+  const refocusPickerAfterSwitch =
+    useRef(false);
+
+  useLayoutEffect(() => {
+    if (
+      !modelPickerSlot ||
+      !refocusPickerAfterSwitch.current
+    ) {
+      return;
+    }
+
+    refocusPickerAfterSwitch.current =
+      false;
+
+    document
+      .getElementById(
+        "portal-model-context"
+      )
+      ?.focus();
+  }, [
+    modelPickerSlot,
+  ]);
 
   const supportsCreatorContext =
     location.pathname ===
@@ -847,7 +878,10 @@ function AppLayout() {
           )}
         </select>
       ) : fixedModel ? (
-        <div className="portal-command-context-static">
+        <div
+          className="portal-command-context-static"
+          title={`${fixedModel.name}${fixedModel.isActive ? "" : " (Inactive)"}`}
+        >
           {fixedModel.name}
           {fixedModel.isActive
             ? ""

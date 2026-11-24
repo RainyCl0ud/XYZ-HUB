@@ -17,6 +17,7 @@ import {
 import {
   apiRequest,
   MODEL_CONTEXT_CHANGED_EVENT,
+  MODEL_CONTEXT_STORAGE_KEY,
 } from "../lib/api";
 
 import {
@@ -573,6 +574,20 @@ function ChattersPage() {
     />
   );
 
+  // The top bar saves the chosen creator; "ALL" means every creator.
+  const oneCreatorSelected = (() => {
+    try {
+      const saved =
+        window.localStorage.getItem(
+          MODEL_CONTEXT_STORAGE_KEY
+        );
+
+      return Boolean(saved && saved !== "ALL");
+    } catch {
+      return false;
+    }
+  })();
+
   const statusFilterGroup = (
     <div className="filter-group">
       {(
@@ -595,6 +610,10 @@ function ChattersPage() {
               value
                 ? "filter-button active"
                 : "filter-button"
+            }
+            aria-pressed={
+              statusFilter ===
+              value
             }
             onClick={() => {
               setStatusFilter(
@@ -706,7 +725,9 @@ function ChattersPage() {
                 ? "Try another search or adjust the status filter."
                 : statusFilter !== "ALL"
                   ? "Try another status filter."
-                  : "Chatters appear here once someone in People has the Chatter or Trial Chatter role."}
+                  : oneCreatorSelected
+                    ? "No chatters are assigned to this creator yet."
+                    : "Chatters appear here once someone in People has the Chatter or Trial Chatter role."}
             </span>
           </div>
         ) : isPhone ? (
