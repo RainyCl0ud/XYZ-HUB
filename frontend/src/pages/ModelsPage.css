@@ -461,10 +461,16 @@
     inset: 0 0 var(--portal-footer-height, 0px) 0;
     z-index: 300;
     overflow-y: auto;
+    /* Keeps what a screen reader moves to clear of the pinned top bar and button row. */
+    scroll-padding-block: 64px 76px;
     background: #000000;
   }
 
+  /* A column filling the area above the footer, so the button row can sit
+     at its bottom however short the screen's content is. */
   .creator-phone-screen {
+    display: flex;
+    flex-direction: column;
     min-height: 100%;
     background: #000000;
   }
@@ -514,9 +520,11 @@
 
   .creator-phone-screen-body {
     display: grid;
+    flex: 1 0 auto;
+    align-content: start;
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
-    padding: 18px 16px 32px;
+    padding: 18px 16px 24px;
   }
 
   .models-page-phone .creator-phone-screen-body h3 {
@@ -589,10 +597,17 @@
     line-height: 1.35;
   }
 
-  /* Rename and Deactivate (or Reactivate) share one row; one alone fills it. */
+  /* Rename and Deactivate (or Reactivate) share one row, pinned to the
+     bottom of the screen just above the footer; one alone fills it. */
   .creator-phone-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
     display: flex;
     gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid #333333;
+    background: #000000;
   }
 
   .models-page-phone .creator-phone-action {
