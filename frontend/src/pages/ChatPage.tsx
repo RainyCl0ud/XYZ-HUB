@@ -22,6 +22,8 @@ import ChatMemberActions from "./ChatMemberActions";
 import { useChatReadTracking } from "./useChatReadTracking";
 import { CENTRAL_TIME_ZONE } from "../lib/central-time";
 import { loadRecentEmojis, recentEmojiStorageKey, saveRecentEmojiSelection } from "../lib/chat-reaction-emojis";
+import { PhoneActionMenu } from "../components/PhoneActionMenu";
+import { PHONE_QUERY, useMediaQuery } from "../lib/useMediaQuery";
 
 const noUnreadIds: string[] = [];
 type Channel = { id: string; name: string; canPost: boolean; canManage: boolean; canArchive?: boolean; archived: boolean; retained?: boolean; isPrivate: boolean; isOwnPrivate?: boolean; unreadCount?: number };
@@ -48,7 +50,7 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : "
 const day = (value: string) => new Intl.DateTimeFormat("en-US", {
   timeZone: CENTRAL_TIME_ZONE, month: "long", day: "numeric", year: "numeric",
 }).format(new Date(value));
-type IconName = "channel" | "lock" | "search" | "pin" | "trash" | "people" | "send" | "menu" | "close" | "settings" | "chat";
+type IconName = "channel" | "lock" | "search" | "pin" | "trash" | "people" | "send" | "menu" | "close" | "settings" | "chat" | "back";
 function ChatIcon({ name }: { name: IconName }) {
   const paths: Record<IconName, string> = {
     channel: "M5 9h14M4 15h14M11 3 7 21M17 3l-4 18",
@@ -62,6 +64,7 @@ function ChatIcon({ name }: { name: IconName }) {
     close: "m6 6 12 12M6 18 18 6",
     settings: "M4 7h16M4 17h16M8 4v6M16 14v6",
     chat: "M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5a9.5 9.5 0 1 1 19 0ZM7 9h9M7 13h6",
+    back: "m15 18-6-6 6-6",
   };
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>;
 }
@@ -138,7 +141,21 @@ function ChatWorkspace({ userId }: { userId: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [showChannels, setShowChannels] = useState(false);
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  // Phones open Chat on the conversation list, like a messaging app, unless a
+  // link names a conversation (or retained history) to open directly.
+  const [showChannels, setShowChannels] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia(PHONE_QUERY).matches && !linkedConversation && !retainedConversation);
+  const [browseMenuOpen, setBrowseMenuOpen] = useState(false);
+  // The list-or-conversation switch belongs to phones: crossing 720px shows
+  // desktop's side-by-side layout, and coming back opens the conversation.
+  // (Adjusted while rendering, not in an effect.)
+  const [chatLayoutIsPhone, setChatLayoutIsPhone] = useState(isPhone);
+  if (chatLayoutIsPhone !== isPhone) {
+    setChatLayoutIsPhone(isPhone);
+    setShowChannels(false);
+    setBrowseMenuOpen(false);
+  }
   const [showMembers, setShowMembers] = useState(false);
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
@@ -712,7 +729,7 @@ function ChatWorkspace({ userId }: { userId: string }) {
 
   const toolView = tools ? <ChatMessageTools recentEmojis={recentEmojis} onReactionSelected={trackReactionEmoji} onJumpToMessage={jumpToMessage} inline={inlineDiscoveryOpen} key={`${tools.kind}:${tools.channelId}:${tools.kind === "message" || tools.kind === "history" ? tools.messageId : ""}`} target={tools} onClose={() => { setTools(null); }} revision={toolsRevision} paused={!!deleting} onConversation={(id) => { openConversation(id); setTools(null); }} onReply={startReply} onChanged={changedMessage} onModerate={startModeration} /> : null;
   return (
-    <section className="creator-chat" aria-label="Chat workspace">
+    <section className={`creator-chat${isPhone ? " creator-chat-phone" : ""}`} aria-label="Chat workspace">
       <h1 className="creator-chat-sr">Chat</h1>
       {canAnnounce && <header className="creator-chat-heading" aria-label="Chat options">
         <div className="creator-chat-heading-tools">
@@ -738,6 +755,14 @@ function ChatWorkspace({ userId }: { userId: string }) {
                 const next = areas.find((a) => a.modelId === e.target.value);
                 setUnreadOnly(false); openConversation(next?.channels.find(c => !c.archived)?.id ?? next?.channels.find(c => !c.retained)?.id ?? "");
               }}>{areas.map((a) => <option key={a.modelId} value={a.modelId}>{a.name}{a.archived ? " · Archived" : a.unreadCount ? ` · ${a.unreadCount} unread` : ""}</option>)}</select>
+              {/* Phones: Unread only, New channel and Staff announcements live in one menu beside the creator picker. */}
+              {isPhone && <PhoneActionMenu label="More conversation list actions" panelId="chat-browse-menu-panel"
+                open={browseMenuOpen} onOpenChange={setBrowseMenuOpen}
+                items={[
+                  { key: "unread", label: unreadOnly ? "Show all conversations" : "Show unread only", onSelect: () => setUnreadOnly(!unreadOnly) },
+                  ...(browseArea?.canManage && channelFilter === "channels" ? [{ key: "new-channel", label: "New channel", onSelect: () => openChannelSettings({ modelId: browseArea.modelId, name: "" }) }] : []),
+                  ...(canAnnounce ? [{ key: "announcements", label: "Staff announcements", onSelect: () => { setShowChatOptions(false); setShowAnnouncements(true); } }] : []),
+                ]} />}
               <div className="creator-chat-browse-switcher">
                 <div className="creator-chat-filters" role="group" aria-label="Conversation type">
                   <button type="button" aria-pressed={channelFilter === "channels"} onClick={() => { setChannelFilter("channels"); }}>Channels{channelUnread > 0 && <span className="creator-chat-tab-unread" aria-label={`${channelUnread} unread channel messages`}>{channelUnread > 99 ? "99+" : channelUnread}</span>}</button>
@@ -757,9 +782,10 @@ function ChatWorkspace({ userId }: { userId: string }) {
           </aside>
           <div className="creator-chat-conversation" role="region" aria-label="Conversation">
             <header className="creator-chat-channel-header">
-              <button type="button" className="creator-chat-mobile creator-chat-browse-button" onClick={() => { setShowMobileActions(false); setShowMembers(false); setShowChannels(true); }} aria-label="Browse conversations"><ChatIcon name="menu" /><span>Browse</span></button>
+              {/* Phones: back to the conversation list (it's Chat's first screen there). */}
+              <button type="button" className="creator-chat-mobile creator-chat-browse-button" onClick={() => { setShowMobileActions(false); setShowMembers(false); setShowChannels(true); }} aria-label="Back to conversations"><ChatIcon name="back" /></button>
               <div className={`creator-chat-title-icon ${channel?.isPrivate ? "is-private" : ""}`}><ChatIcon name={channel?.isPrivate ? "lock" : "channel"} /></div>
-              <div className="creator-chat-channel-title"><h2>{channel?.name ?? "Choose a conversation"}</h2></div>
+              <div className="creator-chat-channel-title"><h2>{channel?.name ?? "Choose a conversation"}</h2>{isPhone && area && <p className="creator-chat-channel-area">{area.name}</p>}</div>
               <div className="creator-chat-header-actions">
                 <div className="creator-chat-discover-actions" role="group" aria-label="Search and pinned messages">
                   <button type="button" className="creator-chat-search-action" disabled={!transcript}

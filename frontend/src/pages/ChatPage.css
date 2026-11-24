@@ -2487,3 +2487,331 @@
 .creator-chat-emoji-popover-grid.is-recent { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .creator-chat-emoji-popover-grid.is-recent button { height: 37px; font-size: 23px; }
 .creator-chat-emoji-popover-footer { justify-content: flex-end; }
+
+/* =========================================================
+   CHAT ON PHONES (25 Nov 2026)
+   At 720px and below Chat works like a messaging app: it opens on the
+   conversation list (creator picker with a ⋯ menu, Channels / Private
+   tabs, one row per conversation), and a conversation fills the width
+   with a back arrow, its creator under the name, and a compact composer.
+   Every rule is scoped to .creator-chat-phone, which only phones render.
+   ========================================================= */
+
+@media (max-width: 720px) {
+  /* ---------- Full width: no box around Chat ---------- */
+
+  .creator-chat.creator-chat-phone {
+    padding: 0;
+  }
+
+  /* "Chat options" (Staff announcements) moves into the list's ⋯ menu. */
+  .creator-chat.creator-chat-phone > .creator-chat-heading {
+    display: none;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-shell {
+    border: 0;
+    border-radius: 0;
+    background: #000000;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-channels,
+  .creator-chat.creator-chat-phone .creator-chat-conversation {
+    border: 0;
+    border-radius: 0;
+    background: #000000;
+  }
+
+  /* ---------- The list: creator picker and ⋯, then tabs ---------- */
+
+  .creator-chat.creator-chat-phone .creator-chat-browse-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 12px 4px;
+    border-bottom: 0;
+  }
+
+  /* The list is Chat's first screen, so it needs no title or close button. */
+  .creator-chat.creator-chat-phone .creator-chat-channel-heading {
+    display: none;
+  }
+
+  /* Kept for screen readers; the picker shows the creator's name. */
+  .creator-chat.creator-chat-phone .creator-chat-field-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .creator-chat.creator-chat-phone #chat-workspace {
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid #666666;
+    border-radius: 0;
+    /* A chevron shows it opens the list of creators. */
+    padding-right: 40px;
+    background-color: #000000;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 7 5 5 5-5'/%3E%3C/svg%3E");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 18px 18px;
+    color: #FFFFFF;
+    font-size: 16px !important;
+    font-weight: 700;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-browse-tools > .phone-action-menu {
+    grid-column: 2;
+    z-index: 5;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-browse-switcher {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+    margin: 0;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-filters {
+    display: flex;
+    width: 100%;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-browse-switcher .creator-chat-filters button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 13px !important;
+    font-weight: 700;
+  }
+
+  /* Unread only is set from ⋯; while it's on, this shows it and turns it off. */
+  .creator-chat.creator-chat-phone .creator-chat-unread-filter {
+    display: none;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-unread-filter[aria-pressed="true"] {
+    display: block;
+    grid-column: 1 / -1;
+    min-height: 44px;
+    margin: 0;
+    border: 1px solid #FFFFFF;
+    border-radius: 0;
+    background: #1A1A1A;
+    color: #FFFFFF;
+    font-size: 13px !important;
+    font-weight: 700;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-unread-filter[aria-pressed="true"]::after {
+    content: "  ×";
+  }
+
+  /* New channel moves into ⋯. */
+  .creator-chat.creator-chat-phone .creator-chat-browse-footer {
+    display: none;
+  }
+
+  /* ---------- One row per conversation ---------- */
+
+  .creator-chat.creator-chat-phone .creator-chat-channel-list {
+    padding: 0 12px 16px;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-channel-group h2 {
+    margin: 14px 0 4px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-channel-row {
+    align-items: center;
+    gap: 12px;
+    min-height: 50px;
+    padding: 0 6px;
+    border: 0;
+    border-bottom: 1px solid #333333;
+    border-radius: 0;
+    background: transparent;
+    color: #CCCCCC;
+    font-size: 15px !important;
+    font-weight: 400;
+  }
+
+  /* Conversations with unread messages read white and bold. */
+  .creator-chat.creator-chat-phone .creator-chat-channel-row:has(.creator-chat-unread-count) {
+    color: #FFFFFF;
+    font-weight: 700;
+  }
+
+  /* The open conversation keeps its white line on the left. */
+  .creator-chat.creator-chat-phone .creator-chat-channel-row[aria-current] {
+    border-left: 2px solid #FFFFFF;
+    background: #1A1A1A;
+    color: #FFFFFF;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-channel-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-unread-count {
+    flex: none;
+    margin-left: auto;
+    padding: 2px 7px;
+    border: 0;
+    border-radius: 0;
+    background: #FFFFFF;
+    color: #000000;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-row-badge {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-no-results p,
+  .creator-chat.creator-chat-phone .creator-chat-no-results button {
+    font-size: 13px !important;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-no-results button {
+    min-height: 44px;
+  }
+
+  /* ---------- A conversation: back, its name and creator ---------- */
+
+  .creator-chat.creator-chat-phone .creator-chat-channel-header {
+    min-height: 56px;
+    padding: 6px 8px 6px 4px;
+    gap: 6px;
+    border-bottom: 1px solid #333333;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-browse-button {
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-browse-button svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-channel-title h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-channel-area {
+    margin: 2px 0 0;
+    overflow: hidden;
+    color: #999999;
+    font-size: 13px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-members-toggle,
+  .creator-chat.creator-chat-phone .creator-chat-mobile-actions-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 0;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-member-count {
+    font-size: 13px;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-messages {
+    padding: 12px;
+  }
+
+  /* ---------- The composer: +, the field, and a square send ---------- */
+
+  .creator-chat.creator-chat-phone .creator-chat-composer {
+    padding: 8px 12px;
+    border-top: 1px solid #333333;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-composer-bar {
+    min-height: 44px;
+    padding: 0;
+    gap: 8px;
+    border: 0;
+    background: transparent;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-composer-plus-toggle,
+  .creator-chat.creator-chat-phone .creator-chat-composer-bar .creator-chat-send {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    border-radius: 0;
+  }
+
+  /* 16px so iPhones don't zoom in when the field gets focus. */
+  .creator-chat.creator-chat-phone .creator-chat-composer-bar textarea {
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #666666;
+    border-radius: 0;
+    background: #000000;
+    font-size: 16px !important;
+    line-height: 22px;
+  }
+
+  /* The "@ to mention" hint goes; the length warning near the limit stays. */
+  .creator-chat.creator-chat-phone .creator-chat-composer-footer > small:not(.creator-chat-limit) {
+    display: none;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-composer-footer:not(:has(.creator-chat-limit)) {
+    display: none;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-limit {
+    font-size: 13px;
+  }
+
+  .creator-chat.creator-chat-phone .creator-chat-browse-button:focus-visible,
+  .creator-chat.creator-chat-phone .creator-chat-channel-row:focus-visible,
+  .creator-chat.creator-chat-phone #chat-workspace:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: -2px;
+  }
+}

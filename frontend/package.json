@@ -47,7 +47,8 @@
     "test:strikes-phone": "node scripts/test-strikes-phone.mjs",
     "test:profile-phone": "node scripts/test-profile-phone.mjs",
     "test:creators-phone": "node scripts/test-creators-phone.mjs",
-    "test:hidden-controls": "node scripts/test-hidden-controls.mjs"
+    "test:hidden-controls": "node scripts/test-hidden-controls.mjs",
+    "test:chat-phone": "node scripts/test-chat-phone.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
