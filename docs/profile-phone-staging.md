@@ -36,19 +36,26 @@ Rainheart approved the first proposal for both, and this release builds it.
   - Deactivate account and Permanently delete account as quiet grey links at the bottom, never on your own profile, as on desktop.
   - Each still opens the same confirmation as on desktop; Delete still asks for the account's email.
 - **Statuses:** Active and Open tags are white, Expired and Resolved grey, and Voided dim (with the row dimmed).
+- **Dates** in rows read "Nov 23". A date from another year keeps its year ("Nov 23, 2025"), so history across years stays clear. Strike Management's phone rows follow the same rule.
+- **Team colours** aren't shown on phones, so the profile stays monochrome.
 - **Page buttons** show only when a history has more than one page.
 - **Windows** (Edit assignments, Change team, and the confirmations):
   - They stop above the fixed footer, and their content scrolls inside, so Cancel and the main button stay visible.
   - Fields are 16px, so iPhones don't zoom in.
   - Text is 13px, with small labels 11px uppercase.
   - Buttons and the close button are 44px.
-- **Keyboard:** when one of these windows closes, focus returns to ⋯ or to the row that opened it (or to the chosen tab when that row is gone, for example after deactivating).
+- **Keyboard and screen readers:**
+  - On phones, each window is a dialog named by its heading.
+  - Focus moves into it when it opens: to the first control, or to the email field for Delete.
+  - The profile behind it can't be reached.
+  - When it closes, focus returns to ⋯ or to the row that opened it (or to the chosen tab when that row is gone, for example after deactivating).
+  - Change team waits while a save is running, like desktop's button.
 
 **No longer shown on phones:** the "EMPLOYEE PROFILE" label, the role badges (now in the grey line), the section headings and descriptions, the number cards, the tables, and the boxed Edit, Change Team, Reset 2FA, Deactivate and Delete buttons (now in ⋯, as rows, or as quiet links).
 
 **Unchanged:**
 
-- **Desktop.** Checked locally at 1440px against `origin/staging`: all four tabs, Edit assignments, the team window and the Reset 2FA confirmation gave identical HTML.
+- **Desktop.** Checked locally at 1440px against `origin/staging`, after the review fixes: all four tabs, Edit assignments, the team window, and the Reset 2FA and Delete confirmations gave identical HTML.
 - Who can see or change what, and every confirmation.
 - What the API returns. Frontend only: no backend change, migration, flag or setting.
 
@@ -76,6 +83,8 @@ Rainheart approved the first proposal for both, and this release builds it.
     - Focus returning after a window closes.
     - The menu closing when crossing 720px.
     - The QA and Strikes branches, and the shared short date.
+    - On phones, windows as dialogs, focus moved into them, inert behind, and Change team waiting for a save.
+  - **Rendered (dates):** this year's dates are short, other years keep the year, dates are read in Central time, and a bad date shows a dash.
   - **Styles:**
     - Nothing outside the 720px block.
     - 11px only for uppercase labels, 13px otherwise. Monochrome.
@@ -102,6 +111,12 @@ Rainheart approved the first proposal for both, and this release builds it.
     - A history row opened that strike's screen.
     - The profile's back link returned to the first strike's screen.
   - **At 320px:** nothing runs past the screen on any tab.
+  - **After the review fixes, at 375px:**
+    - Reset 2FA, Change team and Delete each opened as a dialog named by its heading ("Reset 2FA for …", "Change Team", "Permanently delete …").
+    - Focus landed on Cancel, the close button, and the email field respectively.
+    - The back link and profile behind were inert.
+    - On Cancel, focus returned to the row or ⋯, and the profile was reachable again.
+    - With the team-colour class on the profile, it showed no coloured border or line.
   - **At 1440px:** desktop matched Staging's HTML, as above.
 
   Staging itself was not checked signed in.

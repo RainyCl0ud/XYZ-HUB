@@ -43,10 +43,13 @@ try {
   const { StrikePhoneList, StrikePhoneScreen } = await vite.ssrLoadModule("/src/components/StrikePhoneViews.tsx");
   const StrikesPage = (await vite.ssrLoadModule("/src/pages/StrikesPage.tsx")).default;
 
+  // Rows drop the year for dates in the current year (Central time), so the
+  // fictional strikes are dated this year to keep the expected text stable.
+  const thisYear = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", year: "numeric" }).format(new Date());
   const strike = (overrides) => ({
     id: "fictional-1", status: "ACTIVE", userNameSnapshot: "Quinn Harper", userEmailSnapshot: "quinn.harper@example.test",
     reasonNameSnapshot: "Missed shift handover", reasonDescriptionSnapshot: null, details: "Fictional details.", evidenceUrl: null,
-    issuedAt: "2026-11-23T15:00:00.000Z", expiresAt: "2026-12-14T15:00:00.000Z", issuedByNameSnapshot: "Fictional Manager",
+    issuedAt: `${thisYear}-11-23T15:00:00.000Z`, expiresAt: "2026-12-14T15:00:00.000Z", issuedByNameSnapshot: "Fictional Manager",
     ladderVersion: 1, activeStrikeCountAfterIssue: 2, standingLabelSnapshot: "Final warning", deductionPercentSnapshot: 10,
     voidedAt: null, voidedByNameSnapshot: null, voidReason: null, ...overrides,
   });
@@ -67,7 +70,7 @@ try {
 
   // 2. The strike screen.
   const screen = (props, over = {}) => renderToStaticMarkup(createElement(StrikePhoneScreen, { strike: strike(over), otherStrikes: [], onBack() {}, onOpenStrike() {}, ...props }));
-  const other = strike({ id: "fictional-4", status: "EXPIRED", reasonNameSnapshot: "Late reply to fans", issuedAt: "2026-11-20T15:00:00.000Z" });
+  const other = strike({ id: "fictional-4", status: "EXPIRED", reasonNameSnapshot: "Late reply to fans", issuedAt: `${thisYear}-11-20T15:00:00.000Z` });
   const full = screen({ otherStrikes: [other], onEmployeeProfile() {}, onVoid() {} },{ evidenceUrl: "https://example.test/fictional", reasonDescriptionSnapshot: "Fictional reason." });
   assert.ok(full.includes('<div class="strike-phone-screen" role="dialog" aria-modal="true" aria-labelledby="strike-phone-screen-title">') && full.includes('<h3 id="strike-phone-screen-title">Quinn Harper</h3>'), "A dialog named by the person");
   const order = ['aria-label="Back to strikes"', '<span class="strike-phone-screen-kicker">Strike</span>', ">Active</span>", '<p class="strike-phone-email">quinn.harper@example.test</p>', "<dt>Reason</dt><dd>Missed shift handover</dd>", "<dt>Standing</dt><dd>Final warning</dd>", "<dt>Deduction</dt><dd>10% deduction</dd>", "<dt>Strike</dt><dd>#2 at issue</dd>", "<dt>Issued</dt>", "<dt>Issued by</dt><dd>Fictional Manager</dd>", "<dt>Expires</dt>", "<dt>Ladder</dt><dd>v1</dd>", "<h4>Details</h4><p>Fictional details.</p>", "<h4>Reason at issue</h4>", 'href="https://example.test/fictional"', '<section class="strike-phone-person" aria-labelledby="strike-phone-person-title"><h4 id="strike-phone-person-title">Quinn Harper · 1 other strike</h4>', 'data-other-strike-id="fictional-4"', "<span>Employee profile</span>", 'class="strike-phone-void-link">Void this strike</button>'].map((needle) => {

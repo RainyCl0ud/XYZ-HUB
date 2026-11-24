@@ -78,7 +78,13 @@ try {
   assert.equal(pager({ page: 1, pageCount: 1 }), "", "One page: no pager");
   const two = pager({ page: 1, pageCount: 2 });
   assert.ok(two.includes('role="group" aria-label="Pages"') && /disabled="">Previous<\/button><span>Page 1 of 2<\/span><button type="button" class="secondary-button">Next</.test(two), "More pages: Previous, the page, Next; Previous waits on the first page");
-  pass("Shared pieces: a facts list, history rows that open the record, a pager only when needed");
+  const { formatCentralShortDate } = await vite.ssrLoadModule("/src/lib/time.ts");
+  const now = new Date("2026-11-24T18:00:00.000Z");
+  assert.equal(formatCentralShortDate("2026-11-23T15:00:00.000Z", now), "Nov 23", "This year's dates are short");
+  assert.equal(formatCentralShortDate("2025-11-23T15:00:00.000Z", now), "Nov 23, 2025", "Other years keep the year, so history across years stays clear");
+  assert.equal(formatCentralShortDate("2026-01-01T03:00:00.000Z", now), "Dec 31, 2025", "Dates are read in Central time");
+  assert.equal(formatCentralShortDate("not a date", now), "—", "A bad date shows a dash");
+  pass("Shared pieces: a facts list, history rows that open the record, a pager only when needed, dates with the year when it differs");
 
   // 2. The profile page on a phone and on a desktop (a server render shows loading).
   const render = (isPhone, from) => {
@@ -113,8 +119,16 @@ try {
   assert.ok(/person\.id !==\s*user\?\.id &&\s*\(\s*\(person\.status ===\s*"ACTIVE" &&\s*canChangeAccountStatus\) \|\|\s*options\.capabilities\.canDelete\s*\) && \(\s*<div className="people-profile-phone-danger">/.test(access), "The risky links never show on your own profile, as on desktop");
   assert.ok(/className="people-profile-phone-quiet-link"\s*data-profile-action="deactivate"[\s\S]*?requestPhoneAction\(\s*"deactivate"\s*\)[\s\S]*?disabled=\{\s*saving \|\|\s*\(options\.capabilities\.isOwner && !canManagePerson\)\s*\}\s*>\s*Deactivate account/.test(access) && /className="people-profile-phone-quiet-link"\s*data-profile-action="delete"[\s\S]*?requestPhoneAction\(\s*"delete"\s*\)[\s\S]*?Permanently delete account/.test(access), "Deactivate and Delete are quiet links with desktop's conditions, and still go through their confirmations");
   assert.ok(/function requestPhoneAction\([\s\S]*?phoneReturnFocus\.current =\s*`\[data-profile-action="\$\{action\}"\]`;\s*requestConfirmedAction\(\s*action\s*\);/.test(page), "Rows use the same confirmation as desktop and remember where focus returns");
-  assert.ok(/const anyWindowOpen =\s*showRoleEditor \|\|\s*showTeamEditor \|\|\s*Boolean\(\s*confirmAction\s*\);/.test(page) && /if \(\s*anyWindowOpen\s*\) \{\s*return;\s*\}[\s\S]*?phoneReturnFocus\.current =\s*null;[\s\S]*?\.people-profile-tab\.active/.test(page), "Focus returns to ⋯ or the row once a window closes (the chosen tab when the row is gone)");
-  assert.ok(/if \(\s*!isPhone\s*\) \{\s*setPhoneMenuOpen\(\s*false\s*\);\s*\}/.test(page), "Crossing 720px closes the ⋯ menu");
+  assert.ok(/const anyWindowOpen =\s*showRoleEditor \|\|\s*showTeamEditor \|\|\s*Boolean\(\s*confirmAction\s*\);/.test(page) && /if \(\s*anyWindowOpen\s*\) \{[\s\S]*?return;\s*\}\s*const selector =\s*phoneReturnFocus\.current;[\s\S]*?phoneReturnFocus\.current =\s*null;[\s\S]*?\.people-profile-tab\.active/.test(page), "Focus returns to ⋯ or the row once a window closes (the chosen tab when the row is gone)");
+  assert.ok(/if \(\s*!isPhone\s*\) \{\s*setPhoneMenuOpen\(\s*false\s*\);[\s\S]{0,120}?phoneReturnFocus\.current =\s*null;\s*\}/.test(page), "Crossing 720px closes the ⋯ menu and forgets the phone focus target");
+  // Windows on phones: dialogs named by their heading, focus moved in, the profile behind them inert.
+  assert.equal((page.match(/role=\{isPhone \? "dialog" : undefined\}\s*aria-modal=\{isPhone \? true : undefined\}/g) ?? []).length, 3, "On phones the team, assignments and confirmation windows are modal dialogs (desktop markup unchanged)");
+  for (const id of ["people-team-window-title", "people-assignments-window-title", "people-confirm-window-title"]) {
+    assert.ok(page.includes(`aria-labelledby={isPhone ? "${id}" : undefined}`) && page.includes(`<h3 id={isPhone ? "${id}" : undefined}>`), `${id} names its window`);
+  }
+  assert.ok(/if \(\s*anyWindowOpen\s*\) \{\s*const overlay =\s*isPhone\s*\?\s*document\.querySelector<HTMLElement>\(\s*"\.people-profile-page-phone \.people-overlay"\s*\)\s*:\s*null;[\s\S]*?!overlay\.contains\(\s*document\.activeElement\s*\)[\s\S]*?"input:not\(\[type='checkbox'\]\), select, button"[\s\S]*?\?\.focus\(\);\s*\}\s*return;\s*\}/.test(page) && /\[\s*anyWindowOpen,\s*isPhone,\s*\]/.test(page), "On phones focus moves into a window when it opens (unless its field already has it)");
+  assert.ok(/inert=\{\s*anyWindowOpen\s*\?\s*true\s*:\s*undefined\s*\}/.test(page) && /inert=\{\s*isPhone &&\s*anyWindowOpen\s*\?\s*true\s*:\s*undefined\s*\}/.test(page), "On phones the back link and profile behind a window are inert");
+  assert.ok(/label: person\?\.teamGroup\s*\?\s*"Change team"\s*:\s*"Add to a team",\s*onSelect: \(\) => \{[\s\S]{0,120}?if \(\s*saving\s*\) \{\s*return;\s*\}/.test(page), "Change team waits for a running save, like desktop's button");
   pass("Profile code: phone lists per tab, edits in ⋯, account actions with desktop's permissions and confirmations");
 
   // 4. The QA and Strikes tabs.
@@ -153,7 +167,8 @@ try {
     else assert.ok(Number(size[1]) >= 13, `Text is 13px or larger (${squash(selector)}: ${size[1]}px)`);
   }
   for (const hex of phoneCss.match(/#[0-9a-f]{3,8}\b/gi) ?? []) assert.ok(["#1A1A1A", "#FFFFFF", "#CCCCCC", "#999999", "#8E8E8E", "#777777", "#666666", "#555555", "#333333"].includes(hex.toUpperCase()), `Monochrome only (${hex})`);
-  assert.ok(!/box-shadow|gradient/.test(phoneCss), "No shadows or gradients");
+  assert.ok(!/gradient/.test(phoneCss) && [...phoneCss.matchAll(/box-shadow: ([^;]+);/g)].every(([, value]) => value === "none"), "No shadows or gradients");
+  assert.ok(/border: 0;[\s\S]*box-shadow: none;/.test(rule(".people-profile-page-phone .people-detail-panel.team-colored")), "A team's colour border and line are dropped on phones, so the page stays monochrome");
   for (const selector of [".people-profile-page-phone .people-profile-phone-back", ".people-profile-page-phone .people-profile-tab", ".people-profile-page-phone .people-profile-phone-row", ".people-profile-page-phone .people-profile-phone-action", ".people-profile-page-phone .people-profile-phone-quiet-link", ".people-profile-page-phone .people-profile-phone-pager .secondary-button", ".people-profile-page-phone .people-modal-footer button", ".people-profile-page-phone .people-check-option"]) {
     assert.ok(/min-height: (44|56)px;/.test(rule(selector)), `44px tap height or more (${selector})`);
   }

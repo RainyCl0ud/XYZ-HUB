@@ -856,6 +856,10 @@ function PeopleDetailPage() {
         setPhoneMenuOpen(
           false
         );
+
+        // The phone row or ⋯ it pointed at is gone on desktop.
+        phoneReturnFocus.current =
+          null;
       }
     },
     [
@@ -870,13 +874,35 @@ function PeopleDetailPage() {
       confirmAction
     );
 
-  // Phones: once the window closes, focus returns to what opened it (or to
-  // the chosen tab when that is gone, e.g. after deactivating).
+  // Phones: focus moves into a window when it opens, and once it closes
+  // returns to what opened it (or to the chosen tab when that is gone, e.g.
+  // after deactivating).
   useEffect(
     () => {
       if (
         anyWindowOpen
       ) {
+        const overlay =
+          isPhone
+            ? document.querySelector<HTMLElement>(
+                ".people-profile-page-phone .people-overlay"
+              )
+            : null;
+
+        // The delete confirmation's field already takes focus itself.
+        if (
+          overlay &&
+          !overlay.contains(
+            document.activeElement
+          )
+        ) {
+          overlay
+            .querySelector<HTMLElement>(
+              "input:not([type='checkbox']), select, button"
+            )
+            ?.focus();
+        }
+
         return;
       }
 
@@ -903,6 +929,7 @@ function PeopleDetailPage() {
     },
     [
       anyWindowOpen,
+      isPhone,
     ]
   );
 
@@ -1361,6 +1388,11 @@ function PeopleDetailPage() {
         onClick={
           goBack
         }
+        inert={
+          anyWindowOpen
+            ? true
+            : undefined
+        }
         aria-label={`Back to ${getReturnName(returnPath)}`}
       >
         <span
@@ -1415,6 +1447,13 @@ function PeopleDetailPage() {
               ? "Change team"
               : "Add to a team",
             onSelect: () => {
+              // Like desktop's Change Team button, wait for a save to finish.
+              if (
+                saving
+              ) {
+                return;
+              }
+
               phoneReturnFocus.current =
                 PHONE_MENU_BUTTON;
               openTeamEditor();
@@ -1488,6 +1527,13 @@ function PeopleDetailPage() {
 
       <section
         className={`people-detail-panel${profileTeamColor ? " team-colored" : ""}`}
+        // Phones: while a window is open, the profile behind it can't be reached.
+        inert={
+          isPhone &&
+          anyWindowOpen
+            ? true
+            : undefined
+        }
         style={
           profileTeamColor
             ? {
@@ -2345,11 +2391,17 @@ function PeopleDetailPage() {
 
       {showTeamEditor && person && options && (
         <div className="people-overlay">
-          <form className="people-form-modal" onSubmit={saveTeam}>
+          <form
+            className="people-form-modal"
+            onSubmit={saveTeam}
+            role={isPhone ? "dialog" : undefined}
+            aria-modal={isPhone ? true : undefined}
+            aria-labelledby={isPhone ? "people-team-window-title" : undefined}
+          >
             <div className="people-modal-header">
               <div>
                 <span className="page-eyebrow">Team assignment</span>
-                <h3>{person.teamGroup ? "Change Team" : "Add to a Team"}</h3>
+                <h3 id={isPhone ? "people-team-window-title" : undefined}>{person.teamGroup ? "Change Team" : "Add to a Team"}</h3>
                 
               </div>
               <button type="button" className="people-close" aria-label="Close team assignment" onClick={() => setShowTeamEditor(false)} disabled={saving}>&times;</button>
@@ -2384,6 +2436,9 @@ function PeopleDetailPage() {
             onSubmit={
               saveRoles
             }
+            role={isPhone ? "dialog" : undefined}
+            aria-modal={isPhone ? true : undefined}
+            aria-labelledby={isPhone ? "people-assignments-window-title" : undefined}
           >
             <div className="people-modal-header">
               <div>
@@ -2391,7 +2446,7 @@ function PeopleDetailPage() {
                   Employee assignments
                 </span>
 
-                <h3>
+                <h3 id={isPhone ? "people-assignments-window-title" : undefined}>
                   Edit assignments for {person.name}
                 </h3>
 
@@ -2627,14 +2682,19 @@ function PeopleDetailPage() {
 
       {confirmAction && (
         <div className="people-overlay">
-          <section className="people-confirm-modal">
+          <section
+            className="people-confirm-modal"
+            role={isPhone ? "dialog" : undefined}
+            aria-modal={isPhone ? true : undefined}
+            aria-labelledby={isPhone ? "people-confirm-window-title" : undefined}
+          >
             <div className="people-modal-header">
               <div>
                 <span className="page-eyebrow">
                   Account action
                 </span>
 
-                <h3>
+                <h3 id={isPhone ? "people-confirm-window-title" : undefined}>
                   {confirmAction ===
                     "delete"
                     ? `Permanently delete ${person.name}?`

@@ -2147,11 +2147,14 @@
 
   /* ---------- The profile: no card, nothing wider than the screen ---------- */
 
-  .people-profile-page-phone .people-detail-panel {
+  /* Also drops the team colour's top border and line, so phones stay monochrome. */
+  .people-profile-page-phone .people-detail-panel,
+  .people-profile-page-phone .people-detail-panel.team-colored {
     width: 100%;
     min-width: 0;
     border: 0;
     background: transparent;
+    box-shadow: none;
     overflow: visible;
   }
 
