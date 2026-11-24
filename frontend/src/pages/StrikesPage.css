@@ -1077,16 +1077,20 @@
     text-underline-offset: 3px;
   }
 
-  /* The person's other strikes: a label, one row per strike (opening it in
-     place of this one), then the profile as a row like a link. */
+  /* The person's other strikes in one box: a label, one row per strike
+     (opening it in place of this one), then a note and a full-width
+     "View employee strikes" button, named as on desktop. */
   .strike-phone-person {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     margin-top: 8px;
+    padding: 14px;
+    border: 1px solid #333333;
+    background: #0D0D0D;
   }
 
   .strike-phone-person h4 {
-    margin: 0 0 6px;
+    margin: 0 0 10px;
     color: #999999;
     font-size: 11px;
     font-weight: 700;
@@ -1095,15 +1099,20 @@
     text-transform: uppercase;
   }
 
+  /* When the box holds only the label, its padding stays even. */
+  .strike-phone-person h4:last-child {
+    margin-bottom: 0;
+  }
+
   .strike-phone-person-list {
     margin: 0;
     padding: 0;
     list-style: none;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid #333333;
   }
 
   .strike-phone-person-list > li {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #333333;
   }
 
   .strikes-page-phone .strike-phone-person-row {
@@ -1137,40 +1146,34 @@
     color: #999999;
   }
 
-  .strike-phone-person-list + .strike-phone-employee {
-    border-top: 0 !important;
+  .strikes-page-phone .strike-phone-employee-note {
+    margin: 12px 0 0;
+    color: #999999;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .strike-phone-person h4 + .strike-phone-employee-note {
+    margin-top: 0;
   }
 
   .strikes-page-phone .strike-phone-employee {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    width: 100%;
     min-height: 44px;
-    padding: 0;
-    border: 0;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
+    margin: 10px 0 0;
+    padding: 0 14px;
+    border: 1px solid #FFFFFF;
     border-radius: 0;
     background: transparent;
     color: #FFFFFF;
     font-size: 13px !important;
-    text-align: left;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
   }
 
-  .strike-phone-employee > span:first-child {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .strike-phone-chevron {
-    flex: none;
-    width: 8px;
-    height: 8px;
-    margin-right: 2px;
-    border-top: 2px solid #666666;
-    border-right: 2px solid #666666;
-    transform: rotate(45deg);
+  .strike-phone-employee:active {
+    background: #1A1A1A;
   }
 
   /* Void: a quiet link at the bottom. It still asks for a reason. */
