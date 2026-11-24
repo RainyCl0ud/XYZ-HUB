@@ -1,0 +1,423 @@
+/* =========================================================
+   RULES ON PHONES (24 Nov 2026)
+   At 720px and below the page shows search with one small "⋯" menu
+   (Add rule, Rule settings, Archived rules), one row per rule, and a
+   rule screen with Edit in its top bar and Archive as a link at the
+   bottom. Desktop keeps the header, card, table and windows.
+   ========================================================= */
+
+.rules-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  /* ---------- Search and the ⋯ menu ---------- */
+
+  .rules-phone-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  /* 16px so iPhones don't zoom in when the field gets focus. */
+  .rules-page-phone .rules-phone-toolbar .search-input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  .rule-phone-menu {
+    position: relative;
+    flex: none;
+  }
+
+  .rules-page-phone .rule-phone-menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--surface);
+    color: #FFFFFF;
+    font-size: 20px !important;
+    line-height: 1;
+  }
+
+  .rule-phone-menu-button[aria-expanded="true"] {
+    border-color: #FFFFFF;
+  }
+
+  .rule-phone-menu-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 20;
+    display: grid;
+    width: 210px;
+    border: 1px solid #666666;
+    background: #141414;
+  }
+
+  .rules-page-phone .rule-phone-menu-item {
+    min-height: 44px;
+    padding: 0 14px;
+    border: 0;
+    border-top: 1px solid #333333;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    font-size: 13px !important;
+    text-align: left;
+  }
+
+  .rule-phone-menu-item:first-child {
+    border-top: 0;
+  }
+
+  .rule-phone-menu-item:active {
+    background: #1A1A1A;
+  }
+
+  .rule-phone-menu-button:focus-visible,
+  .rule-phone-back:focus-visible,
+  .rule-phone-bar-action:focus-visible,
+  .rule-phone-history:focus-visible,
+  .rule-phone-archive:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: 2px;
+  }
+
+  .rule-phone-menu-item:focus-visible,
+  .rule-phone-row:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: -4px;
+  }
+
+  /* ---------- One row per rule ---------- */
+
+  .rule-phone-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .rule-phone-list > li + li {
+    border-top: 1px solid var(--border);
+  }
+
+  .rules-page-phone .rule-phone-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 56px;
+    margin: 0;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .rule-phone-row:active {
+    background: #1A1A1A;
+  }
+
+  .rule-phone-row-text {
+    display: grid;
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .rule-phone-row-title {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .rule-phone-row-meta {
+    color: #8E8E8E;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  .rule-phone-row-chevron {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-right: 2px;
+    border-top: 2px solid #666666;
+    border-right: 2px solid #666666;
+    transform: rotate(45deg);
+  }
+
+  .rules-page-phone .compact-table-pagination {
+    margin-top: 12px;
+    padding: 0;
+    border: 0;
+  }
+
+  .rules-page-phone .compact-table-pagination .secondary-button {
+    min-height: 44px;
+    font-size: 13px !important;
+  }
+
+  .rules-page-phone .compact-table-pagination > span,
+  .rules-page-phone .compact-table-pagination strong {
+    color: #999999;
+    font-size: 13px;
+  }
+
+  /* Notices and the empty list reach 13px, above the site-wide 12px rule. */
+  .rules-page-phone .alert,
+  .rules-page-phone .empty-state span {
+    font-size: 13px !important;
+  }
+
+  /* ---------- The rule screen ---------- */
+
+  .rules-page-phone .rule-phone-screen-backdrop {
+    align-items: stretch;
+    padding: 0;
+    background: #000000;
+  }
+
+  .rule-phone-screen {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #000000;
+  }
+
+  .rule-phone-screen-bar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 56px;
+    padding: 6px;
+    border-bottom: 1px solid var(--border);
+    background: #000000;
+  }
+
+  .rules-page-phone .rule-phone-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+  }
+
+  .rule-phone-back-arrow {
+    width: 11px;
+    height: 11px;
+    border-bottom: 2px solid currentColor;
+    border-left: 2px solid currentColor;
+    transform: translateX(2px) rotate(45deg);
+  }
+
+  .rule-phone-screen-kicker {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  /* Edit: a word in the top bar, with a 44px tap area. */
+  .rules-page-phone .rule-phone-bar-action {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    font-size: 15px !important;
+    font-weight: 700;
+  }
+
+  .rule-phone-screen-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 18px 16px 32px;
+  }
+
+  .rule-phone-screen-body h3 {
+    margin: 0;
+    color: #FFFFFF;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .rules-page-phone .rule-phone-definition {
+    margin: 0;
+    color: #CCCCCC;
+    font-size: 13px !important;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .rule-phone-facts {
+    margin: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .rule-phone-facts > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rule-phone-facts dt {
+    flex: none;
+    color: #999999;
+    font-size: 13px;
+  }
+
+  .rule-phone-facts dd {
+    margin: 0;
+    color: #FFFFFF;
+    font-size: 13px;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  /* Version history: one row, under the facts. */
+  .rules-page-phone .rule-phone-history {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    margin-top: -16px;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    color: #FFFFFF;
+    font-size: 13px !important;
+    text-align: left;
+  }
+
+  /* Archive: a quiet link at the bottom, away from Edit. */
+  .rules-page-phone .rule-phone-archive {
+    justify-self: center;
+    min-height: 44px;
+    margin-top: 16px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #999999;
+    font-size: 13px !important;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* ---------- Archived rules and version history ---------- */
+
+  .rules-page-phone .modal-backdrop:has(> .modal-history) {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .rules-page-phone .modal-backdrop > .modal-history {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  /* "Version 2" and "Archived" tags: the Hub's small uppercase label size. */
+  .rules-page-phone .history-item .version-badge,
+  .rules-page-phone .history-item .status-badge {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .rules-page-phone .history-item .table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rules-page-phone .history-item .table-actions .text-button {
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 13px !important;
+  }
+
+  /* ---------- Add rule, new version and confirmation ---------- */
+
+  .rules-page-phone .modal-close {
+    width: 44px;
+    height: 44px;
+    margin: -8px -10px 0 0;
+    font-size: 22px !important;
+  }
+
+  .rules-page-phone .modal-header p,
+  .rules-page-phone .modal .form-field > span,
+  .rules-page-phone .modal .form-helper,
+  .rules-page-phone .confirmation-body,
+  .rules-page-phone .confirmation-body > p,
+  .rules-page-phone .history-definition,
+  .rules-page-phone .history-meta,
+  .rules-page-phone .history-item time {
+    font-size: 13px !important;
+  }
+
+  .rules-page-phone .modal .form-field input,
+  .rules-page-phone .modal .form-field select,
+  .rules-page-phone .modal .form-field textarea {
+    font-size: 16px !important;
+  }
+
+  .rules-page-phone .modal .form-field input,
+  .rules-page-phone .modal .form-field select {
+    min-height: 44px;
+  }
+
+  .rules-page-phone .modal-actions > button {
+    flex: 1;
+    min-height: 44px;
+    font-size: 13px !important;
+  }
+}

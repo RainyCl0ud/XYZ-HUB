@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -30,6 +31,19 @@ import {
 import {
   getPortalCapabilities,
 } from "../auth/portalAccess";
+
+import {
+  RulePhoneList,
+  RulePhoneMenu,
+  RulePhoneScreen,
+} from "../components/RulePhoneViews";
+
+import {
+  PHONE_QUERY,
+  useMediaQuery,
+} from "../lib/useMediaQuery";
+
+import "./RulesPage.css";
 
 type RuleVersion = {
   id: string;
@@ -242,6 +256,25 @@ function RulesPage() {
     useState<PendingConfirmation | null>(
       null
     );
+
+  const isPhone =
+    useMediaQuery(PHONE_QUERY);
+
+  const [
+    phoneMenuOpen,
+    setPhoneMenuOpen,
+  ] = useState(false);
+
+  const [
+    phoneRuleId,
+    setPhoneRuleId,
+  ] = useState<string | null>(null);
+
+  const phoneBackRef =
+    useRef<HTMLButtonElement>(null);
+
+  const phoneReturnFocusId =
+    useRef<string | null>(null);
 
   /*
    * =========================================================
@@ -1050,76 +1083,244 @@ function RulesPage() {
    * =========================================================
    */
 
-  return (
-    <div className="page">
-      <header className="page-header">
-        <div>
-          <p className="page-eyebrow">
-            Policy Management
-          </p>
+  // Shared by both layouts.
+  const searchInput = (
+    <input
+      className="search-input"
+      type="search"
+      value={search}
+      onChange={(event) =>
+        setSearch(
+          event.target.value
+        )
+      }
+      placeholder="Search active rules..."
+      aria-label="Search active rules"
+    />
+  );
 
-          <h2>
-            Quality & Incidents Rules
-          </h2>
-
-          <p className="page-description">
-            Configure quality standards, incident policies, and enforcement rules.
-          </p>
-        </div>
-
-        <div className="toolbar-controls">
-          <button
-            className="primary-button"
-            type="button"
-            hidden={
-              !canManageRules
-            }
-            onClick={
-              openAddRule
-            }
-          >
-            Add Rule
-          </button>
-
-          <button
-            className="secondary-button"
-            type="button"
-            hidden={
-              !canManageRules
-            }
-            onClick={() =>
+  // Phones: Add rule, Rule settings and Archived rules sit in one small menu.
+  const phoneMenuItems = [
+    ...(canManageRules
+      ? [
+          {
+            key: "add",
+            label: "Add rule",
+            onSelect: openAddRule,
+          },
+          {
+            key: "settings",
+            label: "Rule settings",
+            onSelect: () =>
               navigate(
                 "/rules/settings"
-              )
-            }
-            aria-label="Rule settings"
-            title="Rule settings"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              aria-hidden="true"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              ),
+          },
+        ]
+      : []),
+    {
+      key: "archived",
+      label: `Archived rules (${archivedRules.length})`,
+      onSelect: openArchivedRules,
+    },
+  ];
+
+  // Phones: the rule open on its own screen, while it is still active.
+  const phoneRule =
+    isPhone && phoneRuleId
+      ? activeRules.find(
+          (rule) =>
+            rule.id === phoneRuleId
+        ) ?? null
+      : null;
+
+  const phoneRuleOpenId =
+    phoneRule?.id ?? null;
+
+  const anotherWindowOpen =
+    showRuleModal ||
+    showArchivedRules ||
+    Boolean(historyRule) ||
+    historyLoading ||
+    Boolean(pendingConfirmation);
+
+  // An archived rule leaves the active list, so its screen closes.
+  useEffect(() => {
+    if (
+      phoneRuleId &&
+      !isLoading &&
+      !activeRules.some(
+        (rule) =>
+          rule.id === phoneRuleId
+      )
+    ) {
+      setPhoneRuleId(null);
+    }
+  }, [
+    phoneRuleId,
+    isLoading,
+    activeRules,
+  ]);
+
+  // Focus goes to Back when the rule screen opens (or a window over it
+  // closes), and back to the rule's row once the screen closes.
+  useEffect(() => {
+    if (anotherWindowOpen) {
+      return;
+    }
+
+    if (phoneRuleOpenId) {
+      phoneBackRef.current?.focus();
+      return;
+    }
+
+    const id =
+      phoneReturnFocusId.current;
+
+    if (!id) {
+      return;
+    }
+
+    phoneReturnFocusId.current = null;
+
+    // An archived rule has left the list; focus the ⋯ button instead
+    // (not the search, which would bring up the phone's keyboard).
+    const row =
+      Array.from(
+        document.querySelectorAll<HTMLButtonElement>(
+          ".rule-phone-row"
+        )
+      ).find(
+        (candidate) =>
+          candidate.dataset.ruleId === id
+      );
+
+    (
+      row ??
+      document.querySelector<HTMLButtonElement>(
+        ".rule-phone-menu-button"
+      )
+    )?.focus();
+  }, [
+    phoneRuleOpenId,
+    anotherWindowOpen,
+  ]);
+
+  // Escape closes the rule screen when nothing is open over it.
+  useEffect(() => {
+    if (
+      !phoneRuleOpenId ||
+      anotherWindowOpen
+    ) {
+      return;
+    }
+
+    const closeOnEscape = (
+      event: KeyboardEvent
+    ) => {
+      if (event.key === "Escape") {
+        setPhoneRuleId(null);
+      }
+    };
+
+    document.addEventListener(
+      "keydown",
+      closeOnEscape
+    );
+
+    return () =>
+      document.removeEventListener(
+        "keydown",
+        closeOnEscape
+      );
+  }, [
+    phoneRuleOpenId,
+    anotherWindowOpen,
+  ]);
+
+  // The rule screen and the ⋯ menu belong to the phone layout: widening
+  // past 720px closes them, so they don't reappear unasked later.
+  useEffect(() => {
+    if (!isPhone) {
+      setPhoneRuleId(null);
+      setPhoneMenuOpen(false);
+    }
+  }, [isPhone]);
+
+  return (
+    <div className={`page rules-page${isPhone ? " rules-page-phone" : ""}`}>
+      {isPhone ? (
+        <h2 className="rules-sr-only">Quality & Incidents Rules</h2>
+      ) : (
+        <header className="page-header">
+          <div>
+            <p className="page-eyebrow">
+              Policy Management
+            </p>
+
+            <h2>
+              Quality & Incidents Rules
+            </h2>
+
+            <p className="page-description">
+              Configure quality standards, incident policies, and enforcement rules.
+            </p>
+          </div>
+
+          <div className="toolbar-controls">
+            <button
+              className="primary-button"
+              type="button"
+              hidden={
+                !canManageRules
+              }
+              onClick={
+                openAddRule
+              }
             >
-              <circle
-                cx="12"
-                cy="12"
-                r="3"
-              />
+              Add Rule
+            </button>
 
-              <path
-                d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z"
-              />
-            </svg>
+            <button
+              className="secondary-button"
+              type="button"
+              hidden={
+                !canManageRules
+              }
+              onClick={() =>
+                navigate(
+                  "/rules/settings"
+                )
+              }
+              aria-label="Rule settings"
+              title="Rule settings"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                aria-hidden="true"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="3"
+                />
 
-          </button>
-        </div>
-      </header>
+                <path
+                  d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z"
+                />
+              </svg>
+
+            </button>
+          </div>
+        </header>
+      )}
 
       {pageError && (
         <div className="alert alert-error page-alert">
@@ -1127,47 +1328,52 @@ function RulesPage() {
         </div>
       )}
 
-      <section className="content-card">
-        <div className="card-header rules-toolbar">
-          <div>
-            <h3>
-              Rule Records
-            </h3>
+      {/* While a rule's screen covers it, the list can't be reached by Tab or a screen reader. */}
+      <section
+        className={isPhone ? "rules-phone-records" : "content-card"}
+        inert={phoneRule ? true : undefined}
+      >
+        {isPhone ? (
+          <div className="rules-phone-toolbar">
+            {searchInput}
 
-            <p>
-              Editing a rule creates
-              a new version instead
-              of overwriting its
-              previous wording.
-            </p>
-          </div>
-
-          <div className="toolbar-controls">
-            <input
-              className="search-input"
-              type="search"
-              value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
-              }
-              placeholder="Search active rules..."
-              aria-label="Search active rules"
+            <RulePhoneMenu
+              open={phoneMenuOpen}
+              onOpenChange={setPhoneMenuOpen}
+              items={phoneMenuItems}
             />
-
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={
-                openArchivedRules
-              }
-            >
-              Archived (
-              {archivedRules.length})
-            </button>
           </div>
-        </div>
+        ) : (
+          <div className="card-header rules-toolbar">
+            <div>
+              <h3>
+                Rule Records
+              </h3>
+
+              <p>
+                Editing a rule creates
+                a new version instead
+                of overwriting its
+                previous wording.
+              </p>
+            </div>
+
+            <div className="toolbar-controls">
+              {searchInput}
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={
+                  openArchivedRules
+                }
+              >
+                Archived (
+                {archivedRules.length})
+              </button>
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="empty-state">
@@ -1188,6 +1394,18 @@ function RulesPage() {
                 : "Add a rule to begin building your active rule list."}
             </span>
           </div>
+        ) : isPhone ? (
+          <RulePhoneList
+            rules={paginatedRules}
+            onOpen={(rule) => {
+              phoneReturnFocusId.current =
+                rule.id;
+              setPhoneMenuOpen(false);
+              setPhoneRuleId(
+                rule.id
+              );
+            }}
+          />
         ) : (
           <div className="table-wrapper">
             <table className="data-table rules-table">
@@ -1410,6 +1628,43 @@ function RulesPage() {
           </div>
         )}
       </section>
+
+      {/* Phones: the open rule on its own screen. Windows below open over it. */}
+      {phoneRule && (
+        <RulePhoneScreen
+          rule={phoneRule}
+          backButtonRef={phoneBackRef}
+          onBack={() =>
+            setPhoneRuleId(null)
+          }
+          onEdit={
+            canManageRules
+              ? () =>
+                  void openEditRule(
+                    phoneRule
+                  )
+              : undefined
+          }
+          onHistory={() =>
+            void openHistory(
+              phoneRule
+            )
+          }
+          onArchive={
+            canManageRules
+              ? () =>
+                  requestRuleStatusChange(
+                    phoneRule
+                  )
+              : undefined
+          }
+          historyBusy={historyLoading}
+          archiveBusy={
+            actionId ===
+            phoneRule.id
+          }
+        />
+      )}
 
       {/* =====================================================
           ARCHIVED RULES
@@ -1640,7 +1895,7 @@ function RulesPage() {
                 <p>
                   {editingRule
                     ? "Saving these changes will create a new immutable version."
-                    : "Create a strike reason and its initial version."}
+                    : "Create a rule and its first version."}
                 </p>
               </div>
 

@@ -64,12 +64,13 @@ type AccessModelsResponse = {
     boolean;
 };
 
+// QA pages whose data follows the chosen creator, so they show the creator
+// picker and reload when it changes. Rules and Rule Settings are the same
+// for every creator, so they don't (24 Nov 2026).
 const QA_PATHS =
   new Set([
     "/incidents",
     "/chatters",
-    "/rules",
-    "/rules/settings",
   ]);
 
 const PAGE_TITLES:
