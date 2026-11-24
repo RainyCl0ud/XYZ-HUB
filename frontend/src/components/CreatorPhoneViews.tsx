@@ -169,27 +169,28 @@ export function CreatorPhoneScreen({
             <DateTile label="Created" value={creator.createdAt} />
             <DateTile label="Updated" value={creator.updatedAt} />
           </dl>
-
-          {(onRename || onChangeStatus) && (
-            <div className="creator-phone-actions">
-              {onRename && (
-                <button type="button" className="creator-phone-action" data-creator-action="rename" onClick={onRename}>
-                  Rename
-                </button>
-              )}
-              {onChangeStatus && (
-                <button
-                  type="button"
-                  className={`creator-phone-action${creator.isActive ? " is-danger" : ""}`}
-                  data-creator-action="status"
-                  onClick={onChangeStatus}
-                >
-                  {creator.isActive ? "Deactivate" : "Reactivate"}
-                </button>
-              )}
-            </div>
-          )}
         </div>
+
+        {/* Pinned to the bottom of the screen, within thumb reach. */}
+        {(onRename || onChangeStatus) && (
+          <div className="creator-phone-actions">
+            {onRename && (
+              <button type="button" className="creator-phone-action" data-creator-action="rename" onClick={onRename}>
+                Rename
+              </button>
+            )}
+            {onChangeStatus && (
+              <button
+                type="button"
+                className={`creator-phone-action${creator.isActive ? " is-danger" : ""}`}
+                data-creator-action="status"
+                onClick={onChangeStatus}
+              >
+                {creator.isActive ? "Deactivate" : "Reactivate"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -112,3 +112,16 @@ Staging itself was not checked signed in.
 3. Open Rename and cancel. Open Deactivate and cancel; it asks the same as on desktop. Don't confirm on a real creator.
 4. Back returns to the list.
 5. On a desktop, Creator Management looks as before.
+
+## Follow-up: buttons pinned to the bottom (25 November 2026)
+
+At Rainheart's request, a creator's Rename and Deactivate (or Reactivate) row now sits at the bottom of its screen, just above the footer, instead of under the tiles.
+
+- **Placement:** the row is the screen's last part, pinned to the bottom with a line above it. The screen fills the space above the footer, so the row is at the bottom even when there is little above it.
+- **Scrolling:** on short screens the tiles scroll under it while the top bar and the row stay put.
+- **Unchanged:** the buttons, their permissions and the windows they open.
+- **Checked on a local copy with fictional data:**
+  - At 375 × 812 the row sat at 685–754px, flush with the top of the footer.
+  - At 320 × 480 it was also flush with the footer.
+  - At 320 × 400 (content taller than the screen) it stayed at the bottom with the page scrolled to the top or the end.
+- `test:creators-phone` checks the row's place after the body, the sticky bottom, and the full-height screen.
