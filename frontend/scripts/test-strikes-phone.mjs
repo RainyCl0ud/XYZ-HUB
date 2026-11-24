@@ -43,10 +43,13 @@ try {
   const { StrikePhoneList, StrikePhoneScreen } = await vite.ssrLoadModule("/src/components/StrikePhoneViews.tsx");
   const StrikesPage = (await vite.ssrLoadModule("/src/pages/StrikesPage.tsx")).default;
 
+  // Rows drop the year for dates in the current year (Central time), so the
+  // fictional strikes are dated this year to keep the expected text stable.
+  const thisYear = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", year: "numeric" }).format(new Date());
   const strike = (overrides) => ({
     id: "fictional-1", status: "ACTIVE", userNameSnapshot: "Quinn Harper", userEmailSnapshot: "quinn.harper@example.test",
     reasonNameSnapshot: "Missed shift handover", reasonDescriptionSnapshot: null, details: "Fictional details.", evidenceUrl: null,
-    issuedAt: "2026-11-23T15:00:00.000Z", expiresAt: "2026-12-14T15:00:00.000Z", issuedByNameSnapshot: "Fictional Manager",
+    issuedAt: `${thisYear}-11-23T15:00:00.000Z`, expiresAt: "2026-12-14T15:00:00.000Z", issuedByNameSnapshot: "Fictional Manager",
     ladderVersion: 1, activeStrikeCountAfterIssue: 2, standingLabelSnapshot: "Final warning", deductionPercentSnapshot: 10,
     voidedAt: null, voidedByNameSnapshot: null, voidReason: null, ...overrides,
   });
@@ -66,20 +69,41 @@ try {
   pass("Phone rows: name, reason · date and status, each opening the strike");
 
   // 2. The strike screen.
-  const screen = (props, over = {}) => renderToStaticMarkup(createElement(StrikePhoneScreen, { strike: strike(over), onBack() {}, ...props }));
-  const full = screen({ onEmployeeStrikes() {}, onVoid() {} }, { evidenceUrl: "https://example.test/fictional", reasonDescriptionSnapshot: "Fictional reason." });
+  const screen = (props, over = {}) => renderToStaticMarkup(createElement(StrikePhoneScreen, { strike: strike(over), otherStrikes: [], onBack() {}, onOpenStrike() {}, ...props }));
+  const other = strike({ id: "fictional-4", status: "EXPIRED", reasonNameSnapshot: "Late reply to fans", issuedAt: `${thisYear}-11-20T15:00:00.000Z` });
+  const full = screen({ otherStrikes: [other], onEmployeeProfile() {}, onVoid() {} },{ evidenceUrl: "https://example.test/fictional", reasonDescriptionSnapshot: "Fictional reason." });
   assert.ok(full.includes('<div class="strike-phone-screen" role="dialog" aria-modal="true" aria-labelledby="strike-phone-screen-title">') && full.includes('<h3 id="strike-phone-screen-title">Quinn Harper</h3>'), "A dialog named by the person");
-  const order = ['aria-label="Back to strikes"', '<span class="strike-phone-screen-kicker">Strike</span>', ">Active</span>", '<p class="strike-phone-email">quinn.harper@example.test</p>', "<dt>Reason</dt><dd>Missed shift handover</dd>", "<dt>Standing</dt><dd>Final warning</dd>", "<dt>Deduction</dt><dd>10% deduction</dd>", "<dt>Strike</dt><dd>#2 at issue</dd>", "<dt>Issued</dt>", "<dt>Issued by</dt><dd>Fictional Manager</dd>", "<dt>Expires</dt>", "<dt>Ladder</dt><dd>v1</dd>", "<h4>Details</h4><p>Fictional details.</p>", "<h4>Reason at issue</h4>", 'href="https://example.test/fictional"', "All strikes for Quinn Harper", 'class="strike-phone-void-link">Void this strike</button>'].map((needle) => {
+  const order = ['aria-label="Back to strikes"', '<span class="strike-phone-screen-kicker">Strike</span>', ">Active</span>", '<p class="strike-phone-email">quinn.harper@example.test</p>', "<dt>Reason</dt><dd>Missed shift handover</dd>", "<dt>Standing</dt><dd>Final warning</dd>", "<dt>Deduction</dt><dd>10% deduction</dd>", "<dt>Strike</dt><dd>#2 at issue</dd>", "<dt>Issued</dt>", "<dt>Issued by</dt><dd>Fictional Manager</dd>", "<dt>Expires</dt>", "<dt>Ladder</dt><dd>v1</dd>", "<h4>Details</h4><p>Fictional details.</p>", "<h4>Reason at issue</h4>", 'href="https://example.test/fictional"', '<section class="strike-phone-person" aria-labelledby="strike-phone-person-title"><h4 id="strike-phone-person-title">Quinn Harper · 1 other strike</h4>', 'data-other-strike-id="fictional-4"', "<span>Employee profile</span>", 'class="strike-phone-void-link">Void this strike</button>'].map((needle) => {
     const at = full.indexOf(needle);
     assert.ok(at >= 0, `${needle} renders`);
     return at;
   });
-  assert.deepEqual([...order].sort((a, b) => a - b), order, "Back and status in the bar; person; facts; details; evidence; all strikes; Void last");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "Back and status in the bar; person; facts; details; evidence; the person's other strikes and profile; Void last");
+  const otherRow = full.slice(full.indexOf("<button", full.indexOf('<ul class="strike-phone-person-list">')));
+  assert.equal(text(otherRow.slice(0, otherRow.indexOf("</button>"))), "Late reply to fans Nov 20 Expired", "Another strike's row: reason, date and status (no repeated name)");
+  assert.ok(screen({ otherStrikes: [other, strike({ id: "fictional-5" })] }).includes(">Quinn Harper · 2 other strikes</h4>"), "The label counts the other strikes");
+  // Tapping another strike opens it. The screen component has no hooks, so its tree can be walked.
+  const find = (node, test) => {
+    if (!node || typeof node !== "object") return null;
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        const hit = find(child, test);
+        if (hit) return hit;
+      }
+      return null;
+    }
+    if (test(node)) return node;
+    return find(node.props?.children, test);
+  };
+  const openedOther = [];
+  const screenTree = StrikePhoneScreen({ strike: strike({}), otherStrikes: [other], onBack() {}, onOpenStrike: (row) => openedOther.push(row.id) });
+  find(screenTree, (el) => el.props?.["data-other-strike-id"] === "fictional-4").props.onClick();
+  assert.deepEqual(openedOther, ["fictional-4"], "Tapping another strike opens it in place");
   const viewer = screen({});
-  assert.ok(!viewer.includes("Void this strike") && !viewer.includes("All strikes for") && viewer.includes("<dt>Deduction</dt><dd>10% deduction</dd>"), "Without permission (or a current account) there is no Void and no all-strikes row");
-  const voided = screen({ onEmployeeStrikes() {} }, { status: "VOIDED", deductionPercentSnapshot: 0, voidedAt: "2026-11-24T15:00:00.000Z", voidedByNameSnapshot: "Fictional Owner", voidReason: "Fictional void reason." });
+  assert.ok(!viewer.includes("Void this strike") && !viewer.includes("Employee profile") && viewer.includes(">Quinn Harper · No other strikes</h4>") && !viewer.includes("strike-phone-person-list") && viewer.includes("<dt>Deduction</dt><dd>10% deduction</dd>"), "Without permission (or a current account) there is no Void and no profile row; the label says when there are no other strikes");
+  const voided = screen({ onEmployeeProfile() {} },{ status: "VOIDED", deductionPercentSnapshot: 0, voidedAt: "2026-11-24T15:00:00.000Z", voidedByNameSnapshot: "Fictional Owner", voidReason: "Fictional void reason." });
   assert.ok(voided.includes("<dt>Deduction</dt><dd>No deduction</dd>") && voided.includes('<section class="strike-phone-section strike-phone-void"><h4>Voided</h4>') && voided.includes("by Fictional Owner") && voided.includes("<p>Fictional void reason.</p>") && voided.includes(">Voided</span>"), "A voided strike shows when, by whom and why");
-  pass("Strike screen: status in the bar, the facts, details, all strikes, and Void as a link at the bottom");
+  pass("Strike screen: status in the bar, the facts, details, the person's other strikes, and Void as a link at the bottom");
 
   // 3. The page on a phone and on a desktop (a server render shows loading).
   const render = (isPhone, permissions) => {
@@ -116,7 +140,9 @@ try {
   assert.ok(/openStrikeFromHandoff =\s*useEffectEvent\([\s\S]{0,200}?phoneReturnFocusId\.current =\s*strike\.id;/.test(page), "A strike opened from a link (?strikeId=) also returns focus to its row");
   assert.ok(/label: "Issue strike",\s*onSelect: \(\) => \{[\s\S]{0,160}?phoneReturnFocusId\.current =\s*"issue";\s*void openIssueModal\(\);/.test(page), "After Issue strike closes, focus returns to ⋯");
   assert.ok(read("lib/useMediaQuery.ts").includes('export const PHONE_QUERY = "(max-width: 720px)";') && css.includes("@media (max-width: 720px) {"), "The layout switch and the phone styles use the same 720px breakpoint");
-  assert.ok(/onEmployeeStrikes=\{\s*selectedStrike\.currentUser &&\s*capabilities\.canViewPeopleProfiles\s*\?/.test(page), "All strikes for the person needs their current account and People access, as on desktop");
+  assert.ok(/onEmployeeProfile=\{\s*selectedStrike\.currentUser &&\s*capabilities\.canViewPeopleProfiles\s*\?\s*\(\) =>\s*openEmployeeStrikeProfile\(\s*selectedStrike,\s*true\s*\)/.test(page), "The profile row needs the person's current account and People access, as on desktop, and opens their Strikes tab");
+  assert.ok(/const phoneOtherStrikes =\s*useMemo\(\(\) => \{\s*if \(!phoneStrikeOpenId \|\| !selectedStrike\) \{\s*return \[\];\s*\}/.test(page) && /strike\.id !== selectedStrike\.id &&\s*\(selectedStrike\.userId\s*\?\s*strike\.userId === selectedStrike\.userId\s*:\s*!strike\.userId &&\s*strike\.userEmailSnapshot\.toLowerCase\(\) === email\)/.test(page) && /new Date\(b\.issuedAt\)\.getTime\(\) -\s*new Date\(a\.issuedAt\)\.getTime\(\)/.test(page), "Other strikes: the same account (or email once the account is gone), not this one, newest first, from the strikes already loaded");
+  assert.ok(/key=\{selectedStrike\.id\}\s*strike=\{selectedStrike\}\s*otherStrikes=\{phoneOtherStrikes\}/.test(page) && /onOpenStrike=\{\(strike\) =>\s*setSelectedStrike\(strike\)\s*\}/.test(page), "Opening another strike swaps the screen (a fresh one, scrolled to the top, focus on Back)");
   assert.ok(page.includes("{selectedStrike && isPhone && (") && page.includes("{selectedStrike && !isPhone && ("), "The same selected strike shows as a screen on phones and the window on desktop");
   assert.ok(/!isPhone &&\s*employeeFilter !==/.test(page) && /!isPhone &&\s*reasonFilter !==/.test(page), "Hidden Employee and Reason filters don't apply on phones");
   const focusEffect = page.slice(page.indexOf("  // Focus goes to Back when the strike screen opens"), page.indexOf("  // Escape closes the strike screen"));
@@ -155,7 +181,7 @@ try {
   }
   for (const hex of ours.match(/#[0-9a-f]{3,8}\b/gi) ?? []) assert.ok(["#000000", "#1A1A1A", "#FFFFFF", "#CCCCCC", "#999999", "#8E8E8E", "#666666", "#333333"].includes(hex.toUpperCase()), `Monochrome token only (${hex})`);
   assert.ok(!/box-shadow|gradient/.test(ours), "No shadows or gradients");
-  for (const selector of [".strikes-page-phone .strike-phone-row", ".strikes-page-phone .strikes-phone-tabs .filter-button", ".strikes-page-phone .strike-phone-employee", ".strikes-page-phone .strike-phone-void-link", ".strikes-page-phone .strike-phone-evidence", ".strikes-page-phone .strikes-pagination .secondary-button", ".strikes-page-phone .strikes-modal-footer > button"]) {
+  for (const selector of [".strikes-page-phone .strike-phone-row", ".strikes-page-phone .strike-phone-person-row",".strikes-page-phone .strikes-phone-tabs .filter-button", ".strikes-page-phone .strike-phone-employee", ".strikes-page-phone .strike-phone-void-link", ".strikes-page-phone .strike-phone-evidence", ".strikes-page-phone .strikes-pagination .secondary-button", ".strikes-page-phone .strikes-modal-footer > button"]) {
     assert.ok(/min-height: (44|52|56)px;/.test(rule(selector)), `44px tap height or more (${selector})`);
   }
   for (const selector of [".strikes-page-phone .strike-phone-back", ".strikes-page-phone .strikes-close"]) {

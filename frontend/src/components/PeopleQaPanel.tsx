@@ -13,7 +13,26 @@ import {
 
 import {
   formatCentralDateTime,
+  formatCentralShortDate,
 } from "../lib/time";
+
+import {
+  incidentStatusLabel,
+} from "../lib/incident-status";
+
+import {
+  strikeStatusLabel,
+} from "../lib/strike-status";
+
+import {
+  ProfilePhoneFacts,
+  ProfilePhonePager,
+  ProfilePhoneRecords,
+} from "./ProfilePhoneViews";
+
+import type {
+  ProfilePhoneTone,
+} from "./ProfilePhoneViews";
 
 
 type PeopleRecordView =
@@ -187,13 +206,40 @@ function formatStrikeStatus(
 }
 
 
+// Phones: Active / Open read strongest, Expired / Resolved grey, Voided dim.
+function recordTone(
+  status:
+    | "ACTIVE"
+    | "EXPIRED"
+    | "OPEN"
+    | "RESOLVED"
+    | "VOIDED"
+): ProfilePhoneTone {
+  if (
+    status === "ACTIVE" ||
+    status === "OPEN"
+  ) {
+    return "strong";
+  }
+
+  return status === "VOIDED"
+    ? "dim"
+    : "muted";
+}
+
+
 export default function PeopleQaPanel({
   personId,
   view,
+  layout = "desktop",
 }: {
   personId: string;
   view:
     PeopleRecordView;
+  /** Phones get plain lists in place of the cards and table. */
+  layout?:
+    | "phone"
+    | "desktop";
 }) {
   const navigate =
     useNavigate();
@@ -450,6 +496,94 @@ export default function PeopleQaPanel({
           <span>
             This employee does not currently have a linked QA profile.
           </span>
+        </div>
+      );
+    }
+
+    if (
+      layout === "phone"
+    ) {
+      return (
+        <div className="people-profile-phone-tab">
+          <ProfilePhoneFacts
+            facts={[
+              {
+                label: "Incidents",
+                value: qa.totalIncidentCount,
+              },
+              {
+                label: "QA profile",
+                value:
+                  qa.chatter.status === "ACTIVE"
+                    ? "Active"
+                    : "Inactive",
+              },
+            ]}
+          />
+
+          <ProfilePhoneRecords
+            heading={`History · ${qa.totalIncidentCount}`}
+            emptyText="No QA records yet."
+            records={qa.recentIncidents.map(
+              (incident) => ({
+                id: incident.id,
+                title: incident.ruleTitleSnapshot,
+                meta: [
+                  formatCentralShortDate(
+                    incident.occurredAt
+                  ),
+                  incident.severityNameSnapshot,
+                  incident.weightNameSnapshot,
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+                status: incidentStatusLabel(
+                  incident.status
+                ),
+                tone: recordTone(
+                  incident.status
+                ),
+              })
+            )}
+            onOpen={(id) =>
+              navigate(
+                `/incidents?incidentId=${encodeURIComponent(
+                  id
+                )}`
+              )
+            }
+          />
+
+          <ProfilePhonePager
+            label="Employee QA history pages"
+            page={qa.historyPage}
+            pageCount={Math.max(
+              1,
+              qa.historyPageCount
+            )}
+            disabled={loading}
+            onPrevious={() =>
+              setHistoryPage(
+                (current) =>
+                  Math.max(
+                    1,
+                    current - 1
+                  )
+              )
+            }
+            onNext={() =>
+              setHistoryPage(
+                (current) =>
+                  Math.min(
+                    Math.max(
+                      1,
+                      qa.historyPageCount
+                    ),
+                    current + 1
+                  )
+              )
+            }
+          />
         </div>
       );
     }
@@ -716,6 +850,106 @@ export default function PeopleQaPanel({
     );
   }
 
+
+  if (
+    layout === "phone"
+  ) {
+    const summary =
+      qa.strikeSummary;
+
+    const pageCount =
+      Math.max(
+        1,
+        history.pageCount
+      );
+
+    return (
+      <div className="people-profile-phone-tab">
+        <ProfilePhoneFacts
+          facts={[
+            {
+              label: "Standing",
+              value: summary.standingLabel,
+            },
+            {
+              label: "Active strikes",
+              value: summary.activeStrikeCount,
+            },
+            {
+              label: "Deduction",
+              value: `${formatPercent(
+                summary.deductionPercent
+              )}%`,
+            },
+            {
+              label: "Next expiry",
+              value: summary.nextExpiryAt
+                ? formatCentralDateTime(
+                    summary.nextExpiryAt
+                  )
+                : "—",
+            },
+            {
+              label: "Ladder",
+              value: `v${summary.ladderVersion}`,
+            },
+          ]}
+        />
+
+        <ProfilePhoneRecords
+          heading={`History · ${history.total}`}
+          emptyText="No strikes yet."
+          records={history.records.map(
+            (strike) => ({
+              id: strike.id,
+              title: strike.reasonNameSnapshot,
+              meta: `${formatCentralShortDate(
+                strike.issuedAt
+              )} · ${strike.standingLabelSnapshot}`,
+              status: strikeStatusLabel(
+                strike.status
+              ),
+              tone: recordTone(
+                strike.status
+              ),
+            })
+          )}
+          onOpen={(id) =>
+            navigate(
+              `/strikes?strikeId=${encodeURIComponent(
+                id
+              )}`
+            )
+          }
+        />
+
+        <ProfilePhonePager
+          label="Employee Strike history pages"
+          page={history.page}
+          pageCount={pageCount}
+          disabled={loading}
+          onPrevious={() =>
+            setStrikeHistoryPage(
+              (current) =>
+                Math.max(
+                  1,
+                  current - 1
+                )
+            )
+          }
+          onNext={() =>
+            setStrikeHistoryPage(
+              (current) =>
+                Math.min(
+                  pageCount,
+                  current + 1
+                )
+            )
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <section className="people-detail-section people-qa-section people-tab-record-section">

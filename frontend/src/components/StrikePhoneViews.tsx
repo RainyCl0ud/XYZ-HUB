@@ -2,7 +2,7 @@ import type { Ref } from "react";
 
 import { strikeStatusClass, strikeStatusLabel } from "../lib/strike-status";
 import type { StrikeStatus } from "../lib/strike-status";
-import { formatCentralDateTime } from "../lib/time";
+import { formatCentralDateTime, formatCentralShortDate } from "../lib/time";
 
 /*
  * Strike Management on phones (24 Nov 2026): one row per strike instead of
@@ -34,12 +34,6 @@ export type StrikePhoneDetail = StrikePhoneItem & {
   voidReason: string | null;
 };
 
-const shortDate = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Chicago",
-  month: "short",
-  day: "numeric",
-});
-
 function StatusTag({ status }: { status: StrikeStatus }) {
   return <span className={`${strikeStatusClass(status)} strike-phone-tag`}>{strikeStatusLabel(status)}</span>;
 }
@@ -65,7 +59,7 @@ export function StrikePhoneList<T extends StrikePhoneItem>({
             <span className="strike-phone-row-text">
               <span className="strike-phone-row-name">{strike.userNameSnapshot}</span>{" "}
               <span className="strike-phone-row-meta">
-                {strike.reasonNameSnapshot} · {shortDate.format(new Date(strike.issuedAt))}
+                {strike.reasonNameSnapshot} · {formatCentralShortDate(strike.issuedAt)}
               </span>
             </span>{" "}
             <StatusTag status={strike.status} />
@@ -76,18 +70,29 @@ export function StrikePhoneList<T extends StrikePhoneItem>({
   );
 }
 
-export function StrikePhoneScreen({
+function otherStrikesLabel(count: number) {
+  if (count === 0) return "No other strikes";
+  return count === 1 ? "1 other strike" : `${count} other strikes`;
+}
+
+export function StrikePhoneScreen<T extends StrikePhoneItem>({
   strike,
+  otherStrikes,
   backButtonRef,
   onBack,
-  onEmployeeStrikes,
+  onOpenStrike,
+  onEmployeeProfile,
   onVoid,
 }: {
   strike: StrikePhoneDetail;
+  /** The person's other strikes that this page can show, newest first. */
+  otherStrikes: T[];
   backButtonRef?: Ref<HTMLButtonElement>;
   onBack: () => void;
+  /** Opens one of the other strikes in place of this one. */
+  onOpenStrike: (strike: T) => void;
   /** Left out when the person's account is gone or People can't be viewed. */
-  onEmployeeStrikes?: () => void;
+  onEmployeeProfile?: () => void;
   /** Left out for people who can't void, and for voided strikes. */
   onVoid?: () => void;
 }) {
@@ -184,12 +189,40 @@ export function StrikePhoneScreen({
             </section>
           )}
 
-          {onEmployeeStrikes && (
-            <button type="button" className="strike-phone-employee" onClick={onEmployeeStrikes}>
-              <span>All strikes for {strike.userNameSnapshot}</span>
-              <span className="strike-phone-chevron" aria-hidden="true" />
-            </button>
-          )}
+          {/* The person's other strikes, so they can be read without leaving the page. */}
+          <section className="strike-phone-person" aria-labelledby="strike-phone-person-title">
+            <h4 id="strike-phone-person-title">
+              {strike.userNameSnapshot} · {otherStrikesLabel(otherStrikes.length)}
+            </h4>
+
+            {otherStrikes.length > 0 && (
+              <ul className="strike-phone-person-list">
+                {otherStrikes.map((other) => (
+                  <li key={other.id}>
+                    <button
+                      type="button"
+                      className={`strike-phone-person-row${other.status === "VOIDED" ? " strike-phone-person-row-voided" : ""}`}
+                      data-other-strike-id={other.id}
+                      onClick={() => onOpenStrike(other)}
+                    >
+                      <span className="strike-phone-row-text">
+                        <span className="strike-phone-person-reason">{other.reasonNameSnapshot}</span>{" "}
+                        <span className="strike-phone-row-meta">{formatCentralShortDate(other.issuedAt)}</span>
+                      </span>{" "}
+                      <StatusTag status={other.status} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {onEmployeeProfile && (
+              <button type="button" className="strike-phone-employee" onClick={onEmployeeProfile}>
+                <span>Employee profile</span>
+                <span className="strike-phone-chevron" aria-hidden="true" />
+              </button>
+            )}
+          </section>
 
           {onVoid && (
             <button type="button" className="strike-phone-void-link" onClick={onVoid}>
