@@ -913,11 +913,31 @@ function PeopleDetailPage() {
         options?.capabilities.canDelete)
     );
 
-  // Which window is open. A choice in the Danger zone window swaps it for
-  // its confirmation in one step, so this names the window rather than
-  // just saying one is open.
+  // A live update can take the Danger zone away while its window is open
+  // (say, the account is deactivated elsewhere). Close it then, so it can't
+  // reopen by itself if the account later changes back.
+  useEffect(
+    () => {
+      if (
+        !showPhoneDangerZone
+      ) {
+        setShowDangerZone(
+          false
+        );
+      }
+    },
+    [
+      showPhoneDangerZone,
+    ]
+  );
+
+  // Which window is open, matching each window's own render condition so
+  // the profile is never left inert with nothing showing. A choice in the
+  // Danger zone window swaps it for its confirmation in one step, so this
+  // names the window rather than just saying one is open.
   const openWindow =
-    showRoleEditor
+    showRoleEditor &&
+    options?.capabilities.canAssignRoles
       ? "assignments"
       : showTeamEditor
         ? "team"
@@ -1783,6 +1803,7 @@ function PeopleDetailPage() {
                         type="button"
                         className="people-profile-phone-small-button"
                         data-profile-action="assignments"
+                        aria-label="Edit assignments"
                         onClick={() =>
                           openPhoneWindow(
                             "assignments"

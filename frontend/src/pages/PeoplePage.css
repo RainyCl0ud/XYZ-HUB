@@ -2216,7 +2216,7 @@
 
   .people-profile-phone-role {
     padding: 3px 7px;
-    border: 1px solid #555555;
+    border: 1px solid #666666;
     color: #CCCCCC;
     font-size: 11px;
     font-weight: 700;
@@ -2285,7 +2285,7 @@
     min-width: 0;
     padding: 12px;
     border: 1px solid #333333;
-    background: #111111;
+    background: #0D0D0D;
   }
 
   .people-profile-phone-tile dt {
@@ -2367,7 +2367,7 @@
     min-width: 0;
     padding: 14px;
     border: 1px solid #333333;
-    background: #111111;
+    background: #0D0D0D;
   }
 
   .people-profile-phone-team-card {
@@ -2431,7 +2431,7 @@
   .people-profile-phone-chips > li {
     min-width: 0;
     padding: 6px 10px;
-    border: 1px solid #555555;
+    border: 1px solid #666666;
     color: #FFFFFF;
     font-size: 13px;
     overflow-wrap: anywhere;
@@ -2472,8 +2472,8 @@
 
   .people-profile-page-phone .people-profile-phone-small-button:disabled,
   .people-profile-page-phone .people-profile-phone-card-button:disabled {
-    border-color: #555555;
-    color: #777777;
+    border-color: #333333;
+    color: #5C5C5C;
     cursor: default;
   }
 
@@ -2497,7 +2497,7 @@
   .people-profile-phone-table-head {
     min-height: 36px;
     border-bottom: 1px solid #333333;
-    background: #111111;
+    background: #0D0D0D;
   }
 
   .people-profile-phone-table-head > span {
@@ -2515,7 +2515,7 @@
   }
 
   .people-profile-phone-table li + li {
-    border-top: 1px solid #222222;
+    border-top: 1px solid #333333;
   }
 
   .people-profile-page-phone .people-profile-phone-table-row {
@@ -2655,7 +2655,7 @@
     border: 1px solid #333333;
     border-top: 2px solid #FFFFFF;
     border-radius: 0;
-    background: #111111;
+    background: #0D0D0D;
     color: #FFFFFF;
     text-align: left;
     cursor: pointer;

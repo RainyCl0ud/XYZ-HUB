@@ -56,6 +56,20 @@ Rainheart approved the drawn redesign, with three changes: no label or line on t
 - Who can see or change what, and every confirmation.
 - What the API returns. This is frontend only: no backend change, migration, flag or setting.
 
+## Review fixes
+
+An independent review found no permission or confirmation mismatch and no desktop change. These items from it are fixed:
+
+- **Danger zone after a live update:** if the Danger zone stops applying while its window is open (for example, someone else deactivates the account), the window now closes for good. Before, it could reopen by itself if the account changed back later.
+- **Edit assignments after losing permission:** if a live update removes your permission to assign roles while the editor is open, the profile no longer stays unreachable with nothing on screen. This bug was already in Staging, in code this release rewrote.
+- **Edit button name:** screen readers now hear the Overview "Edit" button as "Edit assignments".
+- **Palette:** the phone styles now use only the design reference's greys: surfaces `#0D0D0D`, separators `#333333`, borders `#666666` and disabled `#5C5C5C`.
+
+Two gaps remain. Both also exist in the phone windows from the earlier release:
+
+- Escape doesn't close the phone windows.
+- Tab can still reach the top bar and footer behind a window.
+
 ## How it's built
 
 - `components/ProfilePhoneViews.tsx`: `ProfilePhoneTiles`, `ProfilePhoneSectionHead`, `ProfilePhoneTable` and `ProfilePhonePager`. They replace the earlier facts list and history rows.
