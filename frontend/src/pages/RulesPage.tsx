@@ -1183,7 +1183,8 @@ function RulesPage() {
 
     phoneReturnFocusId.current = null;
 
-    // An archived rule has left the list; focus the search instead.
+    // An archived rule has left the list; focus the ⋯ button instead
+    // (not the search, which would bring up the phone's keyboard).
     const row =
       Array.from(
         document.querySelectorAll<HTMLButtonElement>(
@@ -1196,14 +1197,55 @@ function RulesPage() {
 
     (
       row ??
-      document.querySelector<HTMLInputElement>(
-        ".rules-phone-toolbar .search-input"
+      document.querySelector<HTMLButtonElement>(
+        ".rule-phone-menu-button"
       )
     )?.focus();
   }, [
     phoneRuleOpenId,
     anotherWindowOpen,
   ]);
+
+  // Escape closes the rule screen when nothing is open over it.
+  useEffect(() => {
+    if (
+      !phoneRuleOpenId ||
+      anotherWindowOpen
+    ) {
+      return;
+    }
+
+    const closeOnEscape = (
+      event: KeyboardEvent
+    ) => {
+      if (event.key === "Escape") {
+        setPhoneRuleId(null);
+      }
+    };
+
+    document.addEventListener(
+      "keydown",
+      closeOnEscape
+    );
+
+    return () =>
+      document.removeEventListener(
+        "keydown",
+        closeOnEscape
+      );
+  }, [
+    phoneRuleOpenId,
+    anotherWindowOpen,
+  ]);
+
+  // The rule screen and the ⋯ menu belong to the phone layout: widening
+  // past 720px closes them, so they don't reappear unasked later.
+  useEffect(() => {
+    if (!isPhone) {
+      setPhoneRuleId(null);
+      setPhoneMenuOpen(false);
+    }
+  }, [isPhone]);
 
   return (
     <div className={`page rules-page${isPhone ? " rules-page-phone" : ""}`}>
@@ -1286,7 +1328,11 @@ function RulesPage() {
         </div>
       )}
 
-      <section className={isPhone ? "rules-phone-records" : "content-card"}>
+      {/* While a rule's screen covers it, the list can't be reached by Tab or a screen reader. */}
+      <section
+        className={isPhone ? "rules-phone-records" : "content-card"}
+        inert={phoneRule ? true : undefined}
+      >
         {isPhone ? (
           <div className="rules-phone-toolbar">
             {searchInput}
@@ -1354,6 +1400,7 @@ function RulesPage() {
             onOpen={(rule) => {
               phoneReturnFocusId.current =
                 rule.id;
+              setPhoneMenuOpen(false);
               setPhoneRuleId(
                 rule.id
               );

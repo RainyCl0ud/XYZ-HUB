@@ -15,7 +15,7 @@ Rainheart found a first sketch still crowded, with buttons too big or in the wro
    - Rule settings
    - Archived rules (with the count)
 
-   A tap elsewhere, Escape, or choosing an action closes it. People who can only view rules see just Archived rules.
+   A tap elsewhere, tabbing out of it, Escape (while focus is in the menu), choosing an action, or opening a rule closes it. People who can only view rules see just Archived rules.
 2. **One row per rule:**
    - the rule's name
    - one grey line with the version, severity and weight, for example "v2 · Minor · Medium"
@@ -32,8 +32,11 @@ Rainheart found a first sketch still crowded, with buttons too big or in the wro
 - People who can only view rules get no Edit and no Archive.
 - **Keyboard and screen readers:**
   - The screen is a dialog named by the rule.
+  - While it's open, the list behind it can't be reached with Tab or a screen reader.
   - Focus moves to Back when it opens, and comes back to Back when a window over it closes.
-  - When the screen closes, focus returns to the rule's row, or to search if the rule was archived.
+  - Escape closes the screen, unless a window is open over it.
+  - When the screen closes, focus returns to the rule's row. If the rule was archived, focus goes to ⋯, not the search, which would bring up the keyboard.
+- **Widening past 720px** (rotating or resizing) closes the rule screen and the menu, so they don't reappear later.
 
 **Windows on phones:**
 
@@ -79,25 +82,24 @@ Rainheart found a first sketch still crowded, with buttons too big or in the wro
 ## Verification (local)
 
 - All 35 frontend suites, lint, the frontend build, and type checks with TypeScript 6.0.3 (as Railway builds) and 5.9.3.
-- **`test:rules-phone`** (new) renders, with fictional data:
-  - **Rows:**
-    - the name and grey line
-    - missing values are skipped
-    - screen readers hear the words apart
-    - each row opens its rule
-  - **The ⋯ menu:** closed and open states, the actions in order, and how it closes.
-  - **The rule screen:**
-    - dialog name and order
-    - Edit and Archive only for people who manage rules
-    - "None" for missing values, and history loading
-  - **The page as a phone and as a desktop** (a server render, so it shows the loading state).
-  - **The page's code:**
-    - menu permissions
-    - Edit and Archive reuse the existing form and confirmation
-    - the screen follows the latest version and closes on archive
-    - focus handling
-    - the corrected intro
-    - the creator picker leaving Rules
+- **`test:rules-phone`** (new), with fictional data. It renders some pieces and reads the code for the rest.
+  - **Rendered:**
+    - **Rows:** the name and grey line; missing values are skipped; screen readers hear the words apart; each row opens its rule.
+    - **The ⋯ menu:** closed and open, with the actions in order.
+    - **The rule screen:** dialog name and order; Edit and Archive only when given; "None" for missing values; history loading.
+    - **The page as a phone and as a desktop:** a server render, so only the loading state, not the rows. Desktop is also rendered for a view-only account, where Add Rule and the gear stay hidden.
+  - **Read from the code** (these can't run in a server render):
+    - How the menu closes: an outside tap only while open; Escape only with focus inside; Tab out; choosing an action; opening a rule.
+    - Menu permissions, and that Edit and Archive reuse the existing form and confirmation.
+    - The screen follows the latest version and closes on archive.
+    - Focus:
+      - nothing is taken from a window open over the screen
+      - Back gets focus, and focus later returns to the row or to ⋯
+      - Escape closes the screen
+      - the list behind is inert
+      - widening past 720px closes the screen and menu
+    - The corrected intro, and the creator picker leaving Rules.
+  - A deliberate breakage (removing the guard that keeps focus in a window open over the screen) was confirmed to fail it.
   - **Styles:**
     - 11px only for uppercase labels, 13px otherwise
     - monochrome, 44px targets and 16px fields
@@ -111,11 +113,15 @@ Rainheart found a first sketch still crowded, with buttons too big or in the wro
   - **Rule screen:**
     - Opening it focused Back.
     - Version history opened over it; closing it, or cancelling Edit, returned focus to Back. The Edit form had 16px fields and 44px buttons.
-    - Archiving asked to confirm, closed the screen, removed the rule from the list and moved focus to search. Reactivating it from Archived rules brought it back.
+    - Archiving asked to confirm, closed the screen and removed the rule from the list. Reactivating it from Archived rules brought it back. (Focus then went to search; after the review it goes to ⋯ instead.)
+  - **After the review fixes:**
+    - With a rule open, the rows behind it couldn't take focus, and Escape closed the screen and returned focus to the row.
+    - Tabbing out of the menu, either way, closed it, as did opening a rule.
+    - Widening to 1024px with a rule open, then back to 375px, didn't bring the screen back.
   - **Archived rules** filled the screen, with 44px History and Reactivate buttons.
   - **At 320px:** nothing runs past the right edge, the menu fits, and Back returned focus to the rule's row.
   - **At 1440px:** desktop matched Staging's HTML, as above, and has no creator picker on Rules.
-  - **View-only:** QC can't open Rules by default, so the view-only screen (no Edit or Archive) was checked in the automated test only.
+  - **View-only:** QC can't open Rules by default, so the view-only rule screen (no Edit or Archive) was checked only by rendering the screen on its own in the test. The phone menu's view-only items were checked only by reading the code.
 
   Staging itself was not checked signed in.
 

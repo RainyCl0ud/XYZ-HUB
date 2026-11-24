@@ -158,6 +158,7 @@
   .rule-phone-row-meta {
     color: #8E8E8E;
     font-size: 13px;
+    overflow-wrap: anywhere;
   }
 
   .rule-phone-row-chevron {

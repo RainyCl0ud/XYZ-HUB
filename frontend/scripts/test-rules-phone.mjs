@@ -75,7 +75,10 @@ try {
   const open = renderToStaticMarkup(createElement(RulePhoneMenu, { open: true, onOpenChange() {}, items }));
   assert.ok(open.includes('aria-expanded="true" aria-controls="rule-phone-menu-panel"') && open.includes('<div id="rule-phone-menu-panel" class="rule-phone-menu-panel"><button type="button" class="rule-phone-menu-item">Add rule</button><button type="button" class="rule-phone-menu-item">Rule settings</button><button type="button" class="rule-phone-menu-item">Archived rules (1)</button></div>'), "Open: the actions in order, right under the button");
   const views = read("components/RulePhoneViews.tsx");
-  assert.ok(views.includes('document.addEventListener("pointerdown", closeOutside);') && views.includes('if (event.key !== "Escape") return;') && views.includes("buttonRef.current?.focus();") && views.includes("onOpenChange(false);\n                item.onSelect();"), "A tap elsewhere, Escape (returning focus to ⋯) or choosing an action closes it");
+  const menuEffect = views.slice(views.indexOf("  useEffect(() => {\n    if (!open) return;"), views.indexOf("  }, [open, onOpenChange]);"));
+  assert.ok(menuEffect.length > 0 && menuEffect.includes('document.addEventListener("pointerdown", closeOutside);') && menuEffect.includes("if (!wrapRef.current?.contains(event.target as Node)) onOpenChange(false);"), "While open (and only then), a tap outside closes it");
+  assert.ok(menuEffect.includes('if (event.key !== "Escape" || !wrapRef.current?.contains(document.activeElement)) return;') && menuEffect.includes("buttonRef.current?.focus();"), "Escape closes it only while focus is in the menu, returning focus to ⋯ (so it never clears the search)");
+  assert.ok(views.includes("if (open && next && !event.currentTarget.contains(next)) onOpenChange(false);") && views.includes("onOpenChange(false);\n                item.onSelect();"), "Tabbing out of it, or choosing an action, closes it; a tap with no new focus target is left to the outside check");
   pass("The ⋯ menu: one 44px button that opens Add rule, Rule settings and Archived rules");
 
   // 3. The rule screen.
@@ -111,7 +114,9 @@ try {
   for (const kept of ['<div class="page rules-page"><header class="page-header">', '<p class="page-eyebrow">Policy Management</p>', ">Add Rule</button>", 'aria-label="Rule settings"', "Rule Records", '<section class="content-card">', ">Archived (0)</button>"]) {
     assert.ok(desktop.includes(kept), `Desktop keeps ${kept}`);
   }
-  assert.ok(!desktop.includes("rules-phone") && !desktop.includes("rule-phone"), "Desktop doesn't use the phone layout");
+  assert.ok(!desktop.includes("rules-phone") && !desktop.includes("rule-phone") && !desktop.includes("inert"), "Desktop doesn't use the phone layout");
+  const viewOnly = render(false, ["quality.access", "quality.rules.view"]);
+  assert.ok(/<button class="primary-button" type="button" hidden="">Add Rule<\/button>/.test(viewOnly) && /hidden=""[^>]*aria-label="Rule settings"/.test(viewOnly), "View-only on desktop: Add Rule and the gear stay hidden, as before");
   pass("Phones: search and ⋯, then the rules; desktop keeps its header, buttons, card and table");
 
   // 5. The page's code.
@@ -121,7 +126,13 @@ try {
   assert.ok(page.includes(") : isPhone ? (\n          <RulePhoneList\n            rules={paginatedRules}"), "Phones list the same page of rules as the table");
   assert.ok(/const phoneRule =\s*isPhone && phoneRuleId\s*\?\s*activeRules\.find\(/.test(page) && /!activeRules\.some\(\s*\(rule\) =>\s*rule\.id === phoneRuleId\s*\)\s*\)\s*\{\s*setPhoneRuleId\(null\);/.test(page), "The screen shows the rule's latest version, and closes once the rule is archived");
   assert.ok(page.indexOf("{phoneRule && (") < page.indexOf("{showArchivedRules && ("), "Archived rules, history, the form and the confirmation open over the rule screen");
-  assert.ok(page.includes("phoneBackRef.current?.focus();") && page.includes('candidate.dataset.ruleId === id') && page.includes('".rules-phone-toolbar .search-input"'), "Focus: Back when the screen opens, then the rule's row (or search, if it was archived)");
+  const focusEffect = page.slice(page.indexOf("  // Focus goes to Back when the rule screen opens"), page.indexOf("  // Escape closes the rule screen"));
+  assert.ok(/^[\s\S]*?useEffect\(\(\) => \{\s*if \(anotherWindowOpen\) \{\s*return;\s*\}\s*if \(phoneRuleOpenId\) \{\s*phoneBackRef\.current\?\.focus\(\);\s*return;\s*\}/.test(focusEffect), "Focus never leaves a window open over the screen; otherwise Back gets it while the screen is open");
+  assert.ok(focusEffect.includes("candidate.dataset.ruleId === id") && focusEffect.includes('".rule-phone-menu-button"') && !focusEffect.includes(".search-input") && /\}, \[\s*phoneRuleOpenId,\s*anotherWindowOpen,\s*\]\);/.test(focusEffect), "Once the screen closes, focus returns to the rule's row, or to ⋯ if it was archived (not the search, which would raise the keyboard)");
+  assert.ok(/if \(\s*!phoneRuleOpenId \|\|\s*anotherWindowOpen\s*\) \{\s*return;\s*\}\s*const closeOnEscape[\s\S]*?if \(event\.key === "Escape"\) \{\s*setPhoneRuleId\(null\);/.test(page), "Escape closes the rule screen, but not while a window is open over it");
+  assert.ok(/useEffect\(\(\) => \{\s*if \(!isPhone\) \{\s*setPhoneRuleId\(null\);\s*setPhoneMenuOpen\(false\);\s*\}\s*\}, \[isPhone\]\);/.test(page), "Widening past 720px closes the rule screen and menu, so they don't come back unasked");
+  assert.ok(page.includes('className={isPhone ? "rules-phone-records" : "content-card"}\n        inert={phoneRule ? true : undefined}'), "While a rule's screen is open, the list behind it is inert");
+  assert.ok(page.includes("rule.id;\n              setPhoneMenuOpen(false);\n              setPhoneRuleId("), "Opening a rule closes the menu");
   assert.ok(page.includes(': "Create a rule and its first version."}') && !page.includes("strike reason"), "The Add rule form describes a rule, not a strike reason");
   assert.ok(/const QA_PATHS =\s*new Set\(\[\s*"\/incidents",\s*"\/chatters",\s*\]\);/.test(layout), "Rules and Rule Settings no longer show the creator picker: they are the same for every creator");
   assert.ok(page.includes('import "./RulesPage.css";'), "The phone styles load with the page");

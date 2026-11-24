@@ -94,8 +94,10 @@ export function RulePhoneMenu({
     const closeOutside = (event: PointerEvent) => {
       if (!wrapRef.current?.contains(event.target as Node)) onOpenChange(false);
     };
+    // Escape only acts while focus is in the menu, so it never clears the
+    // search or moves focus from somewhere else.
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || !wrapRef.current?.contains(document.activeElement)) return;
       onOpenChange(false);
       buttonRef.current?.focus();
     };
@@ -108,7 +110,16 @@ export function RulePhoneMenu({
   }, [open, onOpenChange]);
 
   return (
-    <div className="rule-phone-menu" ref={wrapRef}>
+    <div
+      className="rule-phone-menu"
+      ref={wrapRef}
+      // Tabbing out of the menu closes it. A tap (no new focus target) is
+      // left to the outside-tap check, so Safari taps on an item still land.
+      onBlur={(event) => {
+        const next = event.relatedTarget as Node | null;
+        if (open && next && !event.currentTarget.contains(next)) onOpenChange(false);
+      }}
+    >
       <button
         ref={buttonRef}
         type="button"
